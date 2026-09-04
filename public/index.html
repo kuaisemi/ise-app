@@ -3352,7 +3352,7 @@ function renderSuggestionTab(){
         return `
         <div class="list-item">
           <div class="row-between">
-            <span class="meta">${isPresident() ? (s.anonymous ? `익명(${s.name})` : fmtAuthorBadge(s.name, s.studentId, 'student')) : (s.anonymous ? (isMine?'익명 (나)':'익명') : fmtAuthorBadge(s.name, s.studentId, 'student'))} · ${fmtDateTime(s.createdAt || s.date)}</span>
+            <span class="meta">${isPresident() ? (s.anonymous ? `익명(${escapeHtml(s.name)})` : fmtAuthorBadge(s.name, s.studentId, 'student')) : (s.anonymous ? (isMine?'익명 (나)':'익명') : fmtAuthorBadge(s.name, s.studentId, 'student'))} · ${fmtDateTime(s.createdAt || s.date)}</span>
             <div style="display:flex; gap:4px; align-items:center;">
               ${s.isPrivate ? `<span class="tag tag-red">비공개답변</span>` : ''}
               <span class="tag ${s.status==='답변완료'?'tag-teal':'tag-dim'}">${s.status}</span>
