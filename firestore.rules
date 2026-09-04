@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isCouncil() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role in ['council','director','vice','president','developer'];
+    }
+
+
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /timetables/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /shared/suggestions  { allow read, write: if isSignedIn(); }
+    match /shared/recruitments { allow read, write: if isSignedIn(); }
+    match /shared/polls        { allow read, write: if isSignedIn(); }
+    match /shared/usersList    { allow read, write: if isSignedIn(); }
+    match /shared/bugReports { allow read, write: if isSignedIn(); }
+    // 공지는 작성/수정/삭제는 클라이언트 UI에서 학생회로만 제한하지만, 학부생도 "좋아요"를
+    // 누를 때 이 문서에 같이 써야 해서 쓰기 자체는 로그인한 사람 모두에게 열어둔다.
+    // (suggestions/recruitments/polls도 같은 이유로 이미 열려있음 — 이 앱은 문서 단위 권한이라
+    // 필드 단위로 "좋아요만" 허용하는 세밀한 제어는 하지 않는, 클라이언트를 신뢰하는 모델)
+    match /shared/notices       { allow read, write: if isSignedIn(); }
+    match /shared/councilCode { allow read: if true; allow write: if isCouncil(); }
+
+    match /shared/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isCouncil();
+    }
+  }
+}
