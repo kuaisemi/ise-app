@@ -1277,8 +1277,10 @@ function boot(){
           trackUserPresence(state.user);
           setupPresenceHeartbeat();
           setupForegroundMessageListener();
+          // 첫 실행 안내(runNotificationOnboarding)를 아직 안 본 기기에서는 여기서 권한창을 띄우지 않는다.
+          // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
           const np = getNotifyPrefs();
-          if(np.notice || np.poll) ensurePushToken();
+          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.meal)) ensurePushToken();
           scheduleTimetableReminders();
           checkWeeklyAutoMealFetch();
           checkAutoDeptNoticeFetch();
@@ -1286,6 +1288,8 @@ function boot(){
         }catch(err){ console.error('부팅 오류', err); }
         renderApp();
         toast(`${state.user.name}님 환영합니다`);
+        // 화면이 그려진 뒤에 안내를 띄운다(부팅 중 흰 화면 위에 뜨는 것 방지)
+        setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
       } else {
         state.user = null;
         state.authMode = 'login';
@@ -1341,7 +1345,54 @@ async function setNotifyPref(key, value){
     scheduleTimetableReminders();
   }
 }
-async function ensurePushToken(){
+// 앱을 처음 켰을 때 아무 설명 없이 OS 권한창부터 띄우면 반사적으로 거부당하기 쉽다.
+// OS 권한창은 한 번 거부되면 앱에서 다시 띄울 수 없으므로(설정 앱에 직접 들어가야 함),
+// 먼저 앱 안에서 무엇을 보내는지 설명하고 동의한 사람만 실제 권한창으로 넘긴다.
+async function runNotificationOnboarding(){
+  if(!state.user) return;
+  if(localGet('notif_onboarded', false)) return;
+
+  const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+  const ok = await showConfirm(
+    '알림을 받아보시겠어요?\n\n· 새로운 공지\n· 투표 시작 · 마감 알림\n· 오늘의 학식 (조식 / 중식 / 석식)' + (isNative ? '\n· 오늘의 시간표 (평일 아침)' : '') + '\n\n필요한 항목만 MY 탭 ⚙️환경설정에서 따로 켜고 끌 수 있어요.',
+    { okLabel:'알림 받기', cancelLabel:'나중에', danger:false }
+  );
+  localSet('notif_onboarded', true);
+
+  if(!ok){
+    // "나중에"를 고르면 서버 발송 대상에서 빼둔다. 설정에서 언제든 다시 켤 수 있음.
+    await setNotifyPref('notice', false);
+    await setNotifyPref('poll', false);
+    await setNotifyPref('meal', false);
+    return;
+  }
+
+  // 안드로이드 13+는 알림을 보내려면 POST_NOTIFICATIONS 런타임 권한이 필요한데,
+  // 이 권한창은 로컬 알림 플러그인의 requestPermissions()로 띄울 수 있다.
+  if(isNative){
+    const LN = Capacitor.Plugins && Capacitor.Plugins.LocalNotifications;
+    if(LN){ try{ await LN.requestPermissions(); }catch(e){} }
+  }
+
+  await setNotifyPref('notice', true);
+  await setNotifyPref('poll', true);
+  await setNotifyPref('meal', true);
+  if(isNative) await setNotifyPref('timetable', true);
+}
+
+// 토글 여러 개를 한꺼번에 켜면 그만큼 중복 호출되므로, 진행 중이거나 이미 성공한 등록은 재사용한다.
+// 실패한 경우엔 캐시를 비워서, 나중에 권한을 허용하고 다시 켰을 때 재시도할 수 있게 한다.
+let pushTokenPromise = null;
+function ensurePushToken(){
+  if(!pushTokenPromise){
+    pushTokenPromise = registerPushToken().then((okResult)=>{
+      if(!okResult) pushTokenPromise = null;
+      return okResult;
+    }, (err)=>{ pushTokenPromise = null; throw err; });
+  }
+  return pushTokenPromise;
+}
+async function registerPushToken(){
   if(!state.user) return false;
   if(!('Notification' in window) || !('serviceWorker' in navigator)) return false;
   if(!FCM_VAPID_KEY) return false; // 콘솔에서 VAPID 키를 아직 안 채운 경우 조용히 스킵
