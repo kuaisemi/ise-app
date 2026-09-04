@@ -308,15 +308,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
 .mypage-avatar{width:56px; height:56px; border-radius:16px; background:var(--surface-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--teal); flex-shrink:0;}
-.dev-card{position:relative; overflow:hidden; border:1px dashed var(--border-light);}
-.dev-card-corner{position:absolute; width:6px; height:6px; opacity:.5;}
-.dev-card-corner.tl{top:6px; left:6px; border-top:2px solid var(--teal); border-left:2px solid var(--teal);}
-.dev-card-corner.tr{top:6px; right:6px; border-top:2px solid var(--teal); border-right:2px solid var(--teal);}
-.dev-card-corner.bl{bottom:6px; left:6px; border-bottom:2px solid var(--teal); border-left:2px solid var(--teal);}
-.dev-card-corner.br{bottom:6px; right:6px; border-bottom:2px solid var(--teal); border-right:2px solid var(--teal);}
-.dev-card-title{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; font-family:var(--font-mono); letter-spacing:.02em; color:var(--teal); margin:0 0 6px 2px; text-transform:uppercase;}
-.dev-card-title svg{width:14px; height:14px; flex-shrink:0;}
-.dev-card-stats{display:flex; gap:12px; font-size:13.5px; font-family:var(--font-mono); color:var(--text-dim); margin:0 2px 8px;}
+.dev-card-title{display:flex; align-items:center; gap:6px; font-size:14px; font-weight:700; color:var(--text); margin:0 0 10px 2px;}
+.dev-card-title svg{width:15px; height:15px; flex-shrink:0; color:var(--text-dim);}
+.dev-card-stats{display:flex; gap:14px; font-size:13px; font-family:var(--font-mono); color:var(--text-dim); margin:0 2px 12px;}
 .dev-card-stats b{color:var(--teal); font-weight:800;}
 /* 알림 설정 한 줄 = [아이콘 + 제목/설명] ... [켜짐·꺼짐 버튼].
    아이콘과 글자 사이 간격은 gap으로 주고, 설명은 제목 아래로 내려 두 줄로 읽히게 한다. */
@@ -363,6 +357,8 @@ svg{vertical-align:-2px;}
 /* 인라인으로 흐르는 아이콘은 글자와 붙어 보이므로 약간의 여백을 준다.
    (flex+gap을 쓰는 .btn/.modal-title/.notify-label 등은 대상에서 제외 — 간격이 두 번 들어감) */
 .section-title > svg, .icon-inline > svg{margin-right:6px;}
+.icon-inline{display:flex; align-items:center;}
+.icon-inline > svg{flex-shrink:0; width:15px; height:15px;}
 .section-title > svg{color:inherit;}
 .modal-title-text{display:flex; align-items:center; gap:6px; min-width:0;}
 /* 아이콘이 들어가는 자리마다 글씨 크기가 달라서, 작은 글씨 옆에서는 아이콘도 같이 줄인다. */
@@ -3894,10 +3890,10 @@ function renderMypage(){
     ` : ''}
 
     ${isRawDeveloper() ? `
-    <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; border:1px dashed var(--teal);">
+    <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; background:var(--teal-glow-3);">
       <div style="min-width:0;">
-        <p class="icon-inline" style="margin:0; font-size:13.5px; font-weight:700;">${state.previewAsStudent ? `${ICON.eye} 학부 재학생 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
-        <p style="margin:2px 0 0; font-size:13.5px; color:var(--text-faint); line-height:1.4;">다른 학생들 눈에 보이는 화면을 그대로 미리 볼 수 있어요</p>
+        <p class="icon-inline" style="margin:0; font-size:14px; font-weight:700; color:var(--teal);">${state.previewAsStudent ? `${ICON.eye} 학부 재학생 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
+        <p style="margin:3px 0 0; font-size:13px; color:var(--text-faint); line-height:1.4;">다른 학생들 눈에 보이는 화면을 그대로 미리 볼 수 있어요</p>
       </div>
       <button type="button" class="btn ${state.previewAsStudent?'btn-primary':'btn-ghost'} btn-sm" style="width:auto; white-space:nowrap; flex-shrink:0;" data-action="toggle-preview-mode">${state.previewAsStudent?'개발자로 복귀':'학생 화면 보기'}</button>
     </div>` : ''}
@@ -3930,8 +3926,6 @@ function renderMypage(){
     </div>
 
     <div class="card dev-card">
-      <span class="dev-card-corner tl"></span><span class="dev-card-corner tr"></span>
-      <span class="dev-card-corner bl"></span><span class="dev-card-corner br"></span>
       <p class="dev-card-title">${ICON.chip} 개발자에게</p>
       <div class="dev-card-stats">
         <span>오늘 방문자 <b>${traffic.todayVisitors}</b>명</span>

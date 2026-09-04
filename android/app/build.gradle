@@ -18,7 +18,7 @@ android {
         // 새 APK를 배포할 때마다 versionCode를 올려야 한다. 같은 값으로 덮어 설치하면
         // 안드로이드가 "업데이트"가 아니라 "같은 버전 재설치"로 처리해서, 최근 앱 목록에
         // 남아있던 항목이 무효가 되거나 실행이 실패하는 문제가 생길 수 있다.
-        versionCode 9
+        versionCode 10
         versionName "Beta 0.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
