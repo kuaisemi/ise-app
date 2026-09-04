@@ -84,3 +84,6 @@ android/app/google-services.json
 *.keystore
 *.jks
 android/keystore.properties
+
+# 배포용 APK — 용량이 커서 git에 넣지 않음 (호스팅에만 업로드)
+public/*.apk

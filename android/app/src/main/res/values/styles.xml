@@ -11,16 +11,32 @@
         <item name="android:forceDarkAllowed">false</item>
     </style>
 
+    <!--
+      실제 앱 화면이 쓰는 테마(BridgeActivity가 onCreate에서 이 테마로 전환한다).
+
+      이전에는 android:background="@null"만 있고 창 배경(windowBackground)을 지정하지 않아
+      창이 불투명하다고 보장되지 않았고, 실제로 시스템이 이 앱 태스크를 translucent=true로
+      잡고 있었다. 반투명 태스크는 최근 앱 목록에서 복원이 실패할 수 있으므로,
+      불투명한 창 배경을 명시한다.
+    -->
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/appBackground</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowShowWallpaper">false</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
 
-
+    <!--
+      런처(스플래시) 테마. androidx core-splashscreen의 Theme.SplashScreen을 쓸 때는
+      스플래시가 끝난 뒤 전환될 테마를 postSplashScreenTheme으로 반드시 지정해야 하는데
+      그게 빠져 있었다.
+    -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="android:windowBackground">@drawable/splash</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:windowIsTranslucent">false</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

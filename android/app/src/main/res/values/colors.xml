@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      앱 창의 불투명 배경색. 웹뷰가 그려지기 전 아주 잠깐 보이는 색이라,
+      index.html의 다크 테마 배경(#000000)과 맞춰 깜빡임이 없도록 한다.
+    -->
+    <color name="appBackground">#000000</color>
+</resources>
