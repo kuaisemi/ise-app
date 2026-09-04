@@ -68,5 +68,40 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="vertical" />
+
+        <LinearLayout
+            android:id="@+id/cal_memo_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="6dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/cal_memo_divider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:src="@drawable/widget_bar"
+                android:scaleType="fitXY"
+                android:layout_marginBottom="7dp"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/cal_memo_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="오늘 할 일"
+                android:textSize="10.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/cal_memo_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:textSize="10.5sp" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

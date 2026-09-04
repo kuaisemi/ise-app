@@ -24,6 +24,11 @@ public class CalendarWidget extends BaseWidget {
     }
 
     @Override
+    protected String deepLinkTarget() {
+        return "examCal"; // 학사정보 > 학사 달력 탭
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         Calendar cal = Calendar.getInstance();
         int year = cal.get(Calendar.YEAR);
@@ -32,6 +37,19 @@ public class CalendarWidget extends BaseWidget {
 
         views.setTextViewText(R.id.cal_month, (month + 1) + "월");
         theme.sub(views, R.id.cal_month);
+
+        // "오늘 할 일" — 학사일정이 아니라 사용자가 직접 적은 오늘 메모만 보여준다 (설정에서 끌 수 있음).
+        JSONObject opts = data.optJSONObject("opts");
+        boolean showMemo = opts == null || opts.optBoolean("calendarShowMemo", true);
+        String memo = showMemo ? data.optString("memo", "") : "";
+        boolean hasMemo = memo != null && !memo.trim().isEmpty();
+        views.setViewVisibility(R.id.cal_memo_section, hasMemo ? View.VISIBLE : View.GONE);
+        if (hasMemo) {
+            views.setInt(R.id.cal_memo_divider, "setColorFilter", theme.divider);
+            theme.accent(views, R.id.cal_memo_label);
+            theme.sub(views, R.id.cal_memo_text);
+            views.setTextViewText(R.id.cal_memo_text, memo.replaceAll("\\s*\\r?\\n\\s*", " · "));
+        }
 
         // 일정/메모가 있는 날 — "YYYY-MM-DD" 문자열 배열
         JSONObject marked = data.optJSONObject("markedDates");

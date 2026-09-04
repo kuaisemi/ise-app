@@ -45,12 +45,24 @@ public abstract class BaseWidget extends AppWidgetProvider {
         theme.title(views, R.id.widget_title);
     }
 
-    /** 위젯을 누르면 앱 본체를 연다. */
+    /**
+     * 위젯 종류별로 눌렀을 때 앱의 어느 화면으로 바로 이동할지. null이면 그냥 홈 화면.
+     * 값은 웹(index.html)의 applyWidgetDeepLink()가 아는 키와 맞춰야 한다.
+     */
+    protected String deepLinkTarget() {
+        return null;
+    }
+
+    /** 위젯을 누르면 앱 본체를 연다 (deepLinkTarget이 있으면 해당 화면으로 바로 이동). */
     protected PendingIntent openAppIntent(Context ctx) {
         Intent intent = new Intent(ctx, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        String target = deepLinkTarget();
+        if (target != null) intent.putExtra(MainActivity.EXTRA_WIDGET_TARGET, target);
+        // 같은 target이라도 매번 새 PendingIntent로 취급해야 onNewIntent가 확실히 불린다.
+        int reqCode = target == null ? 0 : target.hashCode();
         return PendingIntent.getActivity(
-            ctx, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            ctx, reqCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
     }
 

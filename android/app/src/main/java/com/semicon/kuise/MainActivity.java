@@ -1,5 +1,6 @@
 package com.semicon.kuise;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 
@@ -12,6 +13,9 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    /** 위젯을 눌렀을 때 어느 화면으로 갈지 담아 보내는 인텐트 extra 키. */
+    static final String EXTRA_WIDGET_TARGET = "widget_target";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // 웹에서 홈 화면 위젯으로 데이터를 넘길 통로.
@@ -20,6 +24,24 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         disableAlgorithmicDarkening();
         setupStatusBar();
+
+        // 콜드 스타트(앱이 꺼져있다가 위젯 클릭으로 켜짐) — 웹뷰/JS가 아직 준비 안 됐을 수 있으니
+        // 플러그인에 값만 남겨두고, JS가 부팅 후 consumeDeepLink()로 직접 가져가게 한다.
+        String target = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_WIDGET_TARGET);
+        if (target != null) WidgetBridgePlugin.setPendingTarget(target);
+    }
+
+    /**
+     * 앱이 이미 떠 있는 상태(launchMode singleTop)에서 위젯을 다시 눌렀을 때 호출된다.
+     * 기본 Activity는 getIntent()를 자동으로 갱신하지 않으므로 setIntent로 직접 반영하고,
+     * JS가 이미 살아있다고 보고 이벤트로 즉시 알린다.
+     */
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String target = intent == null ? null : intent.getStringExtra(EXTRA_WIDGET_TARGET);
+        if (target != null) WidgetBridgePlugin.notifyDeepLink(target);
     }
 
     /**
