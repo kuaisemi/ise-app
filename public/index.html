@@ -106,8 +106,12 @@ a{color:inherit;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
 .field-row{display:flex; gap:10px;}
 .field-row .field{flex:1;}
-.signup-privacy-note{display:flex; align-items:flex-start; gap:6px; font-size:11.5px; line-height:1.55; color:var(--teal); font-weight:600; background:var(--teal-glow-3); border:1px solid var(--teal); border-radius:var(--radius-sm); padding:10px 11px; margin:2px 0 14px;}
-.signup-privacy-note svg{flex-shrink:0; width:14px; height:14px; margin-top:1px;}
+/* 회원가입 화면의 안내 문구. 테두리를 두르고 글자 전체를 강조색으로 칠하면 입력 필드보다
+   더 튀어서 오히려 읽히지 않으므로, 배경은 옅게 깔고 왼쪽 띠로만 구분한 뒤
+   본문은 읽기 편한 색으로 두고 핵심 문구 하나만 강조한다. */
+.signup-privacy-note{display:flex; align-items:flex-start; gap:7px; font-size:11.5px; line-height:1.7; color:var(--text-dim); background:var(--teal-glow-3); border-left:2px solid var(--teal); border-radius:0 var(--radius-sm) var(--radius-sm) 0; padding:11px 12px; margin:2px 0 14px;}
+.signup-privacy-note svg{flex-shrink:0; width:14px; height:14px; margin-top:2px; color:var(--teal);}
+.signup-privacy-note b{color:var(--teal); font-weight:700;}
 .role-toggle{display:flex; gap:8px; margin-bottom:14px;}
 .role-opt{flex:1; text-align:center; padding:11px 8px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:13px; font-weight:600; color:var(--text-dim); cursor:pointer; background:var(--surface-2);}
 .role-opt.active{border-color:var(--teal); color:var(--teal); background:var(--teal-glow);}
@@ -331,7 +335,18 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .meal-date{font-weight:800; font-size:15px;}
 .meal-block{margin-bottom:12px;}
 .meal-block:last-child{margin-bottom:0;}
-.meal-block .m-label{font-size:11.5px; font-weight:800; color:var(--amber); letter-spacing:.06em; margin-bottom:6px;}
+.meal-block .m-label{font-size:11.5px; font-weight:800; color:var(--amber); letter-spacing:.06em; margin-bottom:6px; display:flex; align-items:center; gap:5px;}
+/* 이모지 자리를 대체한 선 아이콘이 글줄에 얹혀 보이지 않도록 글자 높이에 맞춘다.
+   (이모지는 글자처럼 baseline에 놓이지만, 인라인 SVG는 baseline에 걸려 살짝 내려앉음)
+   .btn / .modal-title은 이미 flex+gap이라 여백을 따로 주지 않는다. */
+/* vertical-align은 flex 항목에는 적용되지 않으므로, 이 한 줄이 인라인으로 흐르는 아이콘에만
+   영향을 준다. (.btn/.modal-title 등 flex+gap 컨테이너는 그대로 유지됨) */
+svg{vertical-align:-2px;}
+.modal-title-text{display:flex; align-items:center; gap:6px; min-width:0;}
+/* 아이콘이 들어가는 자리마다 글씨 크기가 달라서, 작은 글씨 옆에서는 아이콘도 같이 줄인다. */
+.btn-comment-like svg, .btn-top-refresh svg{width:13px; height:13px;}
+.btn-like svg, .m-label svg, .section-title svg{width:14px; height:14px;}
+.notify-row svg{width:15px; height:15px;}
 .meal-block .m-text{font-size:13.5px; line-height:1.7; color:var(--text); white-space:pre-wrap;}
 .meal-line{display:flex; align-items:baseline; gap:7px; margin-bottom:5px;}
 .meal-line:last-child{margin-bottom:0;}
@@ -1358,7 +1373,7 @@ async function runNotificationOnboarding(){
 
   const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
   const ok = await showConfirm(
-    '알림을 받아보시겠어요?\n\n· 새로운 공지\n· 투표 시작 · 마감 알림\n· 오늘의 학식 (조식 / 중식 / 석식)' + (isNative ? '\n· 오늘의 시간표 (평일 아침)' : '') + '\n\n필요한 항목만 MY 탭 ⚙️환경설정에서 따로 켜고 끌 수 있어요.',
+    '알림을 받아보시겠어요?\n\n· 새로운 공지\n· 투표 시작 · 마감 알림\n· 오늘의 학식 (조식 / 중식 / 석식)' + (isNative ? '\n· 오늘의 시간표 (평일 아침)' : '') + '\n\n필요한 항목만 MY 탭 환경설정에서 따로 켜고 끌 수 있어요.',
     { okLabel:'알림 받기', cancelLabel:'나중에', danger:false }
   );
   localSet('notif_onboarded', true);
@@ -1617,6 +1632,27 @@ const ICON = {
   pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 0 0-5 5c0 3 2 4.5 3 7l-4 1v2h4v5l2 2 2-2v-5h4v-2l-4-1c1-2.5 3-4 3-7a5 5 0 0 0-5-5Z"/></svg>`,
   lock:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>`,
   trace:`<svg width="150" height="150" viewBox="0 0 150 150" fill="none"><path d="M0 40 H50 V10 H150 M0 90 H30 V130 H90 V150 M60 0 V25 H150 M20 150 V110 H0" stroke="currentColor" stroke-width="1.4"/><circle cx="50" cy="40" r="3" fill="currentColor"/><circle cx="30" cy="90" r="3" fill="currentColor"/><circle cx="90" cy="130" r="3" fill="currentColor"/><circle cx="60" cy="25" r="3" fill="currentColor"/></svg>`,
+  // 아래는 기존에 이모지로 쓰이던 자리를 대체하는 선 아이콘들. 위 아이콘들과 같은 규격
+  // (24 viewBox / currentColor / round cap)으로 그려서 테마 색과 글씨 크기를 그대로 따라간다.
+  ballot:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M8 10V3h8v7"/><path d="M10.5 6.5h3"/></svg>`,
+  bowl:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M2.5 21h19"/><path d="M9 7c0-1 1-1.4 1-2.5S9 3 9 3M14.5 7c0-1 1-1.4 1-2.5S14.5 3 14.5 3"/></svg>`,
+  bell:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 8-2.5 8h17S18 15 18 8.5"/><path d="M13.7 20.5a2 2 0 0 1-3.4 0"/></svg>`,
+  capHat:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4z"/><path d="M6 11v4.5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V11"/></svg>`,
+  tie:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2h5l-1.2 3.5h-2.6z"/><path d="M10.7 5.5 8.5 14 12 22l3.5-8-2.2-8.5"/></svg>`,
+  sunrise:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v3M5.5 8.2 7.4 10M18.5 8.2 16.6 10M2.5 17.5h19"/><path d="M8 14.5a4 4 0 0 1 8 0"/></svg>`,
+  sun:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>`,
+  moon:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.3A8.5 8.5 0 1 1 10.7 3.5a6.7 6.7 0 0 0 9.8 9.8z"/></svg>`,
+  refresh:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 3.5v6h-6"/></svg>`,
+  globe:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.2 9.5h17.6M3.2 14.5h17.6"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>`,
+  eye:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>`,
+  eyeOff:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.7 5.7A9.9 9.9 0 0 1 12 5.5c6.2 0 10 6.5 10 6.5a17.6 17.6 0 0 1-3.4 4.1M6.5 6.9A17.3 17.3 0 0 0 2 12s3.8 6.5 10 6.5a9.6 9.6 0 0 0 4.2-.95"/><path d="M3 3l18 18"/></svg>`,
+  thumbUp:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 21V10l4.5-7a2 2 0 0 1 2 2v4.5h5.2a1.8 1.8 0 0 1 1.8 2.1l-1.1 6.5A2 2 0 0 1 17.9 21z"/><path d="M7.5 10H4.2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3.3"/></svg>`,
+  doc:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"/><path d="M14 2.5v5h5"/><path d="M8.5 13h7M8.5 16.5h4.5"/></svg>`,
+  stopCircle:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>`,
+  playCircle:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10.2 8.4 16 12l-5.8 3.6z"/></svg>`,
+  key:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.8 12.2 20.5 2.5M21.5 6.5 18 3M17 10.5 14 7.5"/></svg>`,
+  download:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 20.5h15"/></svg>`,
+  party:`<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21.5 8.6 8.2l7.2 7.2z"/><path d="M14 3.5c.9.9.9 2.3 0 3.2M17.5 2c1.9 1.9 1.9 5 0 6.9M19.5 12.5h.01M15.5 10.5h.01M12.5 4.5h.01"/></svg>`,
 };
 
 /* ===== 렌더 ===== */
@@ -1671,7 +1707,7 @@ function renderSignupForm(){
         <div class="field"><label>비밀번호 확인</label><input type="password" name="password2" placeholder="다시 입력" required minlength="6"></div>
       </div>
       ${state.signupRole==='council' ? `<div class="field"><label>학생회 인증코드</label><input type="text" name="councilCode" style="font-family:var(--font-display)" placeholder="학생회 인증코드"></div>` : ''}
-      <p class="signup-privacy-note">${ICON.lock} 입력하신 비밀번호는 <b style="text-decoration:underline; text-underline-offset:2px;">학생회가 별도로 저장·보관하지 않으며</b>, 계정 인증 업무는 Google Firebase Authentication에 위탁되어 암호화 처리됩니다.</p>
+      <p class="signup-privacy-note">${ICON.lock} <span>입력하신 비밀번호는 <b>학생회가 별도로 저장·보관하지 않습니다.</b><br>계정 인증은 Google Firebase Authentication에 위탁되어 암호화 처리됩니다.</span></p>
       <button class="btn btn-primary" type="submit">가입하기</button>
     </form>`;
 }
@@ -1687,7 +1723,7 @@ function renderShell(){
             <span class="role-badge ${myRole()}">${roleLabel(myRole())}</span>
           </div>
           <div class="top-actions">
-            <button type="button" class="btn-top-refresh" data-action="global-refresh" title="새로고침">🔄 <span style="font-size:11px;">새로고침</span></button>
+            <button type="button" class="btn-top-refresh" data-action="global-refresh" title="새로고침">${ICON.refresh} <span style="font-size:11px;">새로고침</span></button>
             <span class="date-pill">${dateLabel}</span>
           </div>
         </div>
@@ -1765,7 +1801,7 @@ function renderHome(){
   return `
     <div class="hero-greet">
       <div class="hero-trace">${ICON.trace}</div>
-      <p class="greet-name">${escapeHtml(state.user.name)}님, 안녕하세요 👋</p>
+      <p class="greet-name">${escapeHtml(state.user.name)}님, 안녕하세요</p>
       <p class="greet-sub">${di>=0 ? `오늘은 ${DAYS[di]}요일, 수업 ${todays.length}개가 있어요` : '오늘은 주말이에요, 편안한 하루 보내세요'}</p>
     </div>
 
@@ -1810,14 +1846,14 @@ function renderHome(){
     <div class="card">
       ${studentMeal && (studentMeal.lunch||studentMeal.breakfast||studentMeal.dinner) ? `
         <div class="meal-block">
-          <div class="m-label" style="color:var(--teal)">🎓 진리관 학생식당 중식</div>
+          <div class="m-label" style="color:var(--teal)">${ICON.capHat} 진리관 학생식당 중식</div>
           <div class="m-text" style="font-size:13px">${formatMealHtml(studentMeal.lunch||'등록된 메뉴가 없습니다.')}</div>
-        </div>` : `<p style="font-size:13px; color:var(--text-faint); margin:4px 0 8px;">🎓 진리관: 금일의 식단 정보가 없습니다.</p>`}
+        </div>` : `<p style="font-size:13px; color:var(--text-faint); margin:4px 0 8px;">${ICON.capHat} 진리관: 금일의 식단 정보가 없습니다.</p>`}
       ${staffMeal && staffMeal.lunch ? `
         <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
-          <div class="m-label" style="color:var(--amber)">👔 미래관 교직원식당 중식</div>
+          <div class="m-label" style="color:var(--amber)">${ICON.tie} 미래관 교직원식당 중식</div>
           <div class="m-text" style="font-size:13px">${formatMealHtml(staffMeal.lunch)}</div>
-        </div>` : `<p style="font-size:13px; color:var(--text-faint); margin:4px 0;">👔 미래관: 금일의 식단 정보가 없습니다.</p>`}
+        </div>` : `<p style="font-size:13px; color:var(--text-faint); margin:4px 0;">${ICON.tie} 미래관: 금일의 식단 정보가 없습니다.</p>`}
     </div>` : ''}
 
     <div class="section-title">다가오는 학사일정</div>
@@ -2361,7 +2397,7 @@ function officialScheduleModal(){
       <b style="color:var(--amber);">안내</b><br>
       고려대학교 교육정보(registrar) 홈페이지에 게시된 현재 학기 학사일정표를 그대로 불러옵니다. 매일 자정 이후 자동으로도 새 항목을 반영하고 있어요. 이 버튼으로 직접 불러오면 바로 등록되지 않고, 아래에서 확인 후 선택한 것만 등록돼요. 같은 제목+날짜는 자동으로 건너뜁니다.
     </div>
-    <button type="button" class="btn btn-primary" id="btn-fetch-official-schedule" style="margin-bottom:12px;">🌐 불러오기</button>
+    <button type="button" class="btn btn-primary" id="btn-fetch-official-schedule" style="margin-bottom:12px;">${ICON.globe} 불러오기</button>
     <div id="official-sch-status-box" style="font-size:12px; color:var(--text-dim); margin-bottom:12px; display:none; line-height:1.5;"></div>
     <div id="official-sch-results-wrap" style="display:none;">
       <div class="section-title" style="margin:8px 0 6px;">불러온 일정 (<span id="official-sch-count">0</span>건)</div>
@@ -2519,7 +2555,7 @@ function renderDeptNoticeBox(){
     <div class="card" id="dept-notice-box">
       <div class="row-between" style="margin-bottom:${items.length?'8px':'0'};">
         <span style="font-size:11px; color:var(--text-faint);">${updatedAt ? `${fmtDateTime(updatedAt)} 기준` : '아직 불러오지 않았어요'}</span>
-        <button type="button" id="dept-notice-refresh-btn" class="btn btn-ghost btn-sm" data-action="refresh-dept-notices" style="width:auto; padding:3px 9px; font-size:11px; ${isCouncil()?'':'display:none;'}">${ICON.refresh || '🔄'} 새로고침</button>
+        <button type="button" id="dept-notice-refresh-btn" class="btn btn-ghost btn-sm" data-action="refresh-dept-notices" style="width:auto; padding:3px 9px; font-size:11px; ${isCouncil()?'':'display:none;'}">${ICON.refresh} 새로고침</button>
       </div>
       <div id="dept-notice-status" style="font-size:12px; color:var(--text-dim); display:none; padding:6px 0;"></div>
       <div id="dept-notice-list">
@@ -2561,7 +2597,7 @@ function renderCalendarTab(){
       <button class="btn btn-teal btn-sm" data-action="ocr-calendar" style="flex:1;">${ICON.camera} 사진 인식</button>
     </div>
     <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <button class="btn btn-ghost btn-sm" data-action="open-official-schedule" style="flex:1;">🌐 공식 학사일정 가져오기</button>
+      <button class="btn btn-ghost btn-sm" data-action="open-official-schedule" style="flex:1;">${ICON.globe} 공식 학사일정 가져오기</button>
       <button class="btn btn-danger btn-sm" data-action="delete-all-calendar" style="flex:1;">전체 삭제</button>
     </div>` : ''}
     <div class="card">
@@ -2589,7 +2625,7 @@ function renderExamCalTab(){
     .filter(p => p.endDate)
     .map(p => ({
       id: 'poll-deadline-' + p.id,
-      title: `🗳️ 투표 마감: ${p.question}`,
+      title: `투표 마감: ${p.question}`,
       startDate: p.endDate,
       endDate: p.endDate,
       category: 'council',
@@ -2656,7 +2692,7 @@ function renderExamCalTab(){
 
     <div class="row-between" style="margin-bottom:8px; padding:0 2px; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
       <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-council-filter" style="width:auto; padding:3px 8px; font-size:11px;">
-        ${state.showCouncilEvents ? '👁️ 학생회 일정: ON' : '🙈 학생회 일정: OFF'}
+        ${state.showCouncilEvents ? `${ICON.eye} 학생회 일정: ON` : `${ICON.eyeOff} 학생회 일정: OFF`}
       </button>
     </div>
 
@@ -2674,7 +2710,7 @@ function renderExamCalTab(){
     </div>
 
     <div class="card">
-      <div class="section-title" style="margin:2px 0 10px; color:var(--teal);">📅 ${fmtDateLabel(state.selectedExamDate)} 일정 목록</div>
+      <div class="section-title" style="margin:2px 0 10px; color:var(--teal);">${ICON.calendar} ${fmtDateLabel(state.selectedExamDate)} 일정 목록</div>
       ${selectedEvents.length ? selectedEvents.map(ev => {
         const canDel = !ev.isPollDeadline && ((state.user && ev.authorId === state.user.studentId) || myLevel() >= 2);
         return `
@@ -2859,28 +2895,28 @@ function renderMealTab(){
     </div>
     <div class="card" style="margin-bottom:12px;">
       <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
-        <b style="font-size:14.5px; color:var(--teal);">🎓 학생 식단표</b><span class="tag tag-teal">진리관</span>
+        <b style="font-size:14.5px; color:var(--teal);">${ICON.capHat} 학생 식단표</b><span class="tag tag-teal">진리관</span>
       </div>
       ${student && (student.lunch||student.breakfast||student.dinner) ? `
-        ${student.breakfast?`<div class="meal-block"><div class="m-label">🌅 조식</div><div class="m-text">${formatMealHtml(student.breakfast)}</div></div>`:''}
-        ${student.lunch?`<div class="meal-block"><div class="m-label">☀️ 중식</div><div class="m-text">${formatMealHtml(student.lunch)}</div></div>`:''}
-        ${student.dinner?`<div class="meal-block"><div class="m-label">🌙 석식</div><div class="m-text">${formatMealHtml(student.dinner)}</div></div>`:''}
+        ${student.breakfast?`<div class="meal-block"><div class="m-label">${ICON.sunrise} 조식</div><div class="m-text">${formatMealHtml(student.breakfast)}</div></div>`:''}
+        ${student.lunch?`<div class="meal-block"><div class="m-label">${ICON.sun} 중식</div><div class="m-text">${formatMealHtml(student.lunch)}</div></div>`:''}
+        ${student.dinner?`<div class="meal-block"><div class="m-label">${ICON.moon} 석식</div><div class="m-text">${formatMealHtml(student.dinner)}</div></div>`:''}
         ${student.note?`<p style="font-size:12px; color:var(--text-faint); margin:8px 0 0;">${escapeHtml(student.note)}</p>`:''}
       ` : `<div class="empty" style="padding:14px 6px;"><p>진리관 식단 정보가 없습니다.</p></div>`}
     </div>
     <div class="card">
       <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
-        <b style="font-size:14.5px; color:var(--amber);">👔 교직원 식단표</b><span class="tag tag-amber">미래관</span>
+        <b style="font-size:14.5px; color:var(--amber);">${ICON.tie} 교직원 식단표</b><span class="tag tag-amber">미래관</span>
       </div>
       ${staff && staff.lunch ? `
-        <div class="meal-block"><div class="m-label">☀️ 중식</div><div class="m-text">${formatMealHtml(staff.lunch)}</div></div>
+        <div class="meal-block"><div class="m-label">${ICON.sun} 중식</div><div class="m-text">${formatMealHtml(staff.lunch)}</div></div>
         <p style="font-size:10px; color:var(--text-faint); margin:8px 0 0;">※ 미래관 교직원식당은 중식만 운영합니다.</p>
       ` : `<div class="empty" style="padding:14px 6px;"><p>미래관 식단 정보가 없습니다.</p></div>`}
     </div>
     ${council ? `
     <div style="display:flex; gap:8px; margin-top:12px;">
       <button class="btn btn-ghost btn-sm" data-action="edit-meal" data-date="${state.mealDate}" style="flex:1;">식단 직접 수정</button>
-      <button class="btn btn-primary btn-sm" data-action="fetch-meal-page" id="fetch-meal-btn" style="flex:1.3;">🔄 식단 새로고침</button>
+      <button class="btn btn-primary btn-sm" data-action="fetch-meal-page" id="fetch-meal-btn" style="flex:1.3;">${ICON.refresh} 식단 새로고침</button>
     </div>` : ''}
     <div id="fetch-meal-status" style="font-size:12px; color:var(--text-faint); margin-top:8px; line-height:1.6;"></div>
     <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>`;
@@ -2895,11 +2931,11 @@ function mealModal(date){
     <div class="modal-title">${fmtDateLabel(date)} 식단 수정<button data-action="close-modal">${ICON.close}</button></div>
     <form id="meal-form">
       <input type="hidden" name="date" value="${date}">
-      <div class="section-title" style="margin:4px 0 10px; color:var(--teal);">🎓 진리관 학생식당</div>
+      <div class="section-title" style="margin:4px 0 10px; color:var(--teal);">${ICON.capHat} 진리관 학생식당</div>
       <div class="field"><label>조식</label><textarea name="student_breakfast" style="min-height:46px">${escapeHtml(student.breakfast||'')}</textarea></div>
       <div class="field"><label>중식</label><textarea name="student_lunch" style="min-height:56px">${escapeHtml(student.lunch||'')}</textarea></div>
       <div class="field"><label>석식</label><textarea name="student_dinner" style="min-height:56px">${escapeHtml(student.dinner||'')}</textarea></div>
-      <div class="section-title" style="margin:14px 0 10px; color:var(--amber);">👔 미래관 교직원식당</div>
+      <div class="section-title" style="margin:14px 0 10px; color:var(--amber);">${ICON.tie} 미래관 교직원식당</div>
       <div class="field"><label>중식</label><textarea name="staff_lunch" style="min-height:56px">${escapeHtml(staff.lunch||'')}</textarea></div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">식단 저장</button></div>
     </form>`;
@@ -3187,7 +3223,7 @@ function renderLikeUI(item, itemType){
   return `
     <div class="like-bar">
       <button type="button" class="btn-like ${hasLiked?'active':''}" data-action="toggle-like" data-type="${itemType}" data-id="${item.id}">
-        👍 <span>${count}</span>
+        ${ICON.thumbUp} <span>${count}</span>
       </button>
     </div>
     ${(isDirectorOrHigher && count > 0) ? `
@@ -3231,7 +3267,7 @@ function renderNoticeTab(){
           <div class="title-line">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b>${escapeHtml(n.title)}</b></div>
           <div class="meta">${fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole)} · ${fmtDateTime(n.createdAt || n.date)}</div>
           <div class="body">${escapeHtml(n.content)}</div>
-          ${n.imageUrl ? `<div style="margin-top:8px;"><img src="${escapeHtml(n.imageUrl)}" style="max-width:100%; max-height:240px; border-radius:8px; border:1px solid var(--border); display:block; margin-bottom:6px;"><a href="${escapeHtml(n.imageUrl)}" download="공지사진_${n.id}.jpg" class="btn btn-ghost btn-sm" style="width:auto; display:inline-flex; font-size:11px; text-decoration:none;">${ICON.download||'⬇️'} 사진 저장</a></div>` : ''}
+          ${n.imageUrl ? `<div style="margin-top:8px;"><img src="${escapeHtml(n.imageUrl)}" style="max-width:100%; max-height:240px; border-radius:8px; border:1px solid var(--border); display:block; margin-bottom:6px;"><a href="${escapeHtml(n.imageUrl)}" download="공지사진_${n.id}.jpg" class="btn btn-ghost btn-sm" style="width:auto; display:inline-flex; font-size:11px; text-decoration:none;">${ICON.download} 사진 저장</a></div>` : ''}
           ${renderLikeUI(n, 'notice')}
           ${council ? `
           <div style="display:flex; gap:6px; margin-top:10px;">
@@ -3259,7 +3295,7 @@ function noticeModal(n){
       <div class="field"><label>내용</label><textarea name="content" style="min-height:120px" required placeholder="공지 내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
       <div class="field">
         <label>사진 첨부 (선택)</label>
-        <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-notice-img" style="width:100%;">📷 이미지 선택</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-notice-img" style="width:100%;">${ICON.camera} 이미지 선택</button>
         <input type="file" id="notice-file-input" accept="image/*" style="display:none;">
         <div id="notice-img-preview-box" style="margin-top:8px; ${v.imageUrl?'':'display:none;'}">
           <img id="notice-img-preview" src="${escapeHtml(v.imageUrl||'')}" style="max-width:100%; max-height:160px; border-radius:8px; border:1px solid var(--border); display:block; margin-bottom:6px;">
@@ -3269,7 +3305,7 @@ function noticeModal(n){
       ${isEdit ? '' : `
       <div class="checkline" style="justify-content:space-between; margin:4px 0 0;">
         <label for="notice-push-check" style="margin:0; cursor:pointer; color:var(--text);">
-          🔔 알림 발송
+          ${ICON.bell} 알림 발송
           <span style="display:block; font-size:11px; color:var(--text-faint); margin-top:2px;">켜면 알림을 켜둔 학생들에게 푸시가 갑니다</span>
         </label>
         <input type="checkbox" name="sendPush" id="notice-push-check">
@@ -3452,7 +3488,7 @@ function renderCouncilBoardTab(){
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
                   <button type="button" class="btn-comment-like ${cHasLiked?'active':''}" data-action="toggle-comment-like" data-post-id="${p.id}" data-comment-id="${c.id}">
-                    👍 <span>${cCount}</span>
+                    ${ICON.thumbUp} <span>${cCount}</span>
                   </button>
                   ${canDelComment ? `
                   <button type="button" class="btn-del-comment" data-action="delete-council-comment" data-post-id="${p.id}" data-comment-id="${c.id}" title="댓글 삭제">
@@ -3605,7 +3641,7 @@ function renderPollItem(p){
     }
     body += `<div class="row-between" style="font-size:11px; color:var(--text-faint); margin-top:6px;"><span>총 참여 ${totalVoters}명${ended?' · 마감됨':''}</span><span>${fmtPollDeadline(p)}</span></div>`;
     if(isDirectorOrHigher && totalVoters>0){
-      body += `<button class="btn btn-ghost btn-sm" data-action="export-poll-csv" data-id="${p.id}" style="width:100%; margin-top:8px;">📄 투표자 명단 CSV 내보내기</button>`;
+      body += `<button class="btn btn-ghost btn-sm" data-action="export-poll-csv" data-id="${p.id}" style="width:100%; margin-top:8px;">${ICON.doc} 투표자 명단 CSV 내보내기</button>`;
     }
     if(!ended && myVotes){
       body += `<div style="display:flex; gap:6px; margin-top:8px;">
@@ -3644,7 +3680,7 @@ function renderPollItem(p){
       <div style="margin-top:8px;">${body}</div>
       ${manage ? `
       <div style="display:flex; gap:5px; margin-top:8px;">
-        ${!ended ? `<button class="btn btn-danger btn-sm" data-action="close-poll" data-id="${p.id}" style="flex:1;">🔴 즉시 종료</button>` : `<button class="btn btn-ghost btn-sm" data-action="reopen-poll" data-id="${p.id}" style="flex:1;">🟢 다시 열기</button>`}
+        ${!ended ? `<button class="btn btn-danger btn-sm" data-action="close-poll" data-id="${p.id}" style="flex:1;">${ICON.stopCircle} 즉시 종료</button>` : `<button class="btn btn-ghost btn-sm" data-action="reopen-poll" data-id="${p.id}" style="flex:1;">${ICON.playCircle} 다시 열기</button>`}
         <button class="btn btn-ghost btn-sm" data-action="delete-poll" data-id="${p.id}" style="width:auto;">삭제</button>
       </div>` : ''}
     </div>`;
@@ -3673,7 +3709,7 @@ function pollModal(){
       </div>
       <div class="checkline" style="justify-content:space-between; margin:4px 0 0;">
         <label for="poll-push-check" style="margin:0; cursor:pointer; color:var(--text);">
-          🔔 알림 발송
+          ${ICON.bell} 알림 발송
           <span style="display:block; font-size:11px; color:var(--text-faint); margin-top:2px;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림이 나갑니다</span>
         </label>
         <input type="checkbox" name="sendPush" id="poll-push-check">
@@ -3740,19 +3776,19 @@ function renderMypage(){
 
       <p style="margin:0 0 8px; font-size:12.5px; font-weight:700;">알림</p>
       <div class="notify-row">
-        <span>📢 공지 올라올 때</span>
+        <span>${ICON.megaphone} 공지 올라올 때</span>
         <button type="button" class="btn ${np.notice?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="notice" style="width:auto; padding:5px 12px;">${np.notice?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
-        <span>🗳️ 투표 <span style="font-size:11px; color:var(--text-faint);">시작·마감 30분 전·저녁 8시</span></span>
+        <span>${ICON.ballot} 투표 <span style="font-size:11px; color:var(--text-faint);">시작·마감 30분 전·저녁 8시</span></span>
         <button type="button" class="btn ${np.poll?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="poll" style="width:auto; padding:5px 12px;">${np.poll?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
-        <span>🍚 학식 <span style="font-size:11px; color:var(--text-faint);">7시·10시 반·16시 반</span></span>
+        <span>${ICON.bowl} 학식 <span style="font-size:11px; color:var(--text-faint);">7시·10시 반·16시 반</span></span>
         <button type="button" class="btn ${np.meal?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="meal" style="width:auto; padding:5px 12px;">${np.meal?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
-        <span>🗓️ 오늘의 시간표</span>
+        <span>${ICON.calendar} 오늘의 시간표</span>
         <button type="button" class="btn ${np.timetable?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="timetable" style="width:auto; padding:5px 12px;" ${isNativeApp?'':'disabled'}>${np.timetable?'켜짐':'꺼짐'}</button>
       </div>
       ${np.timetable && isNativeApp ? `
@@ -3776,7 +3812,7 @@ function renderMypage(){
     ${isRawDeveloper() ? `
     <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; border:1px dashed var(--teal);">
       <div style="min-width:0;">
-        <p style="margin:0; font-size:12.5px; font-weight:700;">${state.previewAsStudent ? '👀 학부 재학생 화면 미리보기 중' : '🛠️ 개발자 화면'}</p>
+        <p style="margin:0; font-size:12.5px; font-weight:700;">${state.previewAsStudent ? `${ICON.eye} 학부 재학생 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
         <p style="margin:2px 0 0; font-size:11px; color:var(--text-faint); line-height:1.4;">다른 학생들 눈에 보이는 화면을 그대로 미리 볼 수 있어요</p>
       </div>
       <button type="button" class="btn ${state.previewAsStudent?'btn-primary':'btn-ghost'} btn-sm" style="width:auto; white-space:nowrap; flex-shrink:0;" data-action="toggle-preview-mode">${state.previewAsStudent?'개발자로 복귀':'학생 화면 보기'}</button>
@@ -3834,7 +3870,7 @@ function renderMypage(){
 function bugReportModal(){
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">🐞 버그 제보하기<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.bug} 버그 제보하기</span><button data-action="close-modal">${ICON.close}</button></div>
     <div style="background:rgba(var(--amber-rgb),0.08); border:1px solid rgba(var(--amber-rgb),0.25); border-radius:var(--radius-sm); padding:11px; margin-bottom:12px; font-size:11.5px; color:var(--text-dim); line-height:1.55;">
       이상하게 동작하는 부분을 발견하면 알려주세요. 어떤 화면에서 무엇을 했더니 어떻게 됐는지 최대한 자세히 적어주시면 좋아요. 스크린샷도 첨부할 수 있어요.
     </div>
@@ -3843,7 +3879,7 @@ function bugReportModal(){
       <div class="field"><label>자세한 내용</label><textarea name="content" style="min-height:110px" required placeholder="어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요"></textarea></div>
       <div class="field">
         <label>스크린샷 (선택)</label>
-        <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-bug-img" style="width:100%;">📷 이미지 선택</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-bug-img" style="width:100%;">${ICON.camera} 이미지 선택</button>
         <input type="file" id="bug-file-input" accept="image/*" style="display:none;">
         <div id="bug-img-preview-box" style="margin-top:8px; display:none;">
           <img id="bug-img-preview" style="max-width:100%; max-height:160px; border-radius:8px; border:1px solid var(--border); display:block; margin-bottom:6px;">
@@ -3904,7 +3940,7 @@ function bugReportInboxModal(){
   const list=live(state.bugReports).sort((a,b)=>b.createdAt-a.createdAt);
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">📥 버그 제보함<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.inbox} 버그 제보함</span><button data-action="close-modal">${ICON.close}</button></div>
     <div style="max-height:64vh; overflow-y:auto;">
       ${list.length ? list.map(r=>`
         <div class="card" style="margin-bottom:10px;">
@@ -3946,7 +3982,7 @@ async function deleteBugReport(id){
 function patchNotesModal(){
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">📋 패치노트<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} 패치노트</span><button data-action="close-modal">${ICON.close}</button></div>
     <div style="max-height:60vh; overflow-y:auto;">
       ${PATCH_NOTES.map((p,i)=>`
         <div class="card" style="margin-bottom:10px;">
@@ -3991,7 +4027,7 @@ async function councilCodeAdminModal(){
   const code = await loadCouncilCode().catch(()=>COUNCIL_CODE);
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">🔑 학생회 인증코드 관리<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.key} 학생회 인증코드 관리</span><button data-action="close-modal">${ICON.close}</button></div>
     <p style="font-size:12.5px; color:var(--text-dim); margin:0 0 14px; line-height:1.6;">
       신규 학생회 부원 가입 시 필요한 인증코드예요. 새로 발급하면 이전 코드는 즉시 사용할 수 없게 돼요.<br>
       <span style="color:var(--text-faint);">(이 화면은 학생회장/개발자에게만 보이는 숨겨진 메뉴예요)</span>
@@ -4076,7 +4112,7 @@ function easterEggModal(){
   return `
     <div class="modal-handle"></div>
     <div style="text-align:center; padding:20px 10px;">
-      <div style="font-size:40px; margin-bottom:10px;">🎉</div>
+      <div style="color:var(--teal); margin-bottom:10px;">${ICON.party}</div>
       <b style="font-size:15px; display:block; margin-bottom:6px;">숨겨진 화면을 찾으셨네요!</b>
       <p style="font-size:13px; color:var(--text-dim); margin:0 0 16px;">${msg}</p>
       <button type="button" class="btn btn-primary" data-action="close-modal" style="width:auto; padding:8px 20px;">닫기</button>
@@ -4441,7 +4477,7 @@ function setupOcrModalListeners(){
         r.readAsDataURL(file);
       }
 
-      if(statusBox){ statusBox.style.display='block'; statusBox.innerHTML='<span style="color:var(--teal);">📷 시간표 사진을 분석 중입니다… (최대 30초 정도 걸릴 수 있어요)</span>'; }
+      if(statusBox){ statusBox.style.display='block'; statusBox.innerHTML='<span style="color:var(--teal);">시간표 사진을 분석 중입니다… (최대 30초 정도 걸릴 수 있어요)</span>'; }
 
       let recognized=[];
       try{
