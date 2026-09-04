@@ -199,6 +199,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 학사일정 목록: 분류를 제목 옆에 흘려보내고 날짜를 그 아래 별도 줄에 두면
    분류 배지 너비만큼 둘의 시작 위치가 어긋나 보였다. 분류를 왼쪽에 고정폭
    칸으로 떼어놓고, 제목·날짜를 같은 세로줄로 묶어 서로 정렬되게 한다. */
+/* 날짜별 개인 메모 — 줄바꿈을 그대로 살려서 과제 목록처럼 여러 줄로 적을 수 있게 한다. */
+.memo-text{white-space:pre-wrap; font-size:12.5px; line-height:1.7; color:var(--text); cursor:pointer; word-break:break-word;}
+.memo-empty{margin:0; font-size:11.5px; line-height:1.6; color:var(--text-faint); cursor:pointer;}
 .cal-item{display:flex; align-items:flex-start; gap:10px;}
 .tag-cell{flex-shrink:0; min-width:38px; text-align:center; font-size:9.5px; font-weight:700; padding:4px 5px; border-radius:7px; white-space:nowrap;}
 .cal-item-body{min-width:0; flex:1;}
@@ -779,6 +782,7 @@ const state = {
   activeVariant: 0,
   deptNotices: [], deptNoticesUpdatedAt: 0,
   bugReports: [],
+  memos: {}, // 날짜별 개인 메모 { 'YYYY-MM-DD': '내용' }
 };
 
 /* ===== 유틸 ===== */
@@ -800,6 +804,16 @@ function homeStudentMealSlot(){
   return { key:'breakfast', label:'조식', icon:ICON.sunrise, date };
 }
 function addDays(str, delta){ const d=new Date(str+'T00:00:00'); d.setDate(d.getDate()+delta); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+// 학식은 평일에만 운영하므로, 하루씩 넘기다 토·일에 걸리면 계속 밀어서 평일에만 멈춘다.
+function shiftWeekday(str, delta){
+  let next = addDays(str, delta);
+  for(let i=0; i<7; i++){
+    const wd = new Date(next+'T00:00:00').getDay();
+    if(wd !== 0 && wd !== 6) return next;
+    next = addDays(next, delta);
+  }
+  return next;
+}
 function addMonths(ym, delta){ let [y,m]=ym.split('-').map(Number); m+=delta; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;} return `${y}-${pad(m)}`; }
 function monthBounds(ym){ const [y,m]=ym.split('-').map(Number); const last=new Date(y,m,0).getDate(); return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(last)}`]; }
 function fmtMonthLabel(ym){ const [y,m]=ym.split('-').map(Number); return `${y}년 ${m}월`; }
@@ -1191,6 +1205,44 @@ async function createUserDoc(uidStr, data){
 
 async function loadCalendar(){ return (await loadShared('calendarEvents',{events:[]})).events || []; }
 async function saveCalendar(a){ return await saveShared('calendarEvents',{events:a}); }
+
+// ===== 날짜별 개인 메모 (과제 정리 등) =====
+// 공용 문서(shared/*)가 아니라 memos/{uid}에 사람별로 따로 저장한다. 남에게 보이지 않고,
+// Firestore 1MiB 문서 한도도 사람마다 따로 적용돼서 인원이 늘어도 서로 영향을 주지 않는다.
+const MEMO_MAX_CHARS = 2000;      // 하루치 메모 길이 제한
+const MEMO_DOC_MAX_BYTES = 200000; // 전체 메모 문서 크기 상한 (1MiB 한도 대비 여유 있게)
+async function loadMemos(uidStr){
+  const localVal = localGet('memos_'+uidStr, null);
+  const localAt = localGet('memos_at_'+uidStr, 0);
+  try{
+    const snap = await getDoc(doc(db,'memos',uidStr));
+    if(snap && snap.exists()){
+      const d = snap.data() || {};
+      if((d.updatedAt||0) >= localAt){
+        const byDate = d.byDate || {};
+        localSet('memos_'+uidStr, byDate);
+        localSet('memos_at_'+uidStr, d.updatedAt||0);
+        return byDate;
+      }
+    }
+  }catch(e){}
+  return localVal || {};
+}
+async function saveMemos(uidStr, byDate){
+  const ts = now();
+  localSet('memos_'+uidStr, byDate);
+  localSet('memos_at_'+uidStr, ts);
+  if(!auth.currentUser){ LAST_SAVE_ERROR='unauthenticated'; return false; }
+  const payload = { byDate, updatedAt: ts };
+  const size = new Blob([JSON.stringify(payload)]).size;
+  if(size > MEMO_DOC_MAX_BYTES){
+    LAST_SAVE_ERROR='memo-too-large';
+    toast('메모가 너무 많아요. 오래된 메모를 정리해주세요');
+    return false;
+  }
+  try{ await setDoc(doc(db,'memos',uidStr), payload); LAST_SAVE_ERROR=''; return true; }
+  catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; console.error('메모 저장 실패', e); return false; }
+}
 async function loadMeals(){ return (await loadShared('meals',{byDate:{}})).byDate || {}; }
 async function saveMeals(o){ return await saveShared('meals',{byDate:o}); }
 async function loadNotices(){ return (await loadShared('notices',{list:[]})).list || []; }
@@ -1609,7 +1661,7 @@ async function scheduleTimetableReminders(list){
 
 async function loadAllData(){
   try{
-    const [ttData,cal,meals,notices,sugg,polls,users,cposts,recruits,roster,deptN] = await Promise.all([
+    const [ttData,cal,meals,notices,sugg,polls,users,cposts,recruits,roster,deptN,memos] = await Promise.all([
       (state.user ? loadTimetable(state.user.uid) : Promise.resolve({bySemester:{}, activeSemester:null})).catch(()=>({bySemester:{}, activeSemester:null})),
       loadCalendar().catch(()=>[]),
       loadMeals().catch(()=>({})),
@@ -1621,6 +1673,7 @@ async function loadAllData(){
       loadRecruitments().catch(()=>[]),
       loadRoster().catch(()=>({})),
       loadDeptNotices().catch(()=>({items:[],updatedAt:0})),
+      (state.user ? loadMemos(state.user.uid) : Promise.resolve({})).catch(()=>({})),
     ]);
     state.timetablesBySemester = (ttData && ttData.bySemester) || {};
     state.activeSemester = (ttData && ttData.activeSemester) || sortedSemesterKeys()[0] || null;
@@ -1632,6 +1685,7 @@ async function loadAllData(){
     state.roster=roster||{};
     state.deptNotices = deptN.items || [];
     state.deptNoticesUpdatedAt = deptN.updatedAt || 0;
+    state.memos = memos || {};
   }catch(e){}
 }
 
@@ -2798,9 +2852,10 @@ function renderExamCalTab(){
     if(dayOfWeek === 0) dayCls = 'sun';
     else if(dayOfWeek === 6) dayCls = 'sat';
 
+    const hasMemo = !!(state.memos && (state.memos[curDateStr]||'').trim());
     let dots = '';
-    if(dayEvents.length > 0){
-      dots = `<div class="cal-dots">${dayEvents.map(e => `<span class="cal-dot" style="background:${e.color || (e.category==='council'?'var(--crimson)':'var(--blue)')}"></span>`).join('')}</div>`;
+    if(dayEvents.length > 0 || hasMemo){
+      dots = `<div class="cal-dots">${dayEvents.map(e => `<span class="cal-dot" style="background:${e.color || (e.category==='council'?'var(--crimson)':'var(--blue)')}"></span>`).join('')}${hasMemo?`<span class="cal-dot memo-dot" style="background:var(--teal)"></span>`:''}</div>`;
     }
     calCells += `
       <div class="cal-day ${dayCls} ${isToday?'today':''} ${isSelected?'selected-day':''}" data-action="select-exam-date" data-date="${curDateStr}">
@@ -2841,6 +2896,20 @@ function renderExamCalTab(){
       <button class="btn btn-danger btn-sm" data-action="add-exam-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 시험 추가</button>
       ${council ? `<button class="btn btn-primary btn-sm" data-action="add-council-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 학생회 일정</button>` : ''}
     </div>
+
+    ${(()=>{
+      const memoText = (state.memos && state.memos[state.selectedExamDate]) || '';
+      return `
+      <div class="card" style="margin-bottom:12px;">
+        <div class="row-between" style="margin-bottom:8px;">
+          <div class="section-title" style="margin:0; color:var(--teal);">${ICON.clipboard} 내 메모</div>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="edit-memo" data-date="${state.selectedExamDate}" style="width:auto; padding:3px 10px; font-size:10.5px;">${memoText ? `${ICON.pencil} 수정` : `${ICON.plus} 작성`}</button>
+        </div>
+        ${memoText
+          ? `<div class="memo-text" data-action="edit-memo" data-date="${state.selectedExamDate}">${escapeHtml(memoText)}</div>`
+          : `<p class="memo-empty" data-action="edit-memo" data-date="${state.selectedExamDate}">과제 · 준비물 등 이 날 기억할 것을 적어두세요. 나만 볼 수 있어요.</p>`}
+      </div>`;
+    })()}
 
     <div class="card">
       <div class="section-title" style="margin:2px 0 10px; color:var(--teal);">${ICON.calendar} ${fmtDateLabel(state.selectedExamDate)} 일정 목록</div>
@@ -2931,6 +3000,57 @@ function examScheduleModal(preselectedDate){
       <div class="field"><label>세부 메모</label><textarea name="description" placeholder="범위 및 준비물"></textarea></div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">시험 일정 등록</button></div>
     </form>`;
+}
+
+// 날짜별 개인 메모 편집 — 남에게 보이지 않는 내 메모라 별도 권한 확인이 필요 없다.
+function memoModal(dateStr){
+  const text = (state.memos && state.memos[dateStr]) || '';
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} ${fmtDateLabel(dateStr)} 메모</span><button data-action="close-modal">${ICON.close}</button></div>
+    <form id="memo-form">
+      <input type="hidden" name="date" value="${dateStr}">
+      <div class="field">
+        <label>이 날 기억할 것 <span style="color:var(--text-faint); font-weight:400;">(나만 볼 수 있어요)</span></label>
+        <textarea name="content" id="memo-content" maxlength="${MEMO_MAX_CHARS}" placeholder="예)&#10;· 반도체소자 과제 3장까지 제출&#10;· 센서공학 퀴즈 준비&#10;· 조별과제 자료 정리" style="min-height:160px;">${escapeHtml(text)}</textarea>
+        <p style="font-size:10.5px; color:var(--text-faint); margin:6px 2px 0;"><span id="memo-count">${text.length}</span> / ${MEMO_MAX_CHARS}자</p>
+      </div>
+      <div class="modal-actions" style="display:flex; gap:8px;">
+        ${text ? `<button type="button" class="btn btn-danger" data-action="delete-memo" data-date="${dateStr}" style="flex:1;">삭제</button>` : ''}
+        <button type="submit" class="btn btn-primary" style="flex:1.6;">저장</button>
+      </div>
+    </form>`;
+}
+function setupMemoModalListeners(){
+  const ta = document.getElementById('memo-content');
+  const counter = document.getElementById('memo-count');
+  if(ta && counter) ta.oninput = ()=>{ counter.textContent = ta.value.length; };
+  if(ta) ta.focus();
+}
+async function handleMemoSubmit(fd){
+  if(!state.user) return;
+  const date = fd.get('date');
+  const content = (fd.get('content')||'').trim();
+  const next = { ...(state.memos||{}) };
+  if(content) next[date] = content;
+  else delete next[date]; // 내용을 비우면 그 날 메모는 지운다
+  const ok = await saveMemos(state.user.uid, next);
+  if(ok) state.memos = next;
+  closeModal();
+  renderMain();
+  if(ok) toast(content ? '메모를 저장했어요' : '메모를 지웠어요');
+  else if(LAST_SAVE_ERROR !== 'memo-too-large') saveResultToast(false);
+}
+async function deleteMemo(dateStr){
+  if(!state.user) return;
+  if(!await showConfirm('이 날 메모를 지울까요?', { danger:true, okLabel:'삭제' })) return;
+  const next = { ...(state.memos||{}) };
+  delete next[dateStr];
+  const ok = await saveMemos(state.user.uid, next);
+  if(ok) state.memos = next;
+  closeModal();
+  renderMain();
+  toast(ok ? '메모를 지웠어요' : '삭제에 실패했어요');
 }
 
 function setupExamModalListeners(){
@@ -4788,6 +4908,7 @@ document.addEventListener('submit', async (e)=>{
     'signup-form': handleSignup,
     'class-form': handleClassSubmit,
     'event-form': handleEventSubmit,
+    'memo-form': handleMemoSubmit,
     'exam-form': handleExamSubmit,
     'meal-form': handleMealSubmit,
     'notice-form': handleNoticeSubmit,
@@ -4945,6 +5066,7 @@ async function handleSignup(fd){
 async function logout(){
   if(!await showConfirm('로그아웃 하시겠습니까?')) return;
   state.user=null;
+  state.memos={}; // 개인 메모가 다음 로그인 사용자에게 잠깐이라도 보이지 않게 비운다
   await signOut(auth).catch(()=>{});
   renderApp();
 }
@@ -6001,14 +6123,18 @@ document.addEventListener('click', async (e)=>{
     else if(a==='add-student-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, false)); }
     else if(a==='add-council-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, true)); }
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
+    else if(a==='edit-memo'){ openModal(memoModal(el.dataset.date || state.selectedExamDate)); setupMemoModalListeners(); }
+    else if(a==='delete-memo'){ await deleteMemo(el.dataset.date || state.selectedExamDate); }
     else if(a==='edit-event'){
       const ev=live(state.calendar).find(x=>x.id===el.dataset.id);
       if(ev) openModal(eventModal(ev));
     }
     else if(a === 'delete-event'){ await deleteEvent(el.dataset.id); }
     else if(a === 'select-meal-date'){ state.mealDate = el.dataset.date; renderMain(); }
-    else if(a === 'meal-day-prev'){ state.mealDate = addDays(state.mealDate, -1); renderMain(); }
-    else if(a === 'meal-day-next'){ state.mealDate = addDays(state.mealDate, 1); renderMain(); }
+    // 학식은 평일에만 운영해서 주말 날짜엔 보여줄 게 없다. 화살표로 하루씩 넘길 때
+    // 토·일은 건너뛰고 바로 다음(이전) 평일로 이동한다.
+    else if(a === 'meal-day-prev'){ state.mealDate = shiftWeekday(state.mealDate, -1); renderMain(); }
+    else if(a === 'meal-day-next'){ state.mealDate = shiftWeekday(state.mealDate, 1); renderMain(); }
     else if(a === 'edit-meal'){ openModal(mealModal(el.dataset.date)); }
     else if(a === 'fetch-meal-page'){ await fetchMealFromSource(false); }
     else if(a === 'add-notice'){ openModal(noticeModal(null)); setupNoticeModalListeners(); }

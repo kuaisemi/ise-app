@@ -26,6 +26,12 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
 
+    // 개인 메모장 — 본인 것만 읽고 쓸 수 있다. 공용 문서(shared/*)와 달리 사용자별로
+    // 문서가 나뉘어 있어서 1MiB 문서 한도도 사람당 따로 적용된다.
+    match /memos/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
     match /shared/suggestions  { allow read, write: if isSignedIn(); }
     match /shared/recruitments { allow read, write: if isSignedIn(); }
     match /shared/polls        { allow read, write: if isSignedIn(); }
