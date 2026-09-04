@@ -98,6 +98,18 @@
                 android:resource="@xml/widget_calendar_info" />
         </receiver>
 
+        <receiver
+            android:name=".DateWidget"
+            android:label="@string/widget_date_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_date_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

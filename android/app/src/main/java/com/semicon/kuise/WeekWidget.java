@@ -32,6 +32,7 @@ public class WeekWidget extends BaseWidget {
 
         // weekClasses: [[월 수업들], [화], [수], [목], [금]]
         JSONArray week = data.optJSONArray("weekClasses");
+        JSONArray weekDates = data.optJSONArray("weekDates"); // ["8","9","10","11","12"]
         int total = 0;
         if (week != null) {
             for (int d = 0; d < week.length(); d++) {
@@ -55,11 +56,19 @@ public class WeekWidget extends BaseWidget {
         views.removeAllViews(R.id.week_cols);
         for (int d = 0; d < 5; d++) {
             RemoteViews col = new RemoteViews(ctx.getPackageName(), R.layout.widget_week_col);
+            boolean isToday = d == todayIdx;
             col.setTextViewText(R.id.col_day, DAY_LABELS[d]);
-            col.setTextColor(R.id.col_day, d == todayIdx ? theme.accent : theme.textSub);
+            col.setTextColor(R.id.col_day, isToday ? theme.accent : theme.textSub);
+            col.setTextViewText(R.id.col_date, weekDates == null ? "" : weekDates.optString(d, ""));
+            col.setTextColor(R.id.col_date, isToday ? theme.accent : theme.textSub);
 
             JSONArray day = week == null ? null : week.optJSONArray(d);
-            if (day != null) {
+            if (day == null || day.length() == 0) {
+                // 수업이 없는 요일도 칸 높이가 맞게 빈 자리를 하나 넣어 다른 요일과 시각적으로 나란히 보이게 한다.
+                RemoteViews placeholder = new RemoteViews(ctx.getPackageName(), R.layout.widget_week_empty_slot);
+                theme.sub(placeholder, R.id.week_empty_dash);
+                col.addView(R.id.col_items, placeholder);
+            } else {
                 for (int i = 0; i < day.length(); i++) {
                     JSONObject c = day.optJSONObject(i);
                     if (c == null) continue;

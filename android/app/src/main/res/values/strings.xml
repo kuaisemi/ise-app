@@ -18,4 +18,6 @@
     <string name="widget_week_desc">월~금 시간표를 한 화면에</string>
     <string name="widget_calendar_label">달력</string>
     <string name="widget_calendar_desc">이번 달 달력과 일정 표시</string>
+    <string name="widget_date_label">오늘 날짜</string>
+    <string name="widget_date_desc">오늘 날짜와 (선택) 학사일정 요약</string>
 </resources>

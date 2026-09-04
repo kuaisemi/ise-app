@@ -777,6 +777,7 @@ const state = {
   activeUserListTab: 'all', expandedComments: {}, captureMode: false, ttFabOpen: false,
   previewAsStudent: false,
   myPageSettingsOpen: false,
+  settingsTab: 'display',
   activeSemester: null,
   timetablesBySemester: {},
   activeVariant: 0,
@@ -1642,6 +1643,7 @@ function getWidgetOpts(){
     opacity: typeof o.opacity === 'number' ? o.opacity : 92,
     bg: WIDGET_BGS.some(b=>b.key===o.bg) ? o.bg : 'dark',
     accent: o.accent || WIDGET_ACCENTS[0],
+    dateShowEvents: o.dateShowEvents !== false,
   };
 }
 function setWidgetOpts(patch){
@@ -1649,6 +1651,116 @@ function setWidgetOpts(patch){
   localSet('widget_opts', next);
   pushWidgetData();
   return next;
+}
+
+// 대표 시간표 — 위젯은 앱을 안 켠 사이에도 계속 떠 있어야 하는데, "지금 앱에서 보고 있는
+// 시간표"를 그대로 따라가면 예전 학기를 잠깐 훑어보기만 해도 위젯이 그 학기로 바뀌어버린다.
+// 그래서 위젯 전용으로 "이 학기의 이 시간표"를 하나 지정해두고, 없으면(처음 쓰는 경우)
+// 지금 활성 시간표를 그대로 쓴다.
+function getWidgetPrimaryTimetable(){ return localGet('widget_primary_tt', null); }
+function setWidgetPrimaryTimetable(sem, idx){
+  localSet('widget_primary_tt', { sem, idx });
+  pushWidgetData();
+}
+function clearWidgetPrimaryTimetable(){
+  localSet('widget_primary_tt', null);
+  pushWidgetData();
+}
+function widgetPrimaryLabel(){
+  const p = getWidgetPrimaryTimetable();
+  if(!p || !state.timetablesBySemester[p.sem]) return '지금 보고 있는 시간표 따라가기';
+  const variants = semesterVariants(p.sem);
+  const v = variants[p.idx];
+  return v ? `${semesterLabel(p.sem)} · ${v.name}` : '지금 보고 있는 시간표 따라가기';
+}
+// 위젯이 실제로 그릴 수업 목록 — 대표 시간표가 지정돼 있으면 그걸, 아니면 지금 활성 시간표를 쓴다.
+function widgetTimetableSlots(){
+  const p = getWidgetPrimaryTimetable();
+  if(p && state.timetablesBySemester[p.sem]){
+    const variants = semesterVariants(p.sem);
+    const v = variants[p.idx];
+    if(v) return v.slots;
+  }
+  return state.timetable;
+}
+function widgetSemesterLabel(){
+  const p = getWidgetPrimaryTimetable();
+  if(p && state.timetablesBySemester[p.sem]) return semesterLabel(p.sem);
+  return state.activeSemester ? semesterLabel(state.activeSemester) : '';
+}
+
+function primaryTimetableModal(){
+  const keys = sortedSemesterKeys();
+  const cur = getWidgetPrimaryTimetable();
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">대표 시간표<button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6;">
+      위젯이 항상 보여줄 시간표를 골라두세요. 지정하지 않으면 앱에서 마지막으로 보고 있던 시간표를 따라가요.
+    </p>
+    <div class="tt-list-scroll">
+      <div class="tt-list-row ${!cur?'active':''}" data-action="pick-primary-variant" data-key="" data-idx="-1">
+        <span>지금 보고 있는 시간표 따라가기</span>
+      </div>
+      ${keys.filter(k=>semesterVariants(k).length).map(k=>{
+        const variants = semesterVariants(k);
+        return `
+        <div class="tt-list-group">
+          <div class="tt-list-sem-title">${semesterLabel(k)}</div>
+          ${variants.map((v,i)=>`
+            <div class="tt-list-row ${cur && cur.sem===k && cur.idx===i?'active':''}" data-action="pick-primary-variant" data-key="${k}" data-idx="${i}">
+              <span>${escapeHtml(v.name)}</span>
+              <span class="tt-list-row-meta">${v.slots.length}개 수업</span>
+            </div>`).join('')}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderWidgetSettingsTab(){
+  const wo = getWidgetOpts();
+  return `
+    <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6;">
+      홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요. 시간표 · 다음 수업 · 학식 · 일정/메모 · 주간 시간표 · 달력 · 오늘 날짜 7종이 있고, 크기는 자유롭게 조절돼요.
+    </p>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>대표 시간표</label>
+      <div class="link-row" data-action="open-primary-timetable" style="padding:8px 0;">
+        <span style="font-size:12px;">${escapeHtml(widgetPrimaryLabel())}</span> <span class="sub">${ICON.chevR}</span>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>배경</label>
+      <div style="display:flex; gap:6px;">
+        ${WIDGET_BGS.map(b=>`
+          <button type="button" class="btn ${wo.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
+            data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>강조 색</label>
+      <div class="swatches">
+        ${WIDGET_ACCENTS.map(hex=>`
+          <div class="swatch ${wo.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
+            data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${wo.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>투명도 <span style="color:var(--text-faint); font-weight:400;">(글씨는 그대로, 카드 배경만)</span></label>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="range" id="widget-opacity" min="20" max="100" step="4" value="${wo.opacity}" style="flex:1;">
+        <span id="widget-opacity-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${wo.opacity}%</span>
+      </div>
+    </div>
+
+    <div class="notify-row" style="padding:8px 2px;">
+      <span class="notify-label"><span class="notify-label-text"><b>오늘 날짜 위젯에 일정 표시</b><small>날짜 아래에 오늘 학사일정을 간략히 보여줘요</small></span></span>
+      <button type="button" class="btn ${wo.dateShowEvents?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-date-events">${wo.dateShowEvents?'켜짐':'꺼짐'}</button>
+    </div>`;
 }
 
 /* ===== 홈 화면 위젯 데이터 전달 =====
@@ -1663,8 +1775,9 @@ async function pushWidgetData(){
   const WB = Capacitor.Plugins && Capacitor.Plugins.WidgetBridge;
   if(!WB) return;
   try{
+    const ttSlots = widgetTimetableSlots();
     const di = todayDayIndex();
-    const classes = (di>=0 ? state.timetable.filter(c=>c.day===di) : [])
+    const classes = (di>=0 ? ttSlots.filter(c=>c.day===di) : [])
       .sort((a,b)=>a.start-b.start)
       .map(c=>({
         subject: c.subject || '',
@@ -1687,38 +1800,48 @@ async function pushWidgetData(){
       date: fmtDateShort(ev.startDate) + (ev.endDate!==ev.startDate ? '~'+fmtDateShort(ev.endDate) : ''),
     }));
 
-    // 주간 시간표 위젯용 — 월~금 다섯 칸
+    // 주간 시간표 위젯용 — 월~금 다섯 칸. 요일 머리글에 실제 날짜(며칠인지)도 같이 보여준다.
+    const weekMon = getWeekMonday(today);
+    const weekDates = getWeekdayDates(weekMon);
     const weekClasses = [0,1,2,3,4].map(d =>
-      state.timetable.filter(c=>c.day===d).sort((a,b)=>a.start-b.start).map(c=>({
+      ttSlots.filter(c=>c.day===d).sort((a,b)=>a.start-b.start).map(c=>({
         subject: c.subject || '',
         color: c.color || COLORS[0].hex,
         startLabel: minutesToLabel(c.start),
       }))
     );
 
-    // 달력 위젯에 점을 찍을 날짜 — 이번 달의 일정과 메모가 있는 날
+    // 달력 위젯에 점을 찍을 날짜 — 이번 달의 일정과 메모가 있는 날.
+    // 시작일에만 찍는다. "수강포기 신청 9.21~9.23"처럼 며칠씩 걸치는 학사일정이 많다 보니,
+    // 걸치는 날마다 다 찍으면 거의 매일 점이 찍혀 정작 무슨 날인지 구분이 안 갔다.
     const markedDates = {};
     const ym = today.slice(0,7);
     live(state.calendar).forEach(ev=>{
       if(!ev.startDate) return;
-      let d = ev.startDate;
-      const end = ev.endDate || ev.startDate;
-      // 여러 날에 걸친 일정은 걸치는 날마다 점을 찍는다 (최대 60일까지만 안전하게)
-      for(let i=0; i<60 && d<=end; i++){
-        if(d.slice(0,7) === ym) markedDates[d] = true;
-        d = addDays(d, 1);
-      }
+      if(ev.startDate.slice(0,7) === ym) markedDates[ev.startDate] = true;
     });
     Object.keys(state.memos || {}).forEach(d=>{
       if(d.slice(0,7) === ym && (state.memos[d]||'').trim()) markedDates[d] = true;
     });
 
+    // "오늘 날짜" 위젯용 — 오늘에 실제로 걸쳐있는 학사일정만 간략히
+    const todayEvents = live(state.calendar)
+      .filter(ev=>ev.startDate<=today && ev.endDate>=today)
+      .sort((a,b)=>a.startDate.localeCompare(b.startDate))
+      .slice(0,3)
+      .map(ev=>ev.title||'')
+      .filter(Boolean);
+
     const payload = {
       updatedAt: now(),
       todayLabel: fmtDateLabel(today),
-      semester: state.activeSemester ? semesterLabel(state.activeSemester) : '',
+      todayDay: String(new Date().getDate()),
+      todayWeekday: ['일','월','화','수','목','금','토'][new Date().getDay()],
+      todayEvents,
+      semester: widgetSemesterLabel(),
       classes,
       weekClasses,
+      weekDates: weekDates.map(d=>String(new Date(d+'T00:00:00').getDate())),
       meals: {
         today: { breakfast: st.breakfast||'', lunch: st.lunch||'', dinner: st.dinner||'' },
         tomorrow: { breakfast: stTom.breakfast||'', lunch: stTom.lunch||'', dinner: stTom.dinner||'' },
@@ -1811,10 +1934,12 @@ async function refreshShared(){
 }
 
 function checkWeeklyAutoMealFetch(){
-  // 학식은 매주 월요일 아침에 한 주치가 한 번에 올라오는 방식이라,
-  // 정확히 몇 시에 올라올지 몰라 9~12시 사이 매 시각 한 번씩 재시도한다 (시간대별 1회, 성공/실패 무관)
+  // 학식은 보통 월요일 아침에 한 주치가 올라오지만, 월요일이 공휴일이거나 업로드가 늦어지면
+  // 그 주 내내 식단이 비어 보였다. 그래서 요일을 가리지 않고 평일 9~12시에 매 시각 한 번씩
+  // 시도한다 (시간대별 1회, 성공/실패 무관 — 이미 있는 주면 같은 값으로 덮어써도 무해).
   const nowD = new Date();
-  if(nowD.getDay() !== 1) return; // 월요일(1)에만
+  const wd = nowD.getDay();
+  if(wd === 0 || wd === 6) return; // 주말은 학식 운영을 안 해서 건너뜀
   const hour = nowD.getHours();
   if(![9,10,11,12].includes(hour)) return;
   const slotKey = 'last_meal_fetch_slot';
@@ -4131,6 +4256,13 @@ function renderMypage(){
 
     ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
+      <div class="subtabs" style="margin-bottom:12px;">
+        <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
+        <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
+        ${isNativeApp ? `<div class="subtab ${state.settingsTab==='widget'?'active':''}" data-action="settings-tab" data-tab="widget">위젯</div>` : ''}
+      </div>
+
+      ${state.settingsTab==='display' ? `
       <p style="margin:0 0 8px; font-size:11.5px; font-weight:700;">글씨 크기</p>
       <div style="display:flex; gap:6px;">
         ${FONT_SCALES.map(([v,label])=>`
@@ -4140,10 +4272,9 @@ function renderMypage(){
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         글씨뿐 아니라 버튼·여백까지 함께 커지고 작아져요.
       </p>
+      ` : ''}
 
-      <div class="divider" style="margin:14px 0;"></div>
-
-      <p style="margin:0 0 4px; font-size:11.5px; font-weight:700;">알림</p>
+      ${state.settingsTab==='notify' ? `
       <div class="notify-row">
         <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>공지</b><small>새 공지가 올라올 때</small></span></span>
         <button type="button" class="btn ${np.notice?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="notice">${np.notice?'켜짐':'꺼짐'}</button>
@@ -4170,11 +4301,9 @@ function renderMypage(){
       <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">
         ${isNativeApp ? '공지 · 투표 · 학식 알림은 앱을 꺼둬도 도착해요.' : '브라우저에서는 공지 · 투표 · 학식 알림을 받을 수 있어요.'}
       </p>
+      ` : ''}
 
-      <div class="divider" style="margin:14px 0;"></div>
-
-      <p style="margin:0 0 8px; font-size:11.5px; font-weight:700; color:var(--danger-text);">계정</p>
-      <div class="link-row danger" data-action="delete-account" style="padding:8px 2px;">회원 탈퇴 <span class="sub">${ICON.chevR}</span></div>
+      ${state.settingsTab==='widget' && isNativeApp ? renderWidgetSettingsTab() : ''}
     </div>
     ` : ''}
 
@@ -4207,48 +4336,13 @@ function renderMypage(){
     ` : ''}
 
 
-    ${isNativeApp ? (()=>{
-      const wo = getWidgetOpts();
-      return `
-      <div class="section-title">홈 화면 위젯</div>
-      <div class="card">
-        <p style="font-size:11px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">
-          홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요. 시간표 · 다음 수업 · 학식 · 일정/메모 · 주간 시간표 · 달력 6종이 있고, 크기는 자유롭게 조절돼요.
-        </p>
-
-        <div class="field" style="margin-bottom:12px;">
-          <label>배경</label>
-          <div style="display:flex; gap:6px;">
-            ${WIDGET_BGS.map(b=>`
-              <button type="button" class="btn ${wo.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
-                data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
-          </div>
-        </div>
-
-        <div class="field" style="margin-bottom:12px;">
-          <label>강조 색</label>
-          <div class="swatches">
-            ${WIDGET_ACCENTS.map(hex=>`
-              <div class="swatch ${wo.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
-                data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${wo.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
-          </div>
-        </div>
-
-        <div class="field" style="margin-bottom:2px;">
-          <label>투명도 <span style="color:var(--text-faint); font-weight:400;">(글씨는 그대로, 카드 배경만)</span></label>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <input type="range" id="widget-opacity" min="20" max="100" step="4" value="${wo.opacity}" style="flex:1;">
-            <span id="widget-opacity-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${wo.opacity}%</span>
-          </div>
-        </div>
-      </div>`;
-    })() : ''}
-
     <div class="section-title">계정</div>
     <div class="card">
       <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row danger" data-action="reset-all-timetables">모든 시간표 전체 삭제 <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row danger" data-action="delete-account">회원 탈퇴 <span class="sub">${ICON.chevR}</span></div>
     </div>
 
     <div class="card dev-card">
@@ -6279,8 +6373,16 @@ document.addEventListener('click', async (e)=>{
     else if(a==='add-student-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, false)); }
     else if(a==='add-council-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, true)); }
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
+    else if(a==='settings-tab'){ state.settingsTab = el.dataset.tab; renderMain(); }
     else if(a==='set-widget-bg'){ setWidgetOpts({ bg: el.dataset.bg }); renderMain(); }
     else if(a==='set-widget-accent'){ setWidgetOpts({ accent: el.dataset.hex }); renderMain(); }
+    else if(a==='toggle-widget-date-events'){ setWidgetOpts({ dateShowEvents: !getWidgetOpts().dateShowEvents }); renderMain(); }
+    else if(a==='open-primary-timetable'){ openModal(primaryTimetableModal()); }
+    else if(a==='pick-primary-variant'){
+      if(el.dataset.idx === '-1') clearWidgetPrimaryTimetable();
+      else setWidgetPrimaryTimetable(el.dataset.key, parseInt(el.dataset.idx,10));
+      closeModal(); renderMain();
+    }
     else if(a==='edit-memo'){ openModal(memoModal(el.dataset.date || state.selectedExamDate)); setupMemoModalListeners(); }
     else if(a==='delete-memo'){ await deleteMemo(el.dataset.date || state.selectedExamDate); }
     else if(a==='edit-event'){

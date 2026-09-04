@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 수업 없는 요일 칸의 빈 자리 표시 (다른 요일과 위아래 정렬을 맞추기 위한 용도) -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/week_empty_dash"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:paddingTop="6dp"
+    android:text="–"
+    android:textSize="10sp" />

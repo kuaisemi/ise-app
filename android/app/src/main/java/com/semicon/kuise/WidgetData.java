@@ -50,6 +50,7 @@ public class WidgetData {
             ScheduleWidget.class,
             WeekWidget.class,
             CalendarWidget.class,
+            DateWidget.class,
         };
         AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
         for (Class<?> provider : providers) {

@@ -7,7 +7,7 @@
 //
 // 일정
 //   학과 공지: 매일 00:00 / 12:00 KST
-//   학식     : 매주 월요일 10:00 → 실패 시 10:30 → 11:00 → 12:00 (한 번 성공하면 그 주는 종료)
+//   학식     : 평일 10:00 → 실패 시 10:30 → 11:00 → 12:00 (한 번 성공하면 그 주는 종료)
 
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -275,10 +275,15 @@ async function main() {
     newSlots.push(slot);
   }
 
-  // 학식 — 월요일 10:00 → 10:30 → 11:00 → 12:00, 한 번 성공하면 그 주는 더 시도하지 않음
+  // 학식 — 평일 10:00 → 10:30 → 11:00 → 12:00, 한 번 성공하면 그 주는 더 시도하지 않음.
+  //
+  // 원래 월요일에만 시도했는데, 월요일이 공휴일이거나 학교 쪽 업로드가 늦어지면 그 주 내내
+  // 식단이 비어 보였다. 그래서 요일을 가리지 않고 평일마다 시도하되, 성공하면 그 주(월요일 기준)는
+  // 더 부르지 않으므로 실제 요청 수는 거의 늘지 않는다.
   const monday = thisMondayStr();
-  const isMonday = kstNow().getUTCDay() === 1;
-  if (isMonday && st.mealFetchedWeek !== monday) {
+  const weekday = kstNow().getUTCDay();
+  const isWeekday = weekday >= 1 && weekday <= 5;
+  if (isWeekday && st.mealFetchedWeek !== monday) {
     for (const [h, m] of [[10, 0], [10, 30], [11, 0], [12, 0]]) {
       const slot = `meal_${today}_${pad(h)}${pad(m)}`;
       if (doneSlots.has(slot) || !isDue(h, m, 25)) continue;

@@ -1,21 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 주간 시간표의 요일 한 칸 (머리글 + 그날 수업 목록) -->
+<!-- 주간 시간표의 요일 한 칸 (요일+날짜 머리글 + 그날 수업 목록) -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="0dp"
     android:layout_height="match_parent"
     android:layout_weight="1"
     android:orientation="vertical"
-    android:paddingStart="1dp"
-    android:paddingEnd="1dp">
+    android:paddingStart="2dp"
+    android:paddingEnd="2dp">
 
     <TextView
         android:id="@+id/col_day"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:layout_marginBottom="5dp"
         android:textSize="10sp"
         android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/col_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginBottom="6dp"
+        android:textSize="9sp" />
 
     <LinearLayout
         android:id="@+id/col_items"
