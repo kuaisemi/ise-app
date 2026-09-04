@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "오늘의 학식" 위젯 (4x1~4x2 권장) — 시간대에 맞는 진리관 식단 한 끼 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="14dp">
+
+    <TextView
+        android:id="@+id/meal_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="진리관"
+        android:textColor="#4ECDC4"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/meal_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:maxLines="4"
+        android:ellipsize="end"
+        android:lineSpacingExtra="3dp"
+        android:textColor="#F2F4F8"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/meal_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="#6C7484"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>

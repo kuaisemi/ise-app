@@ -4,4 +4,14 @@
     <string name="title_activity_main">KU ISE</string>
     <string name="package_name">com.semicon.kuise</string>
     <string name="custom_url_scheme">com.semicon.kuise</string>
+
+    <!-- 홈 화면 위젯 (위젯 목록에서 보이는 설명) -->
+    <string name="widget_timetable_label">오늘의 시간표</string>
+    <string name="widget_timetable_desc">오늘 들을 수업을 한눈에</string>
+    <string name="widget_next_class_label">다음 수업</string>
+    <string name="widget_next_class_desc">지금 기준 다음 수업 하나만 크게</string>
+    <string name="widget_meal_label">오늘의 학식</string>
+    <string name="widget_meal_desc">시간대에 맞는 진리관 식단</string>
+    <string name="widget_schedule_label">일정 · 메모</string>
+    <string name="widget_schedule_desc">다가오는 학사일정과 오늘 메모</string>
 </resources>

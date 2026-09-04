@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "일정 · 메모" 위젯 (4x2 권장) — 다가오는 학사일정 3개 + 오늘 메모 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="14dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="다가오는 일정"
+        android:textColor="#F5C563"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/ev_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#6C7484"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <LinearLayout android:id="@+id/ev_row_0"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginBottom="6dp" android:visibility="gone">
+        <TextView android:id="@+id/ev_title_0" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:maxLines="1" android:ellipsize="end"
+            android:textColor="#F2F4F8" android:textSize="12sp" android:textStyle="bold" />
+        <TextView android:id="@+id/ev_date_0" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textColor="#8A93A6" android:textSize="11sp" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/ev_row_1"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginBottom="6dp" android:visibility="gone">
+        <TextView android:id="@+id/ev_title_1" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:maxLines="1" android:ellipsize="end"
+            android:textColor="#F2F4F8" android:textSize="12sp" android:textStyle="bold" />
+        <TextView android:id="@+id/ev_date_1" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textColor="#8A93A6" android:textSize="11sp" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/ev_row_2"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginBottom="6dp" android:visibility="gone">
+        <TextView android:id="@+id/ev_title_2" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:maxLines="1" android:ellipsize="end"
+            android:textColor="#F2F4F8" android:textSize="12sp" android:textStyle="bold" />
+        <TextView android:id="@+id/ev_date_2" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textColor="#8A93A6" android:textSize="11sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/memo_section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="6dp"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1FFFFFFF"
+            android:layout_marginBottom="7dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="오늘 메모"
+            android:textColor="#4ECDC4"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/memo_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="#C7CDD9"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>

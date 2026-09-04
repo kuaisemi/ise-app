@@ -25,6 +25,55 @@
 
         </activity>
 
+        <!-- 홈 화면 위젯 4종. 데이터는 앱이 WidgetBridge로 넣어준 값을 읽어서 그린다. -->
+        <receiver
+            android:name=".TimetableWidget"
+            android:label="@string/widget_timetable_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_timetable_info" />
+        </receiver>
+
+        <receiver
+            android:name=".NextClassWidget"
+            android:label="@string/widget_next_class_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_next_class_info" />
+        </receiver>
+
+        <receiver
+            android:name=".MealWidget"
+            android:label="@string/widget_meal_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_meal_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ScheduleWidget"
+            android:label="@string/widget_schedule_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_schedule_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -14,6 +14,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // 웹에서 홈 화면 위젯으로 데이터를 넘길 통로.
+        // registerPlugin은 super.onCreate() 전에 불러야 브리지가 만들어질 때 함께 등록된다.
+        registerPlugin(WidgetBridgePlugin.class);
         super.onCreate(savedInstanceState);
         disableAlgorithmicDarkening();
         setupStatusBar();

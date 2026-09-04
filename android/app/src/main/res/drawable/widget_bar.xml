@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 과목 색을 나타내는 왼쪽 세로 막대 (색은 코드에서 지정) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#3DDC97" />
+    <corners android:radius="3dp" />
+</shape>

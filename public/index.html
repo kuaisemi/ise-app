@@ -1343,6 +1343,7 @@ async function saveTimetable(uidStr, arr){
   try{ payload = JSON.parse(JSON.stringify({ bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts })); }
   catch(e){ payload = { bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts }; }
   scheduleTimetableReminders(arr);
+  pushWidgetData();
   try{ await setDoc(doc(db,'timetables',uidStr), payload); LAST_SAVE_ERROR=''; return true; }
   catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; console.error('시간표 저장 실패', e); return false; }
 }
@@ -1435,6 +1436,7 @@ function boot(){
           const np = getNotifyPrefs();
           if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.meal)) ensurePushToken();
           scheduleTimetableReminders();
+          pushWidgetData();
           checkWeeklyAutoMealFetch();
           checkAutoDeptNoticeFetch();
           checkAutoOfficialScheduleFetch();
@@ -1625,6 +1627,58 @@ async function setupForegroundMessageListener(){
   }catch(e){}
 }
 
+/* ===== 홈 화면 위젯 데이터 전달 =====
+   위젯은 앱과 별개 프로세스에서 잠깐 깨어나 그림만 그리는 구조라 Firestore나 웹 저장소를
+   직접 못 읽는다. 그래서 앱이 켜지거나 데이터가 바뀔 때마다 위젯이 필요한 값만 추려서
+   네이티브(WidgetBridge)에 넘겨주고, 위젯은 그걸 읽어서 그린다.
+   시간대에 따라 달라지는 판단(다음 수업이 뭔지, 지금이 조식인지 석식인지)은 위젯 쪽에서
+   직접 하므로, 여기서는 하루치 재료를 통째로 넘긴다. */
+async function pushWidgetData(){
+  const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+  if(!isNative) return;
+  const WB = Capacitor.Plugins && Capacitor.Plugins.WidgetBridge;
+  if(!WB) return;
+  try{
+    const di = todayDayIndex();
+    const classes = (di>=0 ? state.timetable.filter(c=>c.day===di) : [])
+      .sort((a,b)=>a.start-b.start)
+      .map(c=>({
+        subject: c.subject || '',
+        room: c.room || '',
+        color: c.color || COLORS[0].hex,
+        start: c.start, end: c.end,
+        time: `${minutesToLabel(c.start)}–${minutesToLabel(c.end)}`,
+      }));
+
+    const today = todayStr();
+    const tomorrow = addDays(today, 1);
+    const studentOf = (d)=> ((state.meals[d]||{}).student) || {};
+    const st = studentOf(today), stTom = studentOf(tomorrow);
+
+    const events = live(state.calendar)
+      .filter(ev=>ev.endDate >= today)
+      .sort((a,b)=>a.startDate.localeCompare(b.startDate))
+      .slice(0,3)
+      .map(ev=>({
+        title: ev.title || '',
+        date: fmtDateShort(ev.startDate) + (ev.endDate!==ev.startDate ? '~'+fmtDateShort(ev.endDate) : ''),
+      }));
+
+    const payload = {
+      updatedAt: now(),
+      todayLabel: fmtDateLabel(today),
+      classes,
+      meals: {
+        today: { breakfast: st.breakfast||'', lunch: st.lunch||'', dinner: st.dinner||'' },
+        tomorrow: { breakfast: stTom.breakfast||'', lunch: stTom.lunch||'', dinner: stTom.dinner||'' },
+      },
+      events,
+      memo: (state.memos && state.memos[today]) || '',
+    };
+    await WB.update({ payload: JSON.stringify(payload) });
+  }catch(e){ console.warn('[widget]', e); }
+}
+
 // "오늘의 시간표" 알림은 앱(APK)에서만 동작하는 기기 로컬 알림. 브라우저/PWA에서는 건너뜀.
 // 요일마다 그날의 수업 목록으로 내용을 채워 월~금 5개를 매주 반복 예약하고,
 // 시간표나 설정이 바뀔 때마다 통째로 취소 후 다시 예약해서 항상 최신 내용을 유지한다.
@@ -1699,6 +1753,7 @@ async function refreshShared(){
     state.suggestions=sugg; state.polls=polls;
     state.councilPosts=cposts; state.recruitmentPosts=recruits;
     state.allUsers=users;
+    pushWidgetData(); // 식단·학사일정이 갱신됐을 수 있으므로 위젯도 같이 최신화
   }catch(e){}
 }
 
@@ -3035,7 +3090,7 @@ async function handleMemoSubmit(fd){
   if(content) next[date] = content;
   else delete next[date]; // 내용을 비우면 그 날 메모는 지운다
   const ok = await saveMemos(state.user.uid, next);
-  if(ok) state.memos = next;
+  if(ok){ state.memos = next; pushWidgetData(); }
   closeModal();
   renderMain();
   if(ok) toast(content ? '메모를 저장했어요' : '메모를 지웠어요');
