@@ -427,7 +427,7 @@ const LEGACY_STUDENT_EMAIL_DOMAIN = '@ies.local'; // 개명 이전 기존 계정
 
 // Firebase 콘솔 → 프로젝트 설정 → Cloud Messaging → 웹 푸시 인증서에서 발급받은 키 쌍을 붙여넣어야 함.
 // 이 값이 비어있는 동안은 알림 켜기를 눌러도 조용히 실패함(권한 요청 전에 먼저 체크).
-const FCM_VAPID_KEY = '';
+const FCM_VAPID_KEY = 'BAqPxZF5cBXiMDGehsjdUrX6fKM8EL4DQ-Hji8r8KT0K1mnAtzP9MuEkKpeu_irlX_ecYuylquNZn5DrvhbqJnQ';
 let messagingInstance = null;
 async function getMessagingInstance(){
   if(messagingInstance) return messagingInstance;
@@ -1323,13 +1323,17 @@ function getNotifyPrefs(){
   return {
     notice: localGet('notif_notice', true),
     poll: localGet('notif_poll', true),
+    meal: localGet('notif_meal', false),
     timetable: localGet('notif_timetable', false),
     timetableHour: localGet('notif_timetable_hour', 8),
   };
 }
+// 서버(GitHub Actions)가 "누구에게 보낼지" 알아야 하는 항목만 Firestore에도 저장한다.
+// 시간표 알림은 기기 로컬 알림이라 서버가 알 필요 없음.
+const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'meal'];
 async function setNotifyPref(key, value){
   localSet('notif_'+key, value);
-  if((key==='notice' || key==='poll') && state.user){
+  if(SERVER_NOTIFY_KEYS.includes(key) && state.user){
     try{ await setDoc(doc(db,'users',state.user.uid), { notifyPrefs: { [key]: !!value } }, { merge:true }); }catch(e){}
     if(value) await ensurePushToken();
   }
@@ -3623,8 +3627,12 @@ function renderMypage(){
         <button type="button" class="btn ${np.notice?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="notice" style="width:auto; padding:5px 12px;">${np.notice?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
-        <span>🗳️ 투표 시작될 때</span>
+        <span>🗳️ 투표 <span style="font-size:11px; color:var(--text-faint);">시작·마감 30분 전·저녁 8시</span></span>
         <button type="button" class="btn ${np.poll?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="poll" style="width:auto; padding:5px 12px;">${np.poll?'켜짐':'꺼짐'}</button>
+      </div>
+      <div class="notify-row">
+        <span>🍚 학식 <span style="font-size:11px; color:var(--text-faint);">7시·10시 반·16시 반</span></span>
+        <button type="button" class="btn ${np.meal?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="meal" style="width:auto; padding:5px 12px;">${np.meal?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
         <span>🗓️ 오늘의 시간표</span>
