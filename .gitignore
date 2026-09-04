@@ -87,3 +87,6 @@ android/keystore.properties
 
 # 배포용 APK — 용량이 커서 git에 넣지 않음 (호스팅에만 업로드)
 public/*.apk
+
+# Playwright MCP가 브라우저 확인 중 생성하는 임시 스냅샷/로그
+public/.playwright-mcp/
