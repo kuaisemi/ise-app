@@ -239,24 +239,36 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 
 .tt-card-container{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;}
 .tt-wrap{overflow-x:auto; max-height:68vh; overscroll-behavior:contain; background:radial-gradient(ellipse at top, var(--grid-a) 0%, var(--grid-b) 100%);}
-.tt-grid{display:grid; grid-template-columns:20px repeat(5, minmax(24px, 1fr)); min-width:320px; position:relative; --tt-row-h:16px;}
+.tt-grid{display:grid; grid-template-columns:20px repeat(5, minmax(24px, 1fr)); min-width:320px; position:relative; --tt-row-h:13px;}
 .tt-head{height:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; color:var(--text-dim); border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(var(--grid-b-rgb),0.95); backdrop-filter:blur(8px); z-index:4;}
 .tt-head.today{color:var(--teal); border-bottom:2px solid var(--teal);}
 .tt-timelabel{font-family:var(--font-mono); font-size:9px; font-weight:600; color:var(--text-faint); text-align:right; padding-right:3px; grid-column:1; display:flex; align-items:flex-start; justify-content:flex-end; padding-top:2px; pointer-events:none;}
 .tt-cell{height:var(--tt-row-h); border-top:1px dashed rgba(255,255,255,0.04); border-left:1px solid rgba(255,255,255,0.04); box-sizing:border-box;}
 .tt-cell.hour-cell{border-top:1px solid rgba(255,255,255,0.12);}
 .tt-cell.today-col{background:var(--teal-glow-5);}
-.tt-block{margin:1.5px 2px; border-radius:6px; padding:4px 5px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.18); z-index:2;}
+/* 행 높이는 더 눌러서 한 화면에 더 많은 시간대가 들어오게 하고, 대신 블록 안
+   글씨는 오히려 키워서 눌린 만큼 안 읽히는 일이 없게 한다. */
+.tt-block{margin:1px 2px; border-radius:6px; padding:3px 5px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.18); z-index:2;}
 .tt-block:active{transform:scale(0.96);}
-.tt-block b{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; font-size:calc(10.5px * var(--tt-font-scale, 1)); font-weight:800; line-height:1.2; margin-bottom:2px; overflow:hidden; word-break:break-all;}
-.tt-block span.time-tag{display:block; font-size:calc(8px * var(--tt-font-scale, 1)); font-family:var(--font-mono); line-height:1.15; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.tt-block span.prof-tag{display:block; font-size:calc(9px * var(--tt-font-scale, 1)); font-weight:600; line-height:1.15; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
-.tt-block span.room-tag{display:block; font-size:calc(9px * var(--tt-font-scale, 1)); opacity:0.95; margin-top:2px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.tt-block b{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; font-size:calc(12.5px * var(--tt-font-scale, 1)); font-weight:800; line-height:1.15; margin-bottom:1px; overflow:hidden; word-break:break-all;}
+.tt-block span.time-tag{display:block; font-size:calc(9.5px * var(--tt-font-scale, 1)); font-family:var(--font-mono); line-height:1.1; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.tt-block span.prof-tag{display:block; font-size:calc(10.5px * var(--tt-font-scale, 1)); font-weight:600; line-height:1.1; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
+.tt-block span.room-tag{display:block; font-size:calc(10.5px * var(--tt-font-scale, 1)); opacity:0.95; margin-top:1px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .tt-now-line{position:absolute; left:21px; right:0; height:2px; opacity:.55; z-index:8; box-shadow:0 0 8px currentColor; pointer-events:none;}
 .tt-options-trigger{width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:5px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:11.5px; font-weight:700; cursor:pointer;}
 
-.tt-fab{position:fixed; z-index:15; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:#fff; border:none; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(140,29,43,.5); cursor:pointer;}
+.tt-fab{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:#fff; border:none; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(140,29,43,.5); cursor:pointer; transition:transform .15s;}
 @media (max-width:480px){ .tt-fab{right:18px;} }
+.tt-fab-wrap.open .tt-fab{transform:rotate(45deg);}
+/* + 버튼을 누르면 "직접 추가"로 바로 들어가던 걸, 사진 인식도 같이 고를 수 있게
+   위로 펼쳐지는 작은 원형 메뉴(스피드 다이얼)로 바꿨다. */
+.tt-fab-backdrop{position:fixed; inset:0; z-index:14; background:transparent;}
+.tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
+@media (max-width:480px){ .tt-fab-option{right:18px;} }
+.tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 12px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,.35); white-space:nowrap;}
+.tt-fab-option-circle{flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.35);}
+.tt-fab-option:active .tt-fab-option-circle{transform:scale(0.94);}
+@keyframes tt-fab-pop{from{opacity:0; transform:translateY(8px) scale(.9);}to{opacity:1; transform:translateY(0) scale(1);}}
 
 .bottomnav{position:fixed; left:0; right:0; bottom:0; z-index:20; max-width:480px; margin:0 auto; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); border-top:1px solid var(--border); display:flex; padding:8px 6px calc(8px + var(--safe-bottom));}
 .navbtn{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; background:none; border:none; cursor:pointer; color:var(--text-faint);}
@@ -359,7 +371,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .meal-date{font-weight:800; font-size:13.5px;}
 .meal-block{margin-bottom:12px;}
 .meal-block:last-child{margin-bottom:0;}
-.meal-block .m-label{font-size:11px; font-weight:800; color:var(--amber); letter-spacing:.06em; margin-bottom:6px; display:flex; align-items:center; gap:5px;}
+/* 진리관/미래관 라벨이 작고 자간까지 넓어(한글엔 안 맞는 트래킹) 잘 안 읽혔다.
+   크기를 키우고 자간은 좁혀서 또렷하게 읽히게 한다. */
+.meal-block .m-label{font-size:13px; font-weight:700; color:var(--amber); letter-spacing:-0.01em; margin-bottom:6px; display:flex; align-items:center; gap:5px;}
 /* 이모지 자리를 대체한 선 아이콘이 글줄에 얹혀 보이지 않도록 글자 높이에 맞춘다.
    (이모지는 글자처럼 baseline에 놓이지만, 인라인 SVG는 baseline에 걸려 살짝 내려앉음)
    .btn / .modal-title은 이미 flex+gap이라 여백을 따로 주지 않는다. */
@@ -600,7 +614,7 @@ const TIME_START = 540;
 const TIME_END   = 1320;
 const TIMETABLE_VISIBLE_END = 1080;
 const TIMETABLE_GRID_STEP = 15;
-const TIMETABLE_ROW_PX = 16; // .tt-grid의 --tt-row-h와 동일하게 유지 (현재시각 선 위치 계산용)
+const TIMETABLE_ROW_PX = 13; // .tt-grid의 --tt-row-h와 동일하게 유지 (현재시각 선 위치 계산용)
 
 /* ===== 학기(시간표 탭) 관련 헬퍼 ===== */
 const SEASON_ORDER = { '봄':0, '여름':1, '가을':2, '겨울':3 };
@@ -757,7 +771,7 @@ const state = {
   allUsers: {}, roster: {}, ocrParsedClasses: [],
   ttOpts: { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B' },
   editingPollVoteId: null, nowTimer: null,
-  activeUserListTab: 'all', expandedComments: {}, captureMode: false,
+  activeUserListTab: 'all', expandedComments: {}, captureMode: false, ttFabOpen: false,
   previewAsStudent: false,
   myPageSettingsOpen: false,
   activeSemester: null,
@@ -770,6 +784,21 @@ const state = {
 /* ===== 유틸 ===== */
 function pad(n){ return String(n).padStart(2,'0'); }
 function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function dateStrOf(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+// 홈 화면의 진리관(학생식당) 카드는 하루 종일 "중식"만 고정으로 보여주고 있었는데,
+// 시간대에 맞춰 조식/중식/석식이 자동으로 바뀌도록 한다 (진리관 전용, 홈 화면 전용).
+// 조식 구간(전날 21시~당일 09시)은 자정을 걸치므로, 21시 이후엔 "내일 날짜"의
+// 조식을, 자정 이후 9시 전까지는 "오늘 날짜"의 조식을 봐야 한다.
+function homeStudentMealSlot(){
+  const now = new Date();
+  const mins = now.getHours()*60 + now.getMinutes();
+  if(mins >= 9*60 && mins < 14*60) return { key:'lunch', label:'중식', icon:ICON.sun, date: todayStr() };
+  if(mins >= 14*60 && mins < 21*60) return { key:'dinner', label:'석식', icon:ICON.moon, date: todayStr() };
+  let date;
+  if(mins >= 21*60){ const d=new Date(now); d.setDate(d.getDate()+1); date=dateStrOf(d); }
+  else date = todayStr();
+  return { key:'breakfast', label:'조식', icon:ICON.sunrise, date };
+}
 function addDays(str, delta){ const d=new Date(str+'T00:00:00'); d.setDate(d.getDate()+delta); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function addMonths(ym, delta){ let [y,m]=ym.split('-').map(Number); m+=delta; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;} return `${y}-${pad(m)}`; }
 function monthBounds(ym){ const [y,m]=ym.split('-').map(Number); const last=new Date(y,m,0).getDate(); return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(last)}`]; }
@@ -1100,6 +1129,40 @@ async function mutateSharedList(name, field, mutate){
     console.error('[mutateSharedList]', name, e);
     return null;
   }
+}
+
+// 삭제된(deleted:true) 글은 tombstone으로 남아있다가 GitHub Actions 크론이 10분마다
+// 자동으로 24시간 지난 것들을 정리한다(notify/send-notifications.mjs의 purgeOldTombstones와
+// 동일 로직). 그걸 기다리지 않고 학생회장이 그 자리에서 바로 실행하고 싶을 때 쓰는 수동 버튼.
+const TOMBSTONE_TTL_MS = 24*60*60*1000;
+const TOMBSTONE_DOCS = [
+  { name:'notices', field:'list', stateKey:'notices' },
+  { name:'polls', field:'list', stateKey:'polls' },
+  { name:'suggestions', field:'list', stateKey:'suggestions' },
+  { name:'recruitments', field:'list', stateKey:'recruitmentPosts' },
+  { name:'councilPosts', field:'list', stateKey:'councilPosts' },
+  { name:'bugReports', field:'list', stateKey:'bugReports' },
+  { name:'calendarEvents', field:'events', stateKey:'calendar' },
+];
+async function purgeOldTombstonesNow(){
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+  let removed = 0;
+  for(const {name, field, stateKey} of TOMBSTONE_DOCS){
+    try{
+      const result = await mutateSharedList(name, field, (cur)=>{
+        const kept = cur.filter(it=>{
+          if(!it || !it.deleted) return true;
+          if(!it.updatedAt) return true; // 삭제 시각을 알 수 없으면 이번엔 건드리지 않음
+          return it.updatedAt > cutoff;
+        });
+        if(kept.length === cur.length) return null; // 지울 게 없으면 저장 자체를 안 함
+        removed += cur.length - kept.length;
+        return kept;
+      });
+      if(result) state[stateKey] = result;
+    }catch(e){ console.warn('[purge]', name, e); }
+  }
+  return removed;
 }
 
 function saveResultToast(ok, okMsg){
@@ -1789,8 +1852,11 @@ function renderHome(){
   const di = todayDayIndex();
   const todays = di>=0 ? state.timetable.filter(c=>c.day===di).sort((a,b)=>a.start-b.start) : [];
   const rawMeal = state.meals[todayStr()] || {};
-  const studentMeal = rawMeal.student || null;
   const staffMeal = rawMeal.staff || null;
+  // 진리관은 홈 화면에서만 시간대별로 조식/중식/석식을 자동으로 바꿔 보여준다.
+  const studentSlot = homeStudentMealSlot();
+  const studentMeal = (state.meals[studentSlot.date] || {}).student || null;
+  const studentSlotText = studentMeal ? studentMeal[studentSlot.key] : '';
 
   const upcoming = live(state.calendar).filter(ev=>ev.endDate>=todayStr())
     .sort((a,b)=>a.startDate.localeCompare(b.startDate)).slice(0,3);
@@ -1863,11 +1929,11 @@ function renderHome(){
     ${(()=>{ const wd=new Date().getDay(); return wd!==0 && wd!==6; })() ? `
     <div class="section-title">오늘의 학식</div>
     <div class="card">
-      ${studentMeal && (studentMeal.lunch||studentMeal.breakfast||studentMeal.dinner) ? `
+      ${studentSlotText ? `
         <div class="meal-block">
-          <div class="m-label" style="color:var(--teal)">${ICON.capHat} 진리관 학생식당 중식</div>
-          <div class="m-text" style="font-size:11.5px">${formatMealHtml(studentMeal.lunch||'등록된 메뉴가 없습니다.')}</div>
-        </div>` : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0 8px;">${ICON.capHat} 진리관: 금일의 식단 정보가 없습니다.</p>`}
+          <div class="m-label" style="color:var(--teal)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}</div>
+          <div class="m-text" style="font-size:11.5px">${formatMealHtml(studentSlotText)}</div>
+        </div>` : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0 8px;">${ICON.capHat} 진리관: ${studentSlot.label} 정보가 없습니다.</p>`}
       ${staffMeal && staffMeal.lunch ? `
         <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
           <div class="m-label" style="color:var(--amber)">${ICON.tie} 미래관 교직원식당 중식</div>
@@ -1999,7 +2065,7 @@ function renderTimetable(isCapture=false){
       </style>
       <div class="tt-card-container capture-grid-scope" style="background:${capBg}; border:2px solid var(--capture-border); box-shadow:none;">
         <div class="tt-wrap" style="max-height:none; background:${capBg};">
-          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:14px;">
+          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:11px;">
             <div class="tt-head" style="grid-column:1; background:${capBg};"></div>
             ${heads}${timeLabels}${cells}${blocks}
           </div>
@@ -2029,7 +2095,20 @@ function renderTimetable(isCapture=false){
         </div>
       </div>
     `}
-    <button class="tt-fab" data-action="add-class">${ICON.plus}</button>
+    <div class="tt-fab-wrap ${state.ttFabOpen?'open':''}">
+      ${state.ttFabOpen ? `
+      <div class="tt-fab-backdrop" data-action="close-tt-fab"></div>
+      <button type="button" class="tt-fab-option" data-action="ocr-timetable" style="--i:0;">
+        <span class="tt-fab-option-circle">${ICON.camera}</span>
+        <span class="tt-fab-option-label">사진 인식</span>
+      </button>
+      <button type="button" class="tt-fab-option" data-action="add-class" style="--i:1;">
+        <span class="tt-fab-option-circle">${ICON.pencil}</span>
+        <span class="tt-fab-option-label">직접 추가</span>
+      </button>
+      ` : ''}
+      <button type="button" class="tt-fab" data-action="toggle-tt-fab">${ICON.plus}</button>
+    </div>
   `;
 }
 
@@ -3883,7 +3962,9 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
       ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
     </div>
+    ${isPresident() ? `<p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">공지·투표·건의·구인글·학생회 게시글·버그 제보·학사일정 중 삭제된 지 24시간 지난 항목을 완전히 지워요. 이 정리는 서버에서 10분마다 자동으로도 돌아가요.</p>` : ''}
 
     <p style="text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); margin:22px 0 2px; cursor:pointer; user-select:none;" data-action="easter-egg-tap">
       ISE-지능형반도체공학과 앱 - ${APP_VERSION}
@@ -5731,6 +5812,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'show-patch-notes'){ openModal(patchNotesModal()); }
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
+    else if(a === 'purge-tombstones'){
+      if(!await showConfirm('삭제된 지 24시간 지난 게시물을 지금 완전히 지울까요?\n(어차피 서버에서 10분마다 자동으로도 정리돼요)', { danger:false, okLabel:'정리하기' })) return;
+      const removed = await purgeOldTombstonesNow();
+      renderMain();
+      toast(removed ? `${removed}건 정리했습니다` : '정리할 게시물이 없습니다');
+    }
     else if(a === 'toggle-bug-status'){ await toggleBugStatus(el.dataset.id); }
     else if(a === 'delete-bug-report'){ await deleteBugReport(el.dataset.id); }
     else if(a === 'easter-egg-tap'){ await handleEasterEggTap(); }
@@ -5828,10 +5915,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'change-password'){ openModal(changePasswordModal()); }
     else if(a === 'delete-account'){ openModal(deleteAccountModal()); }
     else if(a === 'kick-member'){ openModal(kickMemberModal(el.dataset.sid, el.dataset.name)); }
-    else if(a === 'add-class'){ openModal(classModal(null)); setupClassModalListeners(); }
+    else if(a === 'toggle-tt-fab'){ state.ttFabOpen = !state.ttFabOpen; renderMain(); }
+    else if(a === 'close-tt-fab'){ state.ttFabOpen = false; renderMain(); }
+    else if(a === 'add-class'){ state.ttFabOpen = false; openModal(classModal(null)); setupClassModalListeners(); }
     else if(a === 'edit-class'){ const c = state.timetable.find(x => x.id === el.dataset.id); if(c){ openModal(classModal(c)); setupClassModalListeners(); } }
     else if(a === 'delete-class-group'){ await deleteClassGroup(el.dataset.groupId); }
-    else if(a === 'ocr-timetable'){ openModal(ocrModal()); setupOcrModalListeners(); }
+    else if(a === 'ocr-timetable'){ state.ttFabOpen = false; openModal(ocrModal()); setupOcrModalListeners(); }
     else if(a === 'pick-color'){
       document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s => { s.classList.remove('selected'); s.innerHTML = ''; });
       el.classList.add('selected'); el.innerHTML = '✓';
