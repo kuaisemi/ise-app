@@ -183,16 +183,21 @@ async function main() {
     await send('notice', '📢 새로운 공지가 있어요', `제목: ${n.title}`);
   }
 
-  // 2) 새 투표 시작
+  // 2) 새 투표 시작 — 공지와 마찬가지로 작성자가 "알림 발송"을 켠 투표만 보낸다(기본 꺼짐).
   const newPolls = polls.filter((p) => !notifiedPoll.has(p.id));
   for (const p of newPolls) {
+    if (!p.notifyPush) {
+      console.log('새 투표(알림 발송 꺼짐, 건너뜀):', p.question);
+      continue;
+    }
     console.log('새 투표 알림:', p.question);
     await send('poll', '🗳️ 새 투표가 시작됐어요', `제목: ${p.question}`);
   }
 
-  // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만
+  // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만.
+  //    알림 발송을 끈 투표는 리마인더 대상에서도 빠진다.
   const today = kstDateStr();
-  const activePolls = polls.filter(isPollActive);
+  const activePolls = polls.filter((p) => isPollActive(p) && p.notifyPush);
   if (activePolls.length && lastPollReminderDate !== today && isDue(20, 0)) {
     const head = activePolls[0].question;
     const body =

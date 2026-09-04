@@ -3569,6 +3569,13 @@ function pollModal(){
       <div class="field"><label>마감 일시 (선택)</label><input type="datetime-local" name="endDateTime">
         <div style="font-size:11.5px; color:var(--text-faint); margin-top:5px;">설정한 시각에 자동 종료됩니다.</div>
       </div>
+      <div class="checkline" style="justify-content:space-between; margin:4px 0 0;">
+        <label for="poll-push-check" style="margin:0; cursor:pointer; color:var(--text);">
+          🔔 알림 발송
+          <span style="display:block; font-size:11px; color:var(--text-faint); margin-top:2px;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림이 나갑니다</span>
+        </label>
+        <input type="checkbox" name="sendPush" id="poll-push-check">
+      </div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">투표 게시</button></div>
     </form>`;
 }
@@ -5099,13 +5106,16 @@ async function handlePollSubmit(fd){
     authorRole: myRole(),
     createdDate: todayStr(),
     closed: false,
+    // 공지와 동일하게, 작성자가 체크했을 때만 알림이 나간다(기본 꺼짐).
+    // 이 값이 false면 시작·마감임박·저녁 리마인더 알림 모두 이 투표를 건너뛴다.
+    notifyPush: fd.get('sendPush') === 'on',
     updatedAt: now()
   }, ...latest];
   const ok = await savePolls(next);
   state.polls = next;
   closeModal();
   renderMain();
-  saveResultToast(ok, '투표가 게시되었습니다');
+  saveResultToast(ok, fd.get('sendPush') === 'on' ? '투표가 게시되었습니다 (알림 발송 예약됨)' : '투표가 게시되었습니다');
 }
 
 async function handlePollVoteSubmit(fd){
