@@ -1495,13 +1495,18 @@ function ensurePushToken(){
 }
 // 한 사람이 폰 앱과 PC 브라우저를 같이 쓸 수 있으므로 토큰을 배열로 모아둔다.
 // (fcmToken 단일 필드만 쓰면 마지막에 등록한 기기 하나에만 알림이 감)
-async function saveFcmToken(token){
+//
+// 다만 같은 "폰"에서 브라우저로 알림을 한 번 허용한 뒤 나중에 앱(APK)을 설치해 또 허용하면,
+// 브라우저 토큰이 계속 남아있어서 알림이 두 군데(브라우저+앱)로 다 가고, 브라우저 쪽 알림을
+// 누르면 앱이 아니라 브라우저가 열려버린다. 그래서 네이티브 앱 토큰이 등록되면 그 시점부터는
+// 그 기기의 알림 창구를 앱 하나로 좁히기 위해 이전 토큰들을 정리하고 새 토큰으로 교체한다.
+async function saveFcmToken(token, opts={}){
   if(!token || !state.user) return false;
   try{
-    await setDoc(doc(db,'users',state.user.uid), {
-      fcmTokens: arrayUnion(token),
-      fcmToken: token, // 구버전 호환용
-    }, { merge:true });
+    const data = opts.replaceAll
+      ? { fcmTokens: [token], fcmToken: token }
+      : { fcmTokens: arrayUnion(token), fcmToken: token };
+    await setDoc(doc(db,'users',state.user.uid), data, { merge:true });
     return true;
   }catch(e){ console.warn('[fcm-save]', e); return false; }
 }
@@ -1543,7 +1548,7 @@ function registerNativePushToken(){
       // registration 이벤트로 토큰이 비동기 전달된다. 리스너는 한 번만 등록.
       if(!nativePushListenersBound){
         nativePushListenersBound = true;
-        PN.addListener('registration', (t)=>{ saveFcmToken(t && t.value); });
+        PN.addListener('registration', (t)=>{ saveFcmToken(t && t.value, { replaceAll:true }); });
         PN.addListener('registrationError', (e)=>{ console.warn('[push-token:native]', e); });
         // 앱이 열려 있을 때 온 알림은 OS가 자동으로 띄우지 않으므로 앱 안에서 토스트로 보여준다.
         PN.addListener('pushNotificationReceived', (n)=>{

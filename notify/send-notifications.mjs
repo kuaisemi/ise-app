@@ -107,10 +107,11 @@ async function purgeOldTombstones() {
 }
 
 async function main() {
-  const [noticesSnap, pollsSnap, mealsSnap, stateSnap, usersSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, stateSnap, usersSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
+    db.collection('shared').doc('bugReports').get(),
     db.collection('shared').doc('notifyState').get(),
     db.collection('users').get(),
   ]);
@@ -119,18 +120,21 @@ async function main() {
   const notices = live(noticesSnap.exists ? noticesSnap.data().list : []);
   const polls = live(pollsSnap.exists ? pollsSnap.data().list : []);
   const mealsByDate = (mealsSnap.exists ? mealsSnap.data().byDate : {}) || {};
+  const bugReports = live(bugReportsSnap.exists ? bugReportsSnap.data().list : []);
   const st = stateSnap.exists ? stateSnap.data() : {};
 
   const notifiedNotice = new Set(st.notifiedNoticeIds || []);
   const notifiedPoll = new Set(st.notifiedPollIds || []);
   const warnedPollEnd = new Set(st.warnedPollEndIds || []);
   const sentMealKeys = new Set(st.sentMealKeys || []);
+  const notifiedBugReport = new Set(st.notifiedBugReportIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
   // 카테고리별 수신 대상 토큰 수집.
   // 한 사람이 폰 앱 + PC 브라우저를 같이 쓸 수 있어 토큰은 배열(fcmTokens)로 관리한다.
   // fcmToken(단일 필드)은 구버전 클라이언트 호환용.
   const tokensBy = { notice: [], poll: [], meal: [] };
+  const bugAlertTokens = []; // 개발자 · 학생회장: 버그 제보는 알림 설정과 무관하게 항상 받음
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
@@ -142,6 +146,7 @@ async function main() {
       if (prefs.notice) tokensBy.notice.push(t);
       if (prefs.poll) tokensBy.poll.push(t);
       if (prefs.meal) tokensBy.meal.push(t);
+      if (u.role === 'developer' || u.role === 'president') bugAlertTokens.push(t);
     }
   });
 
@@ -248,6 +253,35 @@ async function main() {
     }
   }
 
+  // 6) 새 버그 제보 — 개발자 · 학생회장에게는 알림 설정과 무관하게 항상 즉시 알림.
+  const newBugReports = bugReports.filter((r) => !notifiedBugReport.has(r.id));
+  if (newBugReports.length && bugAlertTokens.length) {
+    for (const r of newBugReports) {
+      console.log('새 버그 제보 알림:', r.title);
+      for (let i = 0; i < bugAlertTokens.length; i += CHUNK) {
+        const batch = bugAlertTokens.slice(i, i + CHUNK);
+        const res = await messaging.sendEachForMulticast({
+          tokens: batch,
+          notification: { title: '🐛 새 버그 제보가 있어요', body: `제목: ${r.title}` },
+          data: { url: './index.html' },
+        });
+        res.responses.forEach((resp, idx) => {
+          if (resp.success) return;
+          const code = resp.error && resp.error.code;
+          if (
+            code === 'messaging/invalid-registration-token' ||
+            code === 'messaging/registration-token-not-registered'
+          ) {
+            invalidTokens.add(batch[idx]);
+          } else {
+            console.warn('발송 실패:', code, resp.error && resp.error.message);
+          }
+        });
+      }
+      sentCount++;
+    }
+  }
+
   if (!sentCount) {
     console.log('보낼 알림 없음 — 종료');
   }
@@ -259,6 +293,7 @@ async function main() {
       notifiedPollIds: [...notifiedPoll, ...newPolls.map((p) => p.id)].slice(-KEEP_IDS),
       warnedPollEndIds: [...warnedPollEnd, ...endingSoon.map((p) => p.id)].slice(-KEEP_IDS),
       sentMealKeys: [...sentMealKeys, ...newMealKeys].slice(-30),
+      notifiedBugReportIds: [...notifiedBugReport, ...newBugReports.map((r) => r.id)].slice(-KEEP_IDS),
       updatedAt: Date.now(),
       ...nextState,
     },
