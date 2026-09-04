@@ -141,9 +141,9 @@ a{color:inherit;}
 .btn-settings-mini{background:transparent; border:none; padding:4px; margin-left:-2px; color:var(--text-faint); display:flex; align-items:center; cursor:pointer;}
 .btn-settings-mini:active{color:var(--teal); transform:scale(0.9);}
 .top-actions{display:flex; align-items:center; gap:6px;}
-.btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; padding:5px 9px; font-size:13px; font-weight:700; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; gap:4px;}
+.btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; padding:4px 8px; font-size:11.5px; font-weight:700; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; gap:3px;}
 .btn-top-refresh:active{transform:scale(0.95); color:var(--teal);}
-.date-pill{font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:5px 9px; border-radius:20px;}
+.date-pill{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:4px 8px; border-radius:20px;}
 .role-badge{font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px;}
 .role-badge.student{background:rgba(var(--blue-rgb),.15); color:var(--blue); border:1px solid rgba(var(--blue-rgb),.3);}
 .role-badge.council,.role-badge.director,.role-badge.vice,.role-badge.president{background:rgba(140,29,43,.16); color:var(--crimson-text,#FF8D9A); border:1px solid rgba(140,29,43,.4);}
@@ -336,7 +336,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .link-row span.sub{color:var(--text-faint); font-size:13px;}
 .link-row.danger{color:var(--danger);}
 
-.weekday-nav{display:flex; gap:6px; margin-bottom:12px;}
+/* 요일 선택(pill)과 주 단위 이동(화살표)이 각각 다른 줄에 있으면서 그 사이에
+   현재 날짜를 또 한 번 크게 써서 정보가 세 번 겹쳐 보였다. 화살표를 pill 줄
+   양끝에 붙여 한 줄로 합치고, 중복되던 큰 날짜 텍스트는 없앤다. */
+.weekday-nav{display:flex; align-items:center; gap:6px; margin-bottom:12px;}
+.weekday-nav-arrow{flex-shrink:0; background:var(--surface-2); border:1px solid var(--border); border-radius:50%; width:30px; height:30px; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center;}
 .w-pill{flex:1; text-align:center; padding:8px 4px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; font-size:13px; color:var(--text-dim); font-weight:700;}
 .w-pill b{display:block; font-size:13px; margin-bottom:1px;}
 .w-pill.active{background:var(--crimson); color:#fff; border-color:var(--crimson-light);}
@@ -492,156 +496,92 @@ const APP = document.getElementById('app');
 const APP_VERSION = 'Beta 0.1.0';
 const PATCH_NOTES = [
   { version:'Beta 0.1.0', date:'2026-09-04', items:[
-    '알파 딱지를 떼고 베타로 전환 — 핵심 기능(시간표·학사일정·학식·공지/건의/투표·학생회 관리)이 안정화되어 정식 사용 단계로 넘어감',
-    '시간표 화면 전반의 여백을 조금 줄이고 그림자를 제거해 더 깔끔하게 정리',
-    '시간표 캡처 모드를 더 압축된 레이아웃으로 바꾸고, 닫기 버튼이 스크롤해도 항상 보이도록 상단 고정',
-    'MY 탭에 오늘 방문자·현재 접속자 수를 표시 (새로운 수집 없이 기존 접속 기록을 재사용)',
-    '회원가입 시 "비밀번호는 별도 저장하지 않는다"는 안내를 더 눈에 띄게 강조',
-    '가입자 관리 화면의 학번 탭이 매년 2월 1일 기준으로 자동으로 갱신되도록 변경 (더 이상 연도를 수동으로 고쳐줄 필요 없음)',
+    '알파 딱지를 떼고 베타로 전환 — 핵심 기능이 안정화되어 정식 사용 단계로 넘어감',
+    '시간표 화면 여백을 줄이고 그림자를 없애 더 깔끔하게 정리',
+    '시간표 캡처 모드 레이아웃 개선, 닫기 버튼이 항상 보이도록 수정',
+    'MY 탭에 오늘 방문자 · 현재 접속자 수 표시',
+    { text:'가입자 관리 화면의 학번 탭이 매년 2월 1일 기준 자동 갱신', admin:true },
   ]},
   { version:'Alpha 0.18.0', date:'2026-09-04', items:[
-    '안드로이드 앱(APK) 배포 지원 — 그동안 갤럭시에서 기기를 다크모드로 두면 앱에서 라이트/다크를 뭘 고르든 색이 강제로 뒤집히던 문제의 근본 원인을 찾음. 삼성 인터넷은 기본 설정에서 페이지가 선언한 color-scheme을 아예 무시하고 자체 알고리즘으로 색을 반전시키는데, 이건 웹 코드로는 막을 방법이 없음(삼성이 개발자용 차단 수단을 제공하지 않음). 앱으로 설치하면 삼성 인터넷이 아니라 앱이 소유한 웹뷰가 화면을 그리므로 지정한 색이 그대로 나옴',
-    '앱에서 웹뷰의 강제 다크모드를 코드로 완전히 차단 (setAlgorithmicDarkeningAllowed 해제 + 앱 테마 forceDarkAllowed 해제)',
-    '브라우저용 color-scheme 선언도 보강 — only 키워드로 크롬의 자동 다크 테마를 차단하고, only를 인식하지 못하는 구형 엔진을 위한 폴백 값을 함께 선언해 선언 전체가 무효화되지 않도록 수정',
-    '환경설정 화면 신설 — MY 탭 → ⚙️ 환경설정. 기존에 MY 탭에 흩어져 있던 화면 설정을 한곳에 모으고, 글씨 크기와 알림 자리를 마련',
-    '글씨 크기 조정 기능 추가 — 작게 / 보통 / 크게 / 아주 크게 4단계. 글씨뿐 아니라 버튼·여백까지 함께 커져서 화면을 보기 편하게 조절할 수 있음. 상단바와 하단 탭바는 배율과 무관하게 항상 같은 크기로 유지됨',
-    '앱에서 상단 내용이 상태표시줄(시계·배터리)에 가려지던 문제 수정 — 최신 안드로이드는 앱 화면을 상태표시줄 아래까지 꽉 채우도록 강제하는데, 그만큼의 여백을 확보하지 않고 있었음',
-    '상태표시줄 영역을 크림슨 색으로 통일하고, 그 위 아이콘(시계·배터리)은 흰색으로 고정',
-    '앱 이름과 소개 문구에서 "학생회" 표기를 "ISE"로 정리 (직급명·게시판 이름 등 기능상의 명칭은 그대로 유지)',
+    '안드로이드 앱(APK) 출시',
+    '다크모드일 때 화면 색이 강제로 반전되던 문제 해결',
+    '환경설정 화면 신설, 글씨 크기 조절 기능 추가',
+    '상태표시줄에 화면 상단이 가려지던 문제 수정',
   ]},
   { version:'Alpha 0.17.3', date:'2026-08-31', items:[
-    '학식 파싱 방식을 전면 개선 — "교직원/학생 식단표" 라벨과 표를 형제 요소로 찾던 방식이 실제 페이지의 div 구조와 안 맞아 실패하던 문제를, 페이지 전체에서 라벨이 나오는 순서와 날짜표가 나오는 순서를 그대로 짝짓는 방식으로 교체 (Cloud Functions 서버 코드도 동일하게 수정)',
-  ]},
-  { version:'Alpha 0.17.2', date:'2026-08-31', items:[
-    '학식 URL 변경은 착오였음을 확인 — gpa.korea.ac.kr이 맞는 주소였고 되돌림',
-    '"식단표 구조를 인식하지 못했습니다" 오류의 실제 원인은 무료 CORS 우회 프록시 중 하나(corsproxy.io)가 더 이상 배포 환경에서 동작하지 않게 된 것으로 확인 — 해당 프록시를 목록에서 제거하고, 응답 유효성 검사를 더 엄격하게 강화',
-  ]},
-  { version:'Alpha 0.17.1', date:'2026-08-31', items:[
-    '(정정) 학식 URL을 gpa.korea.ac.kr → caas.korea.ac.kr로 바꿨었으나, 실제로는 gpa.korea.ac.kr이 맞는 주소였음을 확인하여 0.17.2에서 되돌림',
+    '학식 정보를 불러오지 못하던 문제 수정',
   ]},
   { version:'Alpha 0.17.0', date:'2026-08-30', items:[
-    '자동 새로고침 주기 조정 — 학과 공지·공식 학사일정: 매일 자정(00시) 이후 첫 접속 시 자동, 학식: 매주 월요일 9·10·11·12시에 한 번씩(총 4번) 자동 재시도',
-    '공식 학사일정 가져오기를 수동 버튼뿐 아니라 자동으로도 반영하도록 변경 (학생회 계정에서만 자동 반영, 새 항목만 추가하고 기존 항목과 중복되면 건너뜀)',
-  ]},
-  { version:'Alpha 0.16.0', date:'2026-08-30', items:[
-    '학과 공지 자동 새로고침이 "학사일정 탭을 직접 열었을 때"만 시도되던 것을, 학식처럼 앱을 켤 때(로그인 시)도 함께 시도하도록 변경 — 탭을 안 들어가도 낮 12시 이후 첫 접속이면 자동으로 갱신됨',
+    '학과 공지 · 학식 자동 새로고침 기능 추가',
+    { text:'공식 학사일정 자동 가져오기 추가', admin:true },
   ]},
   { version:'Alpha 0.15.0', date:'2026-08-29', items:[
-    '베타 표기를 알파(Alpha)로 변경',
-    '기기의 다크/라이트 설정을 자동으로 따라가면 일부 기기 웹뷰의 "강제 다크모드"와 충돌해 시간표 색상 등이 깨지는 문제가 있어, 기본값을 기기 설정과 무관한 다크 고정으로 변경 (MY 탭 "화면"에서 "기기 설정"을 직접 선택하면 그때만 연동됨)',
-  ]},
-  { version:'Alpha 0.14.0', date:'2026-08-29', items:[
-    'MY 탭에 "화면" 설정 추가 — 기기 설정을 따르는 대신 라이트/다크를 수동으로 강제 지정 가능',
+    '다크모드 색상을 여러 차례 다듬어 최종 확정',
+    'MY 탭에서 라이트 · 다크를 수동으로 고를 수 있는 화면 설정 추가',
   ]},
   { version:'Alpha 0.13.0', date:'2026-08-29', items:[
-    '삭제/로그아웃 등에서 뜨던 브라우저 기본 확인창(주소가 같이 뜨던 팝업)을 없애고, 앱 테마에 맞춘 자체 확인창으로 전부 교체',
+    '삭제 · 로그아웃 확인창을 앱 디자인에 맞게 새로 제작',
   ]},
   { version:'Alpha 0.12.0', date:'2026-08-29', items:[
-    '다크 모드가 안드로이드 웹뷰의 "강제 다크모드(색 반전)"와 겹쳐 색이 이상하게 보이던 문제 수정 — color-scheme 메타/CSS를 명시해 브라우저가 자체 색 반전을 하지 않도록 함',
-    'MY 탭의 "정보"를 "개발자에게" 카드로 통합해 패치노트·버그 제보하기(·버그 제보함)를 한 박스 안에 모아둠',
-    'MY 탭 "내 시간표 초기화" 버튼을 "모든 시간표 전체 삭제"로 변경 — 현재 학기뿐 아니라 등록된 모든 학기의 시간표를 한 번에 삭제',
+    '다크모드가 기기 자체 강제 다크모드와 겹쳐 색이 깨지던 문제 수정',
+    'MY 탭의 정보 카드를 "개발자에게" 카드로 통합 (패치노트 · 버그 제보)',
+    '"모든 시간표 전체 삭제" 기능 추가 (전체 학기 대상)',
   ]},
   { version:'Alpha 0.11.0', date:'2026-08-29', items:[
-    '다크 모드 박스/배경 색을 R=G=B 완전 무채색(그레이스케일)으로 변경 — 어떤 환경에서도 색조가 섞여 보이지 않도록 조정',
-    'MY 탭에 "버그 제보하기" 항목 추가 — 제목·내용·스크린샷 첨부해서 바로 제보 가능, 학생회는 "버그 제보함"에서 확인·해결 처리·삭제 가능',
-  ]},
-  { version:'Alpha 0.10.2', date:'2026-08-29', items:[
-    '다크 모드: 배경은 완전한 검정을 유지하고, 카드/박스 색을 눈에 띄게 밝은 회색 톤으로 조정해 배경과 박스가 뚜렷하게 구분되도록 개선',
-  ]},
-  { version:'Alpha 0.10.1', date:'2026-08-29', items:[
-    '시간표 메뉴에서 아이콘이 SVG인 항목(시간표 인식/비우기)이 다른 항목과 다르게 가운데로 밀려 보이던 정렬 오류 수정 — 전부 왼쪽 정렬로 통일',
-    '"이 시간표 비우기"를 "이 시간표 지우기"로 문구 변경',
+    '버그 제보하기 기능 추가 (스크린샷 첨부 가능)',
+    { text:'버그 제보함에서 접수 내역 확인 · 처리 가능', admin:true },
   ]},
   { version:'Alpha 0.10.0', date:'2026-08-29', items:[
-    '다크 모드 배경을 완전한 검정으로, 박스(카드) 색상을 좀 더 또렷하게 조정',
-    '학과 공지 자동 새로고침을 "매일 낮 12시 이후 첫 접속 시 1회"로 변경, 수동 새로고침 버튼은 학생회 계정에만 노출',
-    '학사일정도 학과 공지처럼 고려대 교육정보(registrar) 홈페이지에서 자동으로 불러올 수 있는 "공식 학사일정 가져오기" 기능 추가 (학생회 전용, 불러온 뒤 선택 검토 후 등록)',
-    '시간표 칸 안 강의실/교수 텍스트가 줄바꿈되며 다른 칸과 겹쳐 보이던 문제 수정 — 한 줄로 말줄임 처리',
-    '시간표 상단 메뉴에서 "표시 옵션"을 별도 아이콘 버튼으로 분리하고 이름을 "화면 표시 설정"으로 변경',
-    '주말(토·일)에는 홈 화면에 오늘의 학식 박스가 보이지 않도록 변경',
-    '공지사항 첨부 사진에 "사진 저장" 버튼을 추가해 기기 저장소 접근 권한 문제 없이 다운로드 가능하도록 개선',
-    '버전 번호 체계를 1.x.x에서 0.x.x로 변경',
-  ]},
-  { version:'Alpha 0.9.1', date:'2026-08-29', items:[
-    '학과 공지 새로고침 버튼이 프록시 응답 지연 시 계속 비활성화 상태로 남아있던 문제 수정 — 프록시별 응답 제한시간(7초)을 두고, 성공·실패·예외 어떤 경우에도 버튼이 항상 다시 눌릴 수 있도록 보강',
+    '다크모드 배경/박스 색상 대비 개선',
+    { text:'학사일정을 학교 공식 페이지에서 자동으로 불러오는 기능 추가', admin:true },
+    '시간표 칸의 강의실 · 교수 정보가 겹쳐 보이던 문제 수정',
+    '공지 첨부 사진에 저장 버튼 추가',
   ]},
   { version:'Alpha 0.9.0', date:'2026-08-29', items:[
-    '학기 선택 목록을 "미래 연도 잠금" 방식에서 날짜 기반 자동 공개 방식으로 변경 — 1학기는 매년 1/25, 여름학기는 5/1, 2학기는 7/25, 겨울학기는 11/1부터 자동으로 나타나고, 아직 열리지 않은 학기는 목록에서 아예 숨겨짐 (연도에 관계없이 매년 반복 적용)',
-    '다크 모드 색상을 더 선명하고 깊은 톤으로 전면 조정 (기존의 뿌옇던 갈색 톤 개선)',
-    '라이트 모드에서 시간표 배경이 다크 모드 색상 그대로 남아있던 문제 수정 — 라이트 모드에서는 시간표 배경도 밝은 톤으로 표시',
-    '회원가입 화면에 비밀번호를 별도 저장하지 않고 Google Firebase Authentication에 위탁 처리한다는 안내 문구 추가',
-    '학과 공지를 별도 탭에서 분리하지 않고, 학사일정 탭 하단에 박스로 바로 보이도록 변경',
-  ]},
-  { version:'Alpha 0.8.0', date:'2026-08-28', items:[
-    '학과 공지 탭에서 학과 공식 게시판의 실제 최신 공지 목록을 앱 안에서 바로 볼 수 있도록 추가 (제목을 누르면 원문으로 이동, 새로고침 가능)',
+    '학기 선택이 날짜 기준으로 자동 공개되도록 변경 (아직 안 된 학기는 목록에서 숨김)',
+    '회원가입 화면에 "비밀번호는 별도 저장하지 않는다"는 안내 추가',
+    '학과 공지를 학사일정 탭 하단에서 바로 볼 수 있도록 변경',
   ]},
   { version:'Alpha 0.7.1', date:'2026-08-28', items:[
-    '시간표 목록 화면에서 "학기 전체 삭제" 버튼을 없애고, 시간표를 하나씩만 지울 수 있도록 변경 (실수로 학기 전체가 지워지는 것 방지)',
-    '학기 선택 화면에서 아직 오지 않은 미래 연도는 선택할 수 없도록 비활성화 처리',
-    '캡처 모드에서 시간표 격자선까지 라이트/다크 모드에 맞게 완전히 반영되도록 수정',
-    '시간표 색상 선택지를 4가지로 간결하게 정리',
-    '시간표 화면 버튼들을 "학기·시간표명 ▽ / + / 더보기(⋯)" 한 줄로 통합해 더 간결하게 정리',
-    '테마가 기기의 다크/라이트 설정을 자동으로 따라가므로, 수동 전환 버튼을 제거함',
-    '건의합니다에서 익명 글의 실명은 학생회장에게만 보이도록 변경 (기존에는 학생회 전체에게 보였음)',
-    '시간표 저장 실패 시 오류 내용을 더 구체적으로 표시하도록 개선',
+    '시간표를 실수로 학기 전체 삭제하지 못하도록 개별 삭제만 가능하게 변경',
+    { text:'건의합니다의 익명 글 실명은 학생회장에게만 보이도록 변경', admin:true },
   ]},
   { version:'Alpha 0.7.0', date:'2026-08-28', items:[
-    '시간표 학기 전환 UI를 에브리타임과 비슷한 방식으로 개편 — 상단에서 학기·시간표 이름을 바로 보고, 눌러서 학기를 고르거나 시간표 목록 전체를 관리할 수 있음',
-    '한 학기 안에 시간표를 개수 제한 없이 원하는 이름으로 여러 개 추가할 수 있도록 변경 (기존 최대 2개 제한 제거)',
-    '학기 이름을 "봄학기/가을학기"에서 "1학기/2학기"로 변경 (여름학기·겨울학기는 계절학기로 그대로 유지)',
-    '캡처 모드 배경/테두리가 다크 모드에서는 검정, 라이트 모드에서는 흰색으로 표시되도록 개선',
-    '테마를 처음 켤 때 저장된 설정이 없으면 기기의 다크/라이트 모드 설정을 그대로 따라가도록 변경',
-    '다크 모드 배경이 지나치게 어둡다는 의견을 반영해 전체적으로 한 단계 밝게 조정',
+    '시간표 학기 전환 UI 개편 (에브리타임과 비슷한 방식)',
+    '한 학기에 시간표를 여러 개 원하는 이름으로 추가 가능',
   ]},
   { version:'Alpha 0.6.0', date:'2026-08-27', items:[
-    '전체 디자인 테마를 개편 — 청록색 위주였던 색감을 고려대학교 크림슨을 중심으로, 골드를 보조 색으로 쓰도록 정리',
-    '다크 모드 / 라이트 모드 지원 추가 (상단 🌙/☀️ 버튼으로 전환, 다음 접속 시에도 선택한 테마가 유지됨)',
+    '전체 디자인을 고려대 크림슨 중심으로 개편',
+    '다크 모드 · 라이트 모드 지원 추가',
   ]},
   { version:'Alpha 0.5.0', date:'2026-08-27', items:[
-    '시간표에 학기 탭 기능 추가 — 2021년부터 학기(봄/여름/가을/겨울)별로 시간표를 따로 저장하고 전환 가능, 추가하지 않은 학기는 표시되지 않음',
-    '한 학기 안에서도 시간표를 최대 2개까지 만들어 전환할 수 있는 기능 추가 (예: 수강정정 전/후 비교)',
+    '시간표에 학기별 탭 추가, 학기마다 따로 저장 · 전환 가능',
   ]},
   { version:'Alpha 0.4.0', date:'2026-08-27', items:[
-    '시간표 수업 시간 설정을 기기 기본 시계 UI 대신 앱에서 직접 만든 +/- 방식 시간 선택 위젯으로 변경',
-    '구인글이 하나도 없을 때 홈 화면에서 "구인글" 섹션 자체가 보이지 않도록 개선',
-    '학사정보에 "학과 공지" 탭 추가 — 학과 공식 게시판으로 바로 이동',
-    '시간표 사진 인식 시 "최대 30초 정도 소요" 안내 문구 추가',
-    '시간표 사진 인식 정확도 개선 (수업 종료 시각을 정각 단위로 더 정확히 보정)',
-    '앱 아이콘을 새 로고 디자인으로 교체',
+    '시간표 수업 시간 선택을 앱 자체 위젯으로 변경',
+    '학사정보에 학과 공지 탭 추가',
+    '시간표 사진 인식 정확도 개선',
   ]},
   { version:'Alpha 0.3.1', date:'2026-08-27', items:[
-    'index.html <head>에 매니페스트 연결(link rel=manifest)이 빠져 있어 PWA 설치 시 앱 이름·아이콘이 인식되지 않던 문제 수정',
-    'theme-color, apple-touch-icon, apple-mobile-web-app 관련 메타 태그 추가',
-    'sw.js(서비스워커) 등록 코드가 없어 오프라인 캐시가 동작하지 않던 문제 수정 (등록 스크립트 추가)',
-    '앱 아이콘(72~512px, 마스커블 아이콘 포함) 세트를 로고 이미지 기준으로 새로 제작',
-    '전체 가입자 관리 화면을 새 창(window.open) 대신 앱 내 팝업(모달)으로 변경',
-    '전체 가입자 관리 화면을 새 창으로 열 때 Firebase 인증이 재초기화되며 간헐적으로 계정 정보(직급·이름)가 기본값으로 초기화되던 버그 수정',
-    '학생회 인증코드를 학생회장/개발자가 직접 발급·재발급할 수 있는 관리 화면 추가 (MY페이지 정보 카드 5회 탭 — 학생회장/개발자에게만 노출, 그 외 사용자는 기존 이스터에그 유지)',
-    '일반 학생이 인증코드를 입력해 학생회로 전환하는 화면을 MY페이지 직급 배지 5회 탭으로 연결 (기존에 코드는 있었지만 진입 버튼이 없어 아무도 접근할 수 없었음)',
-    '패치노트 버전 번호 체계 정리 (1.0.0→1.2.0로 건너뛰던 것을 1.1.0을 채워 순차적으로 재정렬)',
+    'PWA(홈 화면 설치) 관련 문제 수정 — 앱 이름 · 아이콘 인식 안 되던 문제 해결',
+    { text:'학생회 인증코드를 학생회장이 직접 발급 · 재발급할 수 있는 화면 추가', admin:true },
+    '일반 학생이 인증코드를 입력해 학생회로 전환하는 진입 경로 추가',
   ]},
   { version:'Alpha 0.3.0', date:'2026-08-22', items:[
-    '투표자 명단 CSV 내보내기 기능 추가 (국장 이상)',
-    '시간표 표시 설정에 "적용" 버튼 도입 — 체크박스 즉시반영 시 깜빡이던 문제 해결',
-    '학사일정 전체 삭제 기능 추가, 하드코딩된 2026학년도 일괄등록 데이터 제거',
-    '학사일정 사진 인식 기능 추가 (매년 갱신용)',
-    '시간표/학사일정 사진 인식용 Gemini API 키를 고정 키로 전환 (개인 키 입력 불필요)',
-    '회원가입 시 로스터 명단에 출생연도까지 있으면 함께 대조하도록 강화',
+    { text:'투표자 명단 CSV 내보내기 기능 추가', admin:true },
+    '학사일정 사진 인식 기능 추가',
     '패치노트 화면 추가',
   ]},
   { version:'Alpha 0.2.0', date:'2026-08-21', items:[
-    '학사 달력에서 학사일정 자동 숨김 (학사일정 탭에서만 별도 확인)',
-    '시험 일정 추가 기능 — 시간표 과목과 연동해 강의실/시간 자동 입력',
-    '학번 형식 검증 완화 (자유공학부 전입생 등 예외 대응, 실제 확인은 로스터 대조로 처리)',
+    '시험 일정 추가 시 시간표 과목과 연동해 강의실 · 시간 자동 입력',
   ]},
   { version:'Alpha 0.1.0', date:'2026-08-20', items:[
-    '건의합니다 비공개 답변 옵션 추가',
-    '학생회장 직급 변경이 실제 로그인 계정에 반영되지 않던 버그 수정',
-    '급식 데이터 파싱 안정화 — 이번 주 데이터가 없을 때 잔여 데이터 대신 "정보 없음" 명확히 표시',
+    '건의합니다에 비공개 답변 옵션 추가',
+    '급식 데이터가 없을 때 "정보 없음"으로 명확히 표시',
   ]},
   { version:'Alpha 0.0.0', date:'2026-08-14', items:[
     '고려대학교 지능형반도체공학과 학생회 앱 첫 배포',
-    '로그인/가입, 시간표, 학사일정, 급식, 공지·건의·투표 게시판 기본 기능',
+    '로그인/가입, 시간표, 학사일정, 급식, 공지 · 건의 · 투표 게시판 기본 기능',
   ]},
 ];
 const COUNCIL_CODE = 'ISE-COUNCIL-2026';
@@ -2963,15 +2903,12 @@ function renderMealTab(){
   const staff = raw.staff || null;
   return `
     <div class="weekday-nav">
+      <button type="button" class="weekday-nav-arrow" data-action="meal-week-prev" aria-label="지난주">${ICON.chevL}</button>
       ${weekDates.map((dStr,idx)=>`
         <div class="w-pill ${dStr===state.mealDate?'active':''} ${dStr===todayStr()?'today-pill':''}" data-action="select-meal-date" data-date="${dStr}">
           <b>${DAYS[idx]}</b><span>${fmtDateShort(dStr)}</span>
         </div>`).join('')}
-    </div>
-    <div class="meal-nav">
-      <button data-action="meal-week-prev">${ICON.chevL}</button>
-      <span class="meal-date">${fmtDateLabel(state.mealDate)}</span>
-      <button data-action="meal-week-next">${ICON.chevR}</button>
+      <button type="button" class="weekday-nav-arrow" data-action="meal-week-next" aria-label="다음주">${ICON.chevR}</button>
     </div>
     <div class="card" style="margin-bottom:12px;">
       <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
@@ -3828,7 +3765,6 @@ function renderMypage(){
       <button type="button" class="btn-settings-mini" data-action="toggle-mypage-settings" title="화면 설정">${ICON.gear}</button>
     </div>
 
-    ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
       <p style="margin:0 0 8px; font-size:13.5px; font-weight:700;">테마</p>
       <div style="display:flex; gap:6px;">
@@ -3839,9 +3775,10 @@ function renderMypage(){
       <p style="font-size:13.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
       </p>
+    </div>
 
-      <div class="divider" style="margin:14px 0;"></div>
-
+    ${state.myPageSettingsOpen ? `
+    <div class="card" style="margin-top:10px;">
       <p style="margin:0 0 8px; font-size:13.5px; font-weight:700;">글씨 크기</p>
       <div style="display:flex; gap:6px;">
         ${FONT_SCALES.map(([v,label])=>`
@@ -4057,21 +3994,31 @@ async function deleteBugReport(id){
   saveResultToast(ok, '삭제되었습니다');
 }
 
+// 항목은 평문 문자열이거나 {text, admin:true} 형태일 수 있다.
+// admin:true 항목은 학생회(council) 이상에게만 보인다 — 일반 학생에게는 의미 없는
+// 관리 화면 변경사항까지 다 보여주면 패치노트가 TMI로 가득 차기 때문.
+function patchNoteItemText(it){ return typeof it === 'string' ? it : it.text; }
+function patchNoteItemVisible(it){ return typeof it === 'string' || !it.admin || isCouncil(); }
 function patchNotesModal(){
+  const council = isCouncil();
   return `
     <div class="modal-handle"></div>
     <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} 패치노트</span><button data-action="close-modal">${ICON.close}</button></div>
     <div style="max-height:60vh; overflow-y:auto;">
-      ${PATCH_NOTES.map((p,i)=>`
+      ${PATCH_NOTES.map((p,i)=>{
+        const visible = p.items.filter(patchNoteItemVisible);
+        if(!visible.length) return '';
+        return `
         <div class="card" style="margin-bottom:10px;">
           <div class="row-between" style="margin-bottom:8px;">
             <b style="color:var(--teal); font-family:var(--font-mono); font-size:13.5px;">${p.version}</b>
             <span style="font-size:13.5px; color:var(--text-faint);">${p.date}</span>
           </div>
           <ul style="margin:0; padding-left:18px; font-size:13.5px; color:var(--text-dim); line-height:1.7;">
-            ${p.items.map(it=>`<li>${escapeHtml(it)}</li>`).join('')}
+            ${visible.map(it=>`<li>${escapeHtml(patchNoteItemText(it))}${(council && typeof it!=='string' && it.admin) ? ' <span class="tag tag-dim" style="font-size:9.5px; padding:1px 5px;">관리자</span>' : ''}</li>`).join('')}
           </ul>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
 }
 
