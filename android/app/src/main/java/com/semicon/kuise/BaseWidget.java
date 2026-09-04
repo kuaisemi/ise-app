@@ -10,7 +10,7 @@ import android.widget.RemoteViews;
 import org.json.JSONObject;
 
 /**
- * 위젯 4종이 공통으로 쓰는 부분 — 데이터 읽기, "탭하면 앱 열기" 연결, 갱신 루프.
+ * 위젯 6종이 공통으로 쓰는 부분 — 데이터 읽기, 색/투명도 적용, "탭하면 앱 열기", 갱신 루프.
  *
  * 각 위젯은 render()만 구현하면 된다.
  */
@@ -20,22 +20,29 @@ public abstract class BaseWidget extends AppWidgetProvider {
     protected abstract int layoutId();
 
     /** 실제로 값을 채워 넣는 부분 */
-    protected abstract void render(Context ctx, RemoteViews views, JSONObject data);
-
-    /** 위젯 아무 데나 누르면 앱이 열리도록 감쌀 최상위 뷰 id */
-    protected int rootViewId() {
-        return R.id.widget_root;
-    }
+    protected abstract void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme);
 
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         JSONObject data = WidgetData.load(ctx);
+        WidgetTheme theme = WidgetTheme.from(data);
         for (int id : ids) {
             RemoteViews views = new RemoteViews(ctx.getPackageName(), layoutId());
-            render(ctx, views, data);
-            views.setOnClickPendingIntent(rootViewId(), openAppIntent(ctx));
+            theme.applyBackground(views);
+            applyCommonHeader(views, theme);
+            render(ctx, views, data, theme);
+            views.setOnClickPendingIntent(R.id.widget_root, openAppIntent(ctx));
             mgr.updateAppWidget(id, views);
         }
+    }
+
+    /**
+     * 제목 줄은 모든 위젯이 같은 id를 쓰므로 여기서 한 번에 색을 입힌다.
+     * (레이아웃에 없는 id에 대한 호출은 무시되므로 위젯마다 분기할 필요가 없다)
+     */
+    private void applyCommonHeader(RemoteViews views, WidgetTheme theme) {
+        views.setInt(R.id.widget_accent, "setColorFilter", theme.accent);
+        theme.title(views, R.id.widget_title);
     }
 
     /** 위젯을 누르면 앱 본체를 연다. */

@@ -1627,6 +1627,30 @@ async function setupForegroundMessageListener(){
   }catch(e){}
 }
 
+/* ===== 홈 화면 위젯 모양 설정 =====
+   투명도·배경·강조색은 기기마다 취향이 다르고 홈 화면 배경에 따라 어울리는 값이 달라서
+   사용자가 직접 고르게 한다. 기기에만 저장하면 되는 값이라 localStorage에 둔다. */
+const WIDGET_BGS = [
+  { key:'dark',    label:'다크' },
+  { key:'light',   label:'라이트' },
+  { key:'crimson', label:'크림슨' },
+];
+const WIDGET_ACCENTS = ['#F5C563','#4ECDC4','#B20923','#5B8DEF','#3DDC97','#C77DFF'];
+function getWidgetOpts(){
+  const o = localGet('widget_opts', null) || {};
+  return {
+    opacity: typeof o.opacity === 'number' ? o.opacity : 92,
+    bg: WIDGET_BGS.some(b=>b.key===o.bg) ? o.bg : 'dark',
+    accent: o.accent || WIDGET_ACCENTS[0],
+  };
+}
+function setWidgetOpts(patch){
+  const next = { ...getWidgetOpts(), ...patch };
+  localSet('widget_opts', next);
+  pushWidgetData();
+  return next;
+}
+
 /* ===== 홈 화면 위젯 데이터 전달 =====
    위젯은 앱과 별개 프로세스에서 잠깐 깨어나 그림만 그리는 구조라 Firestore나 웹 저장소를
    직접 못 읽는다. 그래서 앱이 켜지거나 데이터가 바뀔 때마다 위젯이 필요한 값만 추려서
@@ -1655,25 +1679,54 @@ async function pushWidgetData(){
     const studentOf = (d)=> ((state.meals[d]||{}).student) || {};
     const st = studentOf(today), stTom = studentOf(tomorrow);
 
-    const events = live(state.calendar)
+    const upcoming = live(state.calendar)
       .filter(ev=>ev.endDate >= today)
-      .sort((a,b)=>a.startDate.localeCompare(b.startDate))
-      .slice(0,3)
-      .map(ev=>({
-        title: ev.title || '',
-        date: fmtDateShort(ev.startDate) + (ev.endDate!==ev.startDate ? '~'+fmtDateShort(ev.endDate) : ''),
-      }));
+      .sort((a,b)=>a.startDate.localeCompare(b.startDate));
+    const events = upcoming.slice(0,3).map(ev=>({
+      title: ev.title || '',
+      date: fmtDateShort(ev.startDate) + (ev.endDate!==ev.startDate ? '~'+fmtDateShort(ev.endDate) : ''),
+    }));
+
+    // 주간 시간표 위젯용 — 월~금 다섯 칸
+    const weekClasses = [0,1,2,3,4].map(d =>
+      state.timetable.filter(c=>c.day===d).sort((a,b)=>a.start-b.start).map(c=>({
+        subject: c.subject || '',
+        color: c.color || COLORS[0].hex,
+        startLabel: minutesToLabel(c.start),
+      }))
+    );
+
+    // 달력 위젯에 점을 찍을 날짜 — 이번 달의 일정과 메모가 있는 날
+    const markedDates = {};
+    const ym = today.slice(0,7);
+    live(state.calendar).forEach(ev=>{
+      if(!ev.startDate) return;
+      let d = ev.startDate;
+      const end = ev.endDate || ev.startDate;
+      // 여러 날에 걸친 일정은 걸치는 날마다 점을 찍는다 (최대 60일까지만 안전하게)
+      for(let i=0; i<60 && d<=end; i++){
+        if(d.slice(0,7) === ym) markedDates[d] = true;
+        d = addDays(d, 1);
+      }
+    });
+    Object.keys(state.memos || {}).forEach(d=>{
+      if(d.slice(0,7) === ym && (state.memos[d]||'').trim()) markedDates[d] = true;
+    });
 
     const payload = {
       updatedAt: now(),
       todayLabel: fmtDateLabel(today),
+      semester: state.activeSemester ? semesterLabel(state.activeSemester) : '',
       classes,
+      weekClasses,
       meals: {
         today: { breakfast: st.breakfast||'', lunch: st.lunch||'', dinner: st.dinner||'' },
         tomorrow: { breakfast: stTom.breakfast||'', lunch: stTom.lunch||'', dinner: stTom.dinner||'' },
       },
       events,
+      markedDates,
       memo: (state.memos && state.memos[today]) || '',
+      opts: getWidgetOpts(),
     };
     await WB.update({ payload: JSON.stringify(payload) });
   }catch(e){ console.warn('[widget]', e); }
@@ -1952,6 +2005,17 @@ function renderMain(){
   else if(state.view==='mypage') html=renderMypage();
   el.innerHTML = html + (state.view==='mypage' ? '' : versionFooter());
   setupNowTimer();
+  setupWidgetOpacitySlider();
+}
+
+// 위젯 투명도 슬라이더는 화면을 다시 그릴 때마다 새로 만들어지므로 여기서 매번 연결한다.
+// 드래그 중에는 숫자만 갱신하고, 손을 뗐을 때(change) 저장 + 위젯 갱신을 한 번만 한다.
+function setupWidgetOpacitySlider(){
+  const slider = document.getElementById('widget-opacity');
+  if(!slider) return;
+  const label = document.getElementById('widget-opacity-val');
+  slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
+  slider.onchange = ()=>{ setWidgetOpts({ opacity: parseInt(slider.value,10) }); };
 }
 
 function setupNowTimer(){
@@ -4143,6 +4207,43 @@ function renderMypage(){
     ` : ''}
 
 
+    ${isNativeApp ? (()=>{
+      const wo = getWidgetOpts();
+      return `
+      <div class="section-title">홈 화면 위젯</div>
+      <div class="card">
+        <p style="font-size:11px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">
+          홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요. 시간표 · 다음 수업 · 학식 · 일정/메모 · 주간 시간표 · 달력 6종이 있고, 크기는 자유롭게 조절돼요.
+        </p>
+
+        <div class="field" style="margin-bottom:12px;">
+          <label>배경</label>
+          <div style="display:flex; gap:6px;">
+            ${WIDGET_BGS.map(b=>`
+              <button type="button" class="btn ${wo.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
+                data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:12px;">
+          <label>강조 색</label>
+          <div class="swatches">
+            ${WIDGET_ACCENTS.map(hex=>`
+              <div class="swatch ${wo.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
+                data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${wo.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:2px;">
+          <label>투명도 <span style="color:var(--text-faint); font-weight:400;">(글씨는 그대로, 카드 배경만)</span></label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="widget-opacity" min="20" max="100" step="4" value="${wo.opacity}" style="flex:1;">
+            <span id="widget-opacity-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${wo.opacity}%</span>
+          </div>
+        </div>
+      </div>`;
+    })() : ''}
+
     <div class="section-title">계정</div>
     <div class="card">
       <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
@@ -6178,6 +6279,8 @@ document.addEventListener('click', async (e)=>{
     else if(a==='add-student-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, false)); }
     else if(a==='add-council-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, true)); }
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
+    else if(a==='set-widget-bg'){ setWidgetOpts({ bg: el.dataset.bg }); renderMain(); }
+    else if(a==='set-widget-accent'){ setWidgetOpts({ accent: el.dataset.hex }); renderMain(); }
     else if(a==='edit-memo'){ openModal(memoModal(el.dataset.date || state.selectedExamDate)); setupMemoModalListeners(); }
     else if(a==='delete-memo'){ await deleteMemo(el.dataset.date || state.selectedExamDate); }
     else if(a==='edit-event'){

@@ -1,0 +1,77 @@
+package com.semicon.kuise;
+
+import android.content.Context;
+import android.view.View;
+import android.widget.RemoteViews;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.Calendar;
+
+/**
+ * "주간 시간표" 위젯 — 월~금 다섯 칸에 그 주 수업을 전부 보여준다.
+ *
+ * 요일마다 수업 개수가 달라서 고정 행으로는 못 그리는데, RemoteViews는 실행 중에
+ * removeAllViews + addView로 자식을 붙일 수 있어서 그 방식으로 채운다.
+ */
+public class WeekWidget extends BaseWidget {
+
+    private static final String[] DAY_LABELS = { "월", "화", "수", "목", "금" };
+
+    @Override
+    protected int layoutId() {
+        return R.layout.widget_week;
+    }
+
+    @Override
+    protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
+        views.setTextViewText(R.id.widget_sem, data.optString("semester", ""));
+        theme.sub(views, R.id.widget_sem);
+        theme.sub(views, R.id.week_empty);
+
+        // weekClasses: [[월 수업들], [화], [수], [목], [금]]
+        JSONArray week = data.optJSONArray("weekClasses");
+        int total = 0;
+        if (week != null) {
+            for (int d = 0; d < week.length(); d++) {
+                JSONArray day = week.optJSONArray(d);
+                if (day != null) total += day.length();
+            }
+        }
+
+        views.setViewVisibility(R.id.week_empty, total == 0 ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.week_cols, total == 0 ? View.GONE : View.VISIBLE);
+        if (total == 0) {
+            views.setTextViewText(R.id.week_empty,
+                isEmpty(data) ? "앱을 한 번 실행하면 시간표가 표시돼요" : "등록된 수업이 없어요");
+            return;
+        }
+
+        // 오늘이 평일이면 그 요일 머리글을 강조한다.
+        int todayIdx = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY;
+        if (todayIdx < 0 || todayIdx > 4) todayIdx = -1;
+
+        views.removeAllViews(R.id.week_cols);
+        for (int d = 0; d < 5; d++) {
+            RemoteViews col = new RemoteViews(ctx.getPackageName(), R.layout.widget_week_col);
+            col.setTextViewText(R.id.col_day, DAY_LABELS[d]);
+            col.setTextColor(R.id.col_day, d == todayIdx ? theme.accent : theme.textSub);
+
+            JSONArray day = week == null ? null : week.optJSONArray(d);
+            if (day != null) {
+                for (int i = 0; i < day.length(); i++) {
+                    JSONObject c = day.optJSONObject(i);
+                    if (c == null) continue;
+                    RemoteViews chip = new RemoteViews(ctx.getPackageName(), R.layout.widget_week_chip);
+                    chip.setTextViewText(R.id.chip_subject, c.optString("subject", ""));
+                    chip.setTextViewText(R.id.chip_time, c.optString("startLabel", ""));
+                    chip.setInt(R.id.chip_bg, "setColorFilter",
+                        TimetableWidget.parseColor(c.optString("color", ""), theme.accent));
+                    col.addView(R.id.col_items, chip);
+                }
+            }
+            views.addView(R.id.week_cols, col);
+        }
+    }
+}

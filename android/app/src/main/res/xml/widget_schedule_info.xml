@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  updatePeriodMillis는 안드로이드가 30분(1800000) 미만을 무시한다. 시간표/식단은 자주 바뀌지
+  않으니 30분 주기로 충분하고, 앱에서 데이터를 고치면 WidgetBridge가 즉시 갱신해준다.
+  resizeMode + minResize/maxResize로 사용자가 원하는 크기로 자유롭게 늘리고 줄일 수 있다.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="250dp"
-    android:minHeight="110dp"
+    android:minWidth="140dp"
+    android:minHeight="80dp"
+    android:minResizeWidth="140dp"
+    android:minResizeHeight="80dp"
+    android:maxResizeWidth="460dp"
+    android:maxResizeHeight="460dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"

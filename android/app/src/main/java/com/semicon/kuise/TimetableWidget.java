@@ -37,9 +37,11 @@ public class TimetableWidget extends BaseWidget {
     }
 
     @Override
-    protected void render(Context ctx, RemoteViews views, JSONObject data) {
-        String dateLabel = data.optString("todayLabel", "");
-        views.setTextViewText(R.id.widget_date, dateLabel);
+    protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
+        views.setTextViewText(R.id.widget_date, data.optString("todayLabel", ""));
+        theme.sub(views, R.id.widget_date);
+        theme.sub(views, R.id.widget_empty);
+        theme.sub(views, R.id.widget_more);
 
         JSONArray classes = data.optJSONArray("classes");
         int count = classes == null ? 0 : Math.min(classes.length(), MAX_ROWS);
@@ -60,13 +62,14 @@ public class TimetableWidget extends BaseWidget {
                 }
                 views.setViewVisibility(ROW_IDS[i], View.VISIBLE);
                 views.setTextViewText(SUBJECT_IDS[i], c.optString("subject", ""));
+                theme.body(views, SUBJECT_IDS[i]);
 
                 String time = c.optString("time", "");
                 String room = c.optString("room", "");
-                String meta = room.isEmpty() ? time : time + "  ·  " + room;
-                views.setTextViewText(META_IDS[i], meta);
+                views.setTextViewText(META_IDS[i], room.isEmpty() ? time : time + "  ·  " + room);
+                theme.sub(views, META_IDS[i]);
 
-                views.setInt(BAR_IDS[i], "setBackgroundColor", parseColor(c.optString("color", ""), 0xFF3DDC97));
+                views.setInt(BAR_IDS[i], "setColorFilter", parseColor(c.optString("color", ""), theme.accent));
             } else {
                 views.setViewVisibility(ROW_IDS[i], View.GONE);
             }

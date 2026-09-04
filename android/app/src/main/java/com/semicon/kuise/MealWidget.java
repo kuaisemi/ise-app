@@ -23,7 +23,12 @@ public class MealWidget extends BaseWidget {
     }
 
     @Override
-    protected void render(Context ctx, RemoteViews views, JSONObject data) {
+    protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
+        views.setInt(R.id.meal_accent, "setColorFilter", theme.accent);
+        theme.title(views, R.id.meal_label);
+        theme.body(views, R.id.meal_text);
+        theme.sub(views, R.id.meal_empty);
+
         Calendar now = Calendar.getInstance();
         int minutesNow = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
 

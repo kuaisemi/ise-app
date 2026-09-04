@@ -1,125 +1,141 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  "오늘의 시간표" 위젯 (4x2 권장).
-  수업 행 5개를 미리 만들어 두고 필요한 만큼만 보이게 한다 — 위젯에서 목록을 그리려면
-  RemoteViewsService가 필요한데, 하루 수업은 많아야 대여섯 개라 이 편이 훨씬 가볍다.
+  "오늘의 시간표" 위젯.
+  RemoteViews는 허용된 위젯 클래스만 그릴 수 있어 순수 <View>는 못 쓴다(런처에
+  "위젯을 추가할 수 없습니다"만 뜬다). 색 막대·배경은 모두 ImageView로 만든다.
+  수업 행 5개를 미리 만들어 두고 필요한 만큼만 보이게 한다.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_bg"
-    android:padding="14dp">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg_dark"
+        android:contentDescription="@null" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="15dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="11dp">
+
+            <ImageView
+                android:id="@+id/widget_accent"
+                android:layout_width="3dp"
+                android:layout_height="12dp"
+                android:src="@drawable/widget_bar"
+                android:scaleType="fitXY"
+                android:layout_marginEnd="7dp"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="오늘의 시간표"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp" />
+        </LinearLayout>
 
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:id="@+id/widget_empty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:text="오늘의 시간표"
-            android:textColor="#F5C563"
+            android:gravity="center"
             android:textSize="12sp"
-            android:textStyle="bold" />
+            android:visibility="gone" />
+
+        <LinearLayout android:id="@+id/row_0"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="gone">
+            <ImageView android:id="@+id/bar_0" android:layout_width="3dp" android:layout_height="match_parent"
+                android:src="@drawable/widget_bar"
+                android:scaleType="fitXY" android:layout_marginEnd="10dp" android:contentDescription="@null" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/subject_0" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
+                <TextView android:id="@+id/meta_0" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_1"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="gone">
+            <ImageView android:id="@+id/bar_1" android:layout_width="3dp" android:layout_height="match_parent"
+                android:src="@drawable/widget_bar"
+                android:scaleType="fitXY" android:layout_marginEnd="10dp" android:contentDescription="@null" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/subject_1" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
+                <TextView android:id="@+id/meta_1" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_2"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="gone">
+            <ImageView android:id="@+id/bar_2" android:layout_width="3dp" android:layout_height="match_parent"
+                android:src="@drawable/widget_bar"
+                android:scaleType="fitXY" android:layout_marginEnd="10dp" android:contentDescription="@null" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/subject_2" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
+                <TextView android:id="@+id/meta_2" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_3"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="gone">
+            <ImageView android:id="@+id/bar_3" android:layout_width="3dp" android:layout_height="match_parent"
+                android:src="@drawable/widget_bar"
+                android:scaleType="fitXY" android:layout_marginEnd="10dp" android:contentDescription="@null" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/subject_3" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
+                <TextView android:id="@+id/meta_3" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_4"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="gone">
+            <ImageView android:id="@+id/bar_4" android:layout_width="3dp" android:layout_height="match_parent"
+                android:src="@drawable/widget_bar"
+                android:scaleType="fitXY" android:layout_marginEnd="10dp" android:contentDescription="@null" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/subject_4" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
+                <TextView android:id="@+id/meta_4" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/widget_date"
-            android:layout_width="wrap_content"
+            android:id="@+id/widget_more"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#8A93A6"
-            android:textSize="11sp" />
+            android:textSize="10sp"
+            android:visibility="gone" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/widget_empty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:gravity="center"
-        android:textColor="#6C7484"
-        android:textSize="12sp"
-        android:visibility="gone" />
-
-    <!-- 수업 행 0 -->
-    <LinearLayout android:id="@+id/row_0"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
-        <View android:id="@+id/bar_0" android:layout_width="3dp" android:layout_height="match_parent"
-            android:background="@drawable/widget_bar" android:layout_marginEnd="9dp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/subject_0" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#F2F4F8" android:textSize="13sp" android:textStyle="bold" />
-            <TextView android:id="@+id/meta_0" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#8A93A6" android:textSize="11sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 수업 행 1 -->
-    <LinearLayout android:id="@+id/row_1"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
-        <View android:id="@+id/bar_1" android:layout_width="3dp" android:layout_height="match_parent"
-            android:background="@drawable/widget_bar" android:layout_marginEnd="9dp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/subject_1" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#F2F4F8" android:textSize="13sp" android:textStyle="bold" />
-            <TextView android:id="@+id/meta_1" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#8A93A6" android:textSize="11sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 수업 행 2 -->
-    <LinearLayout android:id="@+id/row_2"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
-        <View android:id="@+id/bar_2" android:layout_width="3dp" android:layout_height="match_parent"
-            android:background="@drawable/widget_bar" android:layout_marginEnd="9dp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/subject_2" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#F2F4F8" android:textSize="13sp" android:textStyle="bold" />
-            <TextView android:id="@+id/meta_2" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#8A93A6" android:textSize="11sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 수업 행 3 -->
-    <LinearLayout android:id="@+id/row_3"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
-        <View android:id="@+id/bar_3" android:layout_width="3dp" android:layout_height="match_parent"
-            android:background="@drawable/widget_bar" android:layout_marginEnd="9dp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/subject_3" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#F2F4F8" android:textSize="13sp" android:textStyle="bold" />
-            <TextView android:id="@+id/meta_3" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#8A93A6" android:textSize="11sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 수업 행 4 -->
-    <LinearLayout android:id="@+id/row_4"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
-        <View android:id="@+id/bar_4" android:layout_width="3dp" android:layout_height="match_parent"
-            android:background="@drawable/widget_bar" android:layout_marginEnd="9dp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/subject_4" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#F2F4F8" android:textSize="13sp" android:textStyle="bold" />
-            <TextView android:id="@+id/meta_4" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:maxLines="1" android:ellipsize="end" android:textColor="#8A93A6" android:textSize="11sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/widget_more"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="#6C7484"
-        android:textSize="10sp"
-        android:visibility="gone" />
-</LinearLayout>
+</FrameLayout>

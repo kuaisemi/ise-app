@@ -10,8 +10,8 @@ import org.json.JSONObject;
 /**
  * "일정 · 메모" 위젯 — 다가오는 학사일정과 오늘 적어둔 개인 메모를 함께 보여준다.
  *
- * 달력 자체를 위젯에 그리는 것도 가능하지만, 홈 화면에서 실제로 궁금한 건
- * "앞으로 뭐가 있더라 / 오늘 할 일이 뭐더라"라서 그 두 가지만 추린다.
+ * 달력 자체를 그리는 위젯은 CalendarWidget이 따로 있고, 이쪽은 "앞으로 뭐가 있더라 /
+ * 오늘 할 일이 뭐더라"만 빠르게 확인하는 용도다.
  */
 public class ScheduleWidget extends BaseWidget {
 
@@ -27,7 +27,12 @@ public class ScheduleWidget extends BaseWidget {
     }
 
     @Override
-    protected void render(Context ctx, RemoteViews views, JSONObject data) {
+    protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
+        theme.sub(views, R.id.ev_empty);
+        theme.accent(views, R.id.memo_label);
+        theme.sub(views, R.id.memo_text);
+        views.setInt(R.id.memo_divider, "setColorFilter", theme.divider);
+
         JSONArray events = data.optJSONArray("events");
         int count = events == null ? 0 : Math.min(events.length(), MAX_ROWS);
 
@@ -41,6 +46,8 @@ public class ScheduleWidget extends BaseWidget {
                 views.setViewVisibility(ROW_IDS[i], View.VISIBLE);
                 views.setTextViewText(TITLE_IDS[i], ev.optString("title", ""));
                 views.setTextViewText(DATE_IDS[i], ev.optString("date", ""));
+                theme.body(views, TITLE_IDS[i]);
+                theme.sub(views, DATE_IDS[i]);
             } else {
                 views.setViewVisibility(ROW_IDS[i], View.GONE);
             }

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  달력의 하루 칸 — 날짜 숫자 + (일정/메모 있으면) 아래에 점.
+  오늘 날짜는 숫자 뒤에 원을 깔아 강조한다. 원과 점 모두 색을 바꿔야 하므로
+  background가 아니라 src로 넣는다(setColorFilter는 src에만 적용됨).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="match_parent"
+    android:layout_weight="1"
+    android:orientation="vertical"
+    android:gravity="center">
+
+    <FrameLayout
+        android:layout_width="22dp"
+        android:layout_height="22dp">
+
+        <ImageView
+            android:id="@+id/cell_ring"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_today_ring"
+            android:visibility="invisible"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/cell_day"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="10sp" />
+    </FrameLayout>
+
+    <ImageView
+        android:id="@+id/cell_dot"
+        android:layout_width="4dp"
+        android:layout_height="4dp"
+        android:layout_marginTop="1dp"
+        android:src="@drawable/widget_today_ring"
+        android:scaleType="fitXY"
+        android:visibility="invisible"
+        android:contentDescription="@null" />
+</LinearLayout>

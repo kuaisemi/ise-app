@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 과목 색 세로 막대 (실제 색은 코드에서 지정) -->
+<!-- 주간 시간표의 수업 한 칸 (실제 색은 코드에서 지정) -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="#3DDC97" />
-    <corners android:radius="3dp" />
+    <corners android:radius="7dp" />
 </shape>

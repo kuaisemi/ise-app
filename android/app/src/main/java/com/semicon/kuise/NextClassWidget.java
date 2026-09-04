@@ -23,7 +23,12 @@ public class NextClassWidget extends BaseWidget {
     }
 
     @Override
-    protected void render(Context ctx, RemoteViews views, JSONObject data) {
+    protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
+        theme.accent(views, R.id.next_label);
+        theme.body(views, R.id.next_subject);
+        theme.sub(views, R.id.next_meta);
+        theme.sub(views, R.id.next_empty);
+
         JSONArray classes = data.optJSONArray("classes");
 
         Calendar now = Calendar.getInstance();
@@ -58,6 +63,7 @@ public class NextClassWidget extends BaseWidget {
             views.setTextViewText(R.id.next_empty,
                 isEmpty(data) ? "앱을 한 번 실행해주세요" : "오늘 남은 수업이 없어요");
             views.setTextViewText(R.id.next_label, "다음 수업");
+            views.setInt(R.id.next_bar, "setColorFilter", theme.accent);
             return;
         }
 
@@ -81,7 +87,7 @@ public class NextClassWidget extends BaseWidget {
         String room = target.optString("room", "");
         views.setTextViewText(R.id.next_meta, room.isEmpty() ? time : time + "  ·  " + room);
 
-        views.setInt(R.id.next_bar, "setBackgroundColor",
-            TimetableWidget.parseColor(target.optString("color", ""), 0xFF3DDC97));
+        views.setInt(R.id.next_bar, "setColorFilter",
+            TimetableWidget.parseColor(target.optString("color", ""), theme.accent));
     }
 }
