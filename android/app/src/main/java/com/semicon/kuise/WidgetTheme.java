@@ -41,19 +41,19 @@ public class WidgetTheme {
             t.bgRes = R.drawable.widget_bg_light;
             t.textPrimary = 0xFF1A1D24;
             t.textSub = 0xFF6C7484;
-            t.divider = 0x1F000000;
+            t.divider = 0xFFD8DBE2;
             t.accent = parse(accentHex, 0xFFB20923);
         } else if ("crimson".equals(bg)) {
             t.bgRes = R.drawable.widget_bg_crimson;
             t.textPrimary = 0xFFFFFFFF;
             t.textSub = 0xCCFFE8EC;
-            t.divider = 0x33FFFFFF;
+            t.divider = 0xFFB5424F;
             t.accent = parse(accentHex, 0xFFF5C563);
         } else {
             t.bgRes = R.drawable.widget_bg_dark;
             t.textPrimary = 0xFFF2F4F8;
             t.textSub = 0xFF7C8598;
-            t.divider = 0x1FFFFFFF;
+            t.divider = 0xFF3A3F4D;
             t.accent = parse(accentHex, 0xFFF5C563);
         }
         return t;

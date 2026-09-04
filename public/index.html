@@ -1818,13 +1818,17 @@ async function pushWidgetData(){
       }))
     );
 
-    // 달력 위젯에 점을 찍을 날짜 — 이번 달의 일정과 메모가 있는 날.
+    // 달력 위젯에 점을 찍을 날짜 — 이번 달의 "내가 추가한" 일정(개인/시험/학생회)과 메모가 있는 날.
     // 시작일에만 찍는다. "수강포기 신청 9.21~9.23"처럼 며칠씩 걸치는 학사일정이 많다 보니,
     // 걸치는 날마다 다 찍으면 거의 매일 점이 찍혀 정작 무슨 날인지 구분이 안 갔다.
+    // 그리고 학사정보>학사 달력 탭(examCal)과 똑같이, 학교 공식 학사일정(source==='official')은
+    // 여기서도 제외한다 — 안 그러면 앱 화면에는 안 뜨던 점이 위젯에만 잔뜩 찍혀 헷갈린다.
     const markedDates = {};
     const ym = today.slice(0,7);
     live(state.calendar).forEach(ev=>{
       if(!ev.startDate) return;
+      const isOfficial = ev.source==='official' || (!ev.source && ev.category!=='council');
+      if(isOfficial) return;
       if(ev.startDate.slice(0,7) === ym) markedDates[ev.startDate] = true;
     });
     Object.keys(state.memos || {}).forEach(d=>{
