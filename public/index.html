@@ -367,13 +367,11 @@ svg{vertical-align:-2px;}
 .btn-like svg, .m-label svg, .section-title svg{width:14px; height:14px;}
 .notify-row svg{width:15px; height:15px;}
 .meal-block .m-text{font-size:13.5px; line-height:1.7; color:var(--text); white-space:pre-wrap;}
-/* 학식 한 줄 = 왼쪽 색 띠 + 분류명 + 메뉴.
-   알약 배지로 분류명을 감싸면 메뉴 글자와 경쟁해서 오히려 눈이 분산되므로,
-   색은 띠로만 쓰고 글자는 그대로 읽히게 둔다. */
-.meal-line{border-left:3px solid var(--meal-accent, var(--border-light)); padding-left:11px; margin-bottom:13px;}
-.meal-line:last-child{margin-bottom:0;}
-.meal-cat{display:block; font-size:12.5px; font-weight:700; color:var(--meal-accent, var(--text-dim)); margin-bottom:3px; letter-spacing:-0.01em;}
-.meal-line-text{font-size:14px; line-height:1.55; color:var(--text);}
+/* 학식 한 줄 = 분류명(색 글자) + 메뉴, 한 줄에 붙여서 세로 공간을 아낀다.
+   알약 배지로 감싸면 메뉴 글자와 경쟁해서 눈이 분산되므로 색은 글자에만 준다. */
+.meal-line{display:flex; align-items:baseline; gap:6px; padding:3px 0; line-height:1.5;}
+.meal-cat{flex-shrink:0; font-size:13px; font-weight:700; color:var(--meal-accent, var(--text-dim));}
+.meal-line-text{font-size:14px; color:var(--text);}
 .meal-cat-teal{--meal-accent:var(--teal);}
 .meal-cat-blue{--meal-accent:var(--blue);}
 .meal-cat-amber{--meal-accent:var(--amber);}
