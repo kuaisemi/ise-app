@@ -24,10 +24,14 @@
         android:layout_marginBottom="6dp"
         android:textSize="9sp" />
 
+    <!-- gravity="center_vertical": 위젯을 세로로 크게 늘렸을 때 수업 칩들이 맨 위에만
+         쏠려있고 아래는 텅 비어 보이는 문제가 있었다. 남는 공간을 위아래로 나눠서
+         내용이 칸 가운데에 오게 하면, 늘려도 훨씬 자연스러워 보인다. -->
     <LinearLayout
         android:id="@+id/col_items"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="vertical" />
+        android:orientation="vertical"
+        android:gravity="center_vertical" />
 </LinearLayout>

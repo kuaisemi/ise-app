@@ -1,5 +1,5 @@
 {
   "appId": "com.semicon.kuise",
   "appName": "KU ISE",
-  "webDir": "public"
+  "webDir": "dist"
 }

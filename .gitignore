@@ -10,6 +10,9 @@ firebase-debug.*.log*
 # Firebase cache
 .firebase/
 
+# 배포용 빌드 결과물 — build-dist.mjs가 public/에서 주석을 지워 매번 새로 만든다
+dist/
+
 # Firebase config
 
 # Uncomment this if you'd like others to create their own Firebase project.
