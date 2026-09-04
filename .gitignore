@@ -78,3 +78,9 @@ android/app/google-services.json
 # Firebase 서비스 계정 키 — 절대 커밋 금지, GitHub Actions Secret으로만 전달
 *serviceAccount*.json
 *service-account*.json
+
+# 앱 서명 키 — 절대 커밋 금지. 별도로 안전한 곳에 백업할 것
+# (잃어버리면 같은 앱으로 업데이트를 배포할 수 없음)
+*.keystore
+*.jks
+android/keystore.properties
