@@ -298,6 +298,18 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .text-swatch{width:26px; height:26px; border-radius:50%; border:2px solid var(--border-light); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800;}
 .text-swatch.selected{border-color:var(--teal); transform:scale(1.1);}
 
+/* 직접 만든 색상 선택기(채도/명도 사각형 + 색상 띠) — 네이티브 <input type=color>가
+   기기별로 안 열리거나 검정으로 시작하는 문제가 있어서, 항상 똑같이 동작하는 걸 직접 만든다. */
+.cp-panel{margin-top:10px; padding:12px; background:var(--surface-2); border-radius:12px;}
+.cp-square{position:relative; width:100%; height:130px; border-radius:8px; cursor:crosshair; touch-action:none; overflow:hidden;}
+.cp-square-black{position:absolute; inset:0; background:linear-gradient(to top, #000, transparent);}
+.cp-cursor{position:absolute; width:16px; height:16px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.5); transform:translate(-50%,-50%); pointer-events:none;}
+.cp-hue{-webkit-appearance:none; appearance:none; width:100%; height:14px; border-radius:7px; margin-top:10px; cursor:pointer;
+  background:linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);}
+.cp-hue::-webkit-slider-thumb{-webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; border:2px solid rgba(0,0,0,.25); box-shadow:0 1px 3px rgba(0,0,0,.4);}
+.cp-row{display:flex; align-items:center; gap:8px; margin-top:10px;}
+.cp-preview{width:26px; height:26px; border-radius:50%; flex-shrink:0; border:1px solid var(--border);}
+
 .cal-grid{display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; text-align:center; margin-bottom:12px;}
 .cal-head{font-size:11px; font-weight:800; padding:4px 0; color:var(--text-faint);}
 .cal-head.sun{color:var(--danger);}
@@ -1651,11 +1663,38 @@ async function setupForegroundMessageListener(){
 const WIDGET_BGS = [
   { key:'dark',    label:'다크' },
   { key:'light',   label:'라이트' },
-  { key:'crimson', label:'크림슨' },
+  { key:'custom',  label:'사용자 지정' },
 ];
+const WIDGET_BG_DEFAULT_CUSTOM = '#8C1D2B';
 const WIDGET_ACCENTS = ['#F5C563','#4ECDC4','#B20923','#5B8DEF','#3DDC97','#C77DFF'];
 function isWidgetPresetAccent(hex){ return WIDGET_ACCENTS.some(h=>h.toLowerCase()===String(hex||'').toLowerCase()); }
 function isValidHexColor(s){ return /^#[0-9a-fA-F]{6}$/.test(s); }
+
+/* ===== HSV <-> HEX 변환 (직접 만든 색상 선택기용) ===== */
+function hsvToHex(h,s,v){
+  s/=100; v/=100;
+  const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c;
+  let r,g,b;
+  if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}
+  else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+  const toHex=(n)=>Math.round((n+m)*255).toString(16).padStart(2,'0');
+  return '#'+toHex(r)+toHex(g)+toHex(b);
+}
+function hexToHsv(hex){
+  const m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex);
+  if(!m) return {h:0,s:0,v:100};
+  const r=parseInt(m[1],16)/255, g=parseInt(m[2],16)/255, b=parseInt(m[3],16)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+  let h=0;
+  if(d!==0){
+    if(max===r) h=60*(((g-b)/d)%6);
+    else if(max===g) h=60*((b-r)/d+2);
+    else h=60*((r-g)/d+4);
+  }
+  if(h<0) h+=360;
+  const s = max===0 ? 0 : d/max;
+  return { h, s: s*100, v: max*100 };
+}
 // 위젯 7종 각각 따로 글씨 크기를 키우거나 줄일 수 있게 한다 (예: 달력은 칸이 작아서 크게,
 // 다음 수업은 이미 커서 그대로 두는 식). 목록/키는 네이티브(WidgetTheme.java)와 맞춰야 한다.
 const WIDGET_TYPES = [
@@ -1679,6 +1718,7 @@ function getWidgetOpts(){
     opacity: typeof o.opacity === 'number' ? o.opacity : 92,
     bg: WIDGET_BGS.some(b=>b.key===o.bg) ? o.bg : 'dark',
     accent: o.accent || WIDGET_ACCENTS[0],
+    customBg: isValidHexColor(o.customBg) ? o.customBg : WIDGET_BG_DEFAULT_CUSTOM,
     dateShowEvents: o.dateShowEvents !== false,
     calendarShowMemo: o.calendarShowMemo !== false,
     fontScale: (o.fontScale && typeof o.fontScale === 'object') ? o.fontScale : {},
@@ -1756,6 +1796,78 @@ function primaryTimetableModal(){
     </div>`;
 }
 
+// 직접 만든 색상 선택기 한 판(채도/명도 사각형 + 색상 띠 + 미리보기 + 코드 입력).
+// id는 'accent' 또는 'bg'처럼 어떤 값을 고르는 중인지 구분하는 이름.
+function renderColorPickerPanel(id, hex){
+  const {h,s,v} = hexToHsv(hex);
+  return `
+    <div class="cp-panel" id="cp-panel-${id}" data-hue="${h}" data-sat="${s}" data-val="${v}">
+      <div class="cp-square" id="cp-square-${id}" style="background:linear-gradient(to right,#fff,hsl(${Math.round(h)},100%,50%));">
+        <div class="cp-square-black"></div>
+        <div class="cp-cursor" id="cp-cursor-${id}" style="left:${s}%; top:${100-v}%;"></div>
+      </div>
+      <input type="range" class="cp-hue" id="cp-hue-${id}" min="0" max="359" value="${Math.round(h)}">
+      <div class="cp-row">
+        <span class="cp-preview" id="cp-preview-${id}" style="background:${hex};"></span>
+        <input type="text" id="cp-hex-${id}" maxlength="7" value="${hex.toUpperCase()}" style="flex:1; font-family:var(--font-mono); text-transform:uppercase;">
+      </div>
+    </div>`;
+}
+// 사각형/띠를 실제로 손가락으로 움직일 수 있게 연결한다. onChange(hex)는 값이 확정될 때마다 불린다
+// (드래그 중에도 계속) — 위젯 미리보기가 아니라 저장까지 바로 하고 싶어서, 여기서는 매 변경마다 저장한다.
+function setupColorPicker(id, onChange){
+  const panel = document.getElementById('cp-panel-'+id);
+  const square = document.getElementById('cp-square-'+id);
+  const hueSlider = document.getElementById('cp-hue-'+id);
+  if(!panel || !square || !hueSlider) return;
+  const cursor = document.getElementById('cp-cursor-'+id);
+  const preview = document.getElementById('cp-preview-'+id);
+  const hexInput = document.getElementById('cp-hex-'+id);
+
+  let hue = parseFloat(panel.dataset.hue) || 0;
+  let sat = parseFloat(panel.dataset.sat) || 0;
+  let val = parseFloat(panel.dataset.val) || 100;
+
+  function apply(save){
+    const hex = hsvToHex(hue, sat, val);
+    if(preview) preview.style.background = hex;
+    if(hexInput) hexInput.value = hex.toUpperCase();
+    square.style.background = `linear-gradient(to right,#fff,hsl(${Math.round(hue)},100%,50%))`;
+    if(cursor){ cursor.style.left = sat+'%'; cursor.style.top = (100-val)+'%'; }
+    if(save) onChange(hex);
+  }
+
+  function pickFromSquare(clientX, clientY){
+    const rect = square.getBoundingClientRect();
+    let x = (clientX - rect.left) / rect.width;
+    let y = (clientY - rect.top) / rect.height;
+    x = Math.max(0, Math.min(1, x));
+    y = Math.max(0, Math.min(1, y));
+    sat = x*100;
+    val = (1-y)*100;
+    apply(true);
+  }
+
+  let dragging = false;
+  square.onpointerdown = (e)=>{ dragging=true; square.setPointerCapture(e.pointerId); pickFromSquare(e.clientX, e.clientY); };
+  square.onpointermove = (e)=>{ if(dragging) pickFromSquare(e.clientX, e.clientY); };
+  square.onpointerup = ()=>{ dragging=false; };
+  square.onpointercancel = ()=>{ dragging=false; };
+
+  hueSlider.oninput = ()=>{ hue = parseFloat(hueSlider.value); apply(true); };
+
+  hexInput.onchange = ()=>{
+    let v2 = hexInput.value.trim();
+    if(v2 && !v2.startsWith('#')) v2 = '#'+v2;
+    if(isValidHexColor(v2)){
+      const hsv = hexToHsv(v2);
+      hue = hsv.h; sat = hsv.s; val = hsv.v;
+      hueSlider.value = Math.round(hue);
+      apply(true);
+    } else toast('#RRGGBB 형식으로 입력해주세요 (예: #FF6B6B)');
+  };
+}
+
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   return `
@@ -1777,6 +1889,7 @@ function renderWidgetSettingsTab(){
           <button type="button" class="btn ${wo.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
             data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
       </div>
+      ${wo.bg==='custom' ? renderColorPickerPanel('bg', wo.customBg) : ''}
     </div>
 
     <div class="field" style="margin-bottom:12px;">
@@ -1787,14 +1900,7 @@ function renderWidgetSettingsTab(){
             data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${wo.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
         <div class="swatch ${!isWidgetPresetAccent(wo.accent)?'selected':''}" style="background:${!isWidgetPresetAccent(wo.accent)?wo.accent:'var(--surface-2)'}; border:2px dashed var(--text-faint);" data-action="toggle-widget-accent-custom">${!isWidgetPresetAccent(wo.accent)?'✓':'+'}</div>
       </div>
-      <!-- 위젯 앱 안 다른 곳에서 쓰는 네이티브 색상 피커(input type=color)는 탭해도 바로 안 뜨고
-           기본값이 검은색으로 나오는 경우가 있어서, 여기는 직접 코드로 입력하는 방식을 쓴다. -->
-      <div id="widget-accent-custom-row" style="display:${state.widgetAccentCustomOpen?'flex':'none'}; align-items:center; gap:8px; margin-top:10px;">
-        <span id="widget-accent-preview" style="width:26px; height:26px; border-radius:50%; flex-shrink:0; background:${isWidgetPresetAccent(wo.accent)?'#888888':wo.accent}; border:1px solid var(--border);"></span>
-        <input type="text" id="widget-accent-hex-input" placeholder="#RRGGBB" maxlength="7"
-          value="${isWidgetPresetAccent(wo.accent)?'':wo.accent}"
-          style="flex:1; font-family:var(--font-mono); text-transform:uppercase;">
-      </div>
+      ${state.widgetAccentCustomOpen ? renderColorPickerPanel('accent', wo.accent) : ''}
     </div>
 
     <div class="field" style="margin-bottom:12px;">
@@ -2229,7 +2335,8 @@ function renderMain(){
   el.innerHTML = html + (state.view==='mypage' ? '' : versionFooter());
   setupNowTimer();
   setupWidgetOpacitySlider();
-  setupWidgetAccentInput();
+  setupColorPicker('accent', (hex)=>setWidgetOpts({ accent: hex }));
+  setupColorPicker('bg', (hex)=>setWidgetOpts({ customBg: hex }));
   setupWidgetFontScaleSlider();
 }
 
@@ -2241,27 +2348,6 @@ function setupWidgetOpacitySlider(){
   const label = document.getElementById('widget-opacity-val');
   slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
   slider.onchange = ()=>{ setWidgetOpts({ opacity: parseInt(slider.value,10) }); };
-}
-
-// 위젯 강조색 직접 입력 — 네이티브 <input type=color>는 탭해도 안 열리거나 처음엔 검정으로
-// 나오는 경우가 있어서 못 믿고, 여기는 그냥 색 코드를 타이핑하는 입력창으로 대신한다.
-// 입력할 때마다 원 미리보기는 바로 바뀌고, 완전한 6자리 코드가 되면 그때 실제로 저장한다
-// (타이핑 중간중간의 반쪽짜리 코드로 위젯을 계속 다시 그리지 않기 위해).
-function setupWidgetAccentInput(){
-  const input = document.getElementById('widget-accent-hex-input');
-  if(!input) return;
-  const preview = document.getElementById('widget-accent-preview');
-  input.oninput = ()=>{
-    let v = input.value.trim();
-    if(v && !v.startsWith('#')) v = '#'+v;
-    if(preview && isValidHexColor(v)) preview.style.background = v;
-  };
-  input.onchange = ()=>{
-    let v = input.value.trim();
-    if(v && !v.startsWith('#')) v = '#'+v;
-    if(isValidHexColor(v)) setWidgetOpts({ accent: v });
-    else toast('#RRGGBB 형식으로 입력해주세요 (예: #FF6B6B)');
-  };
 }
 
 function setupWidgetFontScaleSlider(){
