@@ -804,7 +804,6 @@ const state = {
   previewAsStudent: false,
   myPageSettingsOpen: false,
   settingsTab: 'display',
-  widgetAccentCustomOpen: false,
   widgetFontScaleTarget: 'timetable',
   activeSemester: null,
   timetablesBySemester: {},
@@ -1868,6 +1867,16 @@ function setupColorPicker(id, onChange){
   };
 }
 
+// 색상 선택기를 팝업(모달)으로 띄운다 — 설정 화면 안에 계속 펼쳐져 있는 것보다
+// 다른 앱 모달들과 똑같은 방식이라 더 익숙하고, 화면도 덜 복잡해진다.
+function colorPickerModal(id, hex, title){
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">${title}<button data-action="close-color-modal">${ICON.close}</button></div>
+    ${renderColorPickerPanel(id, hex)}
+    <button type="button" class="btn btn-primary" style="margin-top:14px;" data-action="close-color-modal">완료</button>`;
+}
+
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   return `
@@ -1885,11 +1894,15 @@ function renderWidgetSettingsTab(){
     <div class="field" style="margin-bottom:12px;">
       <label>배경</label>
       <div style="display:flex; gap:6px;">
-        ${WIDGET_BGS.map(b=>`
+        ${WIDGET_BGS.filter(b=>b.key!=='custom').map(b=>`
           <button type="button" class="btn ${wo.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
             data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
+        <button type="button" class="btn ${wo.bg==='custom'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1.3; display:flex; align-items:center; justify-content:center; gap:6px;"
+          data-action="open-color-modal" data-target="bg">
+          <span style="width:13px; height:13px; border-radius:50%; background:${wo.bg==='custom'?wo.customBg:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'}; flex-shrink:0; border:1px solid rgba(255,255,255,.4);"></span>
+          사용자 지정
+        </button>
       </div>
-      ${wo.bg==='custom' ? renderColorPickerPanel('bg', wo.customBg) : ''}
     </div>
 
     <div class="field" style="margin-bottom:12px;">
@@ -1898,9 +1911,10 @@ function renderWidgetSettingsTab(){
         ${WIDGET_ACCENTS.map(hex=>`
           <div class="swatch ${wo.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
             data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${wo.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
-        <div class="swatch ${!isWidgetPresetAccent(wo.accent)?'selected':''}" style="background:${!isWidgetPresetAccent(wo.accent)?wo.accent:'var(--surface-2)'}; border:2px dashed var(--text-faint);" data-action="toggle-widget-accent-custom">${!isWidgetPresetAccent(wo.accent)?'✓':'+'}</div>
+        <div class="swatch ${!isWidgetPresetAccent(wo.accent)?'selected':''}"
+          style="background:${!isWidgetPresetAccent(wo.accent)?wo.accent:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'};"
+          data-action="open-color-modal" data-target="accent">${!isWidgetPresetAccent(wo.accent)?'✓':''}</div>
       </div>
-      ${state.widgetAccentCustomOpen ? renderColorPickerPanel('accent', wo.accent) : ''}
     </div>
 
     <div class="field" style="margin-bottom:12px;">
@@ -2335,8 +2349,6 @@ function renderMain(){
   el.innerHTML = html + (state.view==='mypage' ? '' : versionFooter());
   setupNowTimer();
   setupWidgetOpacitySlider();
-  setupColorPicker('accent', (hex)=>setWidgetOpts({ accent: hex }));
-  setupColorPicker('bg', (hex)=>setWidgetOpts({ customBg: hex }));
   setupWidgetFontScaleSlider();
 }
 
@@ -6590,8 +6602,19 @@ document.addEventListener('click', async (e)=>{
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
     else if(a==='settings-tab'){ state.settingsTab = el.dataset.tab; renderMain(); }
     else if(a==='set-widget-bg'){ setWidgetOpts({ bg: el.dataset.bg }); renderMain(); }
-    else if(a==='set-widget-accent'){ state.widgetAccentCustomOpen=false; setWidgetOpts({ accent: el.dataset.hex }); renderMain(); }
-    else if(a==='toggle-widget-accent-custom'){ state.widgetAccentCustomOpen = !state.widgetAccentCustomOpen; renderMain(); }
+    else if(a==='set-widget-accent'){ setWidgetOpts({ accent: el.dataset.hex }); renderMain(); }
+    else if(a==='open-color-modal'){
+      const target = el.dataset.target;
+      const wo = getWidgetOpts();
+      const hex = target==='bg' ? wo.customBg : wo.accent;
+      const label = target==='bg' ? '배경 색' : '강조 색';
+      openModal(colorPickerModal(target, isValidHexColor(hex)?hex:WIDGET_ACCENTS[0], label));
+      setupColorPicker(target, (newHex)=>{
+        if(target==='bg') setWidgetOpts({ bg:'custom', customBg:newHex });
+        else setWidgetOpts({ accent:newHex });
+      });
+    }
+    else if(a==='close-color-modal'){ closeModal(); renderMain(); }
     else if(a==='pick-widget-font-target'){ state.widgetFontScaleTarget = el.dataset.key; renderMain(); }
     else if(a==='toggle-widget-date-events'){ setWidgetOpts({ dateShowEvents: !getWidgetOpts().dateShowEvents }); renderMain(); }
     else if(a==='toggle-widget-calendar-memo'){ setWidgetOpts({ calendarShowMemo: !getWidgetOpts().calendarShowMemo }); renderMain(); }
