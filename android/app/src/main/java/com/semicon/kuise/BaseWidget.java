@@ -22,10 +22,16 @@ public abstract class BaseWidget extends AppWidgetProvider {
     /** 실제로 값을 채워 넣는 부분 */
     protected abstract void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme);
 
+    /**
+     * 이 위젯의 글씨 크기를 따로 조절할 때 쓰는 키. MY탭 위젯 설정의 WIDGET_TYPES 키와
+     * 정확히 같아야 한다 (timetable/nextClass/meal/schedule/week/calendar/date).
+     */
+    protected abstract String widgetKey();
+
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         JSONObject data = WidgetData.load(ctx);
-        WidgetTheme theme = WidgetTheme.from(data);
+        WidgetTheme theme = WidgetTheme.from(data, widgetKey());
         for (int id : ids) {
             RemoteViews views = new RemoteViews(ctx.getPackageName(), layoutId());
             theme.applyBackground(views);
@@ -37,12 +43,13 @@ public abstract class BaseWidget extends AppWidgetProvider {
     }
 
     /**
-     * 제목 줄은 모든 위젯이 같은 id를 쓰므로 여기서 한 번에 색을 입힌다.
+     * 제목 줄은 모든 위젯이 같은 id를 쓰므로 여기서 한 번에 색/크기를 입힌다.
      * (레이아웃에 없는 id에 대한 호출은 무시되므로 위젯마다 분기할 필요가 없다)
      */
     private void applyCommonHeader(RemoteViews views, WidgetTheme theme) {
         views.setInt(R.id.widget_accent, "setColorFilter", theme.accent);
         theme.title(views, R.id.widget_title);
+        theme.size(views, R.id.widget_title, 13f);
     }
 
     /**

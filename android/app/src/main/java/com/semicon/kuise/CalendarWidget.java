@@ -29,6 +29,11 @@ public class CalendarWidget extends BaseWidget {
     }
 
     @Override
+    protected String widgetKey() {
+        return "calendar";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         Calendar cal = Calendar.getInstance();
         int year = cal.get(Calendar.YEAR);
@@ -37,6 +42,7 @@ public class CalendarWidget extends BaseWidget {
 
         views.setTextViewText(R.id.cal_month, (month + 1) + "월");
         theme.sub(views, R.id.cal_month);
+        theme.size(views, R.id.cal_month, 11f);
 
         // "오늘 할 일" — 학사일정이 아니라 사용자가 직접 적은 오늘 메모만 보여준다 (설정에서 끌 수 있음).
         JSONObject opts = data.optJSONObject("opts");
@@ -48,6 +54,8 @@ public class CalendarWidget extends BaseWidget {
             views.setInt(R.id.cal_memo_divider, "setColorFilter", theme.divider);
             theme.accent(views, R.id.cal_memo_label);
             theme.sub(views, R.id.cal_memo_text);
+            theme.size(views, R.id.cal_memo_label, 10.5f);
+            theme.size(views, R.id.cal_memo_text, 10.5f);
             views.setTextViewText(R.id.cal_memo_text, memo.replaceAll("\\s*\\r?\\n\\s*", " · "));
         }
 
@@ -60,6 +68,7 @@ public class CalendarWidget extends BaseWidget {
             RemoteViews head = new RemoteViews(ctx.getPackageName(), R.layout.widget_cal_head);
             head.setTextViewText(R.id.head_text, WEEK_HEAD[i]);
             head.setTextColor(R.id.head_text, theme.textSub);
+            theme.size(head, R.id.head_text, 9f);
             views.addView(R.id.cal_head, head);
         }
 
@@ -76,6 +85,7 @@ public class CalendarWidget extends BaseWidget {
             for (int c = 0; c < 7; c++) {
                 RemoteViews cell = new RemoteViews(ctx.getPackageName(), R.layout.widget_cal_cell);
                 int cellIndex = r * 7 + c;
+                theme.size(cell, R.id.cell_day, 10f);
                 if (cellIndex < startOffset || day > daysInMonth) {
                     cell.setTextViewText(R.id.cell_day, "");
                 } else {

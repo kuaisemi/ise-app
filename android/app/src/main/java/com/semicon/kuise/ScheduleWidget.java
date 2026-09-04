@@ -27,11 +27,19 @@ public class ScheduleWidget extends BaseWidget {
     }
 
     @Override
+    protected String widgetKey() {
+        return "schedule";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         theme.sub(views, R.id.ev_empty);
         theme.accent(views, R.id.memo_label);
         theme.sub(views, R.id.memo_text);
         views.setInt(R.id.memo_divider, "setColorFilter", theme.divider);
+        theme.size(views, R.id.ev_empty, 12f);
+        theme.size(views, R.id.memo_label, 11f);
+        theme.size(views, R.id.memo_text, 11f);
 
         JSONArray events = data.optJSONArray("events");
         int count = events == null ? 0 : Math.min(events.length(), MAX_ROWS);
@@ -48,6 +56,8 @@ public class ScheduleWidget extends BaseWidget {
                 views.setTextViewText(DATE_IDS[i], ev.optString("date", ""));
                 theme.body(views, TITLE_IDS[i]);
                 theme.sub(views, DATE_IDS[i]);
+                theme.size(views, TITLE_IDS[i], 12f);
+                theme.size(views, DATE_IDS[i], 11f);
             } else {
                 views.setViewVisibility(ROW_IDS[i], View.GONE);
             }

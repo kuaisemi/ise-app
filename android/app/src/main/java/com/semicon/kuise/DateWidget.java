@@ -21,11 +21,18 @@ public class DateWidget extends BaseWidget {
     }
 
     @Override
+    protected String widgetKey() {
+        return "date";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         views.setTextViewText(R.id.date_weekday, data.optString("todayWeekday", "") + "요일");
         views.setTextViewText(R.id.date_day, data.optString("todayDay", ""));
         theme.accent(views, R.id.date_weekday);
         theme.title(views, R.id.date_day);
+        theme.size(views, R.id.date_weekday, 12f);
+        theme.size(views, R.id.date_day, 32f);
 
         JSONObject opts = data.optJSONObject("opts");
         boolean showEvents = opts == null || opts.optBoolean("dateShowEvents", true);
@@ -37,11 +44,13 @@ public class DateWidget extends BaseWidget {
         if (count > 0) {
             views.setTextViewText(R.id.date_event_0, "· " + events.optString(0, ""));
             theme.sub(views, R.id.date_event_0);
+            theme.size(views, R.id.date_event_0, 11f);
         }
         views.setViewVisibility(R.id.date_event_1, count > 1 ? View.VISIBLE : View.GONE);
         if (count > 1) {
             views.setTextViewText(R.id.date_event_1, "· " + events.optString(1, ""));
             theme.sub(views, R.id.date_event_1);
+            theme.size(views, R.id.date_event_1, 11f);
         }
     }
 }

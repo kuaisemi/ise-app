@@ -25,10 +25,17 @@ public class WeekWidget extends BaseWidget {
     }
 
     @Override
+    protected String widgetKey() {
+        return "week";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         views.setTextViewText(R.id.widget_sem, data.optString("semester", ""));
         theme.sub(views, R.id.widget_sem);
         theme.sub(views, R.id.week_empty);
+        theme.size(views, R.id.widget_sem, 11f);
+        theme.size(views, R.id.week_empty, 12f);
 
         // weekClasses: [[월 수업들], [화], [수], [목], [금]]
         JSONArray week = data.optJSONArray("weekClasses");
@@ -59,8 +66,10 @@ public class WeekWidget extends BaseWidget {
             boolean isToday = d == todayIdx;
             col.setTextViewText(R.id.col_day, DAY_LABELS[d]);
             col.setTextColor(R.id.col_day, isToday ? theme.accent : theme.textSub);
+            theme.size(col, R.id.col_day, 10f);
             col.setTextViewText(R.id.col_date, weekDates == null ? "" : weekDates.optString(d, ""));
             col.setTextColor(R.id.col_date, isToday ? theme.accent : theme.textSub);
+            theme.size(col, R.id.col_date, 9f);
 
             JSONArray day = week == null ? null : week.optJSONArray(d);
             if (day == null || day.length() == 0) {
@@ -75,6 +84,8 @@ public class WeekWidget extends BaseWidget {
                     RemoteViews chip = new RemoteViews(ctx.getPackageName(), R.layout.widget_week_chip);
                     chip.setTextViewText(R.id.chip_subject, c.optString("subject", ""));
                     chip.setTextViewText(R.id.chip_time, c.optString("startLabel", ""));
+                    theme.size(chip, R.id.chip_subject, 10f);
+                    theme.size(chip, R.id.chip_time, 8.5f);
                     chip.setInt(R.id.chip_bg, "setColorFilter",
                         TimetableWidget.parseColor(c.optString("color", ""), theme.accent));
                     col.addView(R.id.col_items, chip);

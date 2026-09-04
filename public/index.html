@@ -518,8 +518,22 @@ const GEMINI_API_KEYS = [
 ];
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.1.0';
+const APP_VERSION = 'Beta 0.2.0';
 const PATCH_NOTES = [
+  { version:'Beta 0.2.0', date:'2026-09-05', items:[
+    '홈 화면 위젯 7종 추가 (오늘의 시간표 · 다음 수업 · 오늘의 학식 · 일정/메모 · 주간 시간표 · 달력 · 오늘 날짜)',
+    '위젯 배경 · 강조 색 · 투명도 · 위젯별 글씨 크기를 MY 탭에서 직접 꾸밀 수 있음',
+    '위젯이 항상 보여줄 "대표 시간표"를 따로 지정 가능 (안 정하면 최근 보던 시간표를 따라감)',
+    '달력 위젯을 누르면 앱의 학사 달력 화면으로 바로 이동',
+    '학사 달력에 날짜별 개인 메모(과제 · 준비물 정리용) 기능 추가 — 나만 볼 수 있음',
+    '앱 아이콘과 이름을 새 디자인(KU ISE)으로 교체',
+    '시간표 화면을 위아래로 더 압축하고 글씨는 키움, + 버튼이 사진 인식/직접 추가로 펼쳐지는 방식으로 변경',
+    '홈 화면 진리관 식단이 시간대(조식 · 중식 · 석식)에 맞춰 자동으로 바뀌도록 개선',
+    '학부생 계정으로 공지에 좋아요가 눌리지 않던 문제 수정',
+    '같은 기기에서 브라우저와 앱 알림이 중복으로 오던 문제 수정 (앱 설치 후엔 앱으로만)',
+    { text:'새 버그 제보가 들어오면 개발자 · 학생회장에게 즉시 알림', admin:true },
+    { text:'삭제된 게시물을 수동으로 바로 정리하는 버튼 추가', admin:true },
+  ]},
   { version:'Beta 0.1.0', date:'2026-09-04', items:[
     '알파 딱지를 떼고 베타로 전환 — 핵심 기능이 안정화되어 정식 사용 단계로 넘어감',
     '시간표 화면 여백을 줄이고 그림자를 없애 더 깔끔하게 정리',
@@ -778,6 +792,8 @@ const state = {
   previewAsStudent: false,
   myPageSettingsOpen: false,
   settingsTab: 'display',
+  widgetAccentCustomOpen: false,
+  widgetFontScaleTarget: 'timetable',
   activeSemester: null,
   timetablesBySemester: {},
   activeVariant: 0,
@@ -1638,6 +1654,25 @@ const WIDGET_BGS = [
   { key:'crimson', label:'크림슨' },
 ];
 const WIDGET_ACCENTS = ['#F5C563','#4ECDC4','#B20923','#5B8DEF','#3DDC97','#C77DFF'];
+function isWidgetPresetAccent(hex){ return WIDGET_ACCENTS.some(h=>h.toLowerCase()===String(hex||'').toLowerCase()); }
+function isValidHexColor(s){ return /^#[0-9a-fA-F]{6}$/.test(s); }
+// 위젯 7종 각각 따로 글씨 크기를 키우거나 줄일 수 있게 한다 (예: 달력은 칸이 작아서 크게,
+// 다음 수업은 이미 커서 그대로 두는 식). 목록/키는 네이티브(WidgetTheme.java)와 맞춰야 한다.
+const WIDGET_TYPES = [
+  ['timetable','오늘의 시간표'], ['nextClass','다음 수업'], ['meal','오늘의 학식'],
+  ['schedule','일정 · 메모'], ['week','주간 시간표'], ['calendar','달력'], ['date','오늘 날짜'],
+];
+function getWidgetFontScale(key){
+  const fs = getWidgetOpts().fontScale || {};
+  const v = fs[key];
+  return (typeof v === 'number' && v>=0.7 && v<=1.6) ? v : 1;
+}
+function setWidgetFontScale(key, value){
+  const wo = getWidgetOpts();
+  const fs = { ...(wo.fontScale||{}) };
+  fs[key] = value;
+  setWidgetOpts({ fontScale: fs });
+}
 function getWidgetOpts(){
   const o = localGet('widget_opts', null) || {};
   return {
@@ -1646,6 +1681,7 @@ function getWidgetOpts(){
     accent: o.accent || WIDGET_ACCENTS[0],
     dateShowEvents: o.dateShowEvents !== false,
     calendarShowMemo: o.calendarShowMemo !== false,
+    fontScale: (o.fontScale && typeof o.fontScale === 'object') ? o.fontScale : {},
   };
 }
 function setWidgetOpts(patch){
@@ -1749,6 +1785,15 @@ function renderWidgetSettingsTab(){
         ${WIDGET_ACCENTS.map(hex=>`
           <div class="swatch ${wo.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
             data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${wo.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
+        <div class="swatch ${!isWidgetPresetAccent(wo.accent)?'selected':''}" style="background:${!isWidgetPresetAccent(wo.accent)?wo.accent:'var(--surface-2)'}; border:2px dashed var(--text-faint);" data-action="toggle-widget-accent-custom">${!isWidgetPresetAccent(wo.accent)?'✓':'+'}</div>
+      </div>
+      <!-- 위젯 앱 안 다른 곳에서 쓰는 네이티브 색상 피커(input type=color)는 탭해도 바로 안 뜨고
+           기본값이 검은색으로 나오는 경우가 있어서, 여기는 직접 코드로 입력하는 방식을 쓴다. -->
+      <div id="widget-accent-custom-row" style="display:${state.widgetAccentCustomOpen?'flex':'none'}; align-items:center; gap:8px; margin-top:10px;">
+        <span id="widget-accent-preview" style="width:26px; height:26px; border-radius:50%; flex-shrink:0; background:${isWidgetPresetAccent(wo.accent)?'#888888':wo.accent}; border:1px solid var(--border);"></span>
+        <input type="text" id="widget-accent-hex-input" placeholder="#RRGGBB" maxlength="7"
+          value="${isWidgetPresetAccent(wo.accent)?'':wo.accent}"
+          style="flex:1; font-family:var(--font-mono); text-transform:uppercase;">
       </div>
     </div>
 
@@ -1767,6 +1812,25 @@ function renderWidgetSettingsTab(){
     <div class="notify-row" style="padding:8px 2px;">
       <span class="notify-label"><span class="notify-label-text"><b>달력 위젯에 오늘 할 일 표시</b><small>내가 직접 적어둔 메모만 보여줘요 (학사일정 아님)</small></span></span>
       <button type="button" class="btn ${wo.calendarShowMemo?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-memo">${wo.calendarShowMemo?'켜짐':'꺼짐'}</button>
+    </div>
+
+    <div class="divider" style="margin:14px 0;"></div>
+
+    <div class="field" style="margin-bottom:8px;">
+      <label>위젯별 글씨 크기</label>
+      <p style="font-size:10.5px; color:var(--text-faint); margin:2px 2px 10px; line-height:1.55;">
+        위젯마다 따로 조절해요. 아래에서 조절할 위젯을 먼저 고르세요.
+      </p>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+        ${WIDGET_TYPES.map(([key,label])=>`
+          <button type="button" class="btn ${state.widgetFontScaleTarget===key?'btn-primary':'btn-ghost'} btn-sm"
+            style="width:auto; padding:5px 11px; font-size:11px;" data-action="pick-widget-font-target" data-key="${key}">${label}</button>`).join('')}
+      </div>
+      ${(()=>{ const cur = getWidgetFontScale(state.widgetFontScaleTarget); return `
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="range" id="widget-font-scale" min="80" max="150" step="5" value="${Math.round(cur*100)}" style="flex:1;">
+        <span id="widget-font-scale-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${Math.round(cur*100)}%</span>
+      </div>`; })()}
     </div>`;
 }
 
@@ -2165,6 +2229,8 @@ function renderMain(){
   el.innerHTML = html + (state.view==='mypage' ? '' : versionFooter());
   setupNowTimer();
   setupWidgetOpacitySlider();
+  setupWidgetAccentInput();
+  setupWidgetFontScaleSlider();
 }
 
 // 위젯 투명도 슬라이더는 화면을 다시 그릴 때마다 새로 만들어지므로 여기서 매번 연결한다.
@@ -2175,6 +2241,35 @@ function setupWidgetOpacitySlider(){
   const label = document.getElementById('widget-opacity-val');
   slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
   slider.onchange = ()=>{ setWidgetOpts({ opacity: parseInt(slider.value,10) }); };
+}
+
+// 위젯 강조색 직접 입력 — 네이티브 <input type=color>는 탭해도 안 열리거나 처음엔 검정으로
+// 나오는 경우가 있어서 못 믿고, 여기는 그냥 색 코드를 타이핑하는 입력창으로 대신한다.
+// 입력할 때마다 원 미리보기는 바로 바뀌고, 완전한 6자리 코드가 되면 그때 실제로 저장한다
+// (타이핑 중간중간의 반쪽짜리 코드로 위젯을 계속 다시 그리지 않기 위해).
+function setupWidgetAccentInput(){
+  const input = document.getElementById('widget-accent-hex-input');
+  if(!input) return;
+  const preview = document.getElementById('widget-accent-preview');
+  input.oninput = ()=>{
+    let v = input.value.trim();
+    if(v && !v.startsWith('#')) v = '#'+v;
+    if(preview && isValidHexColor(v)) preview.style.background = v;
+  };
+  input.onchange = ()=>{
+    let v = input.value.trim();
+    if(v && !v.startsWith('#')) v = '#'+v;
+    if(isValidHexColor(v)) setWidgetOpts({ accent: v });
+    else toast('#RRGGBB 형식으로 입력해주세요 (예: #FF6B6B)');
+  };
+}
+
+function setupWidgetFontScaleSlider(){
+  const slider = document.getElementById('widget-font-scale');
+  if(!slider) return;
+  const label = document.getElementById('widget-font-scale-val');
+  slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
+  slider.onchange = ()=>{ setWidgetFontScale(state.widgetFontScaleTarget, parseInt(slider.value,10)/100); };
 }
 
 function setupNowTimer(){
@@ -6409,7 +6504,9 @@ document.addEventListener('click', async (e)=>{
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
     else if(a==='settings-tab'){ state.settingsTab = el.dataset.tab; renderMain(); }
     else if(a==='set-widget-bg'){ setWidgetOpts({ bg: el.dataset.bg }); renderMain(); }
-    else if(a==='set-widget-accent'){ setWidgetOpts({ accent: el.dataset.hex }); renderMain(); }
+    else if(a==='set-widget-accent'){ state.widgetAccentCustomOpen=false; setWidgetOpts({ accent: el.dataset.hex }); renderMain(); }
+    else if(a==='toggle-widget-accent-custom'){ state.widgetAccentCustomOpen = !state.widgetAccentCustomOpen; renderMain(); }
+    else if(a==='pick-widget-font-target'){ state.widgetFontScaleTarget = el.dataset.key; renderMain(); }
     else if(a==='toggle-widget-date-events'){ setWidgetOpts({ dateShowEvents: !getWidgetOpts().dateShowEvents }); renderMain(); }
     else if(a==='toggle-widget-calendar-memo'){ setWidgetOpts({ calendarShowMemo: !getWidgetOpts().calendarShowMemo }); renderMain(); }
     else if(a==='open-primary-timetable'){ openModal(primaryTimetableModal()); }

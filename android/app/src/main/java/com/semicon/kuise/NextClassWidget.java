@@ -23,11 +23,20 @@ public class NextClassWidget extends BaseWidget {
     }
 
     @Override
+    protected String widgetKey() {
+        return "nextClass";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         theme.accent(views, R.id.next_label);
         theme.body(views, R.id.next_subject);
         theme.sub(views, R.id.next_meta);
         theme.sub(views, R.id.next_empty);
+        theme.size(views, R.id.next_label, 11f);
+        theme.size(views, R.id.next_subject, 17f);
+        theme.size(views, R.id.next_meta, 11f);
+        theme.size(views, R.id.next_empty, 12f);
 
         JSONArray classes = data.optJSONArray("classes");
 
