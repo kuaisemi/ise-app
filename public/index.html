@@ -1971,8 +1971,11 @@ function renderHome(){
     <div class="section-title">학생회 공지</div>
     <div class="card">
       ${recentNotices.length ? recentNotices.map(n=>`
-        <div class="list-item" style="padding:8px 0;">
-          <div class="title-line">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b style="font-size:15px">${escapeHtml(n.title)}</b></div>
+        <div class="list-item" data-action="go-notice-tab" style="padding:8px 0; cursor:pointer;">
+          <div class="row-between" style="gap:8px;">
+            <div class="title-line">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b style="font-size:16.5px; font-weight:800;">${escapeHtml(n.title)}</b></div>
+            <span style="color:var(--text-faint); flex-shrink:0;">${ICON.chevR}</span>
+          </div>
           <div class="meta">${fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole)} · ${fmtDateShort(n.date)}</div>
           ${n.imageUrl ? `<img src="${escapeHtml(n.imageUrl)}" alt="공지 사진" style="width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:6px;">` : ''}
         </div>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">등록된 공지가 없습니다.</p>`}
@@ -3008,12 +3011,12 @@ function renderMealTab(){
   const staff = raw.staff || null;
   return `
     <div class="weekday-nav">
-      <button type="button" class="weekday-nav-arrow" data-action="meal-week-prev" aria-label="지난주">${ICON.chevL}</button>
+      <button type="button" class="weekday-nav-arrow" data-action="meal-day-prev" aria-label="전날">${ICON.chevL}</button>
       ${weekDates.map((dStr,idx)=>`
         <div class="w-pill ${dStr===state.mealDate?'active':''} ${dStr===todayStr()?'today-pill':''}" data-action="select-meal-date" data-date="${dStr}">
           <b>${DAYS[idx]}</b><span>${fmtDateShort(dStr)}</span>
         </div>`).join('')}
-      <button type="button" class="weekday-nav-arrow" data-action="meal-week-next" aria-label="다음주">${ICON.chevR}</button>
+      <button type="button" class="weekday-nav-arrow" data-action="meal-day-next" aria-label="다음날">${ICON.chevR}</button>
     </div>
     <div class="card" style="margin-bottom:12px;">
       <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
@@ -5800,6 +5803,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'council-tab'){ state.councilTab = el.dataset.tab; renderMain(); }
     else if(a === 'go-poll-page'){ state.view = 'council'; state.councilTab = 'poll'; renderShell(); }
     else if(a === 'go-recruitment-tab'){ state.view = 'council'; state.councilTab = 'recruitment'; renderShell(); }
+    else if(a === 'go-notice-tab'){ state.view = 'council'; state.councilTab = 'notice'; renderShell(); }
     else if(a === 'close-modal'){ closeModal(); }
     else if(a === 'logout'){ await logout(); }
     else if(a === 'reset-timetable'){ await resetTimetable(); }
@@ -5998,8 +6002,8 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'delete-event'){ await deleteEvent(el.dataset.id); }
     else if(a === 'select-meal-date'){ state.mealDate = el.dataset.date; renderMain(); }
-    else if(a === 'meal-week-prev'){ state.mealDate = addDays(state.mealDate, -7); renderMain(); }
-    else if(a === 'meal-week-next'){ state.mealDate = addDays(state.mealDate, 7); renderMain(); }
+    else if(a === 'meal-day-prev'){ state.mealDate = addDays(state.mealDate, -1); renderMain(); }
+    else if(a === 'meal-day-next'){ state.mealDate = addDays(state.mealDate, 1); renderMain(); }
     else if(a === 'edit-meal'){ openModal(mealModal(el.dataset.date)); }
     else if(a === 'fetch-meal-page'){ await fetchMealFromSource(false); }
     else if(a === 'add-notice'){ openModal(noticeModal(null)); setupNoticeModalListeners(); }
