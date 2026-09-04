@@ -171,9 +171,14 @@ async function main() {
 
   const nextState = {};
 
-  // 1) 새 공지
+  // 1) 새 공지 — 작성자가 "알림 발송"을 켠 공지만 보낸다(기본 꺼짐).
+  //    보내지 않는 공지도 처리 완료로 기록해서, 나중에 켜지지도 않았는데 뒤늦게 발송되는 걸 막는다.
   const newNotices = notices.filter((n) => !notifiedNotice.has(n.id));
   for (const n of newNotices) {
+    if (!n.notifyPush) {
+      console.log('새 공지(알림 발송 꺼짐, 건너뜀):', n.title);
+      continue;
+    }
     console.log('새 공지 알림:', n.title);
     await send('notice', '📢 새로운 공지가 있어요', `제목: ${n.title}`);
   }

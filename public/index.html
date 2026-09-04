@@ -3164,6 +3164,14 @@ function noticeModal(n){
           <button type="button" class="btn btn-danger btn-sm" id="btn-del-notice-img" style="width:auto; font-size:11px;">사진 제거</button>
         </div>
       </div>
+      ${isEdit ? '' : `
+      <div class="checkline" style="justify-content:space-between; margin:4px 0 0;">
+        <label for="notice-push-check" style="margin:0; cursor:pointer; color:var(--text);">
+          🔔 알림 발송
+          <span style="display:block; font-size:11px; color:var(--text-faint); margin-top:2px;">켜면 알림을 켜둔 학생들에게 푸시가 갑니다</span>
+        </label>
+        <input type="checkbox" name="sendPush" id="notice-push-check">
+      </div>`}
       <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'공지 등록'}</button></div>
     </form>`;
 }
@@ -4827,6 +4835,9 @@ async function handleNoticeSubmit(fd){
         date: todayStr(),
         pinned: false,
         likes: {},
+        // 알림은 작성자가 명시적으로 체크했을 때만 발송된다(기본 꺼짐).
+        // 서버(GitHub Actions)가 이 값을 보고 푸시를 보낼지 결정함.
+        notifyPush: fd.get('sendPush') === 'on',
         createdAt: now(),
         updatedAt: now()
       }, ...latest];
@@ -4835,7 +4846,8 @@ async function handleNoticeSubmit(fd){
     state.notices = next;
     closeModal();
     renderMain();
-    saveResultToast(ok, '공지가 게시되었습니다');
+    const pushed = !id && fd.get('sendPush') === 'on';
+    saveResultToast(ok, pushed ? '공지가 게시되었습니다 (알림 발송 예약됨)' : '공지가 게시되었습니다');
   } finally {
     if(btn) btn.disabled = false;
   }
