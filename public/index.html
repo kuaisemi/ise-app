@@ -434,7 +434,8 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
-  arrayUnion
+  arrayUnion,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 import {
@@ -1100,6 +1101,35 @@ async function saveShared(name, data){
     return false;
   }
 }
+// 투표·좋아요처럼 여러 사람이 동시에 누르는 동작은, 목록 전체를 불러와 고친 뒤 통째로
+// 덮어쓰면 나중에 저장한 사람이 앞선 사람의 결과를 지워버린다(A와 B가 몇 초 안에 투표하면
+// 한 명의 표가 사라짐). 트랜잭션 안에서 문서를 다시 읽고 바꾸도록 해서 이를 막는다.
+// mutate(list)는 새 배열을 돌려주거나, 바꿀 게 없으면 null을 돌려준다.
+async function mutateSharedList(name, field, mutate){
+  const ref = doc(db,'shared',name);
+  if(!auth.currentUser){ LAST_SAVE_ERROR = 'unauthenticated'; return null; }
+  try{
+    const result = await runTransaction(db, async (tx)=>{
+      const snap = await tx.get(ref);
+      const cur = (snap.exists() ? snap.data() : {}) || {};
+      const list = Array.isArray(cur[field]) ? cur[field] : [];
+      const nextList = mutate(list);
+      if(!nextList) return null;
+      tx.set(ref, { ...cur, [field]: nextList });
+      return nextList;
+    });
+    if(result){
+      localSet('shared_'+name, { [field]: result });
+      LAST_SAVE_ERROR = '';
+    }
+    return result;
+  }catch(e){
+    LAST_SAVE_ERROR = (e && e.code) || (e && e.message) || 'unknown';
+    console.error('[mutateSharedList]', name, e);
+    return null;
+  }
+}
+
 function saveResultToast(ok, okMsg){
   if(ok){ toast(okMsg || '저장되었습니다'); return; }
   const map = {
@@ -4327,22 +4357,27 @@ async function handleToggleLike(type, id){
   const uName = state.user.name;
 
   let list = [];
-  let saveFn = null;
+  let docName = '';
 
-  if(type==='notice'){ list = await loadNotices(); saveFn = saveNotices; }
-  else if(type==='councilPost'){ list = await loadCouncilPosts(); saveFn = saveCouncilPosts; }
-  else if(type==='recruitment'){ list = await loadRecruitments(); saveFn = saveRecruitments; }
-  else if(type==='suggestion'){ list = await loadSuggestions(); saveFn = saveSuggestions; }
+  if(type==='notice'){ list = await loadNotices(); docName = 'notices'; }
+  else if(type==='councilPost'){ list = await loadCouncilPosts(); docName = 'councilPosts'; }
+  else if(type==='recruitment'){ list = await loadRecruitments(); docName = 'recruitments'; }
+  else if(type==='suggestion'){ list = await loadSuggestions(); docName = 'suggestions'; }
+  if(!docName) return;
 
   const item = list.find(x=>x.id===id);
   if(!item) return;
 
-  const likes = { ...(item.likes||{}) };
-  if(likes[sid]) delete likes[sid];
-  else likes[sid] = { name: uName, studentId: sid, time: now() };
-
-  const next = list.map(x=>x.id===id ? { ...x, likes, updatedAt: now() } : x);
-  await saveFn(next);
+  // 여러 명이 같은 글에 동시에 따봉을 눌러도 서로의 기록이 지워지지 않도록 트랜잭션으로 처리
+  const next = await mutateSharedList(docName, 'list', (cur)=>{
+    const target = cur.find(x=>x && x.id===id);
+    if(!target) return null;
+    const likes = { ...(target.likes||{}) };
+    if(likes[sid]) delete likes[sid];
+    else likes[sid] = { name: uName, studentId: sid, time: now() };
+    return cur.map(x=>x.id===id ? { ...x, likes, updatedAt: now() } : x);
+  });
+  if(!next){ saveResultToast(false); return; }
 
   if(type==='notice') state.notices = next;
   else if(type==='councilPost') state.councilPosts = next;
@@ -4357,22 +4392,19 @@ async function handleToggleCommentLike(postId, commentId){
   const sid = state.user.studentId;
   const uName = state.user.name;
 
-  const list = await loadCouncilPosts();
-  const post = list.find(p=>p.id===postId);
-  if(!post) return;
-
-  const comments = (post.comments||[]).map(c=>{
-    if(c.id===commentId){
+  const next = await mutateSharedList('councilPosts', 'list', (cur)=>{
+    const post = cur.find(p=>p && p.id===postId);
+    if(!post) return null;
+    const comments = (post.comments||[]).map(c=>{
+      if(c.id!==commentId) return c;
       const likes = { ...(c.likes||{}) };
       if(likes[sid]) delete likes[sid];
       else likes[sid] = { name: uName, studentId: sid, time: now() };
       return { ...c, likes };
-    }
-    return c;
+    });
+    return cur.map(p=>p.id===postId ? { ...p, comments, updatedAt: now() } : p);
   });
-
-  const next = list.map(p=>p.id===postId ? { ...p, comments, updatedAt: now() } : p);
-  await saveCouncilPosts(next);
+  if(!next){ saveResultToast(false); return; }
   state.councilPosts = next;
   renderMain();
 }
@@ -5187,25 +5219,28 @@ async function handleCouncilComment(form){
   const content = (new FormData(form).get('content') || '').trim();
   if(!content) return;
   const postId = form.dataset.postId;
-  const latest = await loadCouncilPosts();
-  const next = latest.map(p => p.id === postId ? {
-    ...p,
-    comments: [...(p.comments || []), {
-      id: uid(),
-      authorName: state.user.name,
-      authorId: state.user.studentId,
-      authorRole: myRole(),
-      content,
-      date: todayStr(),
-      createdAt: now(),
-      likes: {}
-    }],
-    updatedAt: now()
-  } : p);
-  const ok = await saveCouncilPosts(next);
+  // 같은 글에 두 사람이 동시에 댓글을 달아도 한쪽이 사라지지 않도록 트랜잭션으로 추가한다.
+  const next = await mutateSharedList('councilPosts', 'list', (cur)=>{
+    const post = cur.find(p => p && p.id === postId);
+    if(!post) return null;
+    return cur.map(p => p.id === postId ? {
+      ...p,
+      comments: [...(p.comments || []), {
+        id: uid(),
+        authorName: state.user.name,
+        authorId: state.user.studentId,
+        authorRole: myRole(),
+        content,
+        date: todayStr(),
+        createdAt: now(),
+        likes: {}
+      }],
+      updatedAt: now()
+    } : p);
+  });
+  if(!next){ saveResultToast(false); return; }
   state.councilPosts = next;
   renderMain();
-  if(!ok) saveResultToast(false);
 }
 
 async function deleteCouncilPost(id){
@@ -5291,30 +5326,37 @@ async function handlePollVoteSubmit(fd){
     }
   }
 
-  const votes = {
-    ...(poll.votes || {}),
-    [sid]: { selected, name: state.user.name, studentId: sid, votedAt: new Date().toISOString() }
-  };
-  const next = latest.map(p => p.id === pollId ? { ...p, votes, updatedAt: now() } : p);
-  const ok = await savePolls(next);
+  // 동시에 투표한 다른 사람의 표가 지워지지 않도록 트랜잭션 안에서 다시 읽고 기록한다.
+  const next = await mutateSharedList('polls', 'list', (cur)=>{
+    const target = cur.find(p => p && p.id === pollId);
+    if(!target || isPollEnded(target)) return null;
+    const votes = {
+      ...(target.votes || {}),
+      [sid]: { selected, name: state.user.name, studentId: sid, votedAt: new Date().toISOString() }
+    };
+    return cur.map(p => p.id === pollId ? { ...p, votes, updatedAt: now() } : p);
+  });
+  if(!next){ saveResultToast(false); return; }
   state.polls = next;
   state.editingPollVoteId = null;
   renderMain();
-  saveResultToast(ok, isModify ? '투표가 변경되었습니다' : '투표가 완료되었습니다');
+  saveResultToast(true, isModify ? '투표가 변경되었습니다' : '투표가 완료되었습니다');
 }
 
 async function cancelPollVote(pollId){
-  const latest = await loadPolls();
-  const poll = latest.find(p => p.id === pollId);
-  if(!poll || isPollEnded(poll)) return;
-  const votes = { ...(poll.votes || {}) };
-  delete votes[state.user.studentId];
-  const next = latest.map(p => p.id === pollId ? { ...p, votes, updatedAt: now() } : p);
-  const ok = await savePolls(next);
+  const sid = state.user.studentId;
+  const next = await mutateSharedList('polls', 'list', (cur)=>{
+    const target = cur.find(p => p && p.id === pollId);
+    if(!target || isPollEnded(target)) return null;
+    const votes = { ...(target.votes || {}) };
+    delete votes[sid];
+    return cur.map(p => p.id === pollId ? { ...p, votes, updatedAt: now() } : p);
+  });
+  if(!next){ saveResultToast(false); return; }
   state.polls = next;
   state.editingPollVoteId = null;
   renderMain();
-  saveResultToast(ok, '투표가 취소되었습니다');
+  saveResultToast(true, '투표가 취소되었습니다');
 }
 
 async function closePollNow(pollId){
