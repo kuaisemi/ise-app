@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="color-scheme" content="dark">
-<title>ISE · 지능형반도체공학과</title>
+<title>KU ISE · 지능형반도체공학과</title>
 <meta name="description" content="고려대학교 지능형반도체공학과 ISE 앱 — 시간표, 학사일정, 급식, 공지·건의·투표">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#8C1D2B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ISE">
+<meta name="apple-mobile-web-app-title" content="KU ISE">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png">
 <!-- 안드로이드 앱(Capacitor) 환경에서만 실제로 동작. 번들러 없이 raw HTML로 배포하는 구조라
@@ -202,7 +202,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .cal-item{display:flex; align-items:flex-start; gap:10px;}
 .tag-cell{flex-shrink:0; min-width:38px; text-align:center; font-size:9.5px; font-weight:700; padding:4px 5px; border-radius:7px; white-space:nowrap;}
 .cal-item-body{min-width:0; flex:1;}
-.cal-item-body b{display:block; font-size:11.5px; font-weight:700; line-height:1.4; word-break:keep-all; overflow-wrap:break-word;}
+.cal-item-body b{display:block; font-size:14.5px; font-weight:800; line-height:1.4; word-break:keep-all; overflow-wrap:break-word;}
 .cal-item-body .meta{display:block; margin-top:2px;}
 .list-item .body{font-size:11.5px; color:var(--text); margin-top:6px; line-height:1.6; white-space:pre-wrap;}
 .one-line{min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -3985,7 +3985,7 @@ function renderMypage(){
     ${isPresident() ? `<p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">공지·투표·건의·구인글·학생회 게시글·버그 제보·학사일정 중 삭제된 지 24시간 지난 항목을 완전히 지워요. 이 정리는 서버에서 10분마다 자동으로도 돌아가요.</p>` : ''}
 
     <p style="text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); margin:22px 0 2px; cursor:pointer; user-select:none;" data-action="easter-egg-tap">
-      ISE-지능형반도체공학과 앱 - ${APP_VERSION}
+      KU ISE-지능형반도체공학과 앱 - ${APP_VERSION}
     </p>
     <p style="text-align:center; margin:8px 0 0;">
       <span style="font-size:11.5px; color:var(--text-dim); cursor:pointer; user-select:none;" data-action="logout">로그아웃</span>

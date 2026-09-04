@@ -1,6 +1,6 @@
 {
-  "name": "ISE 지능형반도체공학과",
-  "short_name": "ISE",
+  "name": "KU ISE 지능형반도체공학과",
+  "short_name": "KU ISE",
   "description": "고려대학교 지능형반도체공학과 ISE 앱 — 시간표, 학사일정, 급식, 공지·건의·투표",
   "start_url": "./index.html",
   "scope": "./",
