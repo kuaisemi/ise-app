@@ -14,9 +14,12 @@
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png">
 <!-- 안드로이드 앱(Capacitor) 환경에서만 실제로 동작. 번들러 없이 raw HTML로 배포하는 구조라
-     각 플러그인의 UMD 빌드를 그대로 포함시킴 — "오늘의 시간표" 로컬 알림 전용. -->
+     각 플러그인의 UMD 빌드를 그대로 포함시킴.
+     local-notifications = "오늘의 시간표" 기기 알림,
+     push-notifications  = 공지/투표/학식 원격 푸시 (WebView는 웹 푸시 API를 지원하지 않아 네이티브 FCM 필요) -->
 <script src="./vendor/capacitor-core.js"></script>
 <script src="./vendor/capacitor-local-notifications.js"></script>
+<script src="./vendor/capacitor-push-notifications.js"></script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -399,7 +402,8 @@ import {
   doc,
   getDoc,
   setDoc,
-  deleteDoc
+  deleteDoc,
+  arrayUnion
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 import {
@@ -1392,8 +1396,28 @@ function ensurePushToken(){
   }
   return pushTokenPromise;
 }
+// 한 사람이 폰 앱과 PC 브라우저를 같이 쓸 수 있으므로 토큰을 배열로 모아둔다.
+// (fcmToken 단일 필드만 쓰면 마지막에 등록한 기기 하나에만 알림이 감)
+async function saveFcmToken(token){
+  if(!token || !state.user) return false;
+  try{
+    await setDoc(doc(db,'users',state.user.uid), {
+      fcmTokens: arrayUnion(token),
+      fcmToken: token, // 구버전 호환용
+    }, { merge:true });
+    return true;
+  }catch(e){ console.warn('[fcm-save]', e); return false; }
+}
+
 async function registerPushToken(){
   if(!state.user) return false;
+  const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+  // 안드로이드 WebView에는 웹 푸시(Notification/Push API)가 없어서, 앱에서는 네이티브 FCM을 써야 한다.
+  if(isNative) return registerNativePushToken();
+  return registerWebPushToken();
+}
+
+async function registerWebPushToken(){
   if(!('Notification' in window) || !('serviceWorker' in navigator)) return false;
   if(!FCM_VAPID_KEY) return false; // 콘솔에서 VAPID 키를 아직 안 채운 경우 조용히 스킵
   try{
@@ -1405,9 +1429,36 @@ async function registerPushToken(){
     const reg = await navigator.serviceWorker.ready;
     const token = await getToken(messaging, { vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
     if(!token) return false;
-    await setDoc(doc(db,'users',state.user.uid), { fcmToken: token }, { merge:true });
-    return true;
-  }catch(e){ console.warn('[push-token]', e); return false; }
+    return await saveFcmToken(token);
+  }catch(e){ console.warn('[push-token:web]', e); return false; }
+}
+
+let nativePushListenersBound = false;
+function registerNativePushToken(){
+  const PN = (typeof Capacitor !== 'undefined' && Capacitor.Plugins) ? Capacitor.Plugins.PushNotifications : null;
+  if(!PN) return Promise.resolve(false);
+  return new Promise(async (resolve)=>{
+    try{
+      let perm = await PN.checkPermissions();
+      if(perm.receive !== 'granted') perm = await PN.requestPermissions();
+      if(perm.receive !== 'granted'){ resolve(false); return; }
+
+      // registration 이벤트로 토큰이 비동기 전달된다. 리스너는 한 번만 등록.
+      if(!nativePushListenersBound){
+        nativePushListenersBound = true;
+        PN.addListener('registration', (t)=>{ saveFcmToken(t && t.value); });
+        PN.addListener('registrationError', (e)=>{ console.warn('[push-token:native]', e); });
+        // 앱이 열려 있을 때 온 알림은 OS가 자동으로 띄우지 않으므로 앱 안에서 토스트로 보여준다.
+        PN.addListener('pushNotificationReceived', (n)=>{
+          const title = (n && n.title) || '알림';
+          const body = (n && n.body) || '';
+          toast(`${title}${body ? ' — ' + body : ''}`);
+        });
+      }
+      await PN.register();
+      resolve(true);
+    }catch(e){ console.warn('[push-token:native]', e); resolve(false); }
+  });
 }
 async function setupForegroundMessageListener(){
   try{

@@ -127,17 +127,22 @@ async function main() {
   const sentMealKeys = new Set(st.sentMealKeys || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
-  // 카테고리별 수신 대상 토큰 수집
+  // 카테고리별 수신 대상 토큰 수집.
+  // 한 사람이 폰 앱 + PC 브라우저를 같이 쓸 수 있어 토큰은 배열(fcmTokens)로 관리한다.
+  // fcmToken(단일 필드)은 구버전 클라이언트 호환용.
   const tokensBy = { notice: [], poll: [], meal: [] };
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
-    if (!u.fcmToken) return;
+    const tokens = [...new Set([...(u.fcmTokens || []), ...(u.fcmToken ? [u.fcmToken] : [])])];
+    if (!tokens.length) return;
     const prefs = u.notifyPrefs || {};
-    tokenToUid.set(u.fcmToken, docSnap.id);
-    if (prefs.notice) tokensBy.notice.push(u.fcmToken);
-    if (prefs.poll) tokensBy.poll.push(u.fcmToken);
-    if (prefs.meal) tokensBy.meal.push(u.fcmToken);
+    for (const t of tokens) {
+      tokenToUid.set(t, docSnap.id);
+      if (prefs.notice) tokensBy.notice.push(t);
+      if (prefs.poll) tokensBy.poll.push(t);
+      if (prefs.meal) tokensBy.meal.push(t);
+    }
   });
 
   const invalidTokens = new Set();
@@ -262,13 +267,23 @@ async function main() {
 
   await purgeOldTombstones();
 
-  // 만료/무효 토큰 정리
+  // 만료/무효 토큰 정리 — 배열에서 해당 토큰만 빼고, 단일 필드는 그 토큰일 때만 지운다.
   if (invalidTokens.size) {
     const batch = db.batch();
+    const byUid = new Map();
     for (const [token, uid] of tokenToUid.entries()) {
-      if (invalidTokens.has(token)) {
-        batch.update(db.collection('users').doc(uid), { fcmToken: FieldValue.delete() });
+      if (!invalidTokens.has(token)) continue;
+      if (!byUid.has(uid)) byUid.set(uid, []);
+      byUid.get(uid).push(token);
+    }
+    for (const [uid, tokens] of byUid.entries()) {
+      const ref = db.collection('users').doc(uid);
+      const update = { fcmTokens: FieldValue.arrayRemove(...tokens) };
+      const current = usersSnap.docs.find((d) => d.id === uid);
+      if (current && tokens.includes(current.data().fcmToken)) {
+        update.fcmToken = FieldValue.delete();
       }
+      batch.update(ref, update);
     }
     await batch.commit();
     console.log(`만료된 토큰 ${invalidTokens.size}개 정리 완료`);
