@@ -17,6 +17,13 @@ jobs:
       - name: Install dependencies
         working-directory: notify
         run: npm install --omit=dev
+      # 학과 공지/학식을 먼저 갱신한 뒤 알림을 보낸다.
+      # (같은 실행 안에서 새로 들어온 식단이 바로 알림 대상이 되도록)
+      - name: Refresh dept notices and meals
+        working-directory: notify
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: npm run fetch
       - name: Send notifications
         working-directory: notify
         env:

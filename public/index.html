@@ -313,7 +313,19 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .dev-card-title svg{width:14px; height:14px; flex-shrink:0;}
 .dev-card-stats{display:flex; gap:12px; font-size:11px; font-family:var(--font-mono); color:var(--text-dim); margin:0 2px 8px;}
 .dev-card-stats b{color:var(--teal); font-weight:800;}
-.notify-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 2px; font-size:13px; color:var(--text);}
+/* 알림 설정 한 줄 = [아이콘 + 제목/설명] ... [켜짐·꺼짐 버튼].
+   아이콘과 글자 사이 간격은 gap으로 주고, 설명은 제목 아래로 내려 두 줄로 읽히게 한다. */
+.notify-row{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 2px; font-size:13px; color:var(--text);}
+.notify-row + .notify-row{border-top:1px solid var(--hairline);}
+.notify-label{display:flex; align-items:center; gap:10px; min-width:0;}
+.notify-label > svg{flex-shrink:0; color:var(--text-dim);}
+.notify-label-text{display:flex; flex-direction:column; gap:3px; min-width:0;}
+.notify-label-text b{font-size:13px; font-weight:600; line-height:1.2;}
+.notify-label-text small{font-size:10.5px; color:var(--text-faint); line-height:1.4;}
+.notify-toggle{width:auto; flex-shrink:0; padding:6px 13px; font-size:12px;}
+.notify-toggle[disabled]{opacity:.4;}
+.notify-subrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 2px 2px; margin-top:2px; border-top:1px solid var(--hairline);}
+.notify-subrow > span{font-size:11.5px; color:var(--text-dim);}
 .divider{height:1px; background:var(--border); margin:14px 0;}
 .link-row{display:flex; align-items:center; justify-content:space-between; padding:12px 2px; font-size:14px; cursor:pointer; color:var(--text);}
 .link-row-label{display:flex; align-items:center; gap:7px;}
@@ -342,6 +354,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* vertical-align은 flex 항목에는 적용되지 않으므로, 이 한 줄이 인라인으로 흐르는 아이콘에만
    영향을 준다. (.btn/.modal-title 등 flex+gap 컨테이너는 그대로 유지됨) */
 svg{vertical-align:-2px;}
+/* 인라인으로 흐르는 아이콘은 글자와 붙어 보이므로 약간의 여백을 준다.
+   (flex+gap을 쓰는 .btn/.modal-title/.notify-label 등은 대상에서 제외 — 간격이 두 번 들어감) */
+.section-title > svg, .icon-inline > svg{margin-right:6px;}
+.section-title > svg{color:inherit;}
 .modal-title-text{display:flex; align-items:center; gap:6px; min-width:0;}
 /* 아이콘이 들어가는 자리마다 글씨 크기가 달라서, 작은 글씨 옆에서는 아이콘도 같이 줄인다. */
 .btn-comment-like svg, .btn-top-refresh svg{width:13px; height:13px;}
@@ -3774,32 +3790,32 @@ function renderMypage(){
 
       <div class="divider" style="margin:14px 0;"></div>
 
-      <p style="margin:0 0 8px; font-size:12.5px; font-weight:700;">알림</p>
+      <p style="margin:0 0 4px; font-size:12.5px; font-weight:700;">알림</p>
       <div class="notify-row">
-        <span>${ICON.megaphone} 공지 올라올 때</span>
-        <button type="button" class="btn ${np.notice?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="notice" style="width:auto; padding:5px 12px;">${np.notice?'켜짐':'꺼짐'}</button>
+        <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>공지</b><small>새 공지가 올라올 때</small></span></span>
+        <button type="button" class="btn ${np.notice?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="notice">${np.notice?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
-        <span>${ICON.ballot} 투표 <span style="font-size:11px; color:var(--text-faint);">시작·마감 30분 전·저녁 8시</span></span>
-        <button type="button" class="btn ${np.poll?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="poll" style="width:auto; padding:5px 12px;">${np.poll?'켜짐':'꺼짐'}</button>
+        <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>투표</b><small>시작 · 마감 30분 전 · 저녁 8시</small></span></span>
+        <button type="button" class="btn ${np.poll?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="poll">${np.poll?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
-        <span>${ICON.bowl} 학식 <span style="font-size:11px; color:var(--text-faint);">7시·10시 반·16시 반</span></span>
-        <button type="button" class="btn ${np.meal?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="meal" style="width:auto; padding:5px 12px;">${np.meal?'켜짐':'꺼짐'}</button>
+        <span class="notify-label">${ICON.bowl}<span class="notify-label-text"><b>학식</b><small>조식 7시 · 중식 10시 반 · 석식 4시 반</small></span></span>
+        <button type="button" class="btn ${np.meal?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="meal">${np.meal?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
-        <span>${ICON.calendar} 오늘의 시간표</span>
-        <button type="button" class="btn ${np.timetable?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-notify" data-key="timetable" style="width:auto; padding:5px 12px;" ${isNativeApp?'':'disabled'}>${np.timetable?'켜짐':'꺼짐'}</button>
+        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${isNativeApp ? `평일 아침 ${np.timetableHour}시에 그날 수업 안내` : '앱(APK)에서만 사용할 수 있어요'}</small></span></span>
+        <button type="button" class="btn ${np.timetable?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="timetable" ${isNativeApp?'':'disabled'}>${np.timetable?'켜짐':'꺼짐'}</button>
       </div>
       ${np.timetable && isNativeApp ? `
-      <div style="display:flex; align-items:center; gap:8px; margin:2px 2px 0; padding-left:2px;">
-        <span style="font-size:11.5px; color:var(--text-dim);">알림 시각</span>
+      <div class="notify-subrow">
+        <span>알림 시각</span>
         <div style="display:flex; gap:5px;">
-          ${[7,8,9].map(h=>`<button type="button" class="btn ${np.timetableHour===h?'btn-primary':'btn-ghost'} btn-sm" data-action="set-notify-hour" data-hour="${h}" style="width:auto; padding:4px 10px; font-size:12px;">${h}시</button>`).join('')}
+          ${[7,8,9].map(h=>`<button type="button" class="btn ${np.timetableHour===h?'btn-primary':'btn-ghost'} btn-sm" data-action="set-notify-hour" data-hour="${h}" style="width:auto; padding:4px 11px; font-size:12px;">${h}시</button>`).join('')}
         </div>
       </div>` : ''}
-      <p style="font-size:11px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
-        ${isNativeApp ? '공지·투표 알림은 앱을 꺼둬도 도착해요. 오늘의 시간표는 평일 아침 정해진 시각에 그날 수업을 알려줘요.' : '"오늘의 시간표" 알림은 앱(APK)에서만 사용할 수 있어요. 공지·투표 알림은 브라우저에서도 켤 수 있어요.'}
+      <p style="font-size:11px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">
+        ${isNativeApp ? '공지 · 투표 · 학식 알림은 앱을 꺼둬도 도착해요.' : '브라우저에서는 공지 · 투표 · 학식 알림을 받을 수 있어요.'}
       </p>
 
       <div class="divider" style="margin:14px 0;"></div>
@@ -3812,7 +3828,7 @@ function renderMypage(){
     ${isRawDeveloper() ? `
     <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; border:1px dashed var(--teal);">
       <div style="min-width:0;">
-        <p style="margin:0; font-size:12.5px; font-weight:700;">${state.previewAsStudent ? `${ICON.eye} 학부 재학생 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
+        <p class="icon-inline" style="margin:0; font-size:12.5px; font-weight:700;">${state.previewAsStudent ? `${ICON.eye} 학부 재학생 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
         <p style="margin:2px 0 0; font-size:11px; color:var(--text-faint); line-height:1.4;">다른 학생들 눈에 보이는 화면을 그대로 미리 볼 수 있어요</p>
       </div>
       <button type="button" class="btn ${state.previewAsStudent?'btn-primary':'btn-ghost'} btn-sm" style="width:auto; white-space:nowrap; flex-shrink:0;" data-action="toggle-preview-mode">${state.previewAsStudent?'개발자로 복귀':'학생 화면 보기'}</button>
