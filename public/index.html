@@ -158,12 +158,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
    그 영역을 크림슨으로 칠해준다. 브라우저에서는 --safe-top이 0이라 보이지 않는다. */
 .statusbar-bg{position:fixed; top:0; left:0; right:0; height:var(--safe-top); background:var(--crimson); z-index:30; pointer-events:none;}
 
-.section-title{font-size:17px; font-weight:700; color:var(--text); letter-spacing:-0.02em; margin:26px 4px 10px;}
+.section-title{font-size:17px; font-weight:700; color:var(--text); letter-spacing:-0.02em; margin:22px 4px 8px;}
 .section-title:first-child{margin-top:2px;}
 .section-title .count{font-family:var(--font-mono); color:var(--teal); margin-left:4px;}
 
 .card{background:var(--surface); border:none; border-radius:var(--radius); padding:18px;}
-.card + .card{margin-top:12px;}
 .card + .card{margin-top:10px;}
 .hero-greet{background:linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%); border:1px solid var(--border); border-radius:var(--radius-lg); padding:15px; position:relative; overflow:hidden;}
 .hero-greet .greet-name{font-size:18px; font-weight:800; margin:0 0 3px;}
@@ -183,9 +182,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tag-red{background:rgba(var(--danger-rgb),.15); color:var(--danger);}
 .tag-dim{background:var(--surface-3); color:var(--text-dim);}
 
-.class-mini{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border);}
+.class-mini{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border);}
 .class-mini:last-child{border-bottom:none;}
-.class-mini .bar{width:4px; align-self:stretch; border-radius:3px; min-height:34px;}
+.upcoming-row{border-bottom:1px solid var(--hairline);}
+.upcoming-row:last-child{border-bottom:none;}
+.class-mini .bar{width:4px; align-self:stretch; border-radius:3px; min-height:26px;}
 .class-mini .info b{display:block; font-size:15px; font-weight:600;}
 .class-mini .info span{font-size:13.5px; color:var(--text-dim); font-family:var(--font-mono);}
 
@@ -258,7 +259,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .modal-overlay.open{opacity:1; pointer-events:auto;}
 .modal-sheet{width:100%; max-width:480px; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom)); max-height:88vh; overflow-y:auto; transform:translateY(20px); transition:transform .2s;}
 .modal-overlay.open .modal-sheet{transform:translateY(0);}
-.modal-handle{width:38px; height:4px; background:var(--border-light); border-radius:3px; margin:0 auto 14px;}
+.modal-handle{width:38px; height:4px; background:var(--border-light); border-radius:3px; margin:0 auto 14px; cursor:grab; touch-action:none;
+  position:relative;}
+.modal-handle::before{content:''; position:absolute; inset:-14px -30px; }
 .modal-title{font-size:17px; font-weight:800; margin:0 0 16px; display:flex; align-items:center; justify-content:space-between;}
 .modal-title button{background:none; border:none; color:var(--text-dim); cursor:pointer; padding:4px;}
 
@@ -1892,7 +1895,7 @@ function renderHome(){
     </div>` : ''}
 
     <div class="section-title">오늘의 시간표</div>
-    <div class="card">
+    <div class="card" style="padding:8px 14px;">
       ${todays.length ? todays.map(c=>`
         <div class="class-mini">
           <div class="bar" style="background:${c.color||COLORS[0].hex}"></div>
@@ -1929,9 +1932,9 @@ function renderHome(){
     </div>` : ''}
 
     <div class="section-title">다가오는 학사일정</div>
-    <div class="card">
+    <div class="card" style="padding:8px 14px;">
       ${upcoming.length ? upcoming.map(ev=>`
-        <div class="row-between" style="padding:7px 0; gap:8px; min-width:0;">
+        <div class="row-between upcoming-row" style="padding:6px 0; gap:8px; min-width:0;">
           <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1; flex-wrap:nowrap;">
             <span class="tag ${catTag(ev.category)}">${catLabel(ev.category)}</span>
             <b class="one-line" style="font-size:15px;">${escapeHtml(ev.title)}</b>
@@ -4337,7 +4340,49 @@ function openModal(html){
   if(ov){
     ov.addEventListener('click', e=>{ if(e.target.id==='modal-overlay') closeModal(); });
     requestAnimationFrame(()=>ov.classList.add('open'));
+    setupModalDragToDismiss(ov);
   }
+}
+// 모달 위쪽의 손잡이(막대)가 잡고 내릴 수 있을 것처럼 생겼는데 실제로는 장식이던 문제.
+// 손잡이를 아래로 끌면 시트가 손가락을 따라오다가, 일정 이상 내리거나 빠르게 튕기면 닫힌다.
+// 시트 안 스크롤 영역(폼 입력 등)과 겹치지 않도록 손잡이에서 시작한 드래그만 처리한다.
+function setupModalDragToDismiss(overlay){
+  const handle = overlay.querySelector('.modal-handle');
+  const sheet = overlay.querySelector('.modal-sheet');
+  if(!handle || !sheet) return;
+  let startY = 0, dy = 0, dragging = false, startedAt = 0;
+
+  const onMove = (e)=>{
+    if(!dragging) return;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY);
+    dy = Math.max(0, y - startY);
+    sheet.style.transition = 'none';
+    sheet.style.transform = `translateY(${dy}px)`;
+  };
+  const onEnd = ()=>{
+    if(!dragging) return;
+    dragging = false;
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onEnd);
+    sheet.style.transition = '';
+    const elapsed = Date.now() - startedAt;
+    const fast = elapsed > 0 && dy / elapsed > 0.6; // 빠르게 튕기듯 내리면 짧게 끌어도 닫힘
+    if(dy > 110 || fast){ closeModal(); }
+    else { sheet.style.transform = ''; }
+  };
+  const onStart = (e)=>{
+    dragging = true; startedAt = Date.now();
+    startY = (e.touches ? e.touches[0].clientY : e.clientY);
+    dy = 0;
+    document.addEventListener('touchmove', onMove, {passive:true});
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+  };
+  handle.addEventListener('touchstart', onStart, {passive:true});
+  handle.addEventListener('mousedown', onStart);
 }
 function closeModal(){
   const ov=document.getElementById('modal-overlay');
