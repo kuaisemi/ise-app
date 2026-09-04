@@ -367,10 +367,18 @@ svg{vertical-align:-2px;}
 .btn-like svg, .m-label svg, .section-title svg{width:14px; height:14px;}
 .notify-row svg{width:15px; height:15px;}
 .meal-block .m-text{font-size:13.5px; line-height:1.7; color:var(--text); white-space:pre-wrap;}
-.meal-line{display:flex; align-items:baseline; gap:7px; margin-bottom:5px;}
+/* 학식 한 줄 = 왼쪽 색 띠 + 분류명 + 메뉴.
+   알약 배지로 분류명을 감싸면 메뉴 글자와 경쟁해서 오히려 눈이 분산되므로,
+   색은 띠로만 쓰고 글자는 그대로 읽히게 둔다. */
+.meal-line{border-left:3px solid var(--meal-accent, var(--border-light)); padding-left:11px; margin-bottom:13px;}
 .meal-line:last-child{margin-bottom:0;}
-.meal-line .tag{flex-shrink:0;}
-.meal-line-text{font-size:13.5px; line-height:1.5; color:var(--text);}
+.meal-cat{display:block; font-size:12.5px; font-weight:700; color:var(--meal-accent, var(--text-dim)); margin-bottom:3px; letter-spacing:-0.01em;}
+.meal-line-text{font-size:14px; line-height:1.55; color:var(--text);}
+.meal-cat-teal{--meal-accent:var(--teal);}
+.meal-cat-blue{--meal-accent:var(--blue);}
+.meal-cat-amber{--meal-accent:var(--amber);}
+.meal-cat-crimson{--meal-accent:var(--crimson-text);}
+.meal-cat-dim{--meal-accent:var(--border-light);}
 
 .like-bar{display:flex; align-items:center; gap:8px; margin-top:8px;}
 .btn-like{background:var(--surface-2); border:1px solid var(--border); border-radius:16px; padding:4px 10px; font-size:13px; font-weight:700; color:var(--text-dim); cursor:pointer; display:inline-flex; align-items:center; gap:4px;}
@@ -929,29 +937,29 @@ function getTrafficStats(){
 function formatMealText(raw){
   if(!raw) return '';
   return String(raw).split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
-    .map(line => line.split(/[,·•]+|\s{2,}/).map(x=>x.trim()).filter(Boolean).join(', '))
+    .map(line => line.split(/[,·•]+|\s{2,}/).map(x=>x.trim()).filter(Boolean).join(' · '))
     .join('\n');
 }
 // 식단 서브카테고리(한식/일품/분식/plus 등)를 대괄호 텍스트 대신 색상 배지로 보여줘서
 // 여러 카테고리가 한 끼에 섞여 있어도 한눈에 구분되도록 함
-function mealTagClass(cat){
-  if(/한식/.test(cat)) return 'tag-teal';
-  if(/일품/.test(cat)) return 'tag-blue';
-  if(/분식/.test(cat)) return 'tag-amber';
-  if(/plus/i.test(cat)) return 'tag-crimson';
-  return 'tag-dim';
+function mealCatClass(cat){
+  if(/한식/.test(cat)) return 'meal-cat-teal';
+  if(/일품/.test(cat)) return 'meal-cat-blue';
+  if(/분식/.test(cat)) return 'meal-cat-amber';
+  if(/plus/i.test(cat)) return 'meal-cat-crimson';
+  return 'meal-cat-dim';
 }
 function mealLineHtml(line){
   const m = line.match(/^\[([^\]]+)\]\s*(.*)$/);
   if(!m) return `<div class="meal-line"><span class="meal-line-text">${escapeHtml(line)}</span></div>`;
   const cat = m[1].trim();
   const rest = m[2].trim();
-  return `<div class="meal-line"><span class="tag ${mealTagClass(cat)}">${escapeHtml(cat)}</span><span class="meal-line-text">${escapeHtml(rest)}</span></div>`;
+  return `<div class="meal-line ${mealCatClass(cat)}"><b class="meal-cat">${escapeHtml(cat)}</b><span class="meal-line-text">${escapeHtml(rest)}</span></div>`;
 }
 function formatMealHtml(raw){
   if(!raw) return '';
   return String(raw).split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
-    .map(line => line.split(/[,·•]+|\s{2,}/).map(x=>x.trim()).filter(Boolean).join(', '))
+    .map(line => line.split(/[,·•]+|\s{2,}/).map(x=>x.trim()).filter(Boolean).join(' · '))
     .map(mealLineHtml).join('');
 }
 function formatRoomForBlock(roomStr){
