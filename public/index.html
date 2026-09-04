@@ -1851,12 +1851,14 @@ function setupNowTimer(){
 function renderHome(){
   const di = todayDayIndex();
   const todays = di>=0 ? state.timetable.filter(c=>c.day===di).sort((a,b)=>a.start-b.start) : [];
-  const rawMeal = state.meals[todayStr()] || {};
-  const staffMeal = rawMeal.staff || null;
   // 진리관은 홈 화면에서만 시간대별로 조식/중식/석식을 자동으로 바꿔 보여준다.
+  // 21시 이후엔 "내일 날짜"를 보게 되는데, 미래관(중식만 운영)을 계속 오늘 날짜로 고정해두면
+  // 진리관은 이미 내일(주말 등)을 보고 있는데 미래관만 지나간 오늘 메뉴를 붙들고 있어 화면이 어긋나 보인다.
+  // 그래서 미래관도 같은 기준 날짜(studentSlot.date)를 보게 해 21시를 기점으로 함께 넘어가게 한다.
   const studentSlot = homeStudentMealSlot();
   const studentMeal = (state.meals[studentSlot.date] || {}).student || null;
   const studentSlotText = studentMeal ? studentMeal[studentSlot.key] : '';
+  const staffMeal = (state.meals[studentSlot.date] || {}).staff || null;
 
   const upcoming = live(state.calendar).filter(ev=>ev.endDate>=todayStr())
     .sort((a,b)=>a.startDate.localeCompare(b.startDate)).slice(0,3);
@@ -1926,20 +1928,33 @@ function renderHome(){
         </div>`).join('')}
     </div>` : ''}
 
-    ${(()=>{ const wd=new Date().getDay(); return wd!==0 && wd!==6; })() ? `
+    ${(()=>{
+      const wd = new Date(studentSlot.date+'T00:00:00').getDay();
+      if(wd===0 || wd===6) return '';
+      if(!studentSlotText && !(staffMeal && staffMeal.lunch)) return '';
+      return `
     <div class="section-title">오늘의 학식</div>
     <div class="card">
       ${studentSlotText ? `
         <div class="meal-block">
           <div class="m-label" style="color:var(--teal)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}</div>
           <div class="m-text" style="font-size:11.5px">${formatMealHtml(studentSlotText)}</div>
-        </div>` : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0 8px;">${ICON.capHat} 진리관: ${studentSlot.label} 정보가 없습니다.</p>`}
+        </div>` : `
+        <div class="meal-block">
+          <div class="m-label" style="color:var(--text-faint)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}</div>
+          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">정보가 없습니다.</div>
+        </div>`}
       ${staffMeal && staffMeal.lunch ? `
         <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
           <div class="m-label" style="color:var(--amber)">${ICON.tie} 미래관 교직원식당 중식</div>
           <div class="m-text" style="font-size:11.5px">${formatMealHtml(staffMeal.lunch)}</div>
-        </div>` : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">${ICON.tie} 미래관: 금일의 식단 정보가 없습니다.</p>`}
-    </div>` : ''}
+        </div>` : `
+        <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+          <div class="m-label" style="color:var(--text-faint)">${ICON.tie} 미래관 교직원식당</div>
+          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">정보가 없습니다.</div>
+        </div>`}
+    </div>`;
+    })()}
 
     <div class="section-title">다가오는 학사일정</div>
     <div class="card" style="padding:8px 14px;">
