@@ -1,0 +1,24 @@
+name: Send push notifications
+
+on:
+  schedule:
+    # GitHub Actions 크론은 정확히 5분 간격을 보장하지 않고 몇 분 밀릴 수 있음(실시간 아님, 근접 실시간)
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: notify
+        run: npm install --omit=dev
+      - name: Send notifications
+        working-directory: notify
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: npm run send

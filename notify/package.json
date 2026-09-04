@@ -1,0 +1,13 @@
+{
+  "name": "ise-notify",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GitHub Actions 크론으로 새 공지/투표를 감지해 FCM 푸시를 보내는 무료 대안 (Firebase Cloud Functions 없이 동작)",
+  "scripts": {
+    "send": "node send-notifications.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
