@@ -23,12 +23,40 @@ service cloud.firestore {
     }
 
 
+    // 인증코드 원본. 클라이언트 코드에는 절대 값이 들어가지 않고, 아래 users/{uid} 규칙
+    // 안에서 서버가 직접 대조한다(규칙 내부 get()은 read 권한과 무관하게 동작).
+    function codes() {
+      return get(/databases/$(database)/documents/shared/councilCode).data;
+    }
+    // 승급하려는 직급이, 함께 제출한 코드(roleCode)와 실제로 맞는지 서버에서 확인한다.
+    function roleCodeValid(role, submitted) {
+      return (role == 'student')
+        || (role == 'council'   && submitted == codes().code)
+        || (role == 'president' && submitted == codes().presidentCode)
+        || (role == 'developer' && submitted == codes().developerCode);
+    }
+
     match /users/{uid} {
       // 본인 문서는 항상, 남의 문서는 학생회 이상만(관리 화면에서 필요) 읽을 수 있다.
       // isCouncil()이 이 문서(/users/{request.auth.uid})를 다시 읽으므로, uid가 본인일
       // 때는 그 재귀 조회 없이 먼저 걸러지도록 자기 자신 조건을 앞에 둔다.
       allow read: if isSignedIn() && (request.auth.uid == uid || isCouncil());
-      allow create, update: if isSignedIn() && request.auth.uid == uid;
+
+      // 가입: 자기 문서만, 그리고 학생회 이상으로 만들려면 코드가 실제로 맞아야 한다.
+      // (예전에는 필드 제한이 없어서 아무나 role:'developer'를 그냥 써넣을 수 있었다)
+      allow create: if isSignedIn() && request.auth.uid == uid
+        && roleCodeValid(request.resource.data.role, request.resource.data.get('roleCode', ''));
+
+      allow update: if isSignedIn() && request.auth.uid == uid && (
+        // 평소 수정: 직급은 그대로 두어야 한다.
+        request.resource.data.role == resource.data.role
+        // 자가 승급/해제: 코드가 맞을 때만. 해제(student)는 코드 없이 가능.
+        || roleCodeValid(request.resource.data.role, request.resource.data.get('roleCode', ''))
+      );
+
+      // 회장 이상은 남의 직급을 바꿀 수 있다(관리자 화면).
+      allow update: if isPresident()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']);
     }
 
     match /timetables/{uid} {
@@ -54,9 +82,10 @@ service cloud.firestore {
     // (suggestions/recruitments/polls도 같은 이유로 이미 열려있음 — 이 앱은 문서 단위 권한이라
     // 필드 단위로 "좋아요만" 허용하는 세밀한 제어는 하지 않는, 클라이언트를 신뢰하는 모델)
     match /shared/notices       { allow read, write: if isSignedIn(); }
-    // 학생회 인증코드 — 회원가입 화면(비로그인 상태)에서 맞는지 확인해야 해서 완전히 막을 순
-    // 없지만, 로그인 없이(REST API 등으로 직접) 누구나 읽어갈 수 있던 문제는 최소한 막는다.
-    match /shared/councilCode { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    // 인증코드 — 이제 클라이언트가 값을 읽어서 대조하지 않고, users/{uid} 규칙 안에서
+    // 서버가 직접 대조한다. 그래서 읽기는 코드를 발급·재발급하는 회장급만 열어둔다.
+    // (학생이 로그인만 하면 코드를 그대로 읽어갈 수 있던 문제를 막는다)
+    match /shared/councilCode { allow read: if isPresident(); allow write: if isPresident(); }
     // 삭제 기록(누가 · 언제 · 어디서 지웠는지) — 학생회장 이상만 볼 수 있고, 기록 자체는
     // 삭제 권한이 있는 학생회 계정이면 남길 수 있다.
     match /shared/auditLog { allow read: if isPresident(); allow write: if isCouncil(); }
@@ -69,9 +98,20 @@ service cloud.firestore {
       allow write: if isCouncil();
     }
 
-    match /shared/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isCouncil();
-    }
+    // 모두가 읽어야 하는 공용 문서만 여기에 이름을 적어둔다.
+    //
+    // 예전에는 여기가 `match /shared/{docId}` 와일드카드로 "로그인했으면 뭐든 읽기"였는데,
+    // Firestore 규칙은 여러 match가 겹치면 그중 하나라도 허용하면 통과시킨다(OR).
+    // 그래서 위에서 roster·usersList·bugReports·auditLog를 아무리 좁혀놔도, 이 와일드카드
+    // 하나 때문에 로그인한 학생이면 전부 읽을 수 있었다. 명단 보호가 사실상 없던 셈이라
+    // 와일드카드를 없애고 공개해도 되는 문서만 하나씩 나열한다.
+    match /shared/calendarEvents { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    match /shared/councilPosts   { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+    match /shared/deptNotices    { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    match /shared/meals          { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    match /shared/fetchState     { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    match /shared/notifyState    { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    // 여기 없는 shared/* 문서는 기본적으로 아무도 못 읽고 못 쓴다(새 문서를 만들 땐
+    // 위에 규칙을 같이 추가해야 한다). 서버(GitHub Actions)는 Admin SDK라 규칙과 무관하게 쓴다.
   }
 }

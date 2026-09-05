@@ -92,6 +92,11 @@ a{color:inherit;}
 .brand .mark{color:var(--teal); flex-shrink:0;}
 .brand h1{font-size:20px; margin:0; font-weight:800;}
 .brand-sub{color:var(--text-dim); font-size:11.5px; margin:0 0 36px 0; padding-left:38px;}
+.apk-banner{display:flex; align-items:center; gap:10px; background:var(--crimson); color:#fff; text-decoration:none; border-radius:var(--radius-lg); padding:12px 14px; margin:-20px 0 20px; box-shadow:0 8px 20px rgba(140,29,43,.35);}
+.apk-banner svg:first-child{flex-shrink:0; width:22px; height:22px;}
+.apk-banner-text{display:flex; flex-direction:column; flex:1; min-width:0;}
+.apk-banner-text b{font-size:13px;}
+.apk-banner-text small{font-size:10.5px; opacity:.85;}
 .auth-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px 20px; position:relative; box-shadow:0 12px 32px rgba(0,0,0,0.3);}
 .auth-card::before{content:''; position:absolute; top:0; left:20px; right:20px; height:1px; background:linear-gradient(90deg, transparent, var(--teal), transparent); opacity:.5;}
 .auth-title{font-size:15.5px; font-weight:700; margin:0 0 4px;}
@@ -152,6 +157,9 @@ a{color:inherit;}
 .btn-top-bell{position:relative;}
 .btn-top-bell .bell-dot{position:absolute; top:5px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--crimson); border:1.5px solid var(--surface-2);}
 .date-pill{font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:4px 8px; border-radius:20px; cursor:pointer;}
+/* APK(네이티브 앱)에서만 상단바 ISE 글자·날짜를 조금 더 키운다 — 새로고침/알림 버튼은 그대로. */
+.is-native-app .brand-mini b{font-size:15.5px;}
+.is-native-app .date-pill{font-size:12px; padding:5px 9px;}
 .role-badge{font-size:9.5px; font-weight:700; padding:3px 8px; border-radius:20px;}
 .role-badge.student{background:rgba(var(--blue-rgb),.15); color:var(--blue); border:1px solid rgba(var(--blue-rgb),.3);}
 .role-badge.council,.role-badge.director,.role-badge.vice,.role-badge.president{background:rgba(140,29,43,.16); color:var(--crimson-text,#FF8D9A); border:1px solid rgba(140,29,43,.4);}
@@ -514,6 +522,7 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
+  deleteField,
   arrayUnion,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -585,6 +594,11 @@ const PATCH_NOTES = [
   { version:'Beta 0.0.0', date:'2026-09-05', items:[
     '버전 표기 정리 — 그동안의 개발 버전은 전부 알파로, 지금부터를 베타 0.0.0으로 새로 시작',
     { text:'홈 화면 위젯 추가 목록에서 미리보기가 빈 상자로만 보이던 문제 수정 (8종 전체)', admin:true },
+    { text:'보안: 회원가입·직급 승급 시 아무나 스스로 개발자 권한을 가질 수 있던 심각한 문제 수정 — 인증코드를 서버(Firestore 규칙)가 직접 대조하도록 변경, 클라이언트 코드에서 코드값 완전히 제거', admin:true },
+    { text:'보안: 학생 명단·가입자 명단·버그 제보함·삭제 기록이 로그인만 하면 전부 읽히던 문제 수정 (와일드카드 규칙 하나가 개별 권한 제한을 전부 무력화하고 있었음)', admin:true },
+    '앱(APK) 상단바의 ISE 로고·날짜 글씨를 조금 더 키움',
+    '웹에서 안드로이드 기기로 접속하면 APK 다운로드 안내가 뜨도록 추가 (iOS에는 안 뜸)',
+    '홈 화면 설치(PWA) 아이콘도 새 칩 모양 디자인으로 교체',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
@@ -641,9 +655,11 @@ const PATCH_NOTES = [
     '로그인/가입, 시간표, 학사일정, 급식, 공지 · 건의 · 투표 게시판 기본 기능',
   ]},
 ];
-const COUNCIL_CODE = 'ISE-COUNCIL-2026';
-const PRESIDENT_CODE = 'ISE-PRESIDENT-2026';
-const DEVELOPER_CODE = 'ISE-KOREA-2026'; // 입력 시 모든 권한을 가진 개발자 계정 생성 (타인에게는 항상 학부 재학생으로 보임)
+// 인증코드 값은 이 소스에 두지 않는다. 예전엔 개발자·회장 코드가 여기 평문으로 있어서
+// 웹 소스보기나 APK 압축 해제만으로 누구나 최고 권한을 가져갈 수 있었다. 지금은 코드
+// 원본이 Firestore(shared/councilCode)에만 있고, 승급 요청을 쓸 때 Firestore 규칙이
+// 서버에서 직접 대조한다 — 클라이언트는 코드가 맞는지조차 알 수 없다.
+// 승급 시도는 users/{uid} 문서에 role과 roleCode를 함께 써서 규칙의 판단을 받는다.
 const DAYS = ['월','화','수','목','금'];
 const TIME_START = 540;
 const TIME_END   = 1320;
@@ -1315,6 +1331,25 @@ async function createUserDoc(uidStr, data){
   catch(e){ return false; }
 }
 
+// 학생회 이상으로 가입·승급할 때 쓰는 경로. 코드가 맞는지는 클라이언트가 모르고,
+// role+roleCode를 함께 써서 Firestore 규칙의 판정을 받는다. 어느 직급의 코드인지
+// 알 수 없으므로 높은 권한부터가 아니라 낮은 쪽부터 시도해 통과하는 직급을 찾는다.
+// (규칙이 거부하면 permission-denied가 나고, 그 직급은 아닌 것으로 본다)
+const ROLE_CODE_CANDIDATES = ['council','president','developer'];
+async function createUserDocWithCode(uidStr, baseData, code){
+  for(const role of ROLE_CODE_CANDIDATES){
+    try{
+      await setDoc(doc(db,'users',uidStr), { ...baseData, role, roleCode: code }, {merge:true});
+      // 통과했으면 코드 자체는 문서에 남길 필요가 없으니 지운다(직급은 그대로라 규칙 통과).
+      await setDoc(doc(db,'users',uidStr), { roleCode: deleteField() }, {merge:true}).catch(()=>{});
+      const saved = { ...baseData, role };
+      localSet('user_'+uidStr, saved);
+      return role;
+    }catch(e){ /* 이 직급의 코드가 아님 — 다음 후보로 */ }
+  }
+  return null;
+}
+
 async function loadCalendar(){ return (await loadShared('calendarEvents',{events:[]})).events || []; }
 async function saveCalendar(a){ return await saveShared('calendarEvents',{events:a}); }
 
@@ -1386,12 +1421,19 @@ async function loadRosterStrict(){
     return { ok:false, map:{} };
   }
 }
+// 코드 조회는 이제 "회장이 코드를 확인·재발급하는 화면"에서만 쓴다(규칙상 회장급만 읽힘).
+// 승급 검증에는 쓰지 않는다 — 그건 Firestore 규칙이 서버에서 대조한다.
 async function loadCouncilCode(){
-  const s = await loadShared('councilCode', {code: COUNCIL_CODE, updatedAt: 0});
-  return (s && s.code) || COUNCIL_CODE;
+  const s = await loadShared('councilCode', null);
+  return (s && s.code) || null;
 }
 async function saveCouncilCode(code){
-  return await saveShared('councilCode', { code, updatedAt: now(), updatedBy: (state.user&&state.user.studentId)||'' });
+  // 회장·개발자 코드까지 같이 날아가지 않도록 merge로 code만 갱신한다.
+  try{
+    await setDoc(doc(db,'shared','councilCode'),
+      { code, updatedAt: now(), updatedBy: (state.user&&state.user.studentId)||'' }, { merge:true });
+    return true;
+  }catch(e){ return false; }
 }
 function generateCouncilCodeString(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 헷갈리기 쉬운 0/O, 1/I 제외
@@ -2471,6 +2513,19 @@ const ICON = {
 function renderApp(){ if(!state.user) renderAuth(); else renderShell(); }
 function versionFooter(){ return `<div class="app-version">ISE · ${APP_VERSION}</div>`; }
 
+// 브라우저(웹)에서 안드로이드 기기로 접속했을 때만 "APK 다운로드" 배너를 보여준다.
+// 네이티브 앱(APK) 안에서는 당연히 필요 없고, iOS는 APK를 설치할 수 없어서 숨긴다.
+function androidApkBannerHtml(){
+  if(typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return '';
+  const ua = navigator.userAgent || '';
+  if(!/Android/i.test(ua)) return '';
+  return `
+    <a class="apk-banner" href="https://github.com/kuaisemi/ise-app/releases/latest" target="_blank" rel="noopener">
+      ${ICON.chipMini}
+      <span class="apk-banner-text"><b>안드로이드 앱(APK)으로 설치</b><small>더 빠르고, 위젯·알림도 쓸 수 있어요</small></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </a>`;
+}
 function renderAuth(){
   const isLogin = state.authMode==='login';
   APP.innerHTML = `
@@ -2481,6 +2536,7 @@ function renderAuth(){
     <div class="auth-wrap">
       <div class="brand"><span class="mark">${ICON.chipMark}</span><h1>ISE</h1></div>
       <p class="brand-sub">고려대학교 지능형반도체공학과</p>
+      ${androidApkBannerHtml()}
       <div class="auth-card">${isLogin ? renderLoginForm() : renderSignupForm()}</div>
       <p class="switch-line">
         ${isLogin
@@ -5023,7 +5079,7 @@ async function handleEasterEggTap(){
   }
 }
 async function councilCodeAdminModal(){
-  const code = await loadCouncilCode().catch(()=>COUNCIL_CODE);
+  const code = (await loadCouncilCode().catch(()=>null)) || '(불러오지 못함)';
   return `
     <div class="modal-handle"></div>
     <div class="modal-title"><span class="modal-title-text">${ICON.key} 학생회 인증코드 관리</span><button data-action="close-modal">${ICON.close}</button></div>
@@ -5787,17 +5843,14 @@ async function handleSignup(fd){
   if(password.length<6){ showAuthError('비밀번호는 6자 이상이어야 합니다.'); return; }
   if(password!==password2){ showAuthError('비밀번호가 일치하지 않습니다.'); return; }
 
-  // 개발자·학생회장 코드는 고정 문자열이라 여기서 바로 확인할 수 있지만, 일반 학생회
-  // 인증코드는 Firestore에 저장된 "지금" 값과 대조해야 한다. 그 문서는 로그인한 사람만
-  // 읽을 수 있게 막아뒀기 때문에(누구나 코드값을 그냥 읽어가지 못하도록), 계정을 먼저
-  // 만들고 인증된 상태에서 확인한 뒤 — 명단 대조와 똑같이 — 틀리면 계정을 되돌린다.
-  let needsLiveCouncilCheck = false;
+  // 코드가 맞는지는 클라이언트가 판단하지 않는다. 입력된 코드를 users/{uid} 문서에
+  // roleCode로 함께 써서 Firestore 규칙이 서버에서 대조하게 하고, 틀리면 쓰기 자체가
+  // 거부된다(permission-denied). 그때는 방금 만든 계정을 되돌린다.
+  // 어느 직급인지는 코드 모양으로 구분할 수 없으므로, 학생회로 가입할 땐 council →
+  // president → developer 순으로 시도해서 규칙이 통과시키는 직급을 찾는다.
   let councilCodeInput = '';
   if(state.signupRole==='council'){
-    councilCodeInput=fd.get('councilCode');
-    if(councilCodeInput===DEVELOPER_CODE) role='developer';
-    else if(councilCodeInput===PRESIDENT_CODE) role='president';
-    else needsLiveCouncilCheck = true;
+    councilCodeInput=(fd.get('councilCode')||'').trim();
   }
 
   const btn=document.querySelector('#signup-form button[type=submit]');
@@ -5843,18 +5896,19 @@ async function handleSignup(fd){
       }
     }
 
-    if(needsLiveCouncilCheck){
-      const liveCouncilCode = await loadCouncilCode().catch(()=>null);
-      if(liveCouncilCode==null || councilCodeInput!==liveCouncilCode){
+    if(state.signupRole==='council'){
+      // 규칙이 통과시키는 직급을 찾는다. 전부 거부되면 코드가 틀린 것.
+      const grantedRole = await createUserDocWithCode(
+        cred.user.uid, { studentId, name, createdAt: now() }, councilCodeInput);
+      if(!grantedRole){
         await deleteUser(cred.user).catch(()=>{});
         showAuthError('학생회 인증코드가 올바르지 않습니다.');
         return;
       }
-      role = 'council';
+    }else{
+      const ok=await createUserDoc(cred.user.uid, { studentId, name, role:'student', createdAt: now() });
+      if(!ok) toast('프로필 저장에 실패했습니다.');
     }
-
-    const ok=await createUserDoc(cred.user.uid, { studentId, name, role, createdAt: now() });
-    if(!ok) toast('프로필 저장에 실패했습니다.');
   }catch(err){
     if(cred){ await deleteUser(cred.user).catch(()=>{}); }
     showAuthError(mapAuthError(err));
@@ -5896,29 +5950,38 @@ async function resetAllTimetables(){
 }
 
 /* ===== 권한 & 가입자 관리 ===== */
+// 권한 해제(→ 재학생)는 코드가 필요 없다. 규칙도 student로 내리는 건 그냥 허용한다.
 async function setRole(role){
   if(role==='student' && !await showConfirm('학생회 권한을 해제할까요? 관리 기능을 사용할 수 없게 됩니다.')) return false;
+  try{ await setDoc(doc(db,'users',state.user.uid), { role }, { merge:true }); }
+  catch(e){ toast('권한 변경에 실패했습니다'); return false; }
   state.user.role=role;
   localSet('user_'+state.user.uid, state.user);
-  try{ await setDoc(doc(db,'users',state.user.uid), { role }, { merge:true }); }
-  catch(e){}
   await trackUserPresence(state.user);
   renderApp();
   toast(role==='student' ? '재학생 권한으로 전환되었습니다' : `${roleLabel(role)} 권한이 활성화되었습니다`);
   return true;
 }
+// 승급은 코드를 클라이언트가 판정하지 않고, role+roleCode를 써서 Firestore 규칙의
+// 판정을 받는다. 낮은 직급부터 시도해 규칙이 통과시키는 직급을 찾는다.
 async function handleCouncilVerify(fd){
   const code=(fd.get('code')||'').trim();
-  let role=null;
-  if(code===DEVELOPER_CODE) role='developer';
-  else if(code===PRESIDENT_CODE) role='president';
-  else{
-    const liveCouncilCode = await loadCouncilCode().catch(()=>null);
-    if(liveCouncilCode!=null && code===liveCouncilCode) role='council';
+  if(!code){ toast('인증코드를 입력해주세요'); return; }
+  const uidStr = state.user.uid;
+  for(const role of ROLE_CODE_CANDIDATES){
+    try{
+      await setDoc(doc(db,'users',uidStr), { role, roleCode: code }, { merge:true });
+      await setDoc(doc(db,'users',uidStr), { roleCode: deleteField() }, { merge:true }).catch(()=>{});
+      state.user.role=role;
+      localSet('user_'+uidStr, state.user);
+      await trackUserPresence(state.user);
+      closeModal();
+      renderApp();
+      toast(`${roleLabel(role)} 권한이 활성화되었습니다`);
+      return;
+    }catch(e){ /* 이 직급의 코드가 아님 */ }
   }
-  if(!role){ toast('인증코드가 올바르지 않습니다'); return; }
-  closeModal();
-  await setRole(role);
+  toast('인증코드가 올바르지 않습니다');
 }
 async function refreshUsersList(){
   try{ state.allUsers = await loadAllUsersList(); }catch(e){}
@@ -7133,6 +7196,7 @@ boot();
 // 오히려 새 버전을 설치해도 예전 index.html(예전 API 키 등)을 캐시에서 계속 물고 있을 수 있어
 // 실제로 그 문제가 있었다. 그래서 웹(브라우저 PWA)에서만 등록한다.
 const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+if(isNativeApp) document.documentElement.classList.add('is-native-app'); // 상단바 글씨 크기 등 APK 전용 스타일 스위치
 if(isNativeApp && 'serviceWorker' in navigator){
   // 예전 버전(네이티브에서도 등록하던 시절)에 이미 깔린 서비스워커·캐시가 남아있을 수 있으니 정리한다.
   navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(()=>{});
