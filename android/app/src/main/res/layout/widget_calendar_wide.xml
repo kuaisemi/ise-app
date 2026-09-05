@@ -32,33 +32,6 @@
             android:orientation="vertical">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="8dp">
-
-                <ImageView
-                    android:id="@+id/widget_accent"
-                    android:layout_width="3dp"
-                    android:layout_height="12dp"
-                    android:src="@drawable/widget_bar"
-                    android:scaleType="fitXY"
-                    android:layout_marginEnd="7dp"
-                    android:contentDescription="@null" />
-
-                <TextView
-                    android:id="@+id/widget_title"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:maxLines="1"
-                    android:ellipsize="end"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <LinearLayout
                 android:id="@+id/cal_head"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

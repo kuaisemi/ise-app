@@ -35,15 +35,6 @@ public class CalendarWidget extends BaseWidget {
 
     @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
-        Calendar cal = Calendar.getInstance();
-        int year = cal.get(Calendar.YEAR);
-        int month = cal.get(Calendar.MONTH);      // 0-based
-        int today = cal.get(Calendar.DAY_OF_MONTH);
-
-        views.setTextViewText(R.id.cal_month, (month + 1) + "월");
-        theme.sub(views, R.id.cal_month);
-        theme.size(views, R.id.cal_month, 11f);
-
         // "오늘 할 일" — 학사일정이 아니라 사용자가 직접 적은 오늘 메모만 보여준다 (설정에서 끌 수 있음).
         boolean showMemo = WidgetTheme.flag(data, widgetKey(), "calendarShowMemo", true);
         String memo = showMemo ? data.optString("memo", "") : "";

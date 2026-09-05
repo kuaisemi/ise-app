@@ -79,10 +79,13 @@ a{color:inherit;}
 
 #app{max-width:480px; margin:0 auto; min-height:100vh; position:relative; display:flex; flex-direction:column; background:var(--bg);}
 .circuit-bg{position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0;}
-.boot{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;}
-.boot .chip-spin{animation:spin 1.4s linear infinite; color:var(--teal);}
+/* 네이티브 스플래시(크림슨 배경 + 로고)가 사라진 뒤 JS가 뜨기 전까지의 틈을 메우는 화면.
+   테마가 아직 적용되기 전이라 --bg를 쓰면 기기별로 색이 들쭉날쭉해서, 스플래시와 똑같이
+   크림슨 배경 + 크림색 아이콘으로 고정해 자연스럽게 이어지게 한다. */
+.boot{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:#8C1D2B;}
+.boot .chip-spin{animation:spin 1.4s linear infinite; color:#F3E4D6;}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.boot p{color:var(--text-dim); font-size:11.5px;}
+.boot p{color:rgba(243,228,214,0.75); font-size:11.5px;}
 
 .auth-wrap{min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding:calc(32px + var(--safe-top)) 24px calc(32px + var(--safe-bottom)); position:relative; z-index:1;}
 .brand{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
@@ -135,7 +138,7 @@ a{color:inherit;}
 .shell{display:flex; flex-direction:column; min-height:100vh; position:relative; z-index:1;}
 /* 네이티브 앱(Capacitor)에서는 targetSdk 35+ 강제 edge-to-edge로 웹뷰가 상태표시줄 밑까지
    올라오므로 safe-area만큼 위를 띄운다. 브라우저에서는 inset이 0이라 영향 없음. */
-.topbar{position:sticky; top:0; z-index:20; background:rgba(var(--bg-rgb),0.88); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:calc(12px + var(--safe-top)) 16px 12px;}
+.topbar{position:sticky; top:0; z-index:20; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); padding:calc(12px + var(--safe-top)) 16px 12px;}
 .topbar-row{display:flex; align-items:center; justify-content:space-between;}
 .brand-mini{display:flex; align-items:center; gap:8px;}
 .brand-mini .mark{color:var(--teal);}
@@ -445,6 +448,24 @@ details.likers-accordion summary, details.voters-accordion summary{cursor:pointe
 .time-picker .tp-btn:active{background:var(--teal); color:var(--teal-ink);}
 .time-picker .tp-colon{color:var(--text-faint); font-weight:800; font-size:13.5px; padding-bottom:1px;}
 
+.date-field-btn{width:100%; display:flex; align-items:center; justify-content:space-between; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 13px; font-size:13px; color:var(--text); cursor:pointer; font-family:var(--font-display);}
+.date-field-btn svg{width:14px; height:14px; color:var(--text-faint); flex-shrink:0;}
+.date-field-panel{margin-top:8px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px;}
+.dp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:12.5px; font-weight:800;}
+.dp-nav{background:none; border:none; color:var(--text-dim); padding:4px; cursor:pointer; display:flex;}
+.dp-nav svg{width:14px; height:14px;}
+.dp-weekdays{display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10px; color:var(--text-faint); margin-bottom:4px;}
+.dp-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px;}
+.dp-cell{aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:11.5px; background:none; border:none; border-radius:8px; color:var(--text); cursor:pointer;}
+.dp-cell:active{background:var(--surface-3);}
+.dp-cell.dp-selected{background:var(--teal); color:var(--teal-ink); font-weight:800;}
+.dp-cell.dp-sun{color:var(--danger-text);}
+.dp-cell.dp-sat{color:var(--blue);}
+.dp-cell.dp-selected.dp-sun,.dp-cell.dp-selected.dp-sat{color:var(--teal-ink);}
+.dp-weekdays .dp-sun{color:var(--danger-text);}
+.dp-weekdays .dp-sat{color:var(--blue);}
+.dp-cell.dp-empty{cursor:default;}
+
 .post-title{font-size:14px; font-weight:800; line-height:1.35; margin:0 0 4px; word-break:break-word;}
 .comment-box{margin-top:7px; padding:8px 10px; background:var(--surface-2); border-radius:8px; border-left:2px solid var(--border-light);}
 .comment-box.best-comment{border-left-color:var(--amber); background:rgba(var(--amber-rgb),0.06);}
@@ -553,8 +574,44 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.3';
+const APP_VERSION = 'Beta 0.3.12';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.12', date:'2026-09-05', items:[
+    { text:'보안: 전체 가입자 명단을 로그인만 하면 학부생도 통째로 읽을 수 있던 문제 수정 — 이제 학생회 이상만', admin:true },
+    { text:'보안: 학생회 인증코드를 로그인 없이(REST API 등으로 직접) 아무나 읽어갈 수 있던 문제 수정', admin:true },
+    { text:'회원가입 시 학생회 인증코드 검증을 계정 생성 후 인증된 상태에서 하도록 변경 (명단 대조와 동일한 방식)', admin:true },
+  ]},
+  { version:'Beta 0.3.11', date:'2026-09-05', items:[
+    '학생회장 전용 "삭제 기록" 추가 — 공지·투표·건의·구인글·학생회 게시글·댓글 삭제 시 누가·언제·어느 IP에서 지웠는지 기록 (IP는 기기가 직접 조회한 참고용 값)',
+    '시간표 화면 + 버튼 위치를 원래대로 되돌림',
+  ]},
+  { version:'Beta 0.3.10', date:'2026-09-05', items:[
+    '위젯 설정에서 토글 두 개가 이어지는 곳(주간 시간표, 달력 가로형)의 위아래 간격 수정',
+    '위젯 배경 선택 버튼 순서를 라이트 · 다크 순으로 통일',
+  ]},
+  { version:'Beta 0.3.9', date:'2026-09-05', items:[
+    '"달력(가로형)" 위젯 왼쪽 위에 남아있던 빈 강조선(｜)도 제거',
+  ]},
+  { version:'Beta 0.3.8', date:'2026-09-05', items:[
+    '기기 기본 선택 창(요일 · 건물 · 날짜 · 분류 · 노출시간 · 마감일시 · 권한) 대신 앱 안에서 직접 만든 선택지로 전부 교체 — 시간표 추가, 학사일정/시험/학생회 일정 추가, 구인글, 투표 마감시각, 전체 가입자 권한 변경',
+  ]},
+  { version:'Beta 0.3.7', date:'2026-09-05', items:[
+    '앱(APK)에서는 다크모드 강제변환 경고 문구를 안 보이게(브라우저에서만 필요한 안내라서)',
+    '시간표 화면 상단의 학기 이름과 시간표 이름을 각각 따로 눌러서, 학기 선택 / 이 시간표 목록으로 바로 이동',
+  ]},
+  { version:'Beta 0.3.6', date:'2026-09-05', items:[
+    '달력 위젯(세로형) 상단의 빈 제목 줄과 월 표시를 없애서 달력 자체가 더 크게 보이게',
+    '알림 벨 최근 알림을 확인하면 벨의 빨간 점이 바로 사라지도록 수정',
+    '위젯 배경 "사용자 지정" 버튼이 두 줄로 깨지던 문제, 선택 안 했을 때 미리보기 원이 배경과 같은 색이라 안 보이던 문제 수정',
+  ]},
+  { version:'Beta 0.3.5', date:'2026-09-05', items:[
+    '네이티브 스플래시가 사라진 뒤 잠깐 보이던 "불러오는 중" 화면도 크림슨 배경으로 맞춰서, 로고가 바뀌는 느낌 없이 자연스럽게 이어지게 함',
+  ]},
+  { version:'Beta 0.3.4', date:'2026-09-05', items:[
+    '앱 첫 실행 시 나오던 기본 스플래시 로고를 크림슨 배경의 실제 ISE 로고로 교체',
+    '상단바 색을 하단 탭바와 같은 색으로 통일',
+    '시간표 화면 + 버튼을 오른쪽 끝으로 살짝 옮겨서 칸이 커져도 안 가리게',
+  ]},
   { version:'Beta 0.3.3', date:'2026-09-05', items:[
     '알림 벨에서 알림 하나씩, 또는 "모두 지우기"로 지울 수 있음',
     '홈 화면 학생회 공지 줄 간격을 줄이고, 날짜 대신 올라온 시각까지 함께 표시',
@@ -922,6 +979,58 @@ function catLabel(k){ const c=CATS.find(x=>x.key===k); return c?c.label:'기타'
 function catTag(k){ const c=CATS.find(x=>x.key===k); return c?c.tag:'tag-dim'; }
 function minutesToTimeInput(m){ const n=Math.max(TIME_START,Math.min(TIME_END,Number(m)||TIME_START)); return `${pad(Math.floor(n/60))}:${pad(n%60)}`; }
 function timeInputToMinutes(v){ const m=String(v||'').match(/^(\d{1,2}):(\d{2})$/); if(!m) return NaN; return parseInt(m[1],10)*60+parseInt(m[2],10); }
+
+// 안드로이드 기본 <select> 대신 쓰는 자체 제작 선택지 — 요일 · 노출시간 · 분류 · 건물처럼
+// 몇 가지 값 중 하나를 고르는 곳에 공통으로 쓴다. equal=true면 버튼 너비를 균등하게
+// 한 줄로(옵션이 몇 개 안 될 때), false면 내용만큼 너비를 갖고 자연스럽게 줄바꿈된다(옵션이 많을 때).
+// 값은 name 그대로인 hidden input에 저장돼 기존 FormData 처리와 100% 호환된다.
+function renderSegPicker(name, options, value, equal=true, inputId=''){
+  const btns = options.map(([v,label])=>`
+    <button type="button" class="btn ${String(v)===String(value)?'btn-primary':'btn-ghost'} btn-sm seg-opt"
+      data-action="seg-pick" data-value="${escapeHtml(String(v))}"
+      style="${equal?'flex:1;':'width:auto;'} padding-left:8px; padding-right:8px; white-space:nowrap;">${label}</button>`).join('');
+  return `<div class="seg-picker" data-name="${name}" style="display:flex; gap:5px; ${equal?'':'flex-wrap:wrap;'}">
+    ${btns}
+    <input type="hidden" name="${name}" ${inputId?`id="${inputId}"`:''} value="${escapeHtml(String(value))}">
+  </div>`;
+}
+
+// 안드로이드 기본 <input type=date> 대신 쓰는 자체 제작 달력 선택기.
+// 버튼을 누르면 인라인으로 달력이 펼쳐지고(모달 안에 모달을 또 띄우면 폼 상태가 날아가서
+// 인라인 확장 패널 방식을 쓴다 — 위젯 색상 선택기와 같은 방식), 날짜를 고르면 접힌다.
+function dateFieldHtml(name, value, opts={}){
+  const v = value || todayStr();
+  return `
+    <div class="date-field" data-name="${name}">
+      <button type="button" class="date-field-btn" data-action="toggle-date-picker" data-name="${name}">
+        <span class="date-field-text">${fmtDateLabel(v)}</span> ${ICON.chevDown}
+      </button>
+      <input type="hidden" name="${name}" value="${v}" ${opts.required?'required':''}>
+      <div class="date-field-panel" id="date-panel-${name}" style="display:none;"></div>
+    </div>`;
+}
+function dateGridHtml(name, ym, selected){
+  const [y,m] = ym.split('-').map(Number);
+  const first = new Date(y, m-1, 1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const cells = [];
+  for(let i=0;i<startOffset;i++) cells.push('<span class="dp-cell dp-empty"></span>');
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${y}-${pad(m)}-${pad(d)}`;
+    const dow = new Date(y, m-1, d).getDay();
+    const isSel = dateStr === selected;
+    cells.push(`<button type="button" class="dp-cell ${isSel?'dp-selected':''} ${dow===0?'dp-sun':''} ${dow===6?'dp-sat':''}" data-action="dp-pick-day" data-name="${name}" data-date="${dateStr}">${d}</button>`);
+  }
+  return `
+    <div class="dp-head">
+      <button type="button" class="dp-nav" data-action="dp-nav-month" data-name="${name}" data-ym="${addMonths(ym,-1)}">${ICON.chevDown}</button>
+      <b>${fmtMonthLabel(ym)}</b>
+      <button type="button" class="dp-nav" data-action="dp-nav-month" data-name="${name}" data-ym="${addMonths(ym,1)}" style="transform:rotate(180deg);">${ICON.chevDown}</button>
+    </div>
+    <div class="dp-weekdays">${['일','월','화','수','목','금','토'].map((w,i)=>`<span class="${i===0?'dp-sun':i===6?'dp-sat':''}">${w}</span>`).join('')}</div>
+    <div class="dp-grid">${cells.join('')}</div>`;
+}
 // 안드로이드/iOS 시스템 시계 UI(<input type=time>)를 쓰지 않기 위한 자체 제작 시간 선택 위젯.
 // 5분 단위 +/- 버튼으로만 조작하며, 실제 값은 name이 그대로인 hidden input에 저장돼
 // 기존 FormData 처리 로직(querySelector('[name=...]').value)과 100% 호환된다.
@@ -1227,6 +1336,32 @@ async function mutateSharedList(name, field, mutate){
     console.error('[mutateSharedList]', name, e);
     return null;
   }
+}
+
+// 삭제 기록 — "누가 · 언제 · 어디서(IP) 뭘 지웠는지" 학생회장이 나중에 확인할 수 있게 남긴다.
+// IP는 클라이언트가 외부 서비스(ipify)에 직접 물어본 값이라 조작하려면 얼마든지 가능하다 —
+// 서버 없이(Cloud Functions 없이) 만드는 구조상 한계라, 진짜 감사 기록이 아니라 참고용이다.
+async function getClientIp(){
+  try{
+    const res = await fetch('https://api.ipify.org?format=json', { cache:'no-store' });
+    if(!res.ok) return '';
+    const j = await res.json();
+    return j.ip || '';
+  }catch(e){ return ''; }
+}
+async function logAudit(action, itemType, itemTitle){
+  try{
+    const ip = await getClientIp();
+    const entry = {
+      id: uid(), ts: now(),
+      actorId: (state.user && state.user.studentId) || '',
+      actorName: (state.user && state.user.name) || '',
+      actorRole: myRole(),
+      ip, action, itemType,
+      itemTitle: (itemTitle||'').slice(0,100),
+    };
+    await mutateSharedList('auditLog', 'list', (list)=>[...list, entry].slice(-500));
+  }catch(e){ console.warn('[logAudit]', e); }
 }
 
 // 삭제된(deleted:true) 글은 tombstone으로 남아있다가 GitHub Actions 크론이 10분마다
@@ -1718,8 +1853,8 @@ async function setupForegroundMessageListener(){
    사용자가 직접 고르게 한다. 기기에만 저장하면 되는 값이라 localStorage에 둔다. */
 const WIDGET_BGS = [
   { key:'system',  label:'기기 설정' },
-  { key:'dark',    label:'다크' },
   { key:'light',   label:'라이트' },
+  { key:'dark',    label:'다크' },
   { key:'custom',  label:'사용자 지정' },
 ];
 const WIDGET_BG_DEFAULT_CUSTOM = '#8C1D2B';
@@ -1972,8 +2107,8 @@ function colorPickerModal(id, hex, title){
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   return `
-    <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6;">
-      홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요. 시간표 · 다음 수업 · 학식 · 일정/메모 · 주간 시간표 · 달력 2종 · 오늘 날짜 8종이 있고, 크기는 자유롭게 조절돼요.
+    <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+      홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요.
     </p>
 
     <div class="field" style="margin-bottom:12px;">
@@ -2002,14 +2137,14 @@ function renderWidgetSettingsTab(){
 
         <div class="field" style="margin-bottom:12px;">
           <label>배경</label>
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:5px;">
             ${WIDGET_BGS.filter(b=>b.key!=='custom').map(b=>`
-              <button type="button" class="btn ${w.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
+              <button type="button" class="btn ${w.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1; padding-left:4px; padding-right:4px; white-space:nowrap;"
                 data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
-            <button type="button" class="btn ${w.bg==='custom'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1.3; display:flex; align-items:center; justify-content:center; gap:6px;"
+            <button type="button" class="btn ${w.bg==='custom'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1.2; padding-left:4px; padding-right:4px; display:flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap;"
               data-action="open-color-modal" data-target="bg">
-              <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'var(--surface-2)'}; flex-shrink:0; border:1px solid var(--border-light);"></span>
-              사용자 지정
+              <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'var(--surface-3)'}; flex-shrink:0; border:1px solid var(--border-light); display:flex; align-items:center; justify-content:center; font-size:9px; line-height:1; color:var(--text-faint);">${w.bg==='custom'?'':'+'}</span>
+              <span style="white-space:nowrap;">지정</span>
             </button>
           </div>
         </div>
@@ -2043,33 +2178,33 @@ function renderWidgetSettingsTab(){
         </div>
 
         ${key==='date' ? `
-        <div class="notify-row" style="padding:8px 2px 0;">
+        <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>오늘 학사일정 표시</b><small>날짜 아래에 간략히 보여줘요</small></span></span>
           <button type="button" class="btn ${w.dateShowEvents?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-date-events">${w.dateShowEvents?'켜짐':'꺼짐'}</button>
         </div>` : ''}
 
         ${(key==='calendar'||key==='calendarWide') ? `
-        <div class="notify-row" style="padding:8px 2px 0;">
+        <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>오늘 할 일 표시</b><small>내가 직접 적어둔 메모만 (학사일정 아님)</small></span></span>
           <button type="button" class="btn ${w.calendarShowMemo?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-memo">${w.calendarShowMemo?'켜짐':'꺼짐'}</button>
         </div>` : ''}
 
         ${key==='calendarWide' ? `
-        <div class="notify-row" style="padding:8px 2px 0;">
+        <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>학사일정 표시</b><small>오늘 일정 목록에 학사일정 포함</small></span></span>
           <button type="button" class="btn ${w.calendarShowOfficial?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-official">${w.calendarShowOfficial?'켜짐':'꺼짐'}</button>
         </div>
-        <div class="notify-row" style="padding:8px 2px 0;">
+        <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>학생회 일정 표시</b><small>오늘 일정 목록에 학생회 일정 포함</small></span></span>
           <button type="button" class="btn ${w.calendarShowCouncil?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-council">${w.calendarShowCouncil?'켜짐':'꺼짐'}</button>
         </div>` : ''}
 
         ${key==='week' ? `
-        <div class="notify-row" style="padding:8px 2px 0;">
+        <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>시간 전체 표시</b><small>수업 있는 시간대만 대신 9시~18시 고정으로</small></span></span>
           <button type="button" class="btn ${w.weekShowFullDay?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-fullday">${w.weekShowFullDay?'켜짐':'꺼짐'}</button>
         </div>
-        <div class="notify-row" style="padding:8px 2px 0;">
+        <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>강의실 표시</b><small>칸이 좁으면 자동으로 생략돼요</small></span></span>
           <button type="button" class="btn ${w.weekShowRoom?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-room">${w.weekShowRoom?'켜짐':'꺼짐'}</button>
         </div>` : ''}
@@ -2717,8 +2852,10 @@ function renderSemesterTabs(){
   }
   return `
     <div class="tt-switcher">
-      <button type="button" class="tt-switcher-label" data-action="open-semester-picker">
-        <span class="tt-switcher-sem">${semesterLabel(state.activeSemester)}</span>
+      <button type="button" class="tt-switcher-label" data-action="open-semester-picker" style="flex:none;">
+        <span class="tt-switcher-sem">${semesterLabel(state.activeSemester)} ${ICON.chevDown}</span>
+      </button>
+      <button type="button" class="tt-switcher-label" data-action="open-timetable-list" style="flex:1; min-width:0;">
         <span class="tt-switcher-name">${escapeHtml(activeVariantName())} ${ICON.chevDown}</span>
       </button>
       <div class="tt-switcher-divider"></div>
@@ -2969,7 +3106,7 @@ function renderSlotHtml(slot, index, total){
       </div>
       <div class="field" style="margin-bottom:8px;">
         <label>요일</label>
-        <select name="slot_day" class="slot-field">${DAYS.map((d,i)=>`<option value="${i}" ${i===(slot.day||0)?'selected':''}>${d}요일</option>`).join('')}</select>
+        ${renderSegPicker('slot_day', DAYS.map((d,i)=>[i,d]), slot.day||0, true)}
       </div>
       <div class="field" style="margin-bottom:8px;">
         <label>수업 시간 (시작 ~ 종료)</label>
@@ -2979,14 +3116,11 @@ function renderSlotHtml(slot, index, total){
           ${renderTimePicker('slot_end', slot.end||600)}
         </div>
       </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>건물</label>
+        ${renderSegPicker('slot_building', [...BUILDINGS.map(b=>[b,b]), ['__custom__','기타 (직접 입력)']], bldg, false)}
+      </div>
       <div class="field-row" style="margin-bottom:0;">
-        <div class="field" style="flex:1.2;">
-          <label>건물</label>
-          <select name="slot_building" class="slot-building-select slot-field">
-            ${BUILDINGS.map(b=>`<option value="${b}" ${b===bldg?'selected':''}>${b}</option>`).join('')}
-            <option value="__custom__" ${isCustom?'selected':''}>기타 (직접 입력)</option>
-          </select>
-        </div>
         <div class="field slot-room-detail-wrap" style="flex:1; ${isCustom?'display:none;':''}">
           <label>호수</label>
           <input type="text" name="slot_roomDetail" class="slot-field" value="${escapeHtml(detail)}" placeholder="329A호" style="font-family:var(--font-display)">
@@ -3620,7 +3754,7 @@ function scheduleModal(preselectedDate, isCouncilEvent = false){
       </div>
 
       <div class="field-row">
-        <div class="field"><label>날짜</label><input type="date" name="startDate" id="event-date-input" value="${targetDate}" required></div>
+        <div class="field"><label>날짜</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
         <input type="hidden" name="endDate" id="event-end-date" value="${targetDate}">
       </div>
       <div class="field-row">
@@ -3645,14 +3779,11 @@ function examScheduleModal(preselectedDate){
       <input type="hidden" name="color" value="${COLORS[2].hex}">
       <div class="field">
         <label>어느 수업의 시험인가요?</label>
-        <select id="exam-class-select">
-          <option value="">-- 직접 입력 / 시간표 과목 선택 --</option>
-          ${subjects.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
-        </select>
+        ${renderSegPicker('__examClass', [['','직접 입력'], ...subjects.map(s=>[s,s])], '', false, 'exam-class-select')}
       </div>
       <div class="field"><label>시험명</label><input type="text" name="title" id="exam-title-input" required placeholder="예: 반도체소자 중간고사" style="font-family:var(--font-display)"></div>
       <div class="field-row">
-        <div class="field"><label>시험 날짜</label><input type="date" name="startDate" value="${targetDate}" required></div>
+        <div class="field"><label>시험 날짜</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
         <input type="hidden" name="endDate" value="${targetDate}">
       </div>
       <div class="field-row">
@@ -3778,10 +3909,10 @@ function eventModal(ev){
       <input type="hidden" name="source" value="official">
       <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="학사일정 제목"></div>
       <div class="field-row">
-        <div class="field"><label>시작일</label><input type="date" name="startDate" value="${v.startDate}" required></div>
-        <div class="field"><label>종료일</label><input type="date" name="endDate" value="${v.endDate}" required></div>
+        <div class="field"><label>시작일</label>${dateFieldHtml('startDate', v.startDate, {required:true})}</div>
+        <div class="field"><label>종료일</label>${dateFieldHtml('endDate', v.endDate, {required:true})}</div>
       </div>
-      <div class="field"><label>분류</label><select name="category">${CATS.map(c=>`<option value="${c.key}" ${c.key===v.category?'selected':''}>${c.label}</option>`).join('')}</select></div>
+      <div class="field"><label>분류</label>${renderSegPicker('category', CATS.map(c=>[c.key,c.label]), v.category, false)}</div>
       <div class="field"><label>설명 (선택)</label><textarea name="description" placeholder="세부 내용">${escapeHtml(v.description||'')}</textarea></div>
       <div class="modal-actions">
         ${isEdit?`<button type="button" class="btn btn-danger" data-action="delete-event" data-id="${ev.id}">삭제</button>`:''}
@@ -4336,12 +4467,7 @@ function recruitmentModal(r){
       <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="구인글 제목"></div>
       <div class="field"><label>내용</label><textarea name="content" style="min-height:120px" required placeholder="모집 내용 및 연락 방법">${escapeHtml(v.content)}</textarea></div>
       <div class="field"><label>노출 시간</label>
-        <select name="expireHours">
-          <option value="12" ${v.expireHours===12?'selected':''}>12시간</option>
-          <option value="24" ${v.expireHours===24?'selected':''}>24시간 (기본)</option>
-          <option value="48" ${v.expireHours===48?'selected':''}>48시간</option>
-          <option value="72" ${v.expireHours===72?'selected':''}>72시간</option>
-        </select>
+        ${renderSegPicker('expireHours', [[12,'12시간'],[24,'24시간 (기본)'],[48,'48시간'],[72,'72시간']], v.expireHours, true)}
       </div>
       ${isEdit ? `<div class="checkline"><input type="checkbox" name="closed" id="rec-closed-check" ${v.closed?'checked':''}> <label for="rec-closed-check" style="margin:0; cursor:pointer;">모집 마감 처리</label></div>` : ''}
       <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'게시하기'}</button></div>
@@ -4616,7 +4742,15 @@ function pollModal(){
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-action="add-poll-option" style="width:100%; margin-bottom:12px;">+ 선택지 추가</button>
       <div class="checkline"><input type="checkbox" name="multi" id="poll-multi-check"> <label for="poll-multi-check" style="margin:0; cursor:pointer;">복수 선택 허용</label></div>
-      <div class="field"><label>마감 일시 (선택)</label><input type="datetime-local" name="endDateTime">
+      <div class="field">
+        <div class="checkline" style="margin-bottom:8px;">
+          <input type="checkbox" id="poll-deadline-check" data-action="toggle-poll-deadline">
+          <label for="poll-deadline-check" style="margin:0; cursor:pointer;">마감 일시 설정 (선택)</label>
+        </div>
+        <div id="poll-deadline-inputs" style="display:flex; gap:8px; align-items:flex-start; opacity:.4; pointer-events:none;">
+          ${dateFieldHtml('poll_deadline_date', addDays(todayStr(),1))}
+          ${renderTimePicker('poll_deadline_time', 23*60+59)}
+        </div>
         <div style="font-size:11px; color:var(--text-faint); margin-top:5px;">설정한 시각에 자동 종료됩니다.</div>
       </div>
       <div class="checkline" style="justify-content:space-between; margin:4px 0 0;">
@@ -4667,9 +4801,10 @@ function renderMypage(){
           <button type="button" class="btn ${themeOv===v?'btn-primary':'btn-ghost'} btn-sm" data-action="set-theme" data-theme-v="${v}" style="flex:1;">${label}</button>
         `).join('')}
       </div>
+      ${!isNativeApp ? `
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
-      </p>
+      </p>` : ''}
     </div>
 
     ${state.myPageSettingsOpen ? `
@@ -4751,6 +4886,8 @@ function renderMypage(){
         <div class="link-row" data-action="view-users-list">전체 가입자 및 직급 관리 (${userCount}명) <span class="sub">${ICON.chevR}</span></div>
         <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="manage-roster">학생 명단(로스터) 관리 <span class="sub">${ICON.chevR}</span></div>
+        <div class="divider" style="margin:2px 0;"></div>
+        <div class="link-row" data-action="view-audit-log">삭제 기록 보기 <span class="sub">${ICON.chevR}</span></div>
         <div class="divider" style="margin:2px 0;"></div>
       ` : ''}
       ${council ? `
@@ -4864,6 +5001,24 @@ function setupBugReportModalListeners(){
   }
 }
 
+// 삭제 기록 — logAudit()이 남긴 항목을 최신순으로 보여준다. IP는 클라이언트가 직접
+// 조회한 값이라 참고용이라는 점을 위에 안내한다.
+function auditLogModal(){
+  const list = [...(state.auditLog||[])].sort((a,b)=>b.ts-a.ts);
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} 삭제 기록</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">IP는 기기가 직접 조회해 남긴 값이라 참고용이에요 (조작 가능, 법적 증거로는 못 씀).</p>
+    <div style="max-height:64vh; overflow-y:auto;">
+      ${list.length ? list.map(e=>`
+        <div class="list-item">
+          <div class="title-line"><b style="font-size:12px;">${escapeHtml(e.action)} · ${escapeHtml(e.itemType)}</b></div>
+          <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(e.itemTitle||'')}</div>
+          <div class="meta" style="margin-top:4px;">${escapeHtml(e.actorName||'')} (${escapeHtml(e.actorId||'')}, ${roleLabel(e.actorRole)}) · ${fmtDateTime(e.ts)}</div>
+          <div class="meta" style="font-family:var(--font-mono);">IP ${escapeHtml(e.ip||'알 수 없음')}</div>
+        </div>`).join('') : `<div class="empty"><p>기록이 없습니다.</p></div>`}
+    </div>`;
+}
 function bugReportInboxModal(){
   const list=live(state.bugReports).sort((a,b)=>b.createdAt-a.createdAt);
   return `
@@ -5003,6 +5158,15 @@ function copyCouncilCode(){
 }
 // 미래~2021년까지 전체 학기 중, 아직 열리지 않은 학기는 목록에서 아예 숨기고
 // 이미 만들어둔 시간표가 있는 학기는 항상 보여주는 선택 팝업 (매년 자동으로 반복 적용됨)
+function assignRoleModal(sid, name, currentRole){
+  const assignable = ['student','council','director','vice','president'];
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">${escapeHtml(name)}님 권한 변경<button data-action="close-modal">완료</button></div>
+    <div class="sem-picker-list">
+      ${assignable.map(r=>`<div class="sem-picker-row ${r===currentRole?'active':''}" data-action="pick-role" data-sid="${escapeHtml(sid)}" data-role="${r}">${roleLabel(r)}</div>`).join('')}
+    </div>`;
+}
 function semesterPickerModal(){
   const already = new Set(Object.keys(state.timetablesBySemester||{}));
   const keys = allBrowsableSemesterKeys().filter(k => isSemesterRevealed(k) || already.has(k));
@@ -5118,9 +5282,7 @@ function usersListModal(){
               </div>
               <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}</div>
             </div>
-            <select data-action="assign-role" data-sid="${escapeHtml(u.studentId)}" style="width:auto; max-width:110px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; font-size:11.5px; font-family:var(--font-display);">
-              ${assignable.map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${roleLabel(r)}</option>`).join('')}
-            </select>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="open-assign-role" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" data-role="${escapeHtml(u.role)}" style="width:auto; max-width:110px; padding:6px 8px; font-size:11.5px; white-space:nowrap; display:flex; align-items:center; gap:3px;">${roleLabel(u.role)} ${ICON.chevDown}</button>
             ${(state.user && u.studentId!==state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">탈퇴</button>` : ''}
           </div>
         </div>`;
@@ -5719,15 +5881,17 @@ async function handleSignup(fd){
   if(password.length<6){ showAuthError('비밀번호는 6자 이상이어야 합니다.'); return; }
   if(password!==password2){ showAuthError('비밀번호가 일치하지 않습니다.'); return; }
 
+  // 개발자·학생회장 코드는 고정 문자열이라 여기서 바로 확인할 수 있지만, 일반 학생회
+  // 인증코드는 Firestore에 저장된 "지금" 값과 대조해야 한다. 그 문서는 로그인한 사람만
+  // 읽을 수 있게 막아뒀기 때문에(누구나 코드값을 그냥 읽어가지 못하도록), 계정을 먼저
+  // 만들고 인증된 상태에서 확인한 뒤 — 명단 대조와 똑같이 — 틀리면 계정을 되돌린다.
+  let needsLiveCouncilCheck = false;
+  let councilCodeInput = '';
   if(state.signupRole==='council'){
-    const code=fd.get('councilCode');
-    if(code===DEVELOPER_CODE) role='developer';
-    else if(code===PRESIDENT_CODE) role='president';
-    else{
-      const liveCouncilCode = await loadCouncilCode().catch(()=>COUNCIL_CODE);
-      if(code===liveCouncilCode) role='council';
-      else { showAuthError('학생회 인증코드가 올바르지 않습니다.'); return; }
-    }
+    councilCodeInput=fd.get('councilCode');
+    if(councilCodeInput===DEVELOPER_CODE) role='developer';
+    else if(councilCodeInput===PRESIDENT_CODE) role='president';
+    else needsLiveCouncilCheck = true;
   }
 
   const btn=document.querySelector('#signup-form button[type=submit]');
@@ -5771,6 +5935,16 @@ async function handleSignup(fd){
           return;
         }
       }
+    }
+
+    if(needsLiveCouncilCheck){
+      const liveCouncilCode = await loadCouncilCode().catch(()=>null);
+      if(liveCouncilCode==null || councilCodeInput!==liveCouncilCode){
+        await deleteUser(cred.user).catch(()=>{});
+        showAuthError('학생회 인증코드가 올바르지 않습니다.');
+        return;
+      }
+      role = 'council';
     }
 
     const ok=await createUserDoc(cred.user.uid, { studentId, name, role, createdAt: now() });
@@ -5833,8 +6007,8 @@ async function handleCouncilVerify(fd){
   if(code===DEVELOPER_CODE) role='developer';
   else if(code===PRESIDENT_CODE) role='president';
   else{
-    const liveCouncilCode = await loadCouncilCode().catch(()=>COUNCIL_CODE);
-    if(code===liveCouncilCode) role='council';
+    const liveCouncilCode = await loadCouncilCode().catch(()=>null);
+    if(liveCouncilCode!=null && code===liveCouncilCode) role='council';
   }
   if(!role){ toast('인증코드가 올바르지 않습니다'); return; }
   closeModal();
@@ -6044,6 +6218,7 @@ async function deleteNotice(id){
   state.notices = next;
   renderMain();
   saveResultToast(ok, '공지가 삭제되었습니다');
+  logAudit('삭제', '공지', target.title);
 }
 
 async function togglePin(id){
@@ -6124,6 +6299,7 @@ async function deleteSuggestion(id){
   state.suggestions = next;
   renderMain();
   saveResultToast(ok, '삭제되었습니다');
+  logAudit('삭제', '건의사항', target.title || target.content);
 }
 
 /* ===== 구인글 ===== */
@@ -6173,6 +6349,7 @@ async function deleteRecruitment(id){
   state.recruitmentPosts = next;
   renderMain();
   saveResultToast(ok, '구인글이 삭제되었습니다');
+  logAudit('삭제', '구인글', target.title);
 }
 
 /* ===== 학생회 게시판 ===== */
@@ -6241,6 +6418,7 @@ async function deleteCouncilPost(id){
   state.councilPosts = next;
   renderMain();
   saveResultToast(ok, '게시글이 삭제되었습니다');
+  logAudit('삭제', '학생회 게시글', target.title);
 }
 
 async function deleteCouncilComment(postId, commentId){
@@ -6260,6 +6438,7 @@ async function deleteCouncilComment(postId, commentId){
   state.councilPosts = next;
   renderMain();
   saveResultToast(true, '댓글이 삭제되었습니다');
+  logAudit('삭제', '학생회 게시글 댓글', target.content);
 }
 
 /* ===== 투표 ===== */
@@ -6268,7 +6447,8 @@ async function handlePollSubmit(fd){
   const options = fd.getAll('option').map(v => String(v || '').trim()).filter(Boolean);
   const unique = [...new Set(options)];
   if(!question || unique.length < 2){ toast('질문과 서로 다른 선택지를 2개 이상 입력해주세요'); return; }
-  const endDateTime = fd.get('endDateTime') || '';
+  const deadlineOn = document.getElementById('poll-deadline-check')?.checked;
+  const endDateTime = deadlineOn ? `${fd.get('poll_deadline_date')}T${fd.get('poll_deadline_time')}` : '';
   const latest = await loadPolls();
   const next = [{
     id: uid(),
@@ -6370,11 +6550,13 @@ async function reopenPoll(pollId){
 async function deletePoll(id){
   if(!await showConfirm('이 투표를 삭제할까요?')) return;
   const latest = await loadPolls();
+  const target = latest.find(p => p.id === id);
   const next = latest.map(p => p.id === id ? { ...p, deleted: true, updatedAt: now() } : p);
   const ok = await savePolls(next);
   state.polls = next;
   renderMain();
   saveResultToast(ok, '투표가 삭제되었습니다');
+  if(target) logAudit('삭제', '투표', target.question);
 }
 
 /* ===== 계정/로스터 ===== */
@@ -6557,6 +6739,7 @@ async function clearAllBoard(type){
   } else {
     toast(`${nameMap[type]} 전체 삭제가 완료되었습니다`);
   }
+  if(deletedCount > 0) logAudit('전체 삭제', nameMap[type], `${deletedCount}개`);
 }
 
 /* ===== 이벤트 리스너 통합 ===== */
@@ -6596,7 +6779,11 @@ INLINE_COLOR_HANDLERS['ttnow'] = (hex)=>{
 document.addEventListener('change', async (e)=>{
   const t = e.target;
   if(!t) return;
-  if(t.classList && t.classList.contains('slot-building-select')){
+  if(t.dataset && t.dataset.action === 'toggle-poll-deadline'){
+    const wrap = document.getElementById('poll-deadline-inputs');
+    if(wrap){ wrap.style.opacity = t.checked ? '1' : '.4'; wrap.style.pointerEvents = t.checked ? 'auto' : 'none'; }
+  }
+  if((t.classList && t.classList.contains('slot-building-select')) || t.name === 'slot_building'){
     const card = t.closest('.slot-item-card');
     if(!card) return;
     const isCustom = t.value === '__custom__';
@@ -6604,13 +6791,6 @@ document.addEventListener('change', async (e)=>{
     const c = card.querySelector('.slot-room-custom-wrap');
     if(d) d.style.display = isCustom ? 'none' : 'block';
     if(c) c.style.display = isCustom ? 'block' : 'none';
-  }
-  if(t.dataset && t.dataset.action === 'assign-role'){
-    await assignRole(t.dataset.sid, t.value);
-  }
-  if(t.id === 'event-date-input'){
-    const endInp = document.getElementById('event-end-date');
-    if(endInp) endInp.value = t.value;
   }
 });
 
@@ -6621,7 +6801,7 @@ document.addEventListener('click', async (e)=>{
 
   const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','delete-event','edit-meal','add-council-post','delete-council-post','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
-  const presidentOnly = ['view-users-list','manage-roster'];
+  const presidentOnly = ['view-users-list','manage-roster','view-audit-log'];
   if(councilOnly.includes(a) && !isCouncil()){ toast('학생회 권한이 필요한 기능입니다'); return; }
   if(pollOnly.includes(a) && !canPoll()){ toast('국장 이상 권한이 필요한 기능입니다'); return; }
   if(presidentOnly.includes(a) && !isPresident()){ toast('학생회장 권한이 필요한 기능입니다'); return; }
@@ -6659,10 +6839,72 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'refresh-dept-notices'){ await fetchDeptNoticesFromSource(false); }
     else if(a === 'council-tab'){ state.councilTab = el.dataset.tab; renderMain(); }
     else if(a === 'go-poll-page'){ state.view = 'council'; state.councilTab = 'poll'; renderShell(); }
+    else if(a === 'seg-pick'){
+      const wrap = el.closest('.seg-picker');
+      if(wrap){
+        wrap.querySelectorAll('.seg-opt').forEach(b=>{ b.classList.remove('btn-primary'); b.classList.add('btn-ghost'); });
+        el.classList.remove('btn-ghost'); el.classList.add('btn-primary');
+        const hidden = wrap.querySelector('input[type=hidden]');
+        if(hidden) hidden.value = el.dataset.value;
+        hidden && hidden.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+    }
+    else if(a === 'toggle-date-picker'){
+      const name = el.dataset.name;
+      const panel = document.getElementById('date-panel-'+name);
+      if(!panel) return;
+      const show = panel.style.display === 'none';
+      // 같은 폼 안의 다른 날짜 패널은 닫는다(둘 다 펼쳐지면 좁은 모달에서 혼잡함).
+      document.querySelectorAll('.date-field-panel').forEach(p=>{ if(p!==panel) p.style.display='none'; });
+      const wrap = el.closest('.date-field');
+      const hidden = wrap && wrap.querySelector('input[type=hidden]');
+      const ym = (hidden && hidden.value ? hidden.value : todayStr()).slice(0,7);
+      panel.innerHTML = show ? dateGridHtml(name, ym, hidden ? hidden.value : '') : '';
+      panel.style.display = show ? 'block' : 'none';
+    }
+    else if(a === 'dp-nav-month'){
+      const name = el.dataset.name;
+      const panel = document.getElementById('date-panel-'+name);
+      const wrap = el.closest('.date-field');
+      const hidden = wrap && wrap.querySelector('input[type=hidden]');
+      if(panel) panel.innerHTML = dateGridHtml(name, el.dataset.ym, hidden ? hidden.value : '');
+    }
+    else if(a === 'dp-pick-day'){
+      const name = el.dataset.name;
+      const wrap = el.closest('.date-field');
+      if(!wrap) return;
+      const hidden = wrap.querySelector('input[type=hidden]');
+      const btn = wrap.querySelector('.date-field-btn .date-field-text');
+      if(hidden) hidden.value = el.dataset.date;
+      if(btn) btn.textContent = fmtDateLabel(el.dataset.date);
+      const panel = document.getElementById('date-panel-'+name);
+      if(panel){ panel.style.display = 'none'; panel.innerHTML=''; }
+      if(hidden){
+        hidden.dispatchEvent(new Event('change', { bubbles:true }));
+        // 시작일이 바뀌면 아직 안 건드린 종료일 필드를 자동으로 같은 날로 맞춘다(기존 event-date-input 동작과 동일).
+        if(name==='startDate'){
+          const endWrap = document.querySelector('.date-field[data-name=endDate]');
+          const endHidden = endWrap ? endWrap.querySelector('input[type=hidden]') : document.getElementById('event-end-date');
+          const endBtn = endWrap && endWrap.querySelector('.date-field-btn .date-field-text');
+          if(endHidden && endHidden.value <= hidden.value){
+            endHidden.value = hidden.value;
+            if(endBtn) endBtn.textContent = fmtDateLabel(hidden.value);
+          }
+        }
+      }
+    }
     else if(a === 'go-recruitment-tab'){ state.view = 'council'; state.councilTab = 'recruitment'; renderShell(); }
     else if(a === 'go-notice-tab'){ state.view = 'council'; state.councilTab = 'notice'; renderShell(); }
     else if(a === 'go-calendar-tab'){ state.view = 'info'; state.infoTab = 'examCal'; renderShell(); }
-    else if(a === 'open-notif-feed'){ markNotificationsSeen(); openModal(notifFeedModal()); renderMain(); }
+    else if(a === 'open-assign-role'){ openModal(assignRoleModal(el.dataset.sid, el.dataset.name, el.dataset.role)); }
+    else if(a === 'pick-role'){ await assignRole(el.dataset.sid, el.dataset.role); closeModal(); renderMain(); }
+    else if(a === 'open-notif-feed'){
+      markNotificationsSeen();
+      openModal(notifFeedModal());
+      // renderMain()은 #main-content만 다시 그리고 상단바(벨)는 그대로 두므로, 점은 직접 지운다.
+      const dot = document.querySelector('.btn-top-bell .bell-dot');
+      if(dot) dot.remove();
+    }
     else if(a === 'dismiss-notif'){
       dismissNotification(el.dataset.id);
       const sheet = document.querySelector('.modal-sheet');
@@ -6697,6 +6939,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'verify-council'){ openModal(councilVerifyModal()); }
     else if(a === 'revoke-council'){ await setRole('student'); }
     else if(a === 'view-users-list'){ await refreshUsersList(); state.activeUserListTab='all'; openModal(usersListModal()); }
+    else if(a === 'view-audit-log'){ state.auditLog = ((await loadShared('auditLog', {list:[]})).list)||[]; openModal(auditLogModal()); }
     else if(a === 'show-patch-notes'){ openModal(patchNotesModal()); }
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }

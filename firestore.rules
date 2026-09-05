@@ -16,6 +16,12 @@ service cloud.firestore {
         && userDoc().role in ['council','director','vice','president','developer'];
     }
 
+    function isPresident() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role in ['president','developer'];
+    }
+
 
     match /users/{uid} {
       allow read: if isSignedIn();
@@ -35,14 +41,20 @@ service cloud.firestore {
     match /shared/suggestions  { allow read, write: if isSignedIn(); }
     match /shared/recruitments { allow read, write: if isSignedIn(); }
     match /shared/polls        { allow read, write: if isSignedIn(); }
-    match /shared/usersList    { allow read, write: if isSignedIn(); }
+    // 전체 가입자 이름 · 학번 · 직급 디렉터리 — 학부생까지 다 보이면 안 되니 학생회 이상만.
+    match /shared/usersList    { allow read, write: if isCouncil(); }
     match /shared/bugReports { allow read, write: if isSignedIn(); }
     // 공지는 작성/수정/삭제는 클라이언트 UI에서 학생회로만 제한하지만, 학부생도 "좋아요"를
     // 누를 때 이 문서에 같이 써야 해서 쓰기 자체는 로그인한 사람 모두에게 열어둔다.
     // (suggestions/recruitments/polls도 같은 이유로 이미 열려있음 — 이 앱은 문서 단위 권한이라
     // 필드 단위로 "좋아요만" 허용하는 세밀한 제어는 하지 않는, 클라이언트를 신뢰하는 모델)
     match /shared/notices       { allow read, write: if isSignedIn(); }
-    match /shared/councilCode { allow read: if true; allow write: if isCouncil(); }
+    // 학생회 인증코드 — 회원가입 화면(비로그인 상태)에서 맞는지 확인해야 해서 완전히 막을 순
+    // 없지만, 로그인 없이(REST API 등으로 직접) 누구나 읽어갈 수 있던 문제는 최소한 막는다.
+    match /shared/councilCode { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    // 삭제 기록(누가 · 언제 · 어디서 지웠는지) — 학생회장 이상만 볼 수 있고, 기록 자체는
+    // 삭제 권한이 있는 학생회 계정이면 남길 수 있다.
+    match /shared/auditLog { allow read: if isPresident(); allow write: if isCouncil(); }
 
     match /shared/{docId} {
       allow read: if isSignedIn();
