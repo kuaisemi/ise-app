@@ -8,6 +8,7 @@
 <meta name="description" content="고려대학교 지능형반도체공학과 ISE 앱 — 시간표, 학사일정, 급식, 공지·건의·투표">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#8C1D2B">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KU ISE">
@@ -606,6 +607,7 @@ const PATCH_NOTES = [
     '웹에서 안드로이드 기기로 접속하면 APK 다운로드 안내가 뜨도록 추가 (iOS에는 안 뜸)',
     '홈 화면 설치(PWA) 아이콘도 새 칩 모양 디자인으로 교체',
     '앱 실행 로딩 화면(스플래시) 배경을 크림슨 대신 기기 라이트/다크 설정을 따라가는 흰색·검은색으로 변경 (눈부심 개선)',
+    { text:'가입자 관리 화면 학번별 탭에 인원수 표시 추가', admin:true },
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
