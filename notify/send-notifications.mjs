@@ -210,7 +210,7 @@ async function main() {
       continue;
     }
     console.log('새 공지 알림:', n.title);
-    await send('notice', '📢 새로운 공지가 있어요', `제목: ${n.title}`);
+    await send('notice', '새로운 공지가 있어요', `제목: ${n.title}`);
   }
 
   // 2) 새 투표 시작 — 공지와 마찬가지로 작성자가 "알림 발송"을 켠 투표만 보낸다(기본 꺼짐).
@@ -221,7 +221,7 @@ async function main() {
       continue;
     }
     console.log('새 투표 알림:', p.question);
-    await send('poll', '🗳️ 새 투표가 시작됐어요', `제목: ${p.question}`);
+    await send('poll', '새 투표가 시작됐어요', `제목: ${p.question}`);
   }
 
   // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만.
@@ -233,7 +233,7 @@ async function main() {
     const body =
       activePolls.length > 1 ? `${head} 외 ${activePolls.length - 1}건` : `제목: ${head}`;
     console.log('진행 중 투표 리마인더:', body);
-    await send('poll', '🗳️ 아직 참여하지 않은 투표가 있어요', body);
+    await send('poll', '아직 참여하지 않은 투표가 있어요', body);
     nextState.lastPollReminderDate = today;
   }
 
@@ -247,14 +247,14 @@ async function main() {
   });
   for (const p of endingSoon) {
     console.log('투표 마감 임박 알림:', p.question);
-    await send('poll', '⏰ 곧 마감되는 투표가 있어요', `제목: ${p.question} (30분 후 마감)`);
+    await send('poll', '곧 마감되는 투표가 있어요', `제목: ${p.question} (30분 후 마감)`);
   }
 
   // 5) 식단 — 조식 07:00 / 중식 10:30 / 석식 16:30 KST
   const MEAL_SLOTS = [
-    { key: 'breakfast', label: '조식', emoji: '🌅', h: 7, m: 0 },
-    { key: 'lunch', label: '중식', emoji: '☀️', h: 10, m: 30 },
-    { key: 'dinner', label: '석식', emoji: '🌙', h: 16, m: 30 },
+    { key: 'breakfast', label: '조식', h: 7, m: 0 },
+    { key: 'lunch', label: '중식', h: 10, m: 30 },
+    { key: 'dinner', label: '석식', h: 16, m: 30 },
   ];
   const todayMeal = (mealsByDate[today] && mealsByDate[today].student) || null;
   const newMealKeys = [];
@@ -268,7 +268,7 @@ async function main() {
       // 저장된 메뉴는 "[한식] 밥, 국..." 처럼 줄바꿈으로 구분되어 있어 한 줄로 합쳐 보낸다.
       const body = menu.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).join(' / ').slice(0, 200);
       console.log(`식단 알림(${slot.label}):`, body.slice(0, 40));
-      await send('meal', `${slot.emoji} 오늘의 ${slot.label}`, body);
+      await send('meal', `오늘의 ${slot.label}`, body);
       newMealKeys.push(dedupKey);
     }
   }
@@ -282,7 +282,7 @@ async function main() {
         const batch = bugAlertTokens.slice(i, i + CHUNK);
         const res = await messaging.sendEachForMulticast({
           tokens: batch,
-          notification: { title: '🐛 새 버그 제보가 있어요', body: `제목: ${r.title}` },
+          notification: { title: '새 버그 제보가 있어요', body: `제목: ${r.title}` },
           data: { url: './index.html' },
         });
         res.responses.forEach((resp, idx) => {
@@ -317,7 +317,7 @@ async function main() {
     console.log('건의사항 답변 알림:', s.title || s.content);
     const res = await messaging.sendEachForMulticast({
       tokens,
-      notification: { title: '💬 건의사항에 답변이 달렸어요', body: `제목: ${s.title || s.content}` },
+      notification: { title: '건의사항에 답변이 달렸어요', body: `제목: ${s.title || s.content}` },
       data: { url: './index.html' },
     });
     res.responses.forEach((resp, idx) => {
