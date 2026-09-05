@@ -551,8 +551,8 @@ async function getMessagingInstance(){
 
 // 시간표/학사일정 사진 인식용 Gemini API 키 (학생회 고정 키, 1번 실패 시 2번으로 자동 폴백)
 const GEMINI_API_KEYS = [
-  'AQ.Ab8RN6IySQWzyYO7Sf-t_FFJj1pOITk3ZRkQo66zICmoj3BezQ',
-  'AQ.Ab8RN6JxUT9OzFvC5sHHZzdkJVrN42I8zthM9KioJX8K9WLokw',
+  'AQ.Ab8RN6JQX5_FJgq6X-WsYZaeDNJmwBA4nt2IZMuNIUsMjeL4aQ',
+  'AQ.Ab8RN6LUI9WSO9aV3_H6AaR6oz_NPy5OXeR8kNdA8H4zYaoABQ',
 ];
 
 // 사진 인식 키가 만료·해지되면 구글이 401(UNAUTHENTICATED)을 돌려주는데, 그 영어 원문이 그대로
@@ -574,8 +574,14 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.12';
+const APP_VERSION = 'Beta 0.3.14';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.14', date:'2026-09-05', items:[
+    { text:'사진 인식 Gemini 키 교체 (기존 키 만료)', admin:true },
+  ]},
+  { version:'Beta 0.3.13', date:'2026-09-05', items:[
+    '오늘의 시간표 알림 시각에서 7시 · 9시를 눌러도 8시로만 보이던 문제 수정 (저장 키와 불러오는 키가 서로 달라서 저장은 되는데 화면엔 반영이 안 되고 있었음)',
+  ]},
   { version:'Beta 0.3.12', date:'2026-09-05', items:[
     { text:'보안: 전체 가입자 명단을 로그인만 하면 학부생도 통째로 읽을 수 있던 문제 수정 — 이제 학생회 이상만', admin:true },
     { text:'보안: 학생회 인증코드를 로그인 없이(REST API 등으로 직접) 아무나 읽어갈 수 있던 문제 수정', admin:true },
@@ -1705,7 +1711,7 @@ function getNotifyPrefs(){
     meal: localGet('notif_meal', false),
     night: localGet('notif_night', false),
     timetable: localGet('notif_timetable', false),
-    timetableHour: localGet('notif_timetable_hour', 8),
+    timetableHour: localGet('notif_timetableHour', 8),
   };
 }
 // 서버(GitHub Actions)가 "누구에게 보낼지" 알아야 하는 항목만 Firestore에도 저장한다.
