@@ -34,8 +34,7 @@ public class DateWidget extends BaseWidget {
         theme.size(views, R.id.date_weekday, 12f);
         theme.size(views, R.id.date_day, 32f);
 
-        JSONObject opts = data.optJSONObject("opts");
-        boolean showEvents = opts == null || opts.optBoolean("dateShowEvents", true);
+        boolean showEvents = WidgetTheme.flag(data, widgetKey(), "dateShowEvents", true);
 
         JSONArray events = showEvents ? data.optJSONArray("todayEvents") : null;
         int count = events == null ? 0 : Math.min(events.length(), 2);

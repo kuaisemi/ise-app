@@ -45,8 +45,7 @@ public class CalendarWidget extends BaseWidget {
         theme.size(views, R.id.cal_month, 11f);
 
         // "오늘 할 일" — 학사일정이 아니라 사용자가 직접 적은 오늘 메모만 보여준다 (설정에서 끌 수 있음).
-        JSONObject opts = data.optJSONObject("opts");
-        boolean showMemo = opts == null || opts.optBoolean("calendarShowMemo", true);
+        boolean showMemo = WidgetTheme.flag(data, widgetKey(), "calendarShowMemo", true);
         String memo = showMemo ? data.optString("memo", "") : "";
         boolean hasMemo = memo != null && !memo.trim().isEmpty();
         views.setViewVisibility(R.id.cal_memo_section, hasMemo ? View.VISIBLE : View.GONE);
@@ -58,6 +57,20 @@ public class CalendarWidget extends BaseWidget {
             theme.size(views, R.id.cal_memo_text, 10.5f);
             views.setTextViewText(R.id.cal_memo_text, memo.replaceAll("\\s*\\r?\\n\\s*", " · "));
         }
+
+        drawMonthGrid(ctx, views, data, theme);
+    }
+
+    /**
+     * 이번 달 달력(요일 머리글 + 날짜 칸)을 그린다.
+     * 세로형(CalendarWidget)과 가로형(CalendarWideWidget)이 같은 id(cal_head/cal_rows)를 쓰므로
+     * 두 위젯이 이 메서드를 함께 쓴다.
+     */
+    static void drawMonthGrid(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
+        Calendar cal = Calendar.getInstance();
+        int year = cal.get(Calendar.YEAR);
+        int month = cal.get(Calendar.MONTH);
+        int today = cal.get(Calendar.DAY_OF_MONTH);
 
         // 일정/메모가 있는 날 — "YYYY-MM-DD" 문자열 배열
         JSONObject marked = data.optJSONObject("markedDates");

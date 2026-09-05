@@ -530,8 +530,16 @@ const GEMINI_API_KEYS = [
 ];
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.2.0';
+const APP_VERSION = 'Beta 0.3.0';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.0', date:'2026-09-05', items:[
+    '위젯 설정을 위젯별로 분리 — 위젯마다 배경 · 강조 색 · 투명도 · 글씨 크기를 따로 정할 수 있어요',
+    '"달력 (가로형)" 위젯 추가 — 왼쪽에 이번 달 달력, 오른쪽에 오늘 일정을 나란히 보여줘요',
+    '앱 아이콘 배경을 학교 크림슨 색으로 변경',
+    '수업 · 일정 색상 고를 때도 위젯과 같은 색상 선택기(채도/명도 + 색상 띠)를 쓰도록 통일',
+    '위젯 배경을 사용자 지정 색으로 바꾼 뒤 다시 라이트/다크로 돌아오지 않던 문제 수정',
+    '주간 시간표 위젯에서 요일마다 첫 수업 높이가 어긋나 보이던 문제 수정',
+  ]},
   { version:'Beta 0.2.0', date:'2026-09-05', items:[
     '홈 화면 위젯 7종 추가 (오늘의 시간표 · 다음 수업 · 오늘의 학식 · 일정/메모 · 주간 시간표 · 달력 · 오늘 날짜)',
     '위젯 배경 · 강조 색 · 투명도 · 위젯별 글씨 크기를 MY 탭에서 직접 꾸밀 수 있음',
@@ -1698,18 +1706,31 @@ function hexToHsv(hex){
 // 다음 수업은 이미 커서 그대로 두는 식). 목록/키는 네이티브(WidgetTheme.java)와 맞춰야 한다.
 const WIDGET_TYPES = [
   ['timetable','오늘의 시간표'], ['nextClass','다음 수업'], ['meal','오늘의 학식'],
-  ['schedule','일정 · 메모'], ['week','주간 시간표'], ['calendar','달력'], ['date','오늘 날짜'],
+  ['schedule','일정 · 메모'], ['week','주간 시간표'], ['calendar','달력'],
+  ['calendarWide','달력 (가로형)'], ['date','오늘 날짜'],
 ];
-function getWidgetFontScale(key){
-  const fs = getWidgetOpts().fontScale || {};
-  const v = fs[key];
-  return (typeof v === 'number' && v>=0.7 && v<=1.6) ? v : 1;
+// 위젯 설정은 위젯 종류마다 따로 저장한다 — 달력은 라이트로, 시간표는 다크로 쓰고 싶을 수
+// 있어서. opts.per[위젯키]에 그 위젯의 값만 담고, 없는 값은 예전 전역 설정을 그대로 물려받는다
+// (이미 설정해둔 사람이 업데이트해도 그대로 유지되도록).
+function getWidgetSettings(key){
+  const o = getWidgetOpts();
+  const p = (o.per && o.per[key]) || {};
+  const fs = typeof p.fontScale === 'number' ? p.fontScale : (o.fontScale||{})[key];
+  return {
+    bg: WIDGET_BGS.some(b=>b.key===p.bg) ? p.bg : o.bg,
+    customBg: isValidHexColor(p.customBg) ? p.customBg : o.customBg,
+    accent: p.accent || o.accent,
+    opacity: typeof p.opacity === 'number' ? p.opacity : o.opacity,
+    fontScale: (typeof fs === 'number' && fs>=0.7 && fs<=1.6) ? fs : 1,
+    dateShowEvents: typeof p.dateShowEvents === 'boolean' ? p.dateShowEvents : o.dateShowEvents,
+    calendarShowMemo: typeof p.calendarShowMemo === 'boolean' ? p.calendarShowMemo : o.calendarShowMemo,
+  };
 }
-function setWidgetFontScale(key, value){
-  const wo = getWidgetOpts();
-  const fs = { ...(wo.fontScale||{}) };
-  fs[key] = value;
-  setWidgetOpts({ fontScale: fs });
+function setWidgetSetting(key, patch){
+  const o = getWidgetOpts();
+  const per = { ...(o.per||{}) };
+  per[key] = { ...getWidgetSettings(key), ...per[key], ...patch };
+  setWidgetOpts({ per });
 }
 function getWidgetOpts(){
   const o = localGet('widget_opts', null) || {};
@@ -1721,6 +1742,7 @@ function getWidgetOpts(){
     dateShowEvents: o.dateShowEvents !== false,
     calendarShowMemo: o.calendarShowMemo !== false,
     fontScale: (o.fontScale && typeof o.fontScale === 'object') ? o.fontScale : {},
+    per: (o.per && typeof o.per === 'object') ? o.per : {},
   };
 }
 function setWidgetOpts(patch){
@@ -1867,6 +1889,19 @@ function setupColorPicker(id, onChange){
   };
 }
 
+/* 모달 안(수업 추가·일정 추가·시간표 설정)에서 쓰는 색상 선택기.
+   여기서는 또 모달을 띄우면 그 아래 폼이 통째로 날아가므로, 같은 선택기를 접었다 펴는
+   패널로 붙인다. 고른 색을 어디에 반영할지는 화면마다 달라서 콜백을 따로 등록해둔다. */
+const INLINE_COLOR_HANDLERS = {};
+function inlineColorSwatchHtml(id, hex, selected){
+  return `<div class="swatch ${selected?'selected':''}" title="색상 직접 선택"
+    style="background:${selected?hex:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'};"
+    data-action="toggle-inline-color" data-id="${id}">${selected?'✓':''}</div>`;
+}
+function inlineColorPanelHtml(id, hex){
+  return `<div id="cp-wrap-${id}" style="display:none;">${renderColorPickerPanel(id, hex)}</div>`;
+}
+
 // 색상 선택기를 팝업(모달)으로 띄운다 — 설정 화면 안에 계속 펼쳐져 있는 것보다
 // 다른 앱 모달들과 똑같은 방식이라 더 익숙하고, 화면도 덜 복잡해진다.
 function colorPickerModal(id, hex, title){
@@ -1881,7 +1916,7 @@ function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   return `
     <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6;">
-      홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요. 시간표 · 다음 수업 · 학식 · 일정/메모 · 주간 시간표 · 달력 · 오늘 날짜 7종이 있고, 크기는 자유롭게 조절돼요.
+      홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요. 시간표 · 다음 수업 · 학식 · 일정/메모 · 주간 시간표 · 달력 2종 · 오늘 날짜 8종이 있고, 크기는 자유롭게 조절돼요.
     </p>
 
     <div class="field" style="margin-bottom:12px;">
@@ -1891,67 +1926,78 @@ function renderWidgetSettingsTab(){
       </div>
     </div>
 
-    <div class="field" style="margin-bottom:12px;">
-      <label>배경</label>
-      <div style="display:flex; gap:6px;">
-        ${WIDGET_BGS.filter(b=>b.key!=='custom').map(b=>`
-          <button type="button" class="btn ${wo.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
-            data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
-        <button type="button" class="btn ${wo.bg==='custom'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1.3; display:flex; align-items:center; justify-content:center; gap:6px;"
-          data-action="open-color-modal" data-target="bg">
-          <span style="width:13px; height:13px; border-radius:50%; background:${wo.bg==='custom'?wo.customBg:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'}; flex-shrink:0; border:1px solid rgba(255,255,255,.4);"></span>
-          사용자 지정
-        </button>
-      </div>
-    </div>
-
-    <div class="field" style="margin-bottom:12px;">
-      <label>강조 색</label>
-      <div class="swatches">
-        ${WIDGET_ACCENTS.map(hex=>`
-          <div class="swatch ${wo.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
-            data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${wo.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
-        <div class="swatch ${!isWidgetPresetAccent(wo.accent)?'selected':''}"
-          style="background:${!isWidgetPresetAccent(wo.accent)?wo.accent:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'};"
-          data-action="open-color-modal" data-target="accent">${!isWidgetPresetAccent(wo.accent)?'✓':''}</div>
-      </div>
-    </div>
-
-    <div class="field" style="margin-bottom:12px;">
-      <label>투명도 <span style="color:var(--text-faint); font-weight:400;">(글씨는 그대로, 카드 배경만)</span></label>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <input type="range" id="widget-opacity" min="20" max="100" step="4" value="${wo.opacity}" style="flex:1;">
-        <span id="widget-opacity-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${wo.opacity}%</span>
-      </div>
-    </div>
-
-    <div class="notify-row" style="padding:8px 2px;">
-      <span class="notify-label"><span class="notify-label-text"><b>오늘 날짜 위젯에 일정 표시</b><small>날짜 아래에 오늘 학사일정을 간략히 보여줘요</small></span></span>
-      <button type="button" class="btn ${wo.dateShowEvents?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-date-events">${wo.dateShowEvents?'켜짐':'꺼짐'}</button>
-    </div>
-    <div class="notify-row" style="padding:8px 2px;">
-      <span class="notify-label"><span class="notify-label-text"><b>달력 위젯에 오늘 할 일 표시</b><small>내가 직접 적어둔 메모만 보여줘요 (학사일정 아님)</small></span></span>
-      <button type="button" class="btn ${wo.calendarShowMemo?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-memo">${wo.calendarShowMemo?'켜짐':'꺼짐'}</button>
-    </div>
-
-    <div class="divider" style="margin:14px 0;"></div>
-
-    <div class="field" style="margin-bottom:8px;">
-      <label>위젯별 글씨 크기</label>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:2px 2px 10px; line-height:1.55;">
-        위젯마다 따로 조절해요. 아래에서 조절할 위젯을 먼저 고르세요.
-      </p>
-      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+    <div class="field" style="margin-bottom:10px;">
+      <label>꾸밀 위젯 고르기</label>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">
         ${WIDGET_TYPES.map(([key,label])=>`
           <button type="button" class="btn ${state.widgetFontScaleTarget===key?'btn-primary':'btn-ghost'} btn-sm"
             style="width:auto; padding:5px 11px; font-size:11px;" data-action="pick-widget-font-target" data-key="${key}">${label}</button>`).join('')}
       </div>
-      ${(()=>{ const cur = getWidgetFontScale(state.widgetFontScaleTarget); return `
-      <div style="display:flex; align-items:center; gap:10px;">
-        <input type="range" id="widget-font-scale" min="80" max="150" step="5" value="${Math.round(cur*100)}" style="flex:1;">
-        <span id="widget-font-scale-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${Math.round(cur*100)}%</span>
-      </div>`; })()}
-    </div>`;
+    </div>
+
+    ${(()=>{
+      const key = state.widgetFontScaleTarget;
+      const label = (WIDGET_TYPES.find(t=>t[0]===key)||['','위젯'])[1];
+      const w = getWidgetSettings(key);
+      return `
+      <div class="card" style="background:var(--surface-2); padding:12px; margin-bottom:12px;">
+        <p style="margin:0 0 12px; font-size:11.5px; font-weight:800; color:var(--teal);">${escapeHtml(label)} 설정</p>
+
+        <div class="field" style="margin-bottom:12px;">
+          <label>배경</label>
+          <div style="display:flex; gap:6px;">
+            ${WIDGET_BGS.filter(b=>b.key!=='custom').map(b=>`
+              <button type="button" class="btn ${w.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;"
+                data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
+            <button type="button" class="btn ${w.bg==='custom'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1.3; display:flex; align-items:center; justify-content:center; gap:6px;"
+              data-action="open-color-modal" data-target="bg">
+              <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'}; flex-shrink:0; border:1px solid rgba(255,255,255,.4);"></span>
+              사용자 지정
+            </button>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:12px;">
+          <label>강조 색</label>
+          <div class="swatches">
+            ${WIDGET_ACCENTS.map(hex=>`
+              <div class="swatch ${w.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
+                data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${w.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
+            <div class="swatch ${!isWidgetPresetAccent(w.accent)?'selected':''}"
+              style="background:${!isWidgetPresetAccent(w.accent)?w.accent:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'};"
+              data-action="open-color-modal" data-target="accent">${!isWidgetPresetAccent(w.accent)?'✓':''}</div>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:12px;">
+          <label>투명도 <span style="color:var(--text-faint); font-weight:400;">(카드 배경만)</span></label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="widget-opacity" min="20" max="100" step="4" value="${w.opacity}" style="flex:1;">
+            <span id="widget-opacity-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${w.opacity}%</span>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:${key==='date'||key==='calendar'?'12px':'2px'};">
+          <label>글씨 크기</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="widget-font-scale" min="80" max="150" step="5" value="${Math.round(w.fontScale*100)}" style="flex:1;">
+            <span id="widget-font-scale-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${Math.round(w.fontScale*100)}%</span>
+          </div>
+        </div>
+
+        ${key==='date' ? `
+        <div class="notify-row" style="padding:8px 2px 0;">
+          <span class="notify-label"><span class="notify-label-text"><b>오늘 학사일정 표시</b><small>날짜 아래에 간략히 보여줘요</small></span></span>
+          <button type="button" class="btn ${w.dateShowEvents?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-date-events">${w.dateShowEvents?'켜짐':'꺼짐'}</button>
+        </div>` : ''}
+
+        ${(key==='calendar'||key==='calendarWide') ? `
+        <div class="notify-row" style="padding:8px 2px 0;">
+          <span class="notify-label"><span class="notify-label-text"><b>오늘 할 일 표시</b><small>내가 직접 적어둔 메모만 (학사일정 아님)</small></span></span>
+          <button type="button" class="btn ${w.calendarShowMemo?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-memo">${w.calendarShowMemo?'켜짐':'꺼짐'}</button>
+        </div>` : ''}
+      </div>`;
+    })()}`;
 }
 
 /* ===== 홈 화면 위젯 데이터 전달 =====
@@ -2359,7 +2405,7 @@ function setupWidgetOpacitySlider(){
   if(!slider) return;
   const label = document.getElementById('widget-opacity-val');
   slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
-  slider.onchange = ()=>{ setWidgetOpts({ opacity: parseInt(slider.value,10) }); };
+  slider.onchange = ()=>{ setWidgetSetting(state.widgetFontScaleTarget, { opacity: parseInt(slider.value,10) }); };
 }
 
 function setupWidgetFontScaleSlider(){
@@ -2367,7 +2413,7 @@ function setupWidgetFontScaleSlider(){
   if(!slider) return;
   const label = document.getElementById('widget-font-scale-val');
   slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
-  slider.onchange = ()=>{ setWidgetFontScale(state.widgetFontScaleTarget, parseInt(slider.value,10)/100); };
+  slider.onchange = ()=>{ setWidgetSetting(state.widgetFontScaleTarget, { fontScale: parseInt(slider.value,10)/100 }); };
 }
 
 function setupNowTimer(){
@@ -2700,11 +2746,9 @@ function ttOptionsModal(){
         <div style="font-size:11.5px; font-weight:700; margin-bottom:8px; color:var(--text-dim);">현재 시간 표시선 색상</div>
         <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
           ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
-          <div class="swatch-rainbow" title="색상 직접 선택">
-            <div class="swatch-rainbow-inner">?</div>
-            <input type="color" id="tt-now-color-picker-pending" value="${o.currentTimeColor || '#FF6B6B'}">
-          </div>
+          ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
         </div>
+        ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
       </div>
     </div>
     <div class="modal-actions" style="gap:8px;">
@@ -2728,18 +2772,12 @@ function setupTtOptionsModalListeners(){
   const swatchWrap = document.getElementById('tt-now-color-swatches');
   panel.querySelectorAll('.tt-color-pending').forEach(btn=>{
     btn.onclick = ()=>{
-      panel.querySelectorAll('.tt-color-pending').forEach(b=>{ b.classList.remove('selected'); b.innerHTML=''; });
+      // 프리셋을 고르면 "직접 선택" 스와치의 체크도 같이 풀어준다
+      panel.querySelectorAll('#tt-now-color-swatches .swatch').forEach(b=>{ b.classList.remove('selected'); b.innerHTML=''; });
       btn.classList.add('selected'); btn.innerHTML='✓';
       if(swatchWrap) swatchWrap.dataset.selected = btn.dataset.hex;
     };
   });
-  const picker = document.getElementById('tt-now-color-picker-pending');
-  if(picker){
-    picker.oninput = ()=>{
-      panel.querySelectorAll('.tt-color-pending').forEach(b=>{ b.classList.remove('selected'); b.innerHTML=''; });
-      if(swatchWrap) swatchWrap.dataset.selected = picker.value;
-    };
-  }
   const fontSlider = document.getElementById('tt-font-scale-slider');
   const fontLabel = document.getElementById('tt-font-scale-label');
   if(fontSlider && fontLabel){
@@ -2832,11 +2870,9 @@ function classModal(cls){
           <label>배경 색상</label>
           <div class="swatches" id="class-swatches-wrap">
             ${COLORS.map(col => `<div class="swatch ${col.hex.toLowerCase() === color.toLowerCase() ? 'selected' : ''}" data-action="pick-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === color.toLowerCase() ? '✓' : ''}</div>`).join('')}
-            <div class="swatch-rainbow" title="색상 직접 선택">
-              <div class="swatch-rainbow-inner">?</div>
-              <input type="color" id="class-color-picker" value="${color}">
-            </div>
+            ${inlineColorSwatchHtml('classcolor', color, !COLORS.some(c=>c.hex.toLowerCase()===color.toLowerCase()))}
           </div>
+          ${inlineColorPanelHtml('classcolor', color)}
         </div>
         <div class="field" style="flex:0.8;">
           <label>글씨 색상</label>
@@ -3421,11 +3457,9 @@ function scheduleModal(preselectedDate, isCouncilEvent = false){
         <label>일정 색상</label>
         <div class="swatches" id="schedule-swatches-wrap">
           ${COLORS.map(col => `<div class="swatch ${col.hex.toLowerCase() === defaultColor.toLowerCase() ? 'selected' : ''}" data-action="pick-schedule-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === defaultColor.toLowerCase() ? '✓' : ''}</div>`).join('')}
-          <div class="swatch-rainbow" title="색상 직접 선택">
-            <div class="swatch-rainbow-inner">?</div>
-            <input type="color" id="schedule-color-picker" value="${defaultColor}">
-          </div>
+          ${inlineColorSwatchHtml('schedcolor', defaultColor, !COLORS.some(c=>c.hex.toLowerCase()===defaultColor.toLowerCase()))}
         </div>
+        ${inlineColorPanelHtml('schedcolor', defaultColor)}
       </div>
 
       <div class="field-row">
@@ -4486,7 +4520,7 @@ function renderMypage(){
       <div class="subtabs" style="margin-bottom:12px;">
         <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
         <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
-        ${isNativeApp ? `<div class="subtab ${state.settingsTab==='widget'?'active':''}" data-action="settings-tab" data-tab="widget">위젯</div>` : ''}
+        <div class="subtab ${state.settingsTab==='widget'?'active':''}" data-action="settings-tab" data-tab="widget">위젯</div>
       </div>
 
       ${state.settingsTab==='display' ? `
@@ -4530,7 +4564,13 @@ function renderMypage(){
       </p>
       ` : ''}
 
-      ${state.settingsTab==='widget' && isNativeApp ? renderWidgetSettingsTab() : ''}
+      ${state.settingsTab==='widget' ? (isNativeApp ? renderWidgetSettingsTab() : `
+        <div class="empty" style="padding:24px 8px;">
+          <p style="font-size:12px; line-height:1.7;">
+            홈 화면 위젯은 <b>안드로이드 앱(APK)</b>에서만 쓸 수 있어요.<br>
+            브라우저에서는 위젯을 홈 화면에 올릴 수 없어서 설정도 앱에서만 보여드려요.
+          </p>
+        </div>`) : ''}
     </div>
     ` : ''}
 
@@ -6319,26 +6359,38 @@ async function clearAllBoard(type){
 }
 
 /* ===== 이벤트 리스너 통합 ===== */
-document.addEventListener('input', (e)=>{
-  if(e.target && e.target.id === 'class-color-picker'){
-    const val = e.target.value;
-    const hidden = document.getElementById('class-color-input');
-    if(hidden) hidden.value = val;
-    document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s => {
-      s.classList.remove('selected');
-      s.innerHTML = '';
-    });
-  }
-  if(e.target && e.target.id === 'schedule-color-picker'){
-    const val = e.target.value;
-    const hidden = document.getElementById('schedule-color-input');
-    if(hidden) hidden.value = val;
-    document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s => {
-      s.classList.remove('selected');
-      s.innerHTML = '';
-    });
-  }
-});
+
+// 모달 안 색상 선택기에서 색을 고르면 어디에 반영할지 (선택기 자체는 공용, 반영만 화면별로 다름)
+INLINE_COLOR_HANDLERS['classcolor'] = (hex)=>{
+  const hidden = document.getElementById('class-color-input');
+  if(hidden) hidden.value = hex;
+  document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s=>{
+    const isPicker = s.dataset.action === 'toggle-inline-color';
+    s.classList.toggle('selected', isPicker);
+    s.innerHTML = isPicker ? '✓' : '';
+    if(isPicker) s.style.background = hex;
+  });
+};
+INLINE_COLOR_HANDLERS['schedcolor'] = (hex)=>{
+  const hidden = document.getElementById('schedule-color-input');
+  if(hidden) hidden.value = hex;
+  document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s=>{
+    const isPicker = s.dataset.action === 'toggle-inline-color';
+    s.classList.toggle('selected', isPicker);
+    s.innerHTML = isPicker ? '✓' : '';
+    if(isPicker) s.style.background = hex;
+  });
+};
+INLINE_COLOR_HANDLERS['ttnow'] = (hex)=>{
+  const wrap = document.getElementById('tt-now-color-swatches');
+  if(wrap) wrap.dataset.selected = hex;
+  document.querySelectorAll('#tt-now-color-swatches .swatch').forEach(s=>{
+    const isPicker = s.dataset.action === 'toggle-inline-color';
+    s.classList.toggle('selected', isPicker);
+    s.innerHTML = isPicker ? '✓' : '';
+    if(isPicker) s.style.background = hex;
+  });
+};
 
 document.addEventListener('change', async (e)=>{
   const t = e.target;
@@ -6545,20 +6597,23 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'delete-class-group'){ await deleteClassGroup(el.dataset.groupId); }
     else if(a === 'ocr-timetable'){ state.ttFabOpen = false; openModal(ocrModal()); setupOcrModalListeners(); }
     else if(a === 'pick-color'){
-      document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s => { s.classList.remove('selected'); s.innerHTML = ''; });
+      // 프리셋을 고르면 "직접 선택" 스와치는 다시 무지개(선택 안 됨) 상태로 되돌린다
+      document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s => {
+        s.classList.remove('selected'); s.innerHTML = '';
+        if(s.dataset.action === 'toggle-inline-color') s.style.background = 'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)';
+      });
       el.classList.add('selected'); el.innerHTML = '✓';
       const inp = document.getElementById('class-color-input');
       if(inp) inp.value = el.dataset.hex;
-      const cp = document.getElementById('class-color-picker');
-      if(cp) cp.value = el.dataset.hex;
     }
     else if(a === 'pick-schedule-color'){
-      document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s => { s.classList.remove('selected'); s.innerHTML = ''; });
+      document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s => {
+        s.classList.remove('selected'); s.innerHTML = '';
+        if(s.dataset.action === 'toggle-inline-color') s.style.background = 'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)';
+      });
       el.classList.add('selected'); el.innerHTML = '✓';
       const inp = document.getElementById('schedule-color-input');
       if(inp) inp.value = el.dataset.hex;
-      const cp = document.getElementById('schedule-color-picker');
-      if(cp) cp.value = el.dataset.hex;
     }
     else if(a === 'pick-text-color'){
       document.querySelectorAll('#class-text-swatches-wrap .text-swatch').forEach(s => { s.classList.remove('selected'); s.innerHTML = ''; });
@@ -6601,23 +6656,37 @@ document.addEventListener('click', async (e)=>{
     else if(a==='add-council-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, true)); }
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
     else if(a==='settings-tab'){ state.settingsTab = el.dataset.tab; renderMain(); }
-    else if(a==='set-widget-bg'){ setWidgetOpts({ bg: el.dataset.bg }); renderMain(); }
-    else if(a==='set-widget-accent'){ setWidgetOpts({ accent: el.dataset.hex }); renderMain(); }
+    // 위젯 설정은 지금 고른 위젯(state.widgetFontScaleTarget) 하나에만 적용된다
+    else if(a==='set-widget-bg'){ setWidgetSetting(state.widgetFontScaleTarget, { bg: el.dataset.bg }); renderMain(); }
+    else if(a==='set-widget-accent'){ setWidgetSetting(state.widgetFontScaleTarget, { accent: el.dataset.hex }); renderMain(); }
     else if(a==='open-color-modal'){
       const target = el.dataset.target;
-      const wo = getWidgetOpts();
-      const hex = target==='bg' ? wo.customBg : wo.accent;
+      const wkey = state.widgetFontScaleTarget;
+      const w = getWidgetSettings(wkey);
+      const hex = target==='bg' ? w.customBg : w.accent;
       const label = target==='bg' ? '배경 색' : '강조 색';
       openModal(colorPickerModal(target, isValidHexColor(hex)?hex:WIDGET_ACCENTS[0], label));
       setupColorPicker(target, (newHex)=>{
-        if(target==='bg') setWidgetOpts({ bg:'custom', customBg:newHex });
-        else setWidgetOpts({ accent:newHex });
+        if(target==='bg') setWidgetSetting(wkey, { bg:'custom', customBg:newHex });
+        else setWidgetSetting(wkey, { accent:newHex });
       });
     }
     else if(a==='close-color-modal'){ closeModal(); renderMain(); }
+    // 모달 안 색상 선택기 — 접었다 펴기. 열 때 한 번만 연결하면 되므로 여기서 setup을 부른다.
+    else if(a==='toggle-inline-color'){
+      const id = el.dataset.id;
+      const wrap = document.getElementById('cp-wrap-'+id);
+      if(!wrap) return;
+      const show = wrap.style.display === 'none';
+      wrap.style.display = show ? 'block' : 'none';
+      if(show) setupColorPicker(id, (hex)=>{ const fn = INLINE_COLOR_HANDLERS[id]; if(fn) fn(hex); });
+    }
     else if(a==='pick-widget-font-target'){ state.widgetFontScaleTarget = el.dataset.key; renderMain(); }
-    else if(a==='toggle-widget-date-events'){ setWidgetOpts({ dateShowEvents: !getWidgetOpts().dateShowEvents }); renderMain(); }
-    else if(a==='toggle-widget-calendar-memo'){ setWidgetOpts({ calendarShowMemo: !getWidgetOpts().calendarShowMemo }); renderMain(); }
+    else if(a==='toggle-widget-date-events'){ setWidgetSetting('date', { dateShowEvents: !getWidgetSettings('date').dateShowEvents }); renderMain(); }
+    else if(a==='toggle-widget-calendar-memo'){
+      const k = state.widgetFontScaleTarget === 'calendarWide' ? 'calendarWide' : 'calendar';
+      setWidgetSetting(k, { calendarShowMemo: !getWidgetSettings(k).calendarShowMemo }); renderMain();
+    }
     else if(a==='open-primary-timetable'){ openModal(primaryTimetableModal()); }
     else if(a==='pick-primary-variant'){
       if(el.dataset.idx === '-1') clearWidgetPrimaryTimetable();

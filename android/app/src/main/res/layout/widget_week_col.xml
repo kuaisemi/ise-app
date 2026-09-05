@@ -24,14 +24,13 @@
         android:layout_marginBottom="6dp"
         android:textSize="9sp" />
 
-    <!-- gravity="center_vertical": 위젯을 세로로 크게 늘렸을 때 수업 칩들이 맨 위에만
-         쏠려있고 아래는 텅 비어 보이는 문제가 있었다. 남는 공간을 위아래로 나눠서
-         내용이 칸 가운데에 오게 하면, 늘려도 훨씬 자연스러워 보인다. -->
+    <!-- 위쪽 정렬(기본값)로 둔다. 가운데 정렬로 바꿔봤더니 요일마다 수업 개수가 달라서
+         첫 수업이 시작하는 높이가 제각각이 되고, 가로로 줄이 안 맞아 보였다.
+         위에서부터 쌓아야 다섯 요일의 첫 줄·둘째 줄이 나란히 맞는다. -->
     <LinearLayout
         android:id="@+id/col_items"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center_vertical" />
+        android:orientation="vertical" />
 </LinearLayout>

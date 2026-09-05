@@ -33,27 +33,37 @@ public class WidgetTheme {
     public int divider;
     public float fontScale = 1f;
 
-    /** widgetKey는 각 위젯 클래스의 widgetKey()가 주는 값(JS의 WIDGET_TYPES 키와 동일). */
+    /**
+     * widgetKey는 각 위젯 클래스의 widgetKey()가 주는 값(JS의 WIDGET_TYPES 키와 동일).
+     *
+     * 설정은 위젯 종류마다 따로 저장된다 — opts.per[widgetKey]에 그 위젯 값이 있으면 그걸 쓰고,
+     * 없으면 예전 방식의 전역 값(opts.bg / opts.accent / …)으로 자연스럽게 넘어간다.
+     */
     public static WidgetTheme from(JSONObject data, String widgetKey) {
         WidgetTheme t = new WidgetTheme();
         JSONObject opts = data == null ? null : data.optJSONObject("opts");
+        JSONObject per = null;
+        if (opts != null && widgetKey != null) {
+            JSONObject perAll = opts.optJSONObject("per");
+            if (perAll != null) per = perAll.optJSONObject(widgetKey);
+        }
 
-        String bg = opts == null ? "dark" : opts.optString("bg", "dark");
-        int opacity = opts == null ? 92 : opts.optInt("opacity", 92);
-        String accentHex = opts == null ? "" : opts.optString("accent", "");
-        String customBgHex = opts == null ? "" : opts.optString("customBg", "");
+        String bg = pick(per, opts, "bg", "dark");
+        int opacity = pickInt(per, opts, "opacity", 92);
+        String accentHex = pick(per, opts, "accent", "");
+        String customBgHex = pick(per, opts, "customBg", "");
 
         if (opacity < 0) opacity = 0;
         if (opacity > 100) opacity = 100;
         t.bgAlpha = Math.round(opacity * 255f / 100f);
 
-        if (opts != null && widgetKey != null) {
+        // 글씨 배율: 위젯별 값(per.fontScale) → 예전 방식(opts.fontScale[widgetKey]) → 1배
+        double scale = per != null ? per.optDouble("fontScale", Double.NaN) : Double.NaN;
+        if (Double.isNaN(scale) && opts != null && widgetKey != null) {
             JSONObject fontScales = opts.optJSONObject("fontScale");
-            if (fontScales != null) {
-                double v = fontScales.optDouble(widgetKey, 1.0);
-                if (!Double.isNaN(v) && v >= 0.7 && v <= 1.6) t.fontScale = (float) v;
-            }
+            if (fontScales != null) scale = fontScales.optDouble(widgetKey, Double.NaN);
         }
+        if (!Double.isNaN(scale) && scale >= 0.7 && scale <= 1.6) t.fontScale = (float) scale;
 
         if ("light".equals(bg)) {
             t.bgRes = R.drawable.widget_bg_light;
@@ -87,13 +97,19 @@ public class WidgetTheme {
         return t;
     }
 
-    /** 배경 이미지와 투명도를 적용한다. 모든 위젯 레이아웃이 같은 id를 쓴다. */
+    /**
+     * 배경 이미지와 투명도를 적용한다. 모든 위젯 레이아웃이 같은 id를 쓴다.
+     *
+     * 색 필터는 조건부로 걸면 안 된다 — 런처는 위젯 뷰를 새로 만들지 않고 재사용하면서
+     * RemoteViews의 명령만 덧씌우기 때문에, 사용자 지정 배경에서 걸어둔 필터가 나중에
+     * 라이트/다크로 바꿔도 그대로 남아 색이 안 돌아오는 문제가 있었다.
+     * 그래서 항상 호출하되, 필터가 필요 없을 땐 완전 투명(알파 0)을 넘긴다.
+     * (SRC_ATOP 합성에서 알파 0은 원본을 그대로 두는 것과 같아 사실상 "필터 없음"이 된다)
+     */
     public void applyBackground(RemoteViews views) {
         views.setImageViewResource(R.id.widget_bg, bgRes);
         views.setInt(R.id.widget_bg, "setImageAlpha", bgAlpha);
-        if (bgTint != null) {
-            views.setInt(R.id.widget_bg, "setColorFilter", bgTint);
-        }
+        views.setInt(R.id.widget_bg, "setColorFilter", bgTint != null ? bgTint : 0x00000000);
     }
 
     public void title(RemoteViews views, int viewId) {
@@ -115,6 +131,30 @@ public class WidgetTheme {
     /** 레이아웃 XML에 적어둔 기본 sp 크기에 이 위젯의 글씨 배율을 곱해서 적용한다. */
     public void size(RemoteViews views, int viewId, float baseSp) {
         views.setTextViewTextSize(viewId, TypedValue.COMPLEX_UNIT_SP, baseSp * fontScale);
+    }
+
+    /** 위젯별 설정(per) → 전역 설정(opts) → 기본값 순으로 문자열 값을 고른다. */
+    private static String pick(JSONObject per, JSONObject opts, String key, String fallback) {
+        if (per != null && per.has(key)) return per.optString(key, fallback);
+        if (opts != null && opts.has(key)) return opts.optString(key, fallback);
+        return fallback;
+    }
+
+    /** pick의 숫자 버전. */
+    private static int pickInt(JSONObject per, JSONObject opts, String key, int fallback) {
+        if (per != null && per.has(key)) return per.optInt(key, fallback);
+        if (opts != null && opts.has(key)) return opts.optInt(key, fallback);
+        return fallback;
+    }
+
+    /** 위젯별 on/off 설정(오늘 일정 표시 등)을 per → opts → 기본값 순으로 고른다. */
+    public static boolean flag(JSONObject data, String widgetKey, String key, boolean fallback) {
+        JSONObject opts = data == null ? null : data.optJSONObject("opts");
+        if (opts == null) return fallback;
+        JSONObject perAll = opts.optJSONObject("per");
+        JSONObject per = perAll == null ? null : perAll.optJSONObject(widgetKey);
+        if (per != null && per.has(key)) return per.optBoolean(key, fallback);
+        return opts.optBoolean(key, fallback);
     }
 
     /** "#RRGGBB" 문자열을 색으로. 비었거나 이상하면 기본값을 쓴다. */
