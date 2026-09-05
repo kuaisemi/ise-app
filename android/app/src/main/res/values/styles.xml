@@ -31,10 +31,11 @@
     <!--
       런처(스플래시) 테마. androidx core-splashscreen의 Theme.SplashScreen을 쓸 때는
       스플래시가 끝난 뒤 전환될 테마를 postSplashScreenTheme으로 반드시 지정해야 하는데
-      그게 빠져 있었다.
+      그게 빠져 있었다. API 31 미만 기기용 대체 배경 — 실제 아이콘까지 있는 제대로 된
+      스플래시는 values-v31/styles.xml 쪽이고, 여기는 옛날 기기에서 색만이라도 맞추는 용도.
     -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:windowBackground">@drawable/splash</item>
+        <item name="android:windowBackground">@color/splashBackground</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
         <item name="android:windowIsTranslucent">false</item>
         <item name="android:forceDarkAllowed">false</item>

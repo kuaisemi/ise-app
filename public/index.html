@@ -79,13 +79,19 @@ a{color:inherit;}
 
 #app{max-width:480px; margin:0 auto; min-height:100vh; position:relative; display:flex; flex-direction:column; background:var(--bg);}
 .circuit-bg{position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0;}
-/* 네이티브 스플래시(크림슨 배경 + 로고)가 사라진 뒤 JS가 뜨기 전까지의 틈을 메우는 화면.
-   테마가 아직 적용되기 전이라 --bg를 쓰면 기기별로 색이 들쭉날쭉해서, 스플래시와 똑같이
-   크림슨 배경 + 크림색 아이콘으로 고정해 자연스럽게 이어지게 한다. */
-.boot{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:#8C1D2B;}
-.boot .chip-spin{animation:spin 1.4s linear infinite; color:#F3E4D6;}
+/* 네이티브 스플래시가 사라진 뒤 JS가 뜨기 전까지의 틈을 메우는 화면. 테마가 아직
+   적용되기 전이라 --bg를 쓰면 기기별로 색이 들쭉날쭉해서, 기기의 라이트/다크 설정을
+   직접 따라간다(네이티브 스플래시와 동일한 기준 — 처음엔 크림슨이었는데 화면 가득
+   크림슨이 눈부시다는 피드백을 받아 흰/검으로 바꿨다). 아이콘은 흰 배경·검은 배경
+   둘 다에서 잘 보이는 크림슨으로 고정. */
+.boot{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:#000; color-scheme:dark;}
+.boot .chip-spin{animation:spin 1.4s linear infinite; color:#8C1D2B;}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.boot p{color:rgba(243,228,214,0.75); font-size:11.5px;}
+.boot p{color:rgba(255,255,255,0.6); font-size:11.5px;}
+@media (prefers-color-scheme: light){
+  .boot{background:#fff; color-scheme:light;}
+  .boot p{color:rgba(0,0,0,0.55);}
+}
 
 .auth-wrap{min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding:calc(32px + var(--safe-top)) 24px calc(32px + var(--safe-bottom)); position:relative; z-index:1;}
 .brand{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
@@ -599,6 +605,7 @@ const PATCH_NOTES = [
     '앱(APK) 상단바의 ISE 로고·날짜 글씨를 조금 더 키움',
     '웹에서 안드로이드 기기로 접속하면 APK 다운로드 안내가 뜨도록 추가 (iOS에는 안 뜸)',
     '홈 화면 설치(PWA) 아이콘도 새 칩 모양 디자인으로 교체',
+    '앱 실행 로딩 화면(스플래시) 배경을 크림슨 대신 기기 라이트/다크 설정을 따라가는 흰색·검은색으로 변경 (눈부심 개선)',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',

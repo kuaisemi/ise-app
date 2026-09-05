@@ -5,4 +5,9 @@
       index.html의 다크 테마 배경(#000000)과 맞춰 깜빡임이 없도록 한다.
     -->
     <color name="appBackground">#000000</color>
+
+    <!-- 스플래시 배경 — 크림슨은 너무 강렬해서 눈이 부시다는 피드백으로, 기기의
+      라이트/다크 설정을 그대로 따라가는 무채색(흰/검)으로 바꿨다. 이 파일(values/)이
+      라이트 쪽 기본값이고, values-night/colors.xml에 다크용 값이 따로 있다. -->
+    <color name="splashBackground">#FFFFFF</color>
 </resources>

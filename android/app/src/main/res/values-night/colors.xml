@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 다크 모드용 스플래시 배경. values/colors.xml의 설명 참고. -->
+    <color name="splashBackground">#000000</color>
+</resources>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 스플래시 전용 칩 아이콘 — 크림슨 한 색으로 고정한다. 배경이 흰/검 어느 쪽이든
+     (기기 라이트/다크 설정에 따라) 크림슨은 두 쪽 모두에서 잘 보이므로, 앱 아이콘처럼
+     배경별로 색을 바꿀 필요가 없다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M9,7 H15 A2,2 0 0 1 17,9 V15 A2,2 0 0 1 15,17 H9 A2,2 0 0 1 7,15 V9 A2,2 0 0 1 9,7 Z"
+        android:strokeColor="#8C1D2B"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path android:pathData="M9,3 V6" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M15,3 V6" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M9,18 V21" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M15,18 V21" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M3,9 H6" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M3,15 H6" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M18,9 H21" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+    <path android:pathData="M18,15 H21" android:strokeColor="#8C1D2B" android:strokeWidth="1.7" android:strokeLineCap="round" android:fillColor="#00000000" />
+</vector>
