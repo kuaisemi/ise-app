@@ -38,7 +38,7 @@ public abstract class BaseWidget extends AppWidgetProvider {
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         JSONObject data = WidgetData.load(ctx);
-        WidgetTheme theme = WidgetTheme.from(data, widgetKey());
+        WidgetTheme theme = WidgetTheme.from(ctx, data, widgetKey());
         for (int id : ids) {
             android.os.Bundle opts = mgr.getAppWidgetOptions(id);
             if (opts != null) {

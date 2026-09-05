@@ -1,5 +1,7 @@
 package com.semicon.kuise;
 
+import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.util.TypedValue;
 import android.widget.RemoteViews;
@@ -11,7 +13,7 @@ import org.json.JSONObject;
  *
  * 사용자가 앱(MY 탭 → 위젯 설정)에서 고른 값이 payload의 opts로 넘어온다.
  *   opacity   : 0~100 (카드 배경만 투명해지고 글씨는 그대로 선명하게 남는다)
- *   bg        : dark | light | custom
+ *   bg        : system | dark | light | custom (system은 기기의 현재 다크/라이트 설정을 따라간다)
  *   customBg  : "#RRGGBB" — bg가 custom일 때 쓰는 배경색 (앱에서 색상 선택기로 직접 고름)
  *   accent    : "#RRGGBB" (제목 옆 막대·강조 글씨 색)
  *   fontScale : { timetable, nextClass, meal, schedule, week, calendar, date } 각 0.7~1.6
@@ -39,7 +41,7 @@ public class WidgetTheme {
      * 설정은 위젯 종류마다 따로 저장된다 — opts.per[widgetKey]에 그 위젯 값이 있으면 그걸 쓰고,
      * 없으면 예전 방식의 전역 값(opts.bg / opts.accent / …)으로 자연스럽게 넘어간다.
      */
-    public static WidgetTheme from(JSONObject data, String widgetKey) {
+    public static WidgetTheme from(Context ctx, JSONObject data, String widgetKey) {
         WidgetTheme t = new WidgetTheme();
         JSONObject opts = data == null ? null : data.optJSONObject("opts");
         JSONObject per = null;
@@ -48,7 +50,11 @@ public class WidgetTheme {
             if (perAll != null) per = perAll.optJSONObject(widgetKey);
         }
 
-        String bg = pick(per, opts, "bg", "dark");
+        String bg = pick(per, opts, "bg", "system");
+        if ("system".equals(bg)) {
+            int mode = ctx.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+            bg = mode == Configuration.UI_MODE_NIGHT_YES ? "dark" : "light";
+        }
         int opacity = pickInt(per, opts, "opacity", 92);
         String accentHex = pick(per, opts, "accent", "");
         String customBgHex = pick(per, opts, "customBg", "");

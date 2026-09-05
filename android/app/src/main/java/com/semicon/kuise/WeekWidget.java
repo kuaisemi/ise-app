@@ -77,9 +77,17 @@ public class WeekWidget extends BaseWidget {
             return;
         }
 
-        // 보여줄 시간 범위 — 수업이 있는 구간만 정각 단위로 잘라 쓴다 (빈 새벽/밤을 안 띄우려고).
+        boolean showFullDay = WidgetTheme.flag(data, widgetKey(), "weekShowFullDay", false);
+        boolean showRoom = WidgetTheme.flag(data, widgetKey(), "weekShowRoom", false);
+
+        // 보여줄 시간 범위 — 기본은 수업이 있는 구간만 정각 단위로 잘라 쓴다(빈 새벽/밤을 안 띄우려고).
+        // "시간 전체 표시"를 켜면 9~18시를 기본으로 깔되, 그 밖에 수업이 있으면 그만큼 더 넓힌다.
         int startHour = minStart == Integer.MAX_VALUE ? DEFAULT_START_HOUR : minStart / 60;
         int endHour = maxEnd == Integer.MIN_VALUE ? DEFAULT_END_HOUR : (maxEnd + 59) / 60;
+        if (showFullDay) {
+            startHour = Math.min(startHour, DEFAULT_START_HOUR);
+            endHour = Math.max(endHour, DEFAULT_END_HOUR);
+        }
         if (endHour <= startHour) endHour = startHour + 1;
         int startMin = startHour * 60;
         int totalMin = (endHour - startHour) * 60;
@@ -147,8 +155,10 @@ public class WeekWidget extends BaseWidget {
                     chip.setTextViewText(R.id.chip_subject, c.optString("subject", ""));
                     theme.size(chip, R.id.chip_subject, 9.5f);
                     if (!canSize || blockDp >= TIME_LINE_MIN_DP * theme.fontScale) {
+                        String room = showRoom ? c.optString("room", "") : "";
+                        String timeText = room.isEmpty() ? c.optString("startLabel", "") : c.optString("startLabel", "") + " · " + room;
                         chip.setViewVisibility(R.id.chip_time, View.VISIBLE);
-                        chip.setTextViewText(R.id.chip_time, c.optString("startLabel", ""));
+                        chip.setTextViewText(R.id.chip_time, timeText);
                         theme.size(chip, R.id.chip_time, 8f);
                     } else {
                         chip.setViewVisibility(R.id.chip_time, View.GONE);

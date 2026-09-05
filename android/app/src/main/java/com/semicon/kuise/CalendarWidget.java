@@ -80,7 +80,10 @@ public class CalendarWidget extends BaseWidget {
         for (int i = 0; i < 7; i++) {
             RemoteViews head = new RemoteViews(ctx.getPackageName(), R.layout.widget_cal_head);
             head.setTextViewText(R.id.head_text, WEEK_HEAD[i]);
-            head.setTextColor(R.id.head_text, theme.textSub);
+            // 날짜 칸과 같은 기준: 일요일 빨강 · 토요일 파랑 (앱의 학사 달력 요일 머리글과 동일)
+            if (i == 0) head.setTextColor(R.id.head_text, 0xFFE05260);
+            else if (i == 6) head.setTextColor(R.id.head_text, 0xFF5B8DEF);
+            else head.setTextColor(R.id.head_text, theme.textSub);
             theme.size(head, R.id.head_text, 9f);
             views.addView(R.id.cal_head, head);
         }

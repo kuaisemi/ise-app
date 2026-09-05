@@ -39,13 +39,27 @@ public class CalendarWideWidget extends BaseWidget {
         theme.title(views, R.id.wide_today);
         theme.size(views, R.id.wide_today, 13f);
 
-        // 오늘 걸쳐 있는 일정 (없으면 "오늘 일정이 없습니다")
-        JSONArray todayEvents = data.optJSONArray("todayEvents");
-        int count = todayEvents == null ? 0 : Math.min(todayEvents.length(), EV_IDS.length);
+        // 오늘 걸쳐 있는 일정 — 학사일정/학생회 일정을 설정에서 각각 켜고 끌 수 있다.
+        boolean showOfficial = WidgetTheme.flag(data, widgetKey(), "calendarShowOfficial", true);
+        boolean showCouncil = WidgetTheme.flag(data, widgetKey(), "calendarShowCouncil", true);
+        JSONArray todayEventsRaw = data.optJSONArray("todayEvents");
+        java.util.List<String> filtered = new java.util.ArrayList<>();
+        if (todayEventsRaw != null) {
+            for (int i = 0; i < todayEventsRaw.length() && filtered.size() < EV_IDS.length; i++) {
+                JSONObject ev = todayEventsRaw.optJSONObject(i);
+                if (ev == null) continue;
+                boolean official = ev.optBoolean("official", true);
+                if (official && !showOfficial) continue;
+                if (!official && !showCouncil) continue;
+                String title = ev.optString("title", "");
+                if (!title.isEmpty()) filtered.add(title);
+            }
+        }
+        int count = filtered.size();
         for (int i = 0; i < EV_IDS.length; i++) {
             if (i < count) {
                 views.setViewVisibility(EV_IDS[i], View.VISIBLE);
-                views.setTextViewText(EV_IDS[i], "· " + todayEvents.optString(i, ""));
+                views.setTextViewText(EV_IDS[i], "· " + filtered.get(i));
                 theme.body(views, EV_IDS[i]);
                 theme.size(views, EV_IDS[i], 11.5f);
             } else {

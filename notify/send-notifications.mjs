@@ -45,6 +45,12 @@ function isDue(targetH, targetM, graceMinutes = 60) {
   const target = targetH * 60 + targetM;
   return minutesNow >= target && minutesNow - target <= graceMinutes;
 }
+// 22시~다음날 7시 사이(KST)엔, 야간 알림에 동의한 사람에게만 보낸다 — 동의 안 한 사람은
+// 그 시간에 발송된 공지·투표 푸시를 아예 못 받고(나중에 다시 보내지 않음), 앱을 켜면 그때 보게 된다.
+function isQuietHour() {
+  const h = kstNow().getUTCHours();
+  return h >= 22 || h < 7;
+}
 
 const live = (arr) => (arr || []).filter((x) => x && x.id && !x.deleted);
 
@@ -135,6 +141,7 @@ async function main() {
   // fcmToken(단일 필드)은 구버전 클라이언트 호환용.
   const tokensBy = { notice: [], poll: [], meal: [] };
   const bugAlertTokens = []; // 개발자 · 학생회장: 버그 제보는 알림 설정과 무관하게 항상 받음
+  const nightOkTokens = new Set(); // 야간(22시~7시) 알림에 동의한 토큰만
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
@@ -146,6 +153,7 @@ async function main() {
       if (prefs.notice) tokensBy.notice.push(t);
       if (prefs.poll) tokensBy.poll.push(t);
       if (prefs.meal) tokensBy.meal.push(t);
+      if (prefs.night) nightOkTokens.add(t);
       if (u.role === 'developer' || u.role === 'president') bugAlertTokens.push(t);
     }
   });
@@ -154,7 +162,14 @@ async function main() {
   let sentCount = 0;
 
   async function send(category, title, body) {
-    const tokens = tokensBy[category];
+    let tokens = tokensBy[category];
+    if (isQuietHour()) {
+      tokens = tokens.filter((t) => nightOkTokens.has(t));
+      if (!tokens.length) {
+        console.log(`(야간 시간대 — ${category} 알림에 동의한 사람이 없어 발송 생략)`);
+        return;
+      }
+    }
     if (!tokens.length) return;
     for (let i = 0; i < tokens.length; i += CHUNK) {
       const batch = tokens.slice(i, i + CHUNK);

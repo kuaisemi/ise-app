@@ -36,18 +36,28 @@ public class DateWidget extends BaseWidget {
 
         boolean showEvents = WidgetTheme.flag(data, widgetKey(), "dateShowEvents", true);
 
-        JSONArray events = showEvents ? data.optJSONArray("todayEvents") : null;
-        int count = events == null ? 0 : Math.min(events.length(), 2);
+        JSONArray eventsRaw = showEvents ? data.optJSONArray("todayEvents") : null;
+        String t0 = "", t1 = "";
+        int count = 0;
+        if (eventsRaw != null) {
+            for (int i = 0; i < eventsRaw.length() && count < 2; i++) {
+                JSONObject ev = eventsRaw.optJSONObject(i);
+                String title = ev == null ? "" : ev.optString("title", "");
+                if (title.isEmpty()) continue;
+                if (count == 0) t0 = title; else t1 = title;
+                count++;
+            }
+        }
 
         views.setViewVisibility(R.id.date_events, count > 0 ? View.VISIBLE : View.GONE);
         if (count > 0) {
-            views.setTextViewText(R.id.date_event_0, "· " + events.optString(0, ""));
+            views.setTextViewText(R.id.date_event_0, "· " + t0);
             theme.sub(views, R.id.date_event_0);
             theme.size(views, R.id.date_event_0, 11f);
         }
         views.setViewVisibility(R.id.date_event_1, count > 1 ? View.VISIBLE : View.GONE);
         if (count > 1) {
-            views.setTextViewText(R.id.date_event_1, "· " + events.optString(1, ""));
+            views.setTextViewText(R.id.date_event_1, "· " + t1);
             theme.sub(views, R.id.date_event_1);
             theme.size(views, R.id.date_event_1, 11f);
         }

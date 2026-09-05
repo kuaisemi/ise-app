@@ -50,7 +50,7 @@
   color-scheme: light;      /* 구형 파서용 폴백 */
   color-scheme: only light; /* 크롬 Auto Dark Theme 차단 (미지원 시 위 값이 유지됨) */
   --crimson:#8C1D2B; --crimson-light:#A72A3A; --crimson-glow:rgba(140,29,43,0.18);
-  --bg:#F2F4F6; --surface:#FFFFFF; --surface-2:#F2F4F6; --surface-3:#E8EBEE;
+  --bg:#F2F4F6; --surface:#FFFFFF; --surface-2:#E9EDF1; --surface-3:#E1E5EA;
   --border:#E5E8EB; --border-light:#D1D6DB;
   --text:#191F28; --text-dim:#6B7684; --text-faint:#8B95A1;
   --teal:#A9762A; --teal-ink:#FFFFFF; --gold-light:#8C6320;
@@ -104,6 +104,8 @@ a{color:inherit;}
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238B93A3' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 12px center;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
+.field.field-invalid input,.field.field-invalid select,.field.field-invalid textarea{border-color:var(--danger);}
+.field-error{color:var(--danger-text); font-size:11px; font-weight:600; margin-top:5px;}
 .field-row{display:flex; gap:10px;}
 .field-row .field{flex:1;}
 /* 회원가입 화면의 안내 문구. 테두리를 두르고 글자 전체를 강조색으로 칠하면 입력 필드보다
@@ -137,13 +139,16 @@ a{color:inherit;}
 .topbar-row{display:flex; align-items:center; justify-content:space-between;}
 .brand-mini{display:flex; align-items:center; gap:8px;}
 .brand-mini .mark{color:var(--teal);}
+[data-theme="light"] .brand-mini .mark{color:var(--crimson);}
 .brand-mini b{font-size:13.5px; font-weight:800;}
 .btn-settings-mini{background:transparent; border:none; padding:4px; margin-left:-2px; color:var(--text-faint); display:flex; align-items:center; cursor:pointer;}
 .btn-settings-mini:active{color:var(--teal); transform:scale(0.9);}
 .top-actions{display:flex; align-items:center; gap:6px;}
-.btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; padding:4px 8px; font-size:10.5px; font-weight:700; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; gap:3px;}
-.btn-top-refresh:active{transform:scale(0.95); color:var(--teal);}
-.date-pill{font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:4px 8px; border-radius:20px;}
+.btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; width:29px; height:29px; padding:0; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center;}
+.btn-top-refresh:active{transform:scale(0.9); color:var(--teal);}
+.btn-top-bell{position:relative;}
+.btn-top-bell .bell-dot{position:absolute; top:5px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--crimson); border:1.5px solid var(--surface-2);}
+.date-pill{font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:4px 8px; border-radius:20px; cursor:pointer;}
 .role-badge{font-size:9.5px; font-weight:700; padding:3px 8px; border-radius:20px;}
 .role-badge.student{background:rgba(var(--blue-rgb),.15); color:var(--blue); border:1px solid rgba(var(--blue-rgb),.3);}
 .role-badge.council,.role-badge.director,.role-badge.vice,.role-badge.president{background:rgba(140,29,43,.16); color:var(--crimson-text,#FF8D9A); border:1px solid rgba(140,29,43,.4);}
@@ -162,7 +167,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .section-title:first-child{margin-top:2px;}
 .section-title .count{font-family:var(--font-mono); color:var(--teal); margin-left:4px;}
 
-.card{background:var(--surface); border:none; border-radius:var(--radius); padding:18px;}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px;}
 .card + .card{margin-top:10px;}
 .hero-greet{background:linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%); border:1px solid var(--border); border-radius:var(--radius-lg); padding:15px; position:relative; overflow:hidden;}
 .hero-greet .greet-name{font-size:16px; font-weight:800; margin:0 0 3px;}
@@ -208,20 +213,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .cal-item-body b{display:block; font-size:14.5px; font-weight:800; line-height:1.4; word-break:keep-all; overflow-wrap:break-word;}
 .cal-item-body .meta{display:block; margin-top:2px;}
 .list-item .body{font-size:11.5px; color:var(--text); margin-top:6px; line-height:1.6; white-space:pre-wrap;}
-/* 홈 화면의 "학생회 공지" — 제목만 큼직하게 나열하면 그냥 링크 목록처럼 보여서,
-   내용 두 줄 미리보기와 작성자·날짜 줄을 함께 두어 실제 공지문처럼 읽히게 한다. */
-.home-notice{padding:12px 0; cursor:pointer;}
-.home-notice .title-line{gap:6px; margin-bottom:4px; flex-wrap:nowrap; align-items:flex-start;}
-.home-notice .title-line b{flex:1; min-width:0; font-size:13px; font-weight:800; line-height:1.45;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
-.home-notice-chev{flex-shrink:0; color:var(--text-faint); line-height:1.45;}
-.home-notice-preview{margin:0 0 6px; font-size:11.5px; line-height:1.6; color:var(--text-dim);
-  white-space:pre-wrap; word-break:break-word;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
-.home-notice .meta{font-size:10.5px;}
-.home-notice-thumb{width:100%; max-height:130px; object-fit:cover; border-radius:9px;
-  border:1px solid var(--border); margin-top:8px; display:block;}
-.home-notice-pin{font-size:9.5px; font-weight:800; color:var(--amber); flex-shrink:0; line-height:1.45;}
+/* 홈 화면의 "학생회 공지" — 학사일정 목록과 같은 형태로: 제목 왼쪽, 날짜 오른쪽, 누가 올렸는지는 안 보여준다. */
+.home-notice{cursor:pointer; border-bottom:1px solid var(--hairline);}
+.home-notice:last-child{border-bottom:none;}
 .one-line{min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 
 .subtabs{display:flex; gap:5px; margin-bottom:14px; background:var(--surface-2); padding:4px; border-radius:12px; border:1px solid var(--border); overflow-x:auto;}
@@ -559,8 +553,27 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.1';
+const APP_VERSION = 'Beta 0.3.3';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.3', date:'2026-09-05', items:[
+    '알림 벨에서 알림 하나씩, 또는 "모두 지우기"로 지울 수 있음',
+    '홈 화면 학생회 공지 줄 간격을 줄이고, 날짜 대신 올라온 시각까지 함께 표시',
+  ]},
+  { version:'Beta 0.3.2', date:'2026-09-05', items:[
+    '홈 화면 위젯 배경에 "기기 설정" 추가 — 폰의 라이트/다크 설정을 그대로 따라가는 옵션',
+    '위젯 종류 선택 목록을 시간표류 · 학식 · 일정/달력류로 묶어서 정리',
+    '주간 시간표 위젯에 "시간 전체 표시(9~18시 고정)" · "강의실 표시" 옵션 추가',
+    '"달력(가로형)" 위젯에서 학사일정 · 학생회 일정 표시 여부를 각각 따로 켜고 끌 수 있음',
+    '달력 위젯 요일 머리글도 날짜 칸처럼 일요일 빨강 · 토요일 파랑으로, "달력" 이름 표시는 제거해 공간 확보',
+    '라이트 모드 상단 ISE 아이콘 색을 크림슨으로 — 흰 배경에서 애매하게 옅어 보이던 문제 해결',
+    '라이트 모드에서 배경과 같은 색이라 안 보이던 버튼(식단 버튼 등) · 패치노트 박스 테두리 수정',
+    '전체 가입자 목록에 "지금 활동중" 표시 추가 (5분 이내 접속)',
+    '필수 입력란을 비우고 제출하면 기기마다 다르게 뜨던 경고 대신, 앱 안에서 빨간 안내 문구로 통일',
+    '야간(22시~7시) 알림 동의 설정 추가 — 동의 안 하면 그 시간대 공지 · 투표 푸시는 안 오고 아침에 앱에서 확인',
+    '상단바에 알림 벨 추가 — 최근 48시간 동안의 공지 · 투표를 모아서 볼 수 있음. 새로고침 버튼은 아이콘만 남기고, 날짜를 누르면 학사 달력으로 이동',
+    '홈 화면 학생회 공지: 작성자 표시 제거, 제목 + 날짜만 보이게 하고 최대 5개까지 표시',
+    '시간표 화면에서 캡처 모드 위아래 여백과 칸 높이가 폰 화면 비율에 맞춰 자동으로 조절됨, 일반 시간표 화면은 상단 로고를 숨겨 화면을 더 넓게 씀',
+  ]},
   { version:'Beta 0.3.1', date:'2026-09-05', items:[
     '주간 시간표 위젯을 앱 시간표 화면처럼 다시 만듦 — 왼쪽 시간축을 두고 수업이 실제 시각 위치에, 수업 시간만큼의 높이로 놓여요',
     '주간 시간표 위젯에서 요일 아래 날짜 표시 제거',
@@ -1555,13 +1568,14 @@ function getNotifyPrefs(){
     notice: localGet('notif_notice', true),
     poll: localGet('notif_poll', true),
     meal: localGet('notif_meal', false),
+    night: localGet('notif_night', false),
     timetable: localGet('notif_timetable', false),
     timetableHour: localGet('notif_timetable_hour', 8),
   };
 }
 // 서버(GitHub Actions)가 "누구에게 보낼지" 알아야 하는 항목만 Firestore에도 저장한다.
 // 시간표 알림은 기기 로컬 알림이라 서버가 알 필요 없음.
-const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'meal'];
+const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'meal', 'night'];
 async function setNotifyPref(key, value){
   localSet('notif_'+key, value);
   if(SERVER_NOTIFY_KEYS.includes(key) && state.user){
@@ -1703,6 +1717,7 @@ async function setupForegroundMessageListener(){
    투명도·배경·강조색은 기기마다 취향이 다르고 홈 화면 배경에 따라 어울리는 값이 달라서
    사용자가 직접 고르게 한다. 기기에만 저장하면 되는 값이라 localStorage에 둔다. */
 const WIDGET_BGS = [
+  { key:'system',  label:'기기 설정' },
   { key:'dark',    label:'다크' },
   { key:'light',   label:'라이트' },
   { key:'custom',  label:'사용자 지정' },
@@ -1740,9 +1755,12 @@ function hexToHsv(hex){
 // 위젯 7종 각각 따로 글씨 크기를 키우거나 줄일 수 있게 한다 (예: 달력은 칸이 작아서 크게,
 // 다음 수업은 이미 커서 그대로 두는 식). 목록/키는 네이티브(WidgetTheme.java)와 맞춰야 한다.
 const WIDGET_TYPES = [
-  ['timetable','오늘의 시간표'], ['nextClass','다음 수업'], ['meal','오늘의 학식'],
-  ['schedule','일정 · 메모'], ['week','주간 시간표'], ['calendar','달력'],
-  ['calendarWide','달력 (가로형)'], ['date','오늘 날짜'],
+  // 시간표류
+  ['timetable','오늘의 시간표'], ['nextClass','다음 수업'], ['week','주간 시간표'],
+  // 학식
+  ['meal','오늘의 학식'],
+  // 일정 · 달력류
+  ['schedule','일정 · 메모'], ['calendar','달력'], ['calendarWide','달력 (가로형)'], ['date','오늘 날짜'],
 ];
 // 위젯 설정은 위젯 종류마다 따로 저장한다 — 달력은 라이트로, 시간표는 다크로 쓰고 싶을 수
 // 있어서. opts.per[위젯키]에 그 위젯의 값만 담고, 없는 값은 예전 전역 설정을 그대로 물려받는다
@@ -1758,7 +1776,11 @@ function getWidgetSettings(key){
     opacity: typeof p.opacity === 'number' ? p.opacity : o.opacity,
     fontScale: (typeof fs === 'number' && fs>=0.7 && fs<=1.6) ? fs : 1,
     dateShowEvents: typeof p.dateShowEvents === 'boolean' ? p.dateShowEvents : o.dateShowEvents,
+    weekShowFullDay: typeof p.weekShowFullDay === 'boolean' ? p.weekShowFullDay : false,
+    weekShowRoom: typeof p.weekShowRoom === 'boolean' ? p.weekShowRoom : false,
     calendarShowMemo: typeof p.calendarShowMemo === 'boolean' ? p.calendarShowMemo : o.calendarShowMemo,
+    calendarShowOfficial: typeof p.calendarShowOfficial === 'boolean' ? p.calendarShowOfficial : true,
+    calendarShowCouncil: typeof p.calendarShowCouncil === 'boolean' ? p.calendarShowCouncil : true,
   };
 }
 function setWidgetSetting(key, patch){
@@ -1771,7 +1793,7 @@ function getWidgetOpts(){
   const o = localGet('widget_opts', null) || {};
   return {
     opacity: typeof o.opacity === 'number' ? o.opacity : 92,
-    bg: WIDGET_BGS.some(b=>b.key===o.bg) ? o.bg : 'dark',
+    bg: WIDGET_BGS.some(b=>b.key===o.bg) ? o.bg : 'system',
     accent: o.accent || WIDGET_ACCENTS[0],
     customBg: isValidHexColor(o.customBg) ? o.customBg : WIDGET_BG_DEFAULT_CUSTOM,
     dateShowEvents: o.dateShowEvents !== false,
@@ -2031,6 +2053,26 @@ function renderWidgetSettingsTab(){
           <span class="notify-label"><span class="notify-label-text"><b>오늘 할 일 표시</b><small>내가 직접 적어둔 메모만 (학사일정 아님)</small></span></span>
           <button type="button" class="btn ${w.calendarShowMemo?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-memo">${w.calendarShowMemo?'켜짐':'꺼짐'}</button>
         </div>` : ''}
+
+        ${key==='calendarWide' ? `
+        <div class="notify-row" style="padding:8px 2px 0;">
+          <span class="notify-label"><span class="notify-label-text"><b>학사일정 표시</b><small>오늘 일정 목록에 학사일정 포함</small></span></span>
+          <button type="button" class="btn ${w.calendarShowOfficial?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-official">${w.calendarShowOfficial?'켜짐':'꺼짐'}</button>
+        </div>
+        <div class="notify-row" style="padding:8px 2px 0;">
+          <span class="notify-label"><span class="notify-label-text"><b>학생회 일정 표시</b><small>오늘 일정 목록에 학생회 일정 포함</small></span></span>
+          <button type="button" class="btn ${w.calendarShowCouncil?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-council">${w.calendarShowCouncil?'켜짐':'꺼짐'}</button>
+        </div>` : ''}
+
+        ${key==='week' ? `
+        <div class="notify-row" style="padding:8px 2px 0;">
+          <span class="notify-label"><span class="notify-label-text"><b>시간 전체 표시</b><small>수업 있는 시간대만 대신 9시~18시 고정으로</small></span></span>
+          <button type="button" class="btn ${w.weekShowFullDay?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-fullday">${w.weekShowFullDay?'켜짐':'꺼짐'}</button>
+        </div>
+        <div class="notify-row" style="padding:8px 2px 0;">
+          <span class="notify-label"><span class="notify-label-text"><b>강의실 표시</b><small>칸이 좁으면 자동으로 생략돼요</small></span></span>
+          <button type="button" class="btn ${w.weekShowRoom?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-room">${w.weekShowRoom?'켜짐':'꺼짐'}</button>
+        </div>` : ''}
       </div>`;
     })()}`;
 }
@@ -2077,6 +2119,7 @@ async function pushWidgetData(){
     const weekClasses = [0,1,2,3,4].map(d =>
       ttSlots.filter(c=>c.day===d).sort((a,b)=>a.start-b.start).map(c=>({
         subject: c.subject || '',
+        room: c.room || '',
         color: c.color || COLORS[0].hex,
         start: c.start, end: c.end,
         startLabel: minutesToLabel(c.start),
@@ -2100,13 +2143,18 @@ async function pushWidgetData(){
       if(d.slice(0,7) === ym && (state.memos[d]||'').trim()) markedDates[d] = true;
     });
 
-    // "오늘 날짜" 위젯용 — 오늘에 실제로 걸쳐있는 학사일정만 간략히
+    // "오늘 날짜"/"달력(가로형)" 위젯용 — 오늘에 실제로 걸쳐있는 일정.
+    // 학사일정(official)과 학생회 일정(council)을 구분해서 넘겨줘야, 위젯 쪽에서 각각 따로
+    // 켜고 끌 수 있다 (markedDates에 점 찍을 때 쓰는 기준과 동일).
     const todayEvents = live(state.calendar)
       .filter(ev=>ev.startDate<=today && ev.endDate>=today)
       .sort((a,b)=>a.startDate.localeCompare(b.startDate))
-      .slice(0,3)
-      .map(ev=>ev.title||'')
-      .filter(Boolean);
+      .map(ev=>({
+        title: ev.title || '',
+        official: ev.source==='official' || (!ev.source && ev.category!=='council'),
+      }))
+      .filter(e=>e.title)
+      .slice(0,10);
 
     const payload = {
       updatedAt: now(),
@@ -2151,6 +2199,70 @@ function applyWidgetDeepLink(target){
     state.infoTab = 'examCal';
     renderShell();
   }
+}
+
+/* ===== 상단 알림 벨 — 최근 48시간 알림 모음 =====
+   실제 푸시는 GitHub Actions 크론(notify/send-notifications.mjs)이 서버에서 보내고 앱은
+   모른다. 그래서 여기서는 "그 크론이 보냈을 법한 것"을 이 기기가 이미 갖고 있는 데이터
+   (공지·투표 createdAt)로 다시 추려서 보여준다 — 새 서버 저장소 없이 개인별 최근 알림
+   내역을 훑어볼 수 있게 하는 목적. */
+const NOTIF_FEED_WINDOW_MS = 48*60*60*1000;
+function getDismissedNotifIds(){ return localGet('notif_feed_dismissed', []); }
+function dismissNotification(id){
+  const cur = getDismissedNotifIds();
+  if(!cur.includes(id)) localSet('notif_feed_dismissed', [...cur, id].slice(-200));
+}
+function clearAllNotifications(){
+  const ids = getNotificationFeed().map(it=>it.id);
+  localSet('notif_feed_dismissed', [...new Set([...getDismissedNotifIds(), ...ids])].slice(-200));
+}
+function getNotificationFeed(){
+  const cutoff = now() - NOTIF_FEED_WINDOW_MS;
+  const dismissed = new Set(getDismissedNotifIds());
+  const items = [];
+  live(state.notices).forEach(n=>{
+    const ts = n.createdAt || (n.date ? new Date(n.date+'T00:00:00').getTime() : 0);
+    const id = 'notice_'+n.id;
+    if(ts && ts >= cutoff && !dismissed.has(id)) items.push({ id, ts, icon:ICON.megaphone, title:'새 공지', body:n.title||'', action:'go-notice-tab' });
+  });
+  live(state.polls).forEach(p=>{
+    const ts = p.createdAt || (p.date ? new Date(p.date+'T00:00:00').getTime() : 0);
+    const id = 'poll_'+p.id;
+    if(ts && ts >= cutoff && !dismissed.has(id)) items.push({ id, ts, icon:ICON.ballot, title:'새 투표', body:p.question||'', action:'go-poll-page' });
+  });
+  return items.sort((a,b)=>b.ts-a.ts);
+}
+function hasUnseenNotifications(){
+  const feed = getNotificationFeed();
+  if(!feed.length) return false;
+  const lastSeen = localGet('notif_feed_seen_at', 0);
+  return feed[0].ts > lastSeen;
+}
+function markNotificationsSeen(){
+  localSet('notif_feed_seen_at', now());
+}
+function notifFeedModal(){
+  const feed = getNotificationFeed();
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.bell} 최근 알림</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div class="row-between" style="margin:-4px 0 10px;">
+      <p style="margin:0; font-size:10.5px; color:var(--text-faint);">지난 48시간 동안의 알림이에요.</p>
+      ${feed.length ? `<button type="button" class="btn btn-ghost btn-sm" data-action="clear-all-notifs" style="width:auto; padding:4px 10px; font-size:10.5px;">모두 지우기</button>` : ''}
+    </div>
+    <div style="max-height:60vh; overflow-y:auto;">
+      ${feed.length ? feed.map(it=>`
+        <div class="list-item" style="padding-right:0;">
+          <div class="row-between" style="gap:8px; align-items:flex-start;">
+            <div style="min-width:0; flex:1; cursor:pointer;" data-action="${it.action}">
+              <div class="title-line">${it.icon}<b>${escapeHtml(it.title)}</b></div>
+              <div class="meta" style="margin-top:2px; color:var(--text-dim); font-family:var(--font-display);">${escapeHtml(it.body)}</div>
+              <div class="meta" style="margin-top:2px;">${fmtDateTime(it.ts)}</div>
+            </div>
+            <button type="button" class="btn-settings-mini" data-action="dismiss-notif" data-id="${escapeHtml(it.id)}" title="지우기" style="flex-shrink:0;">${ICON.close}</button>
+          </div>
+        </div>`).join('') : `<div class="empty"><p>최근 48시간 동안 온 알림이 없어요.</p></div>`}
+    </div>`;
 }
 
 // "오늘의 시간표" 알림은 앱(APK)에서만 동작하는 기기 로컬 알림. 브라우저/PWA에서는 건너뜀.
@@ -2389,14 +2501,16 @@ function renderShell(){
   const dateLabel = `${d.getMonth()+1}.${d.getDate()} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
   APP.innerHTML = `
     <div class="shell">
-      <div class="topbar">
-        <div class="topbar-row">
+      <div class="topbar" style="${state.view==='timetable' ? 'padding-top:calc(6px + var(--safe-top)); padding-bottom:6px;' : ''}">
+        <div class="topbar-row" style="${state.view==='timetable' ? 'justify-content:flex-end;' : ''}">
+          ${state.view!=='timetable' ? `
           <div class="brand-mini"><span class="mark">${ICON.chipMini}</span><b>ISE</b>
             <span class="role-badge ${myRole()}">${roleLabel(myRole())}</span>
-          </div>
-          <div class="top-actions">
-            <button type="button" class="btn-top-refresh" data-action="global-refresh" title="새로고침">${ICON.refresh} <span style="font-size:10.5px;">새로고침</span></button>
-            <span class="date-pill">${dateLabel}</span>
+          </div>` : ''}
+          <div class="top-actions" style="display:flex; align-items:center; gap:6px;">
+            <button type="button" class="btn-top-refresh" data-action="global-refresh" title="새로고침">${ICON.refresh}</button>
+            <button type="button" class="btn-top-refresh btn-top-bell" data-action="open-notif-feed" title="알림">${ICON.bell}${hasUnseenNotifications() ? '<span class="bell-dot"></span>' : ''}</button>
+            <span class="date-pill" data-action="go-calendar-tab">${dateLabel}</span>
           </div>
         </div>
       </div>
@@ -2473,7 +2587,7 @@ function renderHome(){
   const upcoming = live(state.calendar).filter(ev=>ev.endDate>=todayStr())
     .sort((a,b)=>a.startDate.localeCompare(b.startDate)).slice(0,3);
   const recentNotices = live(state.notices)
-    .sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||String(b.date).localeCompare(String(a.date))).slice(0,2);
+    .sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||String(b.date).localeCompare(String(a.date))).slice(0,5);
   
   const nowTs = now();
   const activePolls = live(state.polls).filter(p=>{
@@ -2581,15 +2695,12 @@ function renderHome(){
     <div class="section-title">학생회 공지</div>
     <div class="card">
       ${recentNotices.length ? recentNotices.map(n=>`
-        <div class="list-item home-notice" data-action="go-notice-tab">
-          <div class="title-line">
-            ${n.pinned?`<span class="home-notice-pin">${ICON.pin} 고정</span>`:''}
-            <b>${escapeHtml(n.title)}</b>
-            <span class="home-notice-chev">${ICON.chevR}</span>
+        <div class="row-between home-notice" data-action="go-notice-tab" style="padding:4px 0; gap:8px; min-width:0;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0; flex:1; flex-wrap:nowrap;">
+            ${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}
+            <b class="one-line" style="font-size:12.5px; font-weight:700;">${escapeHtml(n.title)}</b>
           </div>
-          ${n.content ? `<p class="home-notice-preview">${escapeHtml(n.content)}</p>` : ''}
-          <div class="meta">${fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole)} · ${fmtDateShort(n.date)}</div>
-          ${n.imageUrl ? `<img class="home-notice-thumb" src="${escapeHtml(n.imageUrl)}" alt="공지 사진">` : ''}
+          <span style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateTime(n.createdAt || n.date)}</span>
         </div>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">등록된 공지가 없습니다.</p>`}
     </div>
   `;
@@ -2627,6 +2738,13 @@ function ttMoreMenuModal(){
   `;
 }
 
+// 폰마다 화면 비율(세로/가로)이 달라서, 그 비율만큼 시간표 한 칸 높이를 키우거나 줄인다 —
+// 화면이 길쭉한 폰일수록 칸이 더 커져서 화면을 더 꽉 채우고, 정사각형에 가까운 폰은 원래 크기를 유지.
+// 기준값(1.9)은 흔한 20:9 근처 화면 비율.
+function deviceRatioScale(min=0.85, max=1.4){
+  const ratio = (typeof window!=='undefined' && window.innerWidth) ? window.innerHeight/window.innerWidth : 1.9;
+  return Math.max(min, Math.min(max, ratio/1.9));
+}
 function renderTimetable(isCapture=false){
   const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
   const visibleEnd = Math.min(TIME_END, Math.max(TIMETABLE_VISIBLE_END, Math.ceil(latestEnd/60)*60));
@@ -2675,7 +2793,7 @@ function renderTimetable(isCapture=false){
     const t = new Date();
     const minsNow = t.getHours()*60 + t.getMinutes();
     if(minsNow>=TIME_START && minsNow<=visibleEnd){
-      const top = 24 + ((minsNow-TIME_START)/TIMETABLE_GRID_STEP)*TIMETABLE_ROW_PX;
+      const top = 24 + ((minsNow-TIME_START)/TIMETABLE_GRID_STEP)*Math.round(TIMETABLE_ROW_PX*deviceRatioScale());
       nowLine = `<div class="tt-now-line" style="top:${top}px; background:${escapeHtml(o.currentTimeColor||'#FF6B6B')}; color:${escapeHtml(o.currentTimeColor||'#FF6B6B')};"></div>`;
     }
   }
@@ -2695,7 +2813,7 @@ function renderTimetable(isCapture=false){
       </style>
       <div class="tt-card-container capture-grid-scope" style="background:${capBg}; border:2px solid var(--capture-border); box-shadow:none;">
         <div class="tt-wrap" style="max-height:none; background:${capBg};">
-          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:11px;">
+          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(11*deviceRatioScale()*1.15)}px;">
             <div class="tt-head" style="grid-column:1; background:${capBg};"></div>
             ${heads}${timeLabels}${cells}${blocks}
           </div>
@@ -2718,7 +2836,7 @@ function renderTimetable(isCapture=false){
     ` : `
       <div class="tt-card-container">
         <div class="tt-wrap">
-          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1};">
+          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(13*deviceRatioScale())}px;">
             <div class="tt-head" style="grid-column:1"></div>
             ${heads}${timeLabels}${cells}${blocks}${nowLine}
           </div>
@@ -2745,10 +2863,12 @@ function renderTimetable(isCapture=false){
 function openCaptureModeView(){
   const root=document.getElementById('modal-root');
   if(!root) return;
+  // 화면이 길쭉한 폰일수록 위아래 여백을 더 줘서, 캡처했을 때 화면에 꽉 붙지 않고 여유 있게 보이도록.
+  const pad = Math.round(24*deviceRatioScale());
   root.innerHTML = `
-    <div class="capture-overlay" id="capture-overlay-box">
+    <div class="capture-overlay" id="capture-overlay-box" style="padding-top:${pad}px; padding-bottom:${pad+24}px;">
       <div class="capture-container">
-        <div class="capture-topbar row-between">
+        <div class="capture-topbar row-between" style="padding-top:${Math.round(16*deviceRatioScale())}px; padding-bottom:${Math.round(12*deviceRatioScale())}px;">
           <b style="font-size:14.5px; color:var(--capture-border);">시간표 캡처 모드</b>
           <button class="btn btn-primary btn-sm" data-action="close-capture-mode" style="width:auto;">닫기 / 캡처 완료</button>
         </div>
@@ -4586,6 +4706,10 @@ function renderMypage(){
         <button type="button" class="btn ${np.meal?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="meal">${np.meal?'켜짐':'꺼짐'}</button>
       </div>
       <div class="notify-row">
+        <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
+        <button type="button" class="btn ${np.night?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="night">${np.night?'켜짐':'꺼짐'}</button>
+      </div>
+      <div class="notify-row">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${isNativeApp ? `평일 아침 ${np.timetableHour}시에 그날 수업 안내` : '앱(APK)에서만 사용할 수 있어요'}</small></span></span>
         <button type="button" class="btn ${np.timetable?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="timetable" ${isNativeApp?'':'disabled'}>${np.timetable?'켜짐':'꺼짐'}</button>
       </div>
@@ -4992,7 +5116,7 @@ function usersListModal(){
                 <b>${escapeHtml(u.name)}</b>
                 <span class="tag ${roleLevel(u.role)>=1?'tag-crimson':'tag-blue'}" style="font-size:9px; padding:1px 6px;">${publicRoleLabel(u.role)}</span>
               </div>
-              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${fmtLastSeen(u.lastSeen)}</div>
+              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}</div>
             </div>
             <select data-action="assign-role" data-sid="${escapeHtml(u.studentId)}" style="width:auto; max-width:110px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; font-size:11.5px; font-family:var(--font-display);">
               ${assignable.map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${roleLabel(r)}</option>`).join('')}
@@ -5440,6 +5564,45 @@ JSON으로만 작성하세요.
   }
   throw lastErr || new Error('시간표 인식에 실패했습니다.');
 }
+
+/* ===== 필수 입력 검증 =====
+   input required 속성이 비어있으면 브라우저/웹뷰가 "입력란을 작성하세요" 같은 자체 말풍선을
+   띄우면서 submit 이벤트 자체를 막아버린다. 안드로이드 기기마다 문구·모양이 제각각이라
+   앱과 안 어울려서, 그 말풍선은 막고 대신 필드 아래에 우리 글씨로 빨간 안내를 띄운다. */
+function fieldValidationMessage(el){
+  const v = el.validity;
+  if(v.valueMissing) return '이 항목을 입력해주세요.';
+  if(v.typeMismatch || v.patternMismatch) return '형식을 확인해주세요.';
+  if(v.tooShort) return `최소 ${el.minLength}자 이상 입력해주세요.`;
+  if(v.tooLong) return `최대 ${el.maxLength}자까지 입력할 수 있어요.`;
+  if(v.rangeUnderflow || v.rangeOverflow) return '입력 가능한 범위를 확인해주세요.';
+  return el.validationMessage || '입력값을 확인해주세요.';
+}
+function showFieldError(el){
+  const field = el.closest('.field') || el.parentElement;
+  if(!field) return;
+  field.classList.add('field-invalid');
+  let msg = field.querySelector('.field-error');
+  if(!msg){ msg = document.createElement('div'); msg.className = 'field-error'; field.appendChild(msg); }
+  msg.textContent = fieldValidationMessage(el);
+}
+function clearFieldError(el){
+  const field = el.closest('.field') || el.parentElement;
+  if(!field) return;
+  field.classList.remove('field-invalid');
+  const msg = field.querySelector('.field-error');
+  if(msg) msg.remove();
+}
+document.addEventListener('invalid', (e)=>{
+  e.preventDefault(); // 기본 말풍선 억제
+  showFieldError(e.target);
+}, true);
+document.addEventListener('input', (e)=>{
+  if(e.target && e.target.willValidate && e.target.checkValidity()) clearFieldError(e.target);
+}, true);
+document.addEventListener('change', (e)=>{
+  if(e.target && e.target.willValidate && e.target.checkValidity()) clearFieldError(e.target);
+}, true);
 
 /* ===== 폼 제출 ===== */
 document.addEventListener('submit', async (e)=>{
@@ -6498,6 +6661,18 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'go-poll-page'){ state.view = 'council'; state.councilTab = 'poll'; renderShell(); }
     else if(a === 'go-recruitment-tab'){ state.view = 'council'; state.councilTab = 'recruitment'; renderShell(); }
     else if(a === 'go-notice-tab'){ state.view = 'council'; state.councilTab = 'notice'; renderShell(); }
+    else if(a === 'go-calendar-tab'){ state.view = 'info'; state.infoTab = 'examCal'; renderShell(); }
+    else if(a === 'open-notif-feed'){ markNotificationsSeen(); openModal(notifFeedModal()); renderMain(); }
+    else if(a === 'dismiss-notif'){
+      dismissNotification(el.dataset.id);
+      const sheet = document.querySelector('.modal-sheet');
+      if(sheet) sheet.innerHTML = notifFeedModal();
+    }
+    else if(a === 'clear-all-notifs'){
+      clearAllNotifications();
+      const sheet = document.querySelector('.modal-sheet');
+      if(sheet) sheet.innerHTML = notifFeedModal();
+    }
     else if(a === 'close-modal'){ closeModal(); }
     else if(a === 'logout'){ await logout(); }
     else if(a === 'reset-timetable'){ await resetTimetable(); }
@@ -6725,6 +6900,10 @@ document.addEventListener('click', async (e)=>{
       const k = state.widgetFontScaleTarget === 'calendarWide' ? 'calendarWide' : 'calendar';
       setWidgetSetting(k, { calendarShowMemo: !getWidgetSettings(k).calendarShowMemo }); renderMain();
     }
+    else if(a==='toggle-widget-calendar-official'){ setWidgetSetting('calendarWide', { calendarShowOfficial: !getWidgetSettings('calendarWide').calendarShowOfficial }); renderMain(); }
+    else if(a==='toggle-widget-calendar-council'){ setWidgetSetting('calendarWide', { calendarShowCouncil: !getWidgetSettings('calendarWide').calendarShowCouncil }); renderMain(); }
+    else if(a==='toggle-widget-week-fullday'){ setWidgetSetting('week', { weekShowFullDay: !getWidgetSettings('week').weekShowFullDay }); renderMain(); }
+    else if(a==='toggle-widget-week-room'){ setWidgetSetting('week', { weekShowRoom: !getWidgetSettings('week').weekShowRoom }); renderMain(); }
     else if(a==='open-primary-timetable'){ openModal(primaryTimetableModal()); }
     else if(a==='pick-primary-variant'){
       if(el.dataset.idx === '-1') clearWidgetPrimaryTimetable();
@@ -6800,7 +6979,15 @@ document.addEventListener('click', async (e)=>{
 
 boot();
 
-if('serviceWorker' in navigator){
+// 네이티브 앱(APK)은 파일이 이미 APK 안에 통째로 들어있어서 서비스워커 캐시가 필요 없고,
+// 오히려 새 버전을 설치해도 예전 index.html(예전 API 키 등)을 캐시에서 계속 물고 있을 수 있어
+// 실제로 그 문제가 있었다. 그래서 웹(브라우저 PWA)에서만 등록한다.
+const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+if(isNativeApp && 'serviceWorker' in navigator){
+  // 예전 버전(네이티브에서도 등록하던 시절)에 이미 깔린 서비스워커·캐시가 남아있을 수 있으니 정리한다.
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(()=>{});
+  if(window.caches) caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(()=>{});
+} else if(!isNativeApp && 'serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((err) => console.error('SW registration failed:', err));
   });
