@@ -580,8 +580,11 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.18';
+const APP_VERSION = 'Beta 0.3.19';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.19', date:'2026-09-05', items:[
+    { text:'삭제 기록에 전체 비우기 버튼 추가 (학생회장 이상)', admin:true },
+  ]},
   { version:'Beta 0.3.18', date:'2026-09-05', items:[
     '"학부 재학생" 표기를 "재학생"으로 간결하게',
     'MY탭 구성 변경 — 테마를 화면 설정 안으로, 미리보기(개발자 화면) 카드를 프로필 바로 아래로',
@@ -5045,6 +5048,7 @@ function auditLogModal(){
     <div class="modal-handle"></div>
     <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} 삭제 기록</span><button data-action="close-modal">${ICON.close}</button></div>
     <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">IP는 기기가 직접 조회해 남긴 값이라 참고용이에요 (조작 가능, 법적 증거로는 못 씀).</p>
+    ${isPresident() && list.length ? `<button class="btn btn-danger btn-sm" data-action="clear-audit-log" style="margin-bottom:10px;">전체 비우기</button>` : ''}
     <div style="max-height:64vh; overflow-y:auto;">
       ${list.length ? list.map(e=>`
         <div class="list-item">
@@ -5054,6 +5058,14 @@ function auditLogModal(){
           <div class="meta" style="font-family:var(--font-mono);">IP ${escapeHtml(e.ip||'알 수 없음')}</div>
         </div>`).join('') : `<div class="empty"><p>기록이 없습니다.</p></div>`}
     </div>`;
+}
+async function clearAuditLog(){
+  if(!isPresident()) return;
+  if(!await showConfirm('삭제 기록을 전부 비우시겠습니까?\n(되돌릴 수 없습니다)')) return;
+  const ok = await saveShared('auditLog', {list: []});
+  state.auditLog = [];
+  openModal(auditLogModal());
+  saveResultToast(ok, '삭제 기록을 비웠습니다');
 }
 function bugReportInboxModal(){
   const list=live(state.bugReports).sort((a,b)=>b.createdAt-a.createdAt);
@@ -6976,6 +6988,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'revoke-council'){ await setRole('student'); }
     else if(a === 'view-users-list'){ await refreshUsersList(); state.activeUserListTab='all'; openModal(usersListModal()); }
     else if(a === 'view-audit-log'){ state.auditLog = ((await loadShared('auditLog', {list:[]})).list)||[]; openModal(auditLogModal()); }
+    else if(a === 'clear-audit-log'){ await clearAuditLog(); }
     else if(a === 'show-patch-notes'){ openModal(patchNotesModal()); }
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
