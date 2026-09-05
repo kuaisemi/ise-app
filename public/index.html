@@ -577,8 +577,11 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.15';
+const APP_VERSION = 'Beta 0.3.16';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.16', date:'2026-09-05', items:[
+    '시간표 사진 인식 결과 목록의 과목명이 라이트 모드에서 흰 글씨로 고정돼 안 보이던 문제 수정',
+  ]},
   { version:'Beta 0.3.15', date:'2026-09-05', items:[
     { text:'사진 인식 Gemini 키 재교체 (기존 키 만료)', admin:true },
     '작은 버튼(+ 작성 등) 안 아이콘이 글씨보다 훨씬 크게 보이던 문제 수정',
@@ -5610,7 +5613,7 @@ function setupOcrModalListeners(){
         <div style="display:flex; align-items:center; gap:6px; min-width:0;">
           <span class="tag tag-teal" style="font-size:10.5px;">${DAYS[c.day]}</span>
           <div style="min-width:0;">
-            <b style="font-size:11.5px; display:block; color:#FFFFFF;">${escapeHtml(c.subject)}</b>
+            <b style="font-size:11.5px; display:block; color:var(--text);">${escapeHtml(c.subject)}</b>
             <span style="font-size:10.5px; color:var(--text-dim); font-family:var(--font-mono);">${minutesToLabel(c.start)}–${minutesToLabel(c.end)} · ${escapeHtml(c.room||'-')}</span>
           </div>
         </div>
