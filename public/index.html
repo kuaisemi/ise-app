@@ -414,6 +414,10 @@ svg{vertical-align:-2px;}
 .btn-comment-like svg, .btn-top-refresh svg{width:13px; height:13px;}
 .btn-like svg, .m-label svg, .section-title svg{width:14px; height:14px;}
 .notify-row svg{width:15px; height:15px;}
+/* ICON.plus 등 아이콘은 원래 24x24로 만들어져서, "+ 작성"처럼 작은 버튼(btn-sm) 안에
+   그대로 들어가면 옆의 작은 글씨에 비해 아이콘만 크게 튀어 보였다. 버튼 글씨 크기에
+   맞춰 아이콘도 같이 작아지게 한다. */
+.btn-sm svg{width:12px; height:12px; flex-shrink:0;}
 .meal-block .m-text{font-size:12px; line-height:1.7; color:var(--text); white-space:pre-wrap;}
 /* 학식 한 줄 = 분류명(색 글자) + 메뉴, 한 줄에 붙여서 세로 공간을 아낀다.
    알약 배지로 감싸면 메뉴 글자와 경쟁해서 눈이 분산되므로 색은 글자에만 준다. */
@@ -551,8 +555,7 @@ async function getMessagingInstance(){
 
 // 시간표/학사일정 사진 인식용 Gemini API 키 (학생회 고정 키, 1번 실패 시 2번으로 자동 폴백)
 const GEMINI_API_KEYS = [
-  'AQ.Ab8RN6JQX5_FJgq6X-WsYZaeDNJmwBA4nt2IZMuNIUsMjeL4aQ',
-  'AQ.Ab8RN6LUI9WSO9aV3_H6AaR6oz_NPy5OXeR8kNdA8H4zYaoABQ',
+  'AQ.Ab8RN6JTqw89OhXs56yI2E7XGYC3NCt-XEtoNUt1-51jptP2Ew',
 ];
 
 // 사진 인식 키가 만료·해지되면 구글이 401(UNAUTHENTICATED)을 돌려주는데, 그 영어 원문이 그대로
@@ -574,8 +577,12 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.14';
+const APP_VERSION = 'Beta 0.3.15';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.15', date:'2026-09-05', items:[
+    { text:'사진 인식 Gemini 키 재교체 (기존 키 만료)', admin:true },
+    '작은 버튼(+ 작성 등) 안 아이콘이 글씨보다 훨씬 크게 보이던 문제 수정',
+  ]},
   { version:'Beta 0.3.14', date:'2026-09-05', items:[
     { text:'사진 인식 Gemini 키 교체 (기존 키 만료)', admin:true },
   ]},
