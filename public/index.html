@@ -335,6 +335,12 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .swatches{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
 .swatch{width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11.5px; font-weight:800;}
 .swatch.selected{border-color:#fff; transform:scale(1.08);}
+.swatches-labeled{gap:14px;}
+.swatch-item{display:flex; flex-direction:column; align-items:center; gap:5px;}
+.swatch-item span{font-size:10px; color:var(--text-faint); white-space:nowrap;}
+.swatch-bg-system{background:linear-gradient(135deg, #fff 50%, #14161c 50%); border:1px solid var(--border-light);}
+.swatch-bg-light{background:#fff; border:1px solid var(--border-light);}
+.swatch-bg-dark{background:#14161c; border:1px solid var(--border-light);}
 
 .text-swatch{width:26px; height:26px; border-radius:50%; border:2px solid var(--border-light); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800;}
 .text-swatch.selected{border-color:var(--teal); transform:scale(1.1);}
@@ -633,6 +639,8 @@ const PATCH_NOTES = [
     'iOS(아이폰·아이패드) 브라우저로 접속하면 홈 화면 추가(PWA 설치) 방법을 안내하는 팝업·상단바 버튼 추가',
     'APK 다운로드가 바로 시작되지 않고, 플레이스토어 정식 앱이 아니며 "출처를 알 수 없는 앱" 허용이 필요하다는 안내를 먼저 보여준 뒤 다운로드하도록 변경',
     '위젯 강조 색에서 커스텀 색 선택 버튼이 다른 색상 견본과 똑같이 생겨 눈에 안 띄던 문제 수정 — 무지개색 원으로 바꾸고 안내 문구 추가',
+    '위젯 커스텀 색 아이콘을 스포이드에서 원 안에 꽉 차는 흰 점으로 변경',
+    '위젯 배경 설정을 각진 버튼 4개 대신, 강조 색과 같은 동그란 색상 견본 스타일로 통일',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
@@ -2108,15 +2116,25 @@ function renderWidgetSettingsTab(){
 
         <div class="field" style="margin-bottom:12px;">
           <label>배경</label>
-          <div style="display:flex; gap:5px;">
-            ${WIDGET_BGS.filter(b=>b.key!=='custom').map(b=>`
-              <button type="button" class="btn ${w.bg===b.key?'btn-primary':'btn-ghost'} btn-sm" style="flex:1; padding-left:4px; padding-right:4px; white-space:nowrap;"
-                data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
-            <button type="button" class="btn ${w.bg==='custom'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1.2; padding-left:4px; padding-right:4px; display:flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap;"
-              data-action="open-color-modal" data-target="bg">
-              <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'var(--surface-3)'}; flex-shrink:0; border:1px solid var(--border-light); display:flex; align-items:center; justify-content:center; font-size:9px; line-height:1; color:var(--text-faint);">${w.bg==='custom'?'':'+'}</span>
-              <span style="white-space:nowrap;">지정</span>
-            </button>
+          <div class="swatches swatches-labeled">
+            <div class="swatch-item">
+              <div class="swatch swatch-bg-system ${w.bg==='system'?'selected':''}" data-action="set-widget-bg" data-bg="system" title="기기 설정">${w.bg==='system'?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8C1D2B" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-10"/></svg>':''}</div>
+              <span>기기 설정</span>
+            </div>
+            <div class="swatch-item">
+              <div class="swatch swatch-bg-light ${w.bg==='light'?'selected':''}" data-action="set-widget-bg" data-bg="light" title="라이트">${w.bg==='light'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-10"/></svg>':''}</div>
+              <span>라이트</span>
+            </div>
+            <div class="swatch-item">
+              <div class="swatch swatch-bg-dark ${w.bg==='dark'?'selected':''}" data-action="set-widget-bg" data-bg="dark" title="다크">${w.bg==='dark'?'✓':''}</div>
+              <span>다크</span>
+            </div>
+            <div class="swatch-item">
+              <div class="swatch swatch-custom ${w.bg==='custom'?'selected':''}"
+                style="background:${w.bg==='custom'?w.customBg:'conic-gradient(#FF5B5B, #FFC24B, #6EDC8C, #4BC9FF, #8C6BFF, #FF5B5B)'};"
+                data-action="open-color-modal" data-target="bg" title="커스텀 색 직접 선택">${w.bg==='custom'?'✓':'<svg width="12" height="12" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#fff"/></svg>'}</div>
+              <span>직접 선택</span>
+            </div>
           </div>
         </div>
 
