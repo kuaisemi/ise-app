@@ -104,6 +104,8 @@ a{color:inherit;}
 .apk-banner-text{display:flex; flex-direction:column; flex:1; min-width:0;}
 .apk-banner-text b{font-size:13px;}
 .apk-banner-text small{font-size:10.5px; opacity:.85;}
+.apk-banner-home{margin:0 0 16px;}
+.apk-banner-close{flex-shrink:0; display:flex; align-items:center; justify-content:center; width:26px; height:26px; border:none; border-radius:50%; background:rgba(255,255,255,.18); color:#fff; padding:0;}
 .auth-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px 20px; position:relative; box-shadow:0 12px 32px rgba(0,0,0,0.3);}
 .auth-card::before{content:''; position:absolute; top:0; left:20px; right:20px; height:1px; background:linear-gradient(90deg, transparent, var(--teal), transparent); opacity:.5;}
 .auth-title{font-size:15.5px; font-weight:700; margin:0 0 4px;}
@@ -608,6 +610,8 @@ const PATCH_NOTES = [
     '홈 화면 설치(PWA) 아이콘도 새 칩 모양 디자인으로 교체',
     '앱 실행 로딩 화면(스플래시) 배경을 크림슨 대신 기기 라이트/다크 설정을 따라가는 흰색·검은색으로 변경 (눈부심 개선)',
     { text:'가입자 관리 화면 학번별 탭에 인원수 표시 추가', admin:true },
+    '홈 화면 설치(PWA) 아이콘의 흰색 로고가 너무 작게 그려지던 문제 수정 (배경 대비 로고 비율 확대)',
+    '로그인 상태로 웹(브라우저)을 계속 쓰는 사용자에게도 홈 탭 상단에 APK 설치 안내가 뜨도록 추가 (닫기 가능, 로그인 화면에서만 보이던 것 보완)',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
@@ -2535,6 +2539,23 @@ function androidApkBannerHtml(){
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </a>`;
 }
+// 로그인 화면에서만 뜨는 위 배너와 달리, 이건 로그인 후 홈 탭 상단에 뜬다.
+// 이미 로그인해서 로그인 화면을 볼 일이 없는 브라우저 사용자에게도 APK 설치를 계속 권하되,
+// 한 번 닫으면(X) 다시 나타나 성가시지 않도록 localStorage에 닫음 여부를 저장한다.
+function androidApkHomeBannerHtml(){
+  if(typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return '';
+  const ua = navigator.userAgent || '';
+  if(!/Android/i.test(ua)) return '';
+  try{ if(localStorage.getItem('apkHomeBannerDismissed')==='1') return ''; }catch(e){}
+  return `
+    <a class="apk-banner apk-banner-home" href="https://github.com/kuaisemi/ise-app/releases/latest" target="_blank" rel="noopener">
+      ${ICON.chipMini}
+      <span class="apk-banner-text"><b>안드로이드 앱(APK)으로 설치</b><small>더 빠르고, 위젯·알림도 쓸 수 있어요</small></span>
+      <button type="button" class="apk-banner-close" data-action="dismiss-apk-home-banner" title="닫기">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+    </a>`;
+}
 function renderAuth(){
   const isLogin = state.authMode==='login';
   APP.innerHTML = `
@@ -2703,6 +2724,7 @@ function renderHome(){
   }).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).slice(0,2);
 
   return `
+    ${androidApkHomeBannerHtml()}
     <div class="hero-greet">
       <div class="hero-trace">${ICON.trace}</div>
       <p class="greet-name">${escapeHtml(state.user.name)}님, 안녕하세요</p>
@@ -6789,6 +6811,11 @@ document.addEventListener('click', async (e)=>{
 
   try{
     if(a === 'switch-auth'){ state.authMode = el.dataset.mode; renderAuth(); }
+    else if(a === 'dismiss-apk-home-banner'){
+      e.preventDefault(); e.stopPropagation();
+      try{ localStorage.setItem('apkHomeBannerDismissed','1'); }catch(err){}
+      el.closest('.apk-banner-home')?.remove();
+    }
     else if(a === 'tp-step'){
       const picker = el.closest('.time-picker');
       if(!picker) return;
