@@ -113,6 +113,15 @@ a{color:inherit;}
 .apk-popup-actions{display:flex; flex-direction:column; gap:8px;}
 .apk-popup-actions .btn{width:100%; text-decoration:none;}
 .apk-popup-never{background:none; border:none; color:var(--text-faint); font-size:11.5px; padding:4px; margin-top:2px; text-decoration:underline;}
+.apk-popup-steps{list-style:none; margin:0 0 20px; padding:0; display:flex; flex-direction:column; gap:8px; text-align:left;}
+.apk-popup-steps li{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dim);}
+.apk-popup-steps svg{flex-shrink:0; color:var(--teal);}
+.apk-popup-step-n{flex-shrink:0; width:18px; height:18px; border-radius:50%; background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+.apk-popup-icon-warn{background:#B45309;}
+.apk-popup-warn-box{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:14px; margin:0 0 20px; text-align:left;}
+.apk-popup-warn-box p{font-size:12px; color:var(--text-dim); line-height:1.6; margin:0;}
+.apk-popup-warn-box p + p{margin-top:8px;}
+.apk-popup-warn-box b{color:var(--text);}
 .auth-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px 20px; position:relative; box-shadow:0 12px 32px rgba(0,0,0,0.3);}
 .auth-card::before{content:''; position:absolute; top:0; left:20px; right:20px; height:1px; background:linear-gradient(90deg, transparent, var(--teal), transparent); opacity:.5;}
 .auth-title{font-size:15.5px; font-weight:700; margin:0 0 4px;}
@@ -620,6 +629,9 @@ const PATCH_NOTES = [
     '홈 화면 설치(PWA) 아이콘의 흰색 로고가 너무 작게 그려지던 문제 수정 (배경 대비 로고 비율 확대, 두 차례 더 키움)',
     'APK 설치 안내를 배너 대신 팝업으로 변경 — 안드로이드 브라우저로 접속하면(새로고침 포함, 3일에 한 번) 혜택과 함께 설치를 권하고, 다운로드 버튼을 누르면 최신 APK가 바로 받아짐. MY탭 위젯 설정 화면에도 같은 다운로드 버튼 추가',
     '설치 팝업에 "다신 보지 않기" 추가, 안드로이드 브라우저 상단바(새로고침 옆)에 항상 남는 다운로드 아이콘 추가',
+    '시간표 화면 한 칸 높이를 조금 더 늘려서 위아래로 여유 있게 보이도록 조정',
+    'iOS(아이폰·아이패드) 브라우저로 접속하면 홈 화면 추가(PWA 설치) 방법을 안내하는 팝업·상단바 버튼 추가',
+    'APK 다운로드가 바로 시작되지 않고, 플레이스토어 정식 앱이 아니며 "출처를 알 수 없는 앱" 허용이 필요하다는 안내를 먼저 보여준 뒤 다운로드하도록 변경',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
@@ -686,7 +698,7 @@ const TIME_START = 540;
 const TIME_END   = 1320;
 const TIMETABLE_VISIBLE_END = 1080;
 const TIMETABLE_GRID_STEP = 15;
-const TIMETABLE_ROW_PX = 13; // .tt-grid의 --tt-row-h와 동일하게 유지 (현재시각 선 위치 계산용)
+const TIMETABLE_ROW_PX = 15; // .tt-grid의 --tt-row-h와 동일하게 유지 (현재시각 선 위치 계산용)
 
 /* ===== 학기(시간표 탭) 관련 헬퍼 ===== */
 const SEASON_ORDER = { '봄':0, '여름':1, '가을':2, '겨울':3 };
@@ -2537,39 +2549,86 @@ function renderApp(){ if(!state.user) renderAuth(); else renderShell(); }
 function versionFooter(){ return `<div class="app-version">ISE · ${APP_VERSION}</div>`; }
 
 // 네이티브 앱(APK) 안이 아니면서, UA가 안드로이드인 브라우저(삼성 인터넷·크롬 등)에서만 true.
-// APK 다운로드를 권하는 모든 곳(팝업, 위젯 탭 안내)이 이 조건 하나를 공유한다.
 function isAndroidWeb(){
   if(typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return false;
+  if(isStandaloneDisplay()) return false;
   return /Android/i.test(navigator.userAgent || '');
+}
+// iOS는 APK를 못 깔지만, 브라우저에서 "홈 화면에 추가"로 PWA를 설치할 수 있다.
+// iPadOS 13+는 UA에 iPad가 안 남고 데스크톱 Mac처럼 보이는데, 터치 지원 여부로 구분한다.
+function isIOSWeb(){
+  if(typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return false;
+  if(isStandaloneDisplay()) return false;
+  const ua = navigator.userAgent || '';
+  if(/iPad|iPhone|iPod/.test(ua)) return true;
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+}
+// 이미 홈 화면에 설치되어 (안드로이드 PWA든 iOS PWA든) standalone으로 떠 있는 상태면
+// 설치를 권할 이유가 없으므로 위 두 함수 모두 여기서 걸러진다.
+function isStandaloneDisplay(){
+  try{
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  }catch(e){ return false; }
 }
 // releases/latest/download/<파일명>은 깃허브가 "가장 최근 릴리즈의 이 이름 자산"으로 항상
 // 리다이렉트해주는 고정 링크라, 새 버전이 나와도 이 URL 하나로 항상 최신 APK가 받아진다.
 const APK_DOWNLOAD_URL = 'https://github.com/kuaisemi/ise-app/releases/latest/download/ku-ise-Beta_0.0.0.apk';
 
 let apkPopupShownThisLoad = false;
-// 페이지가 켜질 때(새로고침 포함) 안드로이드 브라우저면 한 번 설치를 권하는 팝업.
+// 페이지가 켜질 때(새로고침 포함) 안드로이드/iOS 브라우저면 한 번 설치를 권하는 팝업.
 // 매번 뜨면 성가시니 "나중에"를 누르거나 그냥 닫아도 3일간은 다시 안 뜨고,
-// "다신 보지 않기"를 누르면 영구히 안 뜬다(맨 위 다운로드 아이콘은 항상 남아있으니 필요하면 거기서).
+// "다신 보지 않기"를 누르면 영구히 안 뜬다(맨 위 다운로드/설치 아이콘은 항상 남아있으니 필요하면 거기서).
 function maybeShowApkInstallPopup(){
-  if(apkPopupShownThisLoad || !isAndroidWeb()) return;
+  if(apkPopupShownThisLoad) return;
+  const android = isAndroidWeb(), ios = !android && isIOSWeb();
+  if(!android && !ios) return;
   try{ if(localStorage.getItem('apkPopupDismissedForever')==='1') return; }catch(e){}
   let last = 0;
   try{ last = parseInt(localStorage.getItem('apkPopupLastShown')||'0', 10) || 0; }catch(e){}
   if(Date.now() - last < 3*24*60*60*1000) return;
   apkPopupShownThisLoad = true;
-  showApkInstallPopup();
+  showApkInstallPopup(ios ? 'ios' : 'android');
 }
-function showApkInstallPopup(){
-  try{ localStorage.setItem('apkPopupLastShown', String(Date.now())); }catch(e){}
-  const wrap = document.createElement('div');
-  wrap.id = 'apk-install-popup';
-  wrap.innerHTML = `
-    <div class="apk-popup-overlay" id="apk-popup-overlay">
-      <div class="apk-popup-sheet">
-        <button type="button" class="apk-popup-x" data-action="apk-popup-dismiss" title="닫기">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
-        </button>
-        <div class="apk-popup-icon">${ICON.chipMark}</div>
+// 안드로이드는 두 단계다: ①혜택 안내 → "다운로드"를 누르면 ②플레이스토어 정식 앱이 아니라는 것과
+// "출처를 알 수 없는 앱" 허용이 필요하다는 걸 먼저 설명하고, 거기서 진짜 다운로드 링크를 누르게 한다.
+// 상단바/위젯탭 버튼처럼 이미 "설치하고 싶다"는 의도가 분명한 곳은 ②로 바로 연다.
+function apkPopupIconHtml(step){
+  if(step==='confirm'){
+    return `<div class="apk-popup-icon apk-popup-icon-warn"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 9.5v5"/><circle cx="12" cy="17.3" r="0.4" fill="currentColor"/></svg></div>`;
+  }
+  return `<div class="apk-popup-icon">${ICON.chipMark}</div>`;
+}
+function apkPopupBodyHtml(platform, step){
+  if(platform==='ios'){
+    return `
+        <p class="apk-popup-title">ISE 앱, 홈 화면에 추가할까요?</p>
+        <p class="apk-popup-desc">iOS는 브라우저에서 바로 설치할 수 있어요</p>
+        <ul class="apk-popup-benefits">
+          <li>${ICON.chipMini}<span>홈 화면 아이콘으로 바로 실행해요</span></li>
+          <li>${ICON.globe}<span>주소창 없이 앱처럼 꽉 차게 써요</span></li>
+        </ul>
+        <ol class="apk-popup-steps">
+          <li><span class="apk-popup-step-n">1</span>하단 공유 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> 버튼을 탭하세요</li>
+          <li><span class="apk-popup-step-n">2</span>목록에서 <b>홈 화면에 추가</b>를 선택하세요</li>
+        </ol>
+        <div class="apk-popup-actions">
+          <button type="button" class="btn btn-primary" data-action="apk-popup-dismiss">확인</button>
+          <button type="button" class="apk-popup-never" data-action="apk-popup-dismiss-forever">다신 보지 않기</button>
+        </div>`;
+  }
+  if(step==='confirm'){
+    return `
+        <p class="apk-popup-title">설치 전에 확인해주세요</p>
+        <div class="apk-popup-warn-box">
+          <p>이 앱은 <b>구글 플레이스토어에 정식 등록되지 않은</b>, 학생회가 직접 만들어 배포하는 APK 파일이에요.</p>
+          <p>설치 과정에서 "출처를 알 수 없는 앱" 경고가 뜨면 <b>허용</b>을 눌러야 설치할 수 있어요.</p>
+        </div>
+        <div class="apk-popup-actions">
+          <a class="btn btn-primary" href="${APK_DOWNLOAD_URL}" data-action="apk-popup-download">이해했어요, 다운로드</a>
+          <button type="button" class="btn btn-ghost" data-action="apk-popup-back">뒤로</button>
+        </div>`;
+  }
+  return `
         <p class="apk-popup-title">ISE 앱, 다운로드 할까요?</p>
         <p class="apk-popup-desc">홈 화면에 설치하면 이런 게 더 좋아요</p>
         <ul class="apk-popup-benefits">
@@ -2578,10 +2637,25 @@ function showApkInstallPopup(){
           <li>${ICON.chipMini}<span>브라우저보다 실행이 더 빨라요</span></li>
         </ul>
         <div class="apk-popup-actions">
-          <a class="btn btn-primary" href="${APK_DOWNLOAD_URL}" data-action="apk-popup-download">다운로드</a>
+          <button type="button" class="btn btn-primary" data-action="apk-popup-goto-confirm">다운로드</button>
           <button type="button" class="btn btn-ghost" data-action="apk-popup-dismiss">나중에</button>
           <button type="button" class="apk-popup-never" data-action="apk-popup-dismiss-forever">다신 보지 않기</button>
-        </div>
+        </div>`;
+}
+function showApkInstallPopup(platform, step){
+  platform = platform || (isIOSWeb() ? 'ios' : 'android');
+  step = step || 'benefits';
+  try{ localStorage.setItem('apkPopupLastShown', String(Date.now())); }catch(e){}
+  const wrap = document.createElement('div');
+  wrap.id = 'apk-install-popup';
+  wrap.innerHTML = `
+    <div class="apk-popup-overlay" id="apk-popup-overlay" data-platform="${platform}">
+      <div class="apk-popup-sheet">
+        <button type="button" class="apk-popup-x" data-action="apk-popup-dismiss" title="닫기">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+        </button>
+        ${apkPopupIconHtml(step)}
+        ${apkPopupBodyHtml(platform, step)}
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -2591,14 +2665,23 @@ function showApkInstallPopup(){
     requestAnimationFrame(()=>ov.classList.add('open'));
   }
 }
+function setApkPopupStep(step){
+  const ov = document.getElementById('apk-popup-overlay');
+  if(!ov) return;
+  const platform = ov.dataset.platform || 'android';
+  const sheet = ov.querySelector('.apk-popup-sheet');
+  const closeBtn = sheet.querySelector('.apk-popup-x');
+  sheet.innerHTML = closeBtn.outerHTML + apkPopupIconHtml(step) + apkPopupBodyHtml(platform, step);
+}
 function closeApkInstallPopup(){
   const w = document.getElementById('apk-install-popup');
   if(w) w.remove();
 }
-// 위젯 탭(MY > 화면·알림·위젯)에서 "위젯은 APK 전용" 안내 아래 붙는 다운로드 버튼.
+// 위젯 탭(MY > 화면·알림·위젯)에서 "위젯은 APK 전용" 안내 아래 붙는 버튼.
+// iOS는 위젯 자체를 못 쓰므로(네이티브 앱이 없어 홈 화면 위젯 API를 못 씀) 다운로드 버튼을 안 보여준다.
 function androidApkWidgetTabPromptHtml(){
   if(!isAndroidWeb()) return '';
-  return `<a class="btn btn-primary" style="margin-top:12px; display:inline-flex;" href="${APK_DOWNLOAD_URL}">APK 다운로드</a>`;
+  return `<button type="button" class="btn btn-primary" style="margin-top:12px; display:inline-flex;" data-action="apk-popup-open-confirm">APK 다운로드</button>`;
 }
 function renderAuth(){
   const isLogin = state.authMode==='login';
@@ -2665,7 +2748,8 @@ function renderShell(){
             <span class="role-badge ${myRole()}">${roleLabel(myRole())}</span>
           </div>` : ''}
           <div class="top-actions" style="display:flex; align-items:center; gap:6px;">
-            ${isAndroidWeb() ? `<a class="btn-top-refresh" href="${APK_DOWNLOAD_URL}" title="APK 다운로드">${ICON.download}</a>` : ''}
+            ${isAndroidWeb() ? `<button type="button" class="btn-top-refresh" data-action="apk-popup-open-confirm" title="APK 다운로드">${ICON.download}</button>` : ''}
+            ${(!isAndroidWeb() && isIOSWeb()) ? `<button type="button" class="btn-top-refresh" data-action="show-ios-install" title="홈 화면에 추가">${ICON.download}</button>` : ''}
             <button type="button" class="btn-top-refresh" data-action="global-refresh" title="새로고침">${ICON.refresh}</button>
             <button type="button" class="btn-top-refresh btn-top-bell" data-action="open-notif-feed" title="알림">${ICON.bell}${hasUnseenNotifications() ? '<span class="bell-dot"></span>' : ''}</button>
             <span class="date-pill" data-action="go-calendar-tab">${dateLabel}</span>
@@ -2996,7 +3080,7 @@ function renderTimetable(isCapture=false){
     ` : `
       <div class="tt-card-container">
         <div class="tt-wrap">
-          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(13*deviceRatioScale())}px;">
+          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(15*deviceRatioScale())}px;">
             <div class="tt-head" style="grid-column:1"></div>
             ${heads}${timeLabels}${cells}${blocks}${nowLine}
           </div>
@@ -6862,6 +6946,10 @@ document.addEventListener('click', async (e)=>{
       closeApkInstallPopup();
     }
     else if(a === 'apk-popup-download'){ closeApkInstallPopup(); }
+    else if(a === 'apk-popup-goto-confirm'){ setApkPopupStep('confirm'); }
+    else if(a === 'apk-popup-back'){ setApkPopupStep('benefits'); }
+    else if(a === 'show-ios-install'){ showApkInstallPopup('ios'); }
+    else if(a === 'apk-popup-open-confirm'){ showApkInstallPopup('android', 'confirm'); }
     else if(a === 'tp-step'){
       const picker = el.closest('.time-picker');
       if(!picker) return;
