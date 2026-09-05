@@ -28,11 +28,23 @@ public abstract class BaseWidget extends AppWidgetProvider {
      */
     protected abstract String widgetKey();
 
+    /**
+     * 지금 그리는 위젯이 홈 화면에서 차지하는 크기(dp). 시간표처럼 "남는 높이에 맞춰
+     * 시간 간격을 계산해야 하는" 위젯이 쓴다. 세로 화면 기준값(MIN_WIDTH/MIN_HEIGHT).
+     */
+    protected int widgetWidthDp = 0;
+    protected int widgetHeightDp = 0;
+
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         JSONObject data = WidgetData.load(ctx);
         WidgetTheme theme = WidgetTheme.from(data, widgetKey());
         for (int id : ids) {
+            android.os.Bundle opts = mgr.getAppWidgetOptions(id);
+            if (opts != null) {
+                widgetWidthDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+                widgetHeightDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+            }
             RemoteViews views = new RemoteViews(ctx.getPackageName(), layoutId());
             theme.applyBackground(views);
             applyCommonHeader(views, theme);
@@ -50,6 +62,13 @@ public abstract class BaseWidget extends AppWidgetProvider {
         views.setInt(R.id.widget_accent, "setColorFilter", theme.accent);
         theme.title(views, R.id.widget_title);
         theme.size(views, R.id.widget_title, 13f);
+    }
+
+    /** 사용자가 위젯 크기를 바꾸면 새 크기에 맞춰 다시 그린다 (시간표 격자 높이 계산 때문에 필요). */
+    @Override
+    public void onAppWidgetOptionsChanged(Context ctx, AppWidgetManager mgr, int id, android.os.Bundle newOptions) {
+        super.onAppWidgetOptionsChanged(ctx, mgr, id, newOptions);
+        onUpdate(ctx, mgr, new int[]{ id });
     }
 
     /**

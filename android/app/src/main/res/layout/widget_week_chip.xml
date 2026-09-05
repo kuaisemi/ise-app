@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   주간 시간표의 수업 한 칸.
-  ImageView.setColorFilter는 src에만 먹고 background에는 안 먹기 때문에,
-  둥근 배경을 src로 깐 ImageView를 뒤에 두고 그 위에 글씨를 얹는다.
+  높이는 코드에서 수업 시간(분)에 비례해 지정하므로 여기선 0dp로 두고,
+  ImageView.setColorFilter는 src에만 먹으므로 둥근 배경도 src로 깐 ImageView를 뒤에 둔다.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/chip_root"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginBottom="4dp">
+    android:layout_height="wrap_content">
 
     <ImageView
         android:id="@+id/chip_bg"
@@ -19,12 +19,12 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingStart="6dp"
-        android:paddingEnd="5dp"
-        android:paddingTop="5dp"
-        android:paddingBottom="5dp">
+        android:paddingStart="4dp"
+        android:paddingEnd="3dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp">
 
         <TextView
             android:id="@+id/chip_subject"
@@ -32,9 +32,8 @@
             android:layout_height="wrap_content"
             android:maxLines="2"
             android:ellipsize="end"
-            android:lineSpacingExtra="1dp"
             android:textColor="#FFFFFFFF"
-            android:textSize="10sp"
+            android:textSize="9.5sp"
             android:textStyle="bold" />
 
         <TextView
@@ -43,8 +42,7 @@
             android:layout_height="wrap_content"
             android:maxLines="1"
             android:ellipsize="end"
-            android:layout_marginTop="1dp"
             android:textColor="#DDFFFFFF"
-            android:textSize="8.5sp" />
+            android:textSize="8sp" />
     </LinearLayout>
 </FrameLayout>

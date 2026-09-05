@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 수업과 수업 사이 빈 시간. 높이는 코드에서 시간 길이에 비례해 지정한다. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/gap_root"
+    android:layout_width="match_parent"
+    android:layout_height="0dp" />

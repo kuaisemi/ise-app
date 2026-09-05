@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 시간축의 한 시간 칸 (9, 10, 11 …). 높이는 코드에서 한 시간 길이에 맞춰 지정한다. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/hour_text"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:gravity="top|end"
+    android:paddingEnd="3dp"
+    android:maxLines="1"
+    android:textSize="8sp" />

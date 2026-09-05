@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  "주간 시간표" 위젯 — 월~금 다섯 칸을 코드에서 addView로 채운다.
+  "주간 시간표" 위젯 — 앱 안의 시간표 화면처럼 왼쪽 시간축 + 월~금 격자로 그린다.
   RemoteViews는 실행 중에 자식을 붙일 수 있어서(removeAllViews + addView) 요일별 수업 개수가
   달라도 대응된다. 오늘 요일 머리글만 강조색으로 표시한다.
 -->
@@ -55,6 +55,10 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
+        <!--
+          시간축 열 + 월~금 다섯 열. 다섯 열 모두 코드에서 addView로 채운다.
+          앱 안의 시간표처럼 수업이 실제 시각 위치에, 실제 길이만큼의 높이로 놓인다.
+        -->
         <LinearLayout
             android:id="@+id/week_cols"
             android:layout_width="match_parent"

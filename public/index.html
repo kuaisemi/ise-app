@@ -208,6 +208,20 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .cal-item-body b{display:block; font-size:14.5px; font-weight:800; line-height:1.4; word-break:keep-all; overflow-wrap:break-word;}
 .cal-item-body .meta{display:block; margin-top:2px;}
 .list-item .body{font-size:11.5px; color:var(--text); margin-top:6px; line-height:1.6; white-space:pre-wrap;}
+/* 홈 화면의 "학생회 공지" — 제목만 큼직하게 나열하면 그냥 링크 목록처럼 보여서,
+   내용 두 줄 미리보기와 작성자·날짜 줄을 함께 두어 실제 공지문처럼 읽히게 한다. */
+.home-notice{padding:12px 0; cursor:pointer;}
+.home-notice .title-line{gap:6px; margin-bottom:4px; flex-wrap:nowrap; align-items:flex-start;}
+.home-notice .title-line b{flex:1; min-width:0; font-size:13px; font-weight:800; line-height:1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.home-notice-chev{flex-shrink:0; color:var(--text-faint); line-height:1.45;}
+.home-notice-preview{margin:0 0 6px; font-size:11.5px; line-height:1.6; color:var(--text-dim);
+  white-space:pre-wrap; word-break:break-word;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.home-notice .meta{font-size:10.5px;}
+.home-notice-thumb{width:100%; max-height:130px; object-fit:cover; border-radius:9px;
+  border:1px solid var(--border); margin-top:8px; display:block;}
+.home-notice-pin{font-size:9.5px; font-weight:800; color:var(--amber); flex-shrink:0; line-height:1.45;}
 .one-line{min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 
 .subtabs{display:flex; gap:5px; margin-bottom:14px; background:var(--surface-2); padding:4px; border-radius:12px; border:1px solid var(--border); overflow-x:auto;}
@@ -291,9 +305,6 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .swatches{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
 .swatch{width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11.5px; font-weight:800;}
 .swatch.selected{border-color:#fff; transform:scale(1.08);}
-.swatch-rainbow{width:28px; height:28px; border-radius:50%; background:conic-gradient(red, yellow, lime, aqua, blue, magenta, red); padding:2px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; position:relative;}
-.swatch-rainbow-inner{width:100%; height:100%; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; color:var(--text);}
-.swatch-rainbow input[type=color]{position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;}
 
 .text-swatch{width:26px; height:26px; border-radius:50%; border:2px solid var(--border-light); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800;}
 .text-swatch.selected{border-color:var(--teal); transform:scale(1.1);}
@@ -530,15 +541,20 @@ const GEMINI_API_KEYS = [
 ];
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.0';
+const APP_VERSION = 'Beta 0.3.1';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.1', date:'2026-09-05', items:[
+    '주간 시간표 위젯을 앱 시간표 화면처럼 다시 만듦 — 왼쪽 시간축을 두고 수업이 실제 시각 위치에, 수업 시간만큼의 높이로 놓여요',
+    '주간 시간표 위젯에서 요일 아래 날짜 표시 제거',
+    '홈 화면 학생회 공지를 내용 미리보기가 있는 공지 목록 형태로 정리',
+  ]},
   { version:'Beta 0.3.0', date:'2026-09-05', items:[
+    '주간 시간표 위젯에서 과목명 길이에 따라 칸 높이가 달라져 요일끼리 줄이 안 맞던 문제 수정',
     '위젯 설정을 위젯별로 분리 — 위젯마다 배경 · 강조 색 · 투명도 · 글씨 크기를 따로 정할 수 있어요',
     '"달력 (가로형)" 위젯 추가 — 왼쪽에 이번 달 달력, 오른쪽에 오늘 일정을 나란히 보여줘요',
     '앱 아이콘 배경을 학교 크림슨 색으로 변경',
     '수업 · 일정 색상 고를 때도 위젯과 같은 색상 선택기(채도/명도 + 색상 띠)를 쓰도록 통일',
     '위젯 배경을 사용자 지정 색으로 바꾼 뒤 다시 라이트/다크로 돌아오지 않던 문제 수정',
-    '주간 시간표 위젯에서 요일마다 첫 수업 높이가 어긋나 보이던 문제 수정',
   ]},
   { version:'Beta 0.2.0', date:'2026-09-05', items:[
     '홈 화면 위젯 7종 추가 (오늘의 시간표 · 다음 수업 · 오늘의 학식 · 일정/메모 · 주간 시간표 · 달력 · 오늘 날짜)',
@@ -1895,8 +1911,8 @@ function setupColorPicker(id, onChange){
 const INLINE_COLOR_HANDLERS = {};
 function inlineColorSwatchHtml(id, hex, selected){
   return `<div class="swatch ${selected?'selected':''}" title="색상 직접 선택"
-    style="background:${selected?hex:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'};"
-    data-action="toggle-inline-color" data-id="${id}">${selected?'✓':''}</div>`;
+    style="background:${selected?hex:'var(--surface-2)'};"
+    data-action="toggle-inline-color" data-id="${id}">${selected?'✓':'+'}</div>`;
 }
 function inlineColorPanelHtml(id, hex){
   return `<div id="cp-wrap-${id}" style="display:none;">${renderColorPickerPanel(id, hex)}</div>`;
@@ -1951,7 +1967,7 @@ function renderWidgetSettingsTab(){
                 data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
             <button type="button" class="btn ${w.bg==='custom'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1.3; display:flex; align-items:center; justify-content:center; gap:6px;"
               data-action="open-color-modal" data-target="bg">
-              <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'}; flex-shrink:0; border:1px solid rgba(255,255,255,.4);"></span>
+              <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'var(--surface-2)'}; flex-shrink:0; border:1px solid var(--border-light);"></span>
               사용자 지정
             </button>
           </div>
@@ -1964,8 +1980,8 @@ function renderWidgetSettingsTab(){
               <div class="swatch ${w.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
                 data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${w.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
             <div class="swatch ${!isWidgetPresetAccent(w.accent)?'selected':''}"
-              style="background:${!isWidgetPresetAccent(w.accent)?w.accent:'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)'};"
-              data-action="open-color-modal" data-target="accent">${!isWidgetPresetAccent(w.accent)?'✓':''}</div>
+              style="background:${!isWidgetPresetAccent(w.accent)?w.accent:'var(--surface-2)'};"
+              data-action="open-color-modal" data-target="accent">${!isWidgetPresetAccent(w.accent)?'✓':'+'}</div>
           </div>
         </div>
 
@@ -2037,13 +2053,13 @@ async function pushWidgetData(){
       date: fmtDateShort(ev.startDate) + (ev.endDate!==ev.startDate ? '~'+fmtDateShort(ev.endDate) : ''),
     }));
 
-    // 주간 시간표 위젯용 — 월~금 다섯 칸. 요일 머리글에 실제 날짜(며칠인지)도 같이 보여준다.
-    const weekMon = getWeekMonday(today);
-    const weekDates = getWeekdayDates(weekMon);
+    // 주간 시간표 위젯용 — 월~금 다섯 칸.
+    // 위젯이 앱 화면처럼 "시간축 위 제자리"에 수업을 그리려면 시작/끝 시각(분 단위)이 필요하다.
     const weekClasses = [0,1,2,3,4].map(d =>
       ttSlots.filter(c=>c.day===d).sort((a,b)=>a.start-b.start).map(c=>({
         subject: c.subject || '',
         color: c.color || COLORS[0].hex,
+        start: c.start, end: c.end,
         startLabel: minutesToLabel(c.start),
       }))
     );
@@ -2082,7 +2098,6 @@ async function pushWidgetData(){
       semester: widgetSemesterLabel(),
       classes,
       weekClasses,
-      weekDates: weekDates.map(d=>String(new Date(d+'T00:00:00').getDate())),
       meals: {
         today: { breakfast: st.breakfast||'', lunch: st.lunch||'', dinner: st.dinner||'' },
         tomorrow: { breakfast: stTom.breakfast||'', lunch: stTom.lunch||'', dinner: stTom.dinner||'' },
@@ -2547,13 +2562,15 @@ function renderHome(){
     <div class="section-title">학생회 공지</div>
     <div class="card">
       ${recentNotices.length ? recentNotices.map(n=>`
-        <div class="list-item" data-action="go-notice-tab" style="padding:8px 0; cursor:pointer;">
-          <div class="row-between" style="gap:8px;">
-            <div class="title-line">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b style="font-size:16.5px; font-weight:800;">${escapeHtml(n.title)}</b></div>
-            <span style="color:var(--text-faint); flex-shrink:0;">${ICON.chevR}</span>
+        <div class="list-item home-notice" data-action="go-notice-tab">
+          <div class="title-line">
+            ${n.pinned?`<span class="home-notice-pin">${ICON.pin} 고정</span>`:''}
+            <b>${escapeHtml(n.title)}</b>
+            <span class="home-notice-chev">${ICON.chevR}</span>
           </div>
+          ${n.content ? `<p class="home-notice-preview">${escapeHtml(n.content)}</p>` : ''}
           <div class="meta">${fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole)} · ${fmtDateShort(n.date)}</div>
-          ${n.imageUrl ? `<img src="${escapeHtml(n.imageUrl)}" alt="공지 사진" style="width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:6px;">` : ''}
+          ${n.imageUrl ? `<img class="home-notice-thumb" src="${escapeHtml(n.imageUrl)}" alt="공지 사진">` : ''}
         </div>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">등록된 공지가 없습니다.</p>`}
     </div>
   `;
@@ -6600,7 +6617,7 @@ document.addEventListener('click', async (e)=>{
       // 프리셋을 고르면 "직접 선택" 스와치는 다시 무지개(선택 안 됨) 상태로 되돌린다
       document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s => {
         s.classList.remove('selected'); s.innerHTML = '';
-        if(s.dataset.action === 'toggle-inline-color') s.style.background = 'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)';
+        if(s.dataset.action === 'toggle-inline-color') s.style.background = 'var(--surface-2)';
       });
       el.classList.add('selected'); el.innerHTML = '✓';
       const inp = document.getElementById('class-color-input');
@@ -6609,7 +6626,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'pick-schedule-color'){
       document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s => {
         s.classList.remove('selected'); s.innerHTML = '';
-        if(s.dataset.action === 'toggle-inline-color') s.style.background = 'conic-gradient(red,yellow,lime,aqua,blue,magenta,red)';
+        if(s.dataset.action === 'toggle-inline-color') s.style.background = 'var(--surface-2)';
       });
       el.classList.add('selected'); el.innerHTML = '✓';
       const inp = document.getElementById('schedule-color-input');
