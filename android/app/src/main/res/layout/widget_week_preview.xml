@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  widget_week.xml의 위젯 목록(picker) 미리보기 전용 버전. 실제 위젯은 week_cols를 코드에서
+  addView로 채우기 때문에 그 XML을 그대로 미리보기로 쓰면 빈 상자로만 보인다. 시간축 정렬
+  없이 요일별 샘플 수업 블록만 하드코딩해서 "이런 모양이다"만 전달한다.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg_dark"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="10dp">
+            <ImageView android:layout_width="3dp" android:layout_height="12dp" android:src="@drawable/widget_bar" android:scaleType="fitXY" android:layout_marginEnd="7dp" android:contentDescription="@null" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="주간 시간표" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2026-2" android:textColor="#B3FFFFFF" android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <!-- 월 -->
+            <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="월" android:textColor="#B3FFFFFF" android:textSize="10sp" android:layout_marginBottom="4dp" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/widget_bar" android:tint="#FF5B8DEF" android:contentDescription="@null" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- 화 -->
+            <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="화" android:textColor="#FF8C1D2B" android:textSize="10sp" android:textStyle="bold" android:layout_marginBottom="4dp" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/widget_bar" android:tint="#FFF0A93A" android:contentDescription="@null" />
+                </FrameLayout>
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+            </LinearLayout>
+
+            <!-- 수 -->
+            <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="수" android:textColor="#B3FFFFFF" android:textSize="10sp" android:layout_marginBottom="4dp" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/widget_bar" android:tint="#FFE0637A" android:contentDescription="@null" />
+                </FrameLayout>
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="2" />
+            </LinearLayout>
+
+            <!-- 목 -->
+            <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="목" android:textColor="#B3FFFFFF" android:textSize="10sp" android:layout_marginBottom="4dp" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/widget_bar" android:tint="#FF3DDC97" android:contentDescription="@null" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- 금 -->
+            <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="금" android:textColor="#B3FFFFFF" android:textSize="10sp" android:layout_marginBottom="4dp" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/widget_bar" android:tint="#FFA385E0" android:contentDescription="@null" />
+                </FrameLayout>
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

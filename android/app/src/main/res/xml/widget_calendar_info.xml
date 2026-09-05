@@ -15,7 +15,7 @@
     android:targetCellHeight="3"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_calendar"
-    android:previewLayout="@layout/widget_calendar"
+    android:previewLayout="@layout/widget_calendar_preview"
     android:description="@string/widget_calendar_desc"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

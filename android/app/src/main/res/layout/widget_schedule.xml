@@ -41,6 +41,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="다가오는 일정"
+                android:textColor="#FFFFFFFF"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -54,22 +55,22 @@
 
         <LinearLayout android:id="@+id/ev_row_0"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
+            android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="visible">
             <TextView android:id="@+id/ev_title_0" android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:maxLines="1" android:ellipsize="end"
-                android:textSize="12sp" android:textStyle="bold" />
+                android:text="수강신청 정정기간" android:textColor="#FFFFFFFF" android:textSize="12sp" android:textStyle="bold" />
             <TextView android:id="@+id/ev_date_0" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="8dp" android:textSize="11sp" />
+                android:layout_marginStart="8dp" android:text="9.8~9.10" android:textColor="#CCFFFFFF" android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout android:id="@+id/ev_row_1"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
+            android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="visible">
             <TextView android:id="@+id/ev_title_1" android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:maxLines="1" android:ellipsize="end"
-                android:textSize="12sp" android:textStyle="bold" />
+                android:text="학과 MT" android:textColor="#FFFFFFFF" android:textSize="12sp" android:textStyle="bold" />
             <TextView android:id="@+id/ev_date_1" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="8dp" android:textSize="11sp" />
+                android:layout_marginStart="8dp" android:text="9.13" android:textColor="#CCFFFFFF" android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout android:id="@+id/ev_row_2"
@@ -77,9 +78,9 @@
             android:orientation="horizontal" android:layout_marginBottom="7dp" android:visibility="gone">
             <TextView android:id="@+id/ev_title_2" android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:maxLines="1" android:ellipsize="end"
-                android:textSize="12sp" android:textStyle="bold" />
+                android:textColor="#FFFFFFFF" android:textSize="12sp" android:textStyle="bold" />
             <TextView android:id="@+id/ev_date_2" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="8dp" android:textSize="11sp" />
+                android:layout_marginStart="8dp" android:textColor="#CCFFFFFF" android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -104,6 +105,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="오늘 메모"
+                android:textColor="#B3FFFFFF"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
@@ -114,6 +116,7 @@
                 android:layout_marginTop="3dp"
                 android:maxLines="3"
                 android:ellipsize="end"
+                android:textColor="#CCFFFFFF"
                 android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>

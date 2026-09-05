@@ -46,6 +46,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="오늘의 시간표"
+                android:textColor="#FFFFFFFF"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
@@ -53,6 +54,8 @@
                 android:id="@+id/widget_date"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="9.5 (토)"
+                android:textColor="#B3FFFFFF"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -67,28 +70,28 @@
 
         <LinearLayout android:id="@+id/row_0"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="gone">
+            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="visible">
             <ImageView android:id="@+id/bar_0" android:layout_width="3dp" android:layout_height="match_parent"
                 android:src="@drawable/widget_bar"
                 android:scaleType="fitXY" android:layout_marginEnd="10dp" android:contentDescription="@null" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <TextView android:id="@+id/subject_0" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
+                    android:maxLines="1" android:ellipsize="end" android:text="반도체공학개론" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
                 <TextView android:id="@+id/meta_0" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:text="09:00-10:30 · 공학관 401" android:textColor="#CCFFFFFF" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout android:id="@+id/row_1"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="gone">
+            android:orientation="horizontal" android:layout_marginBottom="9dp" android:visibility="visible">
             <ImageView android:id="@+id/bar_1" android:layout_width="3dp" android:layout_height="match_parent"
                 android:src="@drawable/widget_bar"
                 android:scaleType="fitXY" android:layout_marginEnd="10dp" android:contentDescription="@null" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <TextView android:id="@+id/subject_1" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
+                    android:maxLines="1" android:ellipsize="end" android:text="전자회로실험" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
                 <TextView android:id="@+id/meta_1" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:text="13:00-15:30 · 공학관 512" android:textColor="#CCFFFFFF" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout android:id="@+id/row_2"

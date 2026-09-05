@@ -40,7 +40,8 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:text="진리관"
+                android:text="진리관 · 중식"
+                android:textColor="#FFFFFFFF"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -53,6 +54,8 @@
             android:maxLines="5"
             android:ellipsize="end"
             android:lineSpacingExtra="3dp"
+            android:text="김치찌개&#10;계란후라이&#10;잡곡밥"
+            android:textColor="#CCFFFFFF"
             android:textSize="12sp" />
 
         <TextView
