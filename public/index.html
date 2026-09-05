@@ -636,6 +636,7 @@ const PATCH_NOTES = [
     '위젯 커스텀 색 아이콘을 스포이드에서 원 안에 꽉 차는 흰 점으로 변경',
     '위젯 강조 색의 "직접 선택" 원 배경을 일반 무지개색 대신, 옆 프리셋 6색을 이어붙인 그러데이션으로 변경 (앱 색감에 맞게)',
     '위젯 강조 색의 커스텀 선택 방식을 시간표 수업 색상과 같은 방식(+ 버튼 → 그 자리에서 바로 펼쳐지는 색상 선택기)으로 통일 — 팝업 대신 접었다 펴는 패널로 변경',
+    '패치노트를 Beta/Alpha 계열별로 묶어 아코디언(접었다 펴기)으로 정리 — 목록이 너무 길어지지 않도록',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
@@ -5191,24 +5192,46 @@ async function deleteBugReport(id){
 // 관리 화면 변경사항까지 다 보여주면 패치노트가 TMI로 가득 차기 때문.
 function patchNoteItemText(it){ return typeof it === 'string' ? it : it.text; }
 function patchNoteItemVisible(it){ return typeof it === 'string' || !it.admin || isCouncil(); }
+// 패치노트가 쌓일수록 한 화면에 다 펼쳐놓으면 스크롤이 너무 길어져서, 버전 계열(Beta/Alpha)
+// 별로 묶어 아코디언으로 접었다 펼 수 있게 한다. 가장 최근 계열만 기본으로 펼쳐둔다.
+let patchNoteOpenCat = null;
 function patchNotesModal(){
   const council = isCouncil();
+  const groups = [];
+  PATCH_NOTES.forEach(p=>{
+    const visible = p.items.filter(patchNoteItemVisible);
+    if(!visible.length) return;
+    const cat = p.version.split(' ')[0]; // 'Beta 0.0.0' → 'Beta', 'Alpha' → 'Alpha'
+    let g = groups.find(g=>g.cat===cat);
+    if(!g){ g = { cat, entries: [] }; groups.push(g); }
+    g.entries.push({ ...p, visible });
+  });
+  if(patchNoteOpenCat === null && groups[0]) patchNoteOpenCat = groups[0].cat;
   return `
     <div class="modal-handle"></div>
     <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} 패치노트</span><button data-action="close-modal">${ICON.close}</button></div>
     <div style="max-height:60vh; overflow-y:auto;">
-      ${PATCH_NOTES.map((p,i)=>{
-        const visible = p.items.filter(patchNoteItemVisible);
-        if(!visible.length) return '';
+      ${groups.map(g=>{
+        const open = patchNoteOpenCat === g.cat;
+        const noteCount = g.entries.reduce((n,p)=>n+p.visible.length, 0);
         return `
-        <div class="card" style="margin-bottom:10px;">
-          <div class="row-between" style="margin-bottom:8px;">
-            <b style="color:var(--teal); font-family:var(--font-mono); font-size:12px;">${p.version}</b>
-            <span style="font-size:10.5px; color:var(--text-faint);">${p.date}</span>
-          </div>
-          <ul style="margin:0; padding-left:18px; font-size:11.5px; color:var(--text-dim); line-height:1.7;">
-            ${visible.map(it=>`<li>${escapeHtml(patchNoteItemText(it))}${(council && typeof it!=='string' && it.admin) ? ' <span class="tag tag-dim" style="font-size:9px; padding:1px 5px;">관리자</span>' : ''}</li>`).join('')}
-          </ul>
+        <div class="card" style="margin-bottom:10px; padding:0;">
+          <button type="button" class="row-between" style="width:100%; padding:14px; background:none; border:none; cursor:pointer; color:inherit; text-align:left;" data-action="toggle-patch-cat" data-cat="${g.cat}">
+            <b style="font-size:13px;">${g.cat} <span style="color:var(--text-faint); font-weight:400; font-size:10.5px;">(${noteCount}개)</span></b>
+            <span class="sub" style="transform:rotate(${open?90:0}deg); transition:transform .15s; display:inline-flex;">${ICON.chevR}</span>
+          </button>
+          ${open ? `<div style="padding:0 14px 14px;">
+            ${g.entries.map(p=>`
+              <div style="margin-bottom:12px;">
+                <div class="row-between" style="margin-bottom:8px;">
+                  <b style="color:var(--teal); font-family:var(--font-mono); font-size:12px;">${p.version}</b>
+                  <span style="font-size:10.5px; color:var(--text-faint);">${p.date}</span>
+                </div>
+                <ul style="margin:0; padding-left:18px; font-size:11.5px; color:var(--text-dim); line-height:1.7;">
+                  ${p.visible.map(it=>`<li>${escapeHtml(patchNoteItemText(it))}${(council && typeof it!=='string' && it.admin) ? ' <span class="tag tag-dim" style="font-size:9px; padding:1px 5px;">관리자</span>' : ''}</li>`).join('')}
+                </ul>
+              </div>`).join('')}
+          </div>` : ''}
         </div>`;
       }).join('')}
     </div>`;
@@ -7097,6 +7120,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'view-audit-log'){ state.auditLog = ((await loadShared('auditLog', {list:[]})).list)||[]; openModal(auditLogModal()); }
     else if(a === 'clear-audit-log'){ await clearAuditLog(); }
     else if(a === 'show-patch-notes'){ openModal(patchNotesModal()); }
+    else if(a === 'toggle-patch-cat'){
+      const cat = el.dataset.cat;
+      patchNoteOpenCat = patchNoteOpenCat === cat ? '' : cat;
+      const sheet = document.querySelector('.modal-sheet');
+      if(sheet) sheet.innerHTML = patchNotesModal();
+    }
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
     else if(a === 'purge-tombstones'){
