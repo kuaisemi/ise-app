@@ -540,6 +540,24 @@ const GEMINI_API_KEYS = [
   'AQ.Ab8RN6Il43z0J8A9_Tn1Q5_RwoPeiED1vT1_b9BOU2OKABU6qA',
 ];
 
+// 사진 인식 키가 만료·해지되면 구글이 401(UNAUTHENTICATED)을 돌려주는데, 그 영어 원문이 그대로
+// 화면에 뜨면 쓰는 사람 입장에서는 뭘 해야 할지 알 수가 없다. 학생이 손쓸 수 없는 오류라서
+// "키 문제"라는 것만 알려주고 직접 입력으로 우회할 수 있다고 안내한다.
+function geminiError(res, data){
+  const err = (data && data.error) || {};
+  const msg = err.message || '';
+  const code = err.code || (res && res.status) || 0;
+  if(code===401 || code===403 || /API key not valid|invalid authentication credentials/i.test(msg)){
+    const e = new Error('AI 사진 인식 키가 만료됐어요. 학생회에 알려주시면 교체할게요. (그동안은 직접 입력으로 등록할 수 있어요)');
+    e.geminiAuth = true;   // 키가 죽은 거라 다른 키·모델로 다시 시도해도 소용없다
+    return e;
+  }
+  if(code===429 || /quota|RESOURCE_EXHAUSTED/i.test(msg)){
+    return new Error('AI 사진 인식 사용량이 잠시 가득 찼어요. 조금 뒤에 다시 시도해주세요.');
+  }
+  return new Error(msg || 'AI 사진 인식 서버 오류');
+}
+
 const APP = document.getElementById('app');
 const APP_VERSION = 'Beta 0.3.1';
 const PATCH_NOTES = [
@@ -547,6 +565,7 @@ const PATCH_NOTES = [
     '주간 시간표 위젯을 앱 시간표 화면처럼 다시 만듦 — 왼쪽 시간축을 두고 수업이 실제 시각 위치에, 수업 시간만큼의 높이로 놓여요',
     '주간 시간표 위젯에서 요일 아래 날짜 표시 제거',
     '홈 화면 학생회 공지를 내용 미리보기가 있는 공지 목록 형태로 정리',
+    '사진 인식(시간표 · 학사일정)이 실패했을 때 영어 오류 원문 대신 무엇이 문제인지 한국어로 안내',
   ]},
   { version:'Beta 0.3.0', date:'2026-09-05', items:[
     '주간 시간표 위젯에서 과목명 길이에 따라 칸 높이가 달라져 요일끼리 줄이 안 맞던 문제 수정',
@@ -2994,6 +3013,7 @@ async function parseCalendarWithGeminiVision(file){
   let lastErr=null;
   // 시간표 인식과 동일하게, 빠른 설정으로 먼저 시도하고 아무것도 못 읽었을 때만 다시 시도한다.
   const attempts = [{ thinkingLevel:'low' }, null];
+  ocr:
   for(const thinkingConfig of attempts){
     for(const apiKey of GEMINI_API_KEYS){
       for(const model of models){
@@ -3009,7 +3029,7 @@ async function parseCalendarWithGeminiVision(file){
             })
           });
           const data=await res.json();
-          if(data.error) throw new Error(data.error.message||'API 오류');
+          if(data.error || !res.ok) throw geminiError(res, data);
           const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
           const parsed = JSON.parse(raw.replace(/```(?:json)?/gi,'').trim());
           const result = parsed.filter(it=>it.title && it.startDate).map(it=>({
@@ -3021,7 +3041,7 @@ async function parseCalendarWithGeminiVision(file){
           if(result.length) return result;
           lastErr = lastErr || new Error('인식된 일정이 없습니다');
           break;
-        }catch(err){ lastErr=err; }
+        }catch(err){ lastErr=err; if(err && err.geminiAuth) break ocr; }
       }
     }
   }
@@ -5379,6 +5399,7 @@ JSON으로만 작성하세요.
   // 그래서 빠른 설정으로 먼저 시도하고, 인식 결과가 비어 있으면 기본 추론 강도로 한 번 더 시도한다.
   // (대부분의 사진은 1차에서 끝나서 빨라지고, 어려운 사진만 2차로 넘어간다)
   const attempts = [{ thinkingLevel:'low' }, null];
+  ocr:
   for(const thinkingConfig of attempts){
     for(const apiKey of GEMINI_API_KEYS){
       for(const model of models){
@@ -5394,7 +5415,7 @@ JSON으로만 작성하세요.
             })
           });
           const data=await res.json();
-          if(data.error) throw new Error(data.error.message||'API 오류');
+          if(data.error || !res.ok) throw geminiError(res, data);
           const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
           const parsed = JSON.parse(raw.replace(/```(?:json)?/gi,'').trim());
           const result = parsed.map(it=>{
@@ -5413,7 +5434,7 @@ JSON으로만 작성하세요.
           // 한 과목도 못 읽었으면 다음 단계(더 깊은 추론)로 넘긴다
           lastErr = lastErr || new Error('인식된 수업이 없습니다');
           break;
-        }catch(err){ lastErr=err; }
+        }catch(err){ lastErr=err; if(err && err.geminiAuth) break ocr; }
       }
     }
   }
