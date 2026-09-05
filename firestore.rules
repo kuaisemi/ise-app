@@ -24,7 +24,10 @@ service cloud.firestore {
 
 
     match /users/{uid} {
-      allow read: if isSignedIn();
+      // 본인 문서는 항상, 남의 문서는 학생회 이상만(관리 화면에서 필요) 읽을 수 있다.
+      // isCouncil()이 이 문서(/users/{request.auth.uid})를 다시 읽으므로, uid가 본인일
+      // 때는 그 재귀 조회 없이 먼저 걸러지도록 자기 자신 조건을 앞에 둔다.
+      allow read: if isSignedIn() && (request.auth.uid == uid || isCouncil());
       allow create, update: if isSignedIn() && request.auth.uid == uid;
     }
 
@@ -43,7 +46,9 @@ service cloud.firestore {
     match /shared/polls        { allow read, write: if isSignedIn(); }
     // 전체 가입자 이름 · 학번 · 직급 디렉터리 — 학부생까지 다 보이면 안 되니 학생회 이상만.
     match /shared/usersList    { allow read, write: if isCouncil(); }
-    match /shared/bugReports { allow read, write: if isSignedIn(); }
+    // 버그 제보엔 제보자 실명 · 학번이 들어가는데, 목록은 학생회 제보함 화면(학생회 이상)에서만
+    // 보여준다. 제보 자체(쓰기)는 누구나 할 수 있어야 해서 write는 계속 열어둔다.
+    match /shared/bugReports { allow read: if isCouncil(); allow write: if isSignedIn(); }
     // 공지는 작성/수정/삭제는 클라이언트 UI에서 학생회로만 제한하지만, 학부생도 "좋아요"를
     // 누를 때 이 문서에 같이 써야 해서 쓰기 자체는 로그인한 사람 모두에게 열어둔다.
     // (suggestions/recruitments/polls도 같은 이유로 이미 열려있음 — 이 앱은 문서 단위 권한이라
@@ -55,6 +60,14 @@ service cloud.firestore {
     // 삭제 기록(누가 · 언제 · 어디서 지웠는지) — 학생회장 이상만 볼 수 있고, 기록 자체는
     // 삭제 권한이 있는 학생회 계정이면 남길 수 있다.
     match /shared/auditLog { allow read: if isPresident(); allow write: if isCouncil(); }
+    // 전체 학생 명단(실명 · 학번 · 출생연도) — 회원가입 검증 때는 아직 users/{uid} 문서가
+    // 생기기 전(가입 절차 도중)이라 그 틈에만 읽게 해주고, 가입이 끝나 문서가 생긴 뒤에는
+    // 학생회 이상만 읽을 수 있다. (예전엔 명시 규칙이 없어 로그인만 하면 전체가 읽혔음)
+    match /shared/roster {
+      allow read: if isCouncil()
+        || (isSignedIn() && !exists(/databases/$(database)/documents/users/$(request.auth.uid)));
+      allow write: if isCouncil();
+    }
 
     match /shared/{docId} {
       allow read: if isSignedIn();

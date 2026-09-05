@@ -113,11 +113,12 @@ async function purgeOldTombstones() {
 }
 
 async function main() {
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, stateSnap, usersSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, stateSnap, usersSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
     db.collection('shared').doc('bugReports').get(),
+    db.collection('shared').doc('suggestions').get(),
     db.collection('shared').doc('notifyState').get(),
     db.collection('users').get(),
   ]);
@@ -127,6 +128,7 @@ async function main() {
   const polls = live(pollsSnap.exists ? pollsSnap.data().list : []);
   const mealsByDate = (mealsSnap.exists ? mealsSnap.data().byDate : {}) || {};
   const bugReports = live(bugReportsSnap.exists ? bugReportsSnap.data().list : []);
+  const suggestions = live(suggestionsSnap.exists ? suggestionsSnap.data().list : []);
   const st = stateSnap.exists ? stateSnap.data() : {};
 
   const notifiedNotice = new Set(st.notifiedNoticeIds || []);
@@ -134,6 +136,7 @@ async function main() {
   const warnedPollEnd = new Set(st.warnedPollEndIds || []);
   const sentMealKeys = new Set(st.sentMealKeys || []);
   const notifiedBugReport = new Set(st.notifiedBugReportIds || []);
+  const notifiedSuggestionAnswer = new Set(st.notifiedSuggestionAnswerIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
   // 카테고리별 수신 대상 토큰 수집.
@@ -142,12 +145,14 @@ async function main() {
   const tokensBy = { notice: [], poll: [], meal: [] };
   const bugAlertTokens = []; // 개발자 · 학생회장: 버그 제보는 알림 설정과 무관하게 항상 받음
   const nightOkTokens = new Set(); // 야간(22시~7시) 알림에 동의한 토큰만
+  const tokensByStudentId = new Map(); // 건의사항 답변처럼 "그 사람에게만" 보낼 때 씀
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
     const tokens = [...new Set([...(u.fcmTokens || []), ...(u.fcmToken ? [u.fcmToken] : [])])];
     if (!tokens.length) return;
     const prefs = u.notifyPrefs || {};
+    if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
     for (const t of tokens) {
       tokenToUid.set(t, docSnap.id);
       if (prefs.notice) tokensBy.notice.push(t);
@@ -297,6 +302,39 @@ async function main() {
     }
   }
 
+  // 7) 건의사항에 답변이 달리면 그 글을 쓴 학생에게만 보낸다 (게시판 전체 알림이 아니라
+  //    개인 알림이라, 다른 사람의 "공지" 알림 설정과는 무관하게 본인 토큰이 있으면 보낸다).
+  const newAnswers = suggestions.filter(
+    (s) => s.status === '답변완료' && s.studentId && !notifiedSuggestionAnswer.has(s.id)
+  );
+  for (const s of newAnswers) {
+    const allTokens = tokensByStudentId.get(s.studentId) || [];
+    const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+    if (!tokens.length) {
+      console.log('건의사항 답변 알림(수신 토큰 없음, 건너뜀):', s.title || s.content);
+      continue;
+    }
+    console.log('건의사항 답변 알림:', s.title || s.content);
+    const res = await messaging.sendEachForMulticast({
+      tokens,
+      notification: { title: '💬 건의사항에 답변이 달렸어요', body: `제목: ${s.title || s.content}` },
+      data: { url: './index.html' },
+    });
+    res.responses.forEach((resp, idx) => {
+      if (resp.success) return;
+      const code = resp.error && resp.error.code;
+      if (
+        code === 'messaging/invalid-registration-token' ||
+        code === 'messaging/registration-token-not-registered'
+      ) {
+        invalidTokens.add(tokens[idx]);
+      } else {
+        console.warn('발송 실패:', code, resp.error && resp.error.message);
+      }
+    });
+    sentCount++;
+  }
+
   if (!sentCount) {
     console.log('보낼 알림 없음 — 종료');
   }
@@ -309,6 +347,7 @@ async function main() {
       warnedPollEndIds: [...warnedPollEnd, ...endingSoon.map((p) => p.id)].slice(-KEEP_IDS),
       sentMealKeys: [...sentMealKeys, ...newMealKeys].slice(-30),
       notifiedBugReportIds: [...notifiedBugReport, ...newBugReports.map((r) => r.id)].slice(-KEEP_IDS),
+      notifiedSuggestionAnswerIds: [...notifiedSuggestionAnswer, ...newAnswers.map((s) => s.id)].slice(-KEEP_IDS),
       updatedAt: Date.now(),
       ...nextState,
     },

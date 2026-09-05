@@ -328,6 +328,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .cal-day.selected-day{border-color:var(--amber); background:rgba(var(--amber-rgb),0.12); font-weight:800; color:var(--amber);}
 .cal-day.sun span.day-num{color:var(--danger);}
 .cal-day.sat span.day-num{color:var(--blue);}
+.cal-day.holiday span.day-num{color:var(--danger);}
 .cal-day.other-month{opacity:0.22; pointer-events:none;}
 .cal-dots{display:flex; gap:2px; flex-wrap:wrap; justify-content:center; margin-top:2px;}
 .cal-dot{width:5px; height:5px; border-radius:50%;}
@@ -579,8 +580,17 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.17';
+const APP_VERSION = 'Beta 0.3.18';
 const PATCH_NOTES = [
+  { version:'Beta 0.3.18', date:'2026-09-05', items:[
+    '"학부 재학생" 표기를 "재학생"으로 간결하게',
+    'MY탭 구성 변경 — 테마를 화면 설정 안으로, 미리보기(개발자 화면) 카드를 프로필 바로 아래로',
+    '학사 달력에서 공휴일 날짜 숫자를 빨간색으로 표시',
+    { text:'건의사항에 답변이 달리면 작성자 본인에게 푸시 알림 전송', admin:true },
+    { text:'보안: users/{uid} 문서를 로그인만 하면 아무나 읽을 수 있던 문제 수정 — 본인이거나 학생회 이상만', admin:true },
+    { text:'보안: 전체 학생 명단(실명·학번·출생연도)을 로그인만 하면 누구나 읽을 수 있던 문제 수정 — 가입 절차 중에만 잠깐 열리고 그 외엔 학생회 이상만', admin:true },
+    { text:'보안: 버그 제보함(제보자 실명·학번 포함)을 아무나 읽을 수 있던 문제 수정 — 학생회 이상만', admin:true },
+  ]},
   { version:'Beta 0.3.17', date:'2026-09-05', items:[
     '주간 시간표 위젯 왼쪽 시간축 숫자를 가운데 정렬로',
     '주간 시간표 위젯 강의실 표시를 켜면 시간 대신 강의실이 나오도록(한 줄에 같이 넣지 않음)',
@@ -877,7 +887,7 @@ async function loadDeptNotices(){
 }
 
 const ROLES = {
-  student:   { level:0, label:'학부 재학생' },
+  student:   { level:0, label:'재학생' },
   council:   { level:1, label:'학생회' },
   director:  { level:2, label:'국장' },
   vice:      { level:3, label:'부학생회장' },
@@ -1655,7 +1665,7 @@ function boot(){
                 return;
               }
               // 이 시점에서만 정말로 신규 가입자로 간주해 기본 프로필을 만든다.
-              udoc={ studentId:sid, name:'학부 재학생', role:currentRole, createdAt:now() };
+              udoc={ studentId:sid, name:'재학생', role:currentRole, createdAt:now() };
               await createUserDoc(fbUser.uid, udoc);
             }
           } else {
@@ -1665,7 +1675,7 @@ function boot(){
           state.user = {
             uid: fbUser.uid,
             studentId: sid,
-            name: udoc.name || '학부 재학생',
+            name: udoc.name || '재학생',
             role: ROLES[currentRole] ? currentRole : 'student'
           };
           await loadAllData();
@@ -2637,7 +2647,7 @@ function renderSignupForm(){
     <div id="auth-error"></div>
     <form id="signup-form">
       <div class="role-toggle">
-        <div class="role-opt ${state.signupRole==='student'?'active':''}" data-action="set-signup-role" data-role="student">학부 재학생</div>
+        <div class="role-opt ${state.signupRole==='student'?'active':''}" data-action="set-signup-role" data-role="student">재학생</div>
         <div class="role-opt ${state.signupRole==='council'?'active':''}" data-action="set-signup-role" data-role="council">학생회</div>
       </div>
       <div class="field"><label>학번</label><input type="text" name="studentId" inputmode="numeric" maxlength="10" placeholder="학번 10자리" required autocomplete="off"></div>
@@ -3651,6 +3661,11 @@ function renderExamCalTab(){
     ...(state.showCouncilEvents ? pollDeadlineEvents : []),
   ];
 
+  // 공휴일은 위에서 숨긴 "학사일정"에 포함돼 있지만, 날짜 숫자 색만큼은 일·토처럼 항상
+  // 빨갛게 보여주고 싶어서, 숨김 필터와 무관하게 전체 일정에서 따로 걸러낸다.
+  const isHolidayDate = (dateStr) => live(state.calendar).some(ev =>
+    ev.category === 'holiday' && ev.startDate <= dateStr && ev.endDate >= dateStr);
+
   let calCells = '';
   const weekdays = [
     { label:'일', cls:'sun' }, { label:'월', cls:'' }, { label:'화', cls:'' },
@@ -3671,6 +3686,7 @@ function renderExamCalTab(){
     let dayCls = '';
     if(dayOfWeek === 0) dayCls = 'sun';
     else if(dayOfWeek === 6) dayCls = 'sat';
+    if(isHolidayDate(curDateStr)) dayCls = (dayCls + ' holiday').trim();
 
     const hasMemo = !!(state.memos && (state.memos[curDateStr]||'').trim());
     let dots = '';
@@ -4816,18 +4832,14 @@ function renderMypage(){
       <button type="button" class="btn-settings-mini" data-action="toggle-mypage-settings" title="화면 설정">${ICON.gear}</button>
     </div>
 
-    <div class="card" style="margin-top:10px;">
-      <p style="margin:0 0 8px; font-size:11.5px; font-weight:700;">테마</p>
-      <div style="display:flex; gap:6px;">
-        ${[['system','기기 설정'],['light','라이트'],['dark','다크']].map(([v,label])=>`
-          <button type="button" class="btn ${themeOv===v?'btn-primary':'btn-ghost'} btn-sm" data-action="set-theme" data-theme-v="${v}" style="flex:1;">${label}</button>
-        `).join('')}
+    ${isRawDeveloper() ? `
+    <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; background:var(--teal-glow-3);">
+      <div style="min-width:0;">
+        <p class="icon-inline" style="margin:0; font-size:12.5px; font-weight:700; color:var(--teal);">${state.previewAsStudent ? `${ICON.eye} 재학생 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
+        <p style="margin:3px 0 0; font-size:11.5px; color:var(--text-faint); line-height:1.4;">다른 학생들 눈에 보이는 화면을 그대로 미리 볼 수 있어요</p>
       </div>
-      ${!isNativeApp ? `
-      <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
-        일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
-      </p>` : ''}
-    </div>
+      <button type="button" class="btn ${state.previewAsStudent?'btn-primary':'btn-ghost'} btn-sm" style="width:auto; white-space:nowrap; flex-shrink:0;" data-action="toggle-preview-mode">${state.previewAsStudent?'개발자로 복귀':'학생 화면 보기'}</button>
+    </div>` : ''}
 
     ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
@@ -4838,7 +4850,18 @@ function renderMypage(){
       </div>
 
       ${state.settingsTab==='display' ? `
-      <p style="margin:0 0 8px; font-size:11.5px; font-weight:700;">글씨 크기</p>
+      <p style="margin:0 0 8px; font-size:11.5px; font-weight:700;">테마</p>
+      <div style="display:flex; gap:6px;">
+        ${[['system','기기 설정'],['light','라이트'],['dark','다크']].map(([v,label])=>`
+          <button type="button" class="btn ${themeOv===v?'btn-primary':'btn-ghost'} btn-sm" data-action="set-theme" data-theme-v="${v}" style="flex:1;">${label}</button>
+        `).join('')}
+      </div>
+      ${!isNativeApp ? `
+      <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
+        일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
+      </p>` : ''}
+
+      <p style="margin:16px 0 8px; font-size:11.5px; font-weight:700;">글씨 크기</p>
       <div style="display:flex; gap:6px;">
         ${FONT_SCALES.map(([v,label])=>`
           <button type="button" class="btn ${scale===v?'btn-primary':'btn-ghost'} btn-sm" data-action="set-font-scale" data-scale-v="${v}" style="flex:1; padding-left:2px; padding-right:2px;">${label}</button>
@@ -4891,15 +4914,6 @@ function renderMypage(){
         </div>`) : ''}
     </div>
     ` : ''}
-
-    ${isRawDeveloper() ? `
-    <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; background:var(--teal-glow-3);">
-      <div style="min-width:0;">
-        <p class="icon-inline" style="margin:0; font-size:12.5px; font-weight:700; color:var(--teal);">${state.previewAsStudent ? `${ICON.eye} 학부 재학생 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
-        <p style="margin:3px 0 0; font-size:11.5px; color:var(--text-faint); line-height:1.4;">다른 학생들 눈에 보이는 화면을 그대로 미리 볼 수 있어요</p>
-      </div>
-      <button type="button" class="btn ${state.previewAsStudent?'btn-primary':'btn-ghost'} btn-sm" style="width:auto; white-space:nowrap; flex-shrink:0;" data-action="toggle-preview-mode">${state.previewAsStudent?'개발자로 복귀':'학생 화면 보기'}</button>
-    </div>` : ''}
 
     ${(isPresident() || council) ? `
     <div class="section-title">권한 및 관리</div>
@@ -6020,7 +6034,7 @@ async function setRole(role){
   catch(e){}
   await trackUserPresence(state.user);
   renderApp();
-  toast(role==='student' ? '학부 재학생 권한으로 전환되었습니다' : `${roleLabel(role)} 권한이 활성화되었습니다`);
+  toast(role==='student' ? '재학생 권한으로 전환되었습니다' : `${roleLabel(role)} 권한이 활성화되었습니다`);
   return true;
 }
 async function handleCouncilVerify(fd){
@@ -6979,7 +6993,7 @@ document.addEventListener('click', async (e)=>{
       if(!isRawDeveloper()) return;
       state.previewAsStudent = !state.previewAsStudent;
       renderApp();
-      toast(state.previewAsStudent ? '학부 재학생 화면으로 미리보기 중' : '개발자 화면으로 복귀했습니다');
+      toast(state.previewAsStudent ? '재학생 화면으로 미리보기 중' : '개발자 화면으로 복귀했습니다');
     }
     else if(a === 'open-semester-picker'){ openModal(semesterPickerModal()); }
     else if(a === 'open-timetable-list'){ openModal(timetableListModal()); }
