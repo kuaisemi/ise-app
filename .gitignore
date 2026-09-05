@@ -82,6 +82,10 @@ android/app/google-services.json
 *serviceAccount*.json
 *service-account*.json
 
+# Gemini API 키 등 실제 비밀값 — Public 저장소라 커밋하면 GitHub가 구글에 신고해서
+# 자동 폐기당한다. build-dist.mjs가 빌드 시점(dist/에만)에 이 파일 내용을 끼워 넣는다.
+secrets.local.json
+
 # 앱 서명 키 — 절대 커밋 금지. 별도로 안전한 곳에 백업할 것
 # (잃어버리면 같은 앱으로 업데이트를 배포할 수 없음)
 *.keystore

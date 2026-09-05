@@ -77,11 +77,34 @@ function copyDir(src, dest) {
   }
 }
 
+// public/index.html에는 실제 키를 절대 넣지 않는다 — Public 저장소라 커밋하면 GitHub가
+// 곧바로 구글에 신고하고 구글이 자동으로 키를 폐기해버린다(실제로 여러 번 겪음). 대신
+// 저장소 밖의 secrets.local.json(.gitignore됨)에 실제 값을 두고, 여기서 dist/ 산출물에만
+// 끼워 넣는다 — dist/도 gitignore 대상이라 이 값은 git 기록에 절대 남지 않는다.
+function injectSecrets(html) {
+  const secretsPath = path.join(ROOT, 'secrets.local.json');
+  // terser가 주석을 지우며 따옴표/공백을 다시 포맷하므로(작은따옴표→큰따옴표, 공백 추가 등)
+  // 정확히 같은 문자열이 아니라 자리표시자가 들어있는 선언 자체를 정규식으로 찾는다.
+  const placeholderRe = /const GEMINI_API_KEYS = \[[^\]]*__GEMINI_API_KEYS_PLACEHOLDER__[^\]]*\];/;
+  if (!placeholderRe.test(html)) {
+    throw new Error('GEMINI_API_KEYS 자리표시자를 못 찾음 — public/index.html이 바뀌었는지 확인');
+  }
+  if (!fs.existsSync(secretsPath)) {
+    console.warn('[build-dist] secrets.local.json이 없어서 GEMINI_API_KEYS를 빈 배열로 둡니다 (사진 인식 비활성).');
+    return html.replace(placeholderRe, 'const GEMINI_API_KEYS = [];');
+  }
+  const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf8'));
+  const keys = Array.isArray(secrets.geminiApiKeys) ? secrets.geminiApiKeys : [];
+  const literal = `const GEMINI_API_KEYS = [${keys.map((k) => JSON.stringify(k)).join(', ')}];`;
+  return html.replace(placeholderRe, literal);
+}
+
 async function main() {
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   copyDir(SRC_DIR, OUT_DIR);
 
-  const strippedHtml = await processIndexHtml();
+  let strippedHtml = await processIndexHtml();
+  strippedHtml = injectSecrets(strippedHtml);
   fs.writeFileSync(path.join(OUT_DIR, 'index.html'), strippedHtml, 'utf8');
 
   const strippedSw = await processSwJs();

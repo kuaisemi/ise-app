@@ -554,9 +554,11 @@ async function getMessagingInstance(){
 }
 
 // 시간표/학사일정 사진 인식용 Gemini API 키 (학생회 고정 키, 1번 실패 시 2번으로 자동 폴백)
-const GEMINI_API_KEYS = [
-  'AQ.Ab8RN6JTqw89OhXs56yI2E7XGYC3NCt-XEtoNUt1-51jptP2Ew',
-];
+// 실제 키 값은 이 소스에 넣지 않는다 — 이 저장소는 Public이라 키를 커밋하면 GitHub가
+// 곧바로 구글에 신고하고 구글이 자동으로 그 키를 폐기해버린다(실제로 여러 번 겪음).
+// 진짜 값은 저장소 밖의 secrets.local.json(.gitignore됨)에 두고, build-dist.mjs가
+// 빌드할 때(dist/에만) 이 자리에 끼워 넣는다. 그래서 public/에는 항상 빈 배열만 있다.
+const GEMINI_API_KEYS = ['__GEMINI_API_KEYS_PLACEHOLDER__'];
 
 // 사진 인식 키가 만료·해지되면 구글이 401(UNAUTHENTICATED)을 돌려주는데, 그 영어 원문이 그대로
 // 화면에 뜨면 쓰는 사람 입장에서는 뭘 해야 할지 알 수가 없다. 학생이 손쓸 수 없는 오류라서
