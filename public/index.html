@@ -2127,8 +2127,8 @@ function renderWidgetSettingsTab(){
               <div class="swatch ${w.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
                 data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${w.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
             <div class="swatch swatch-custom ${!isWidgetPresetAccent(w.accent)?'selected':''}"
-              style="background:${!isWidgetPresetAccent(w.accent)?w.accent:'conic-gradient(from 0deg, #FF5B5B, #FFC24B, #6EDC8C, #4BC9FF, #8C6BFF, #FF5B5B)'};"
-              data-action="open-color-modal" data-target="accent" title="커스텀 색 직접 선택">${!isWidgetPresetAccent(w.accent)?'✓':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-4 12-12 3 3L6 21z"/><path d="m17 8-1.5-1.5a2.1 2.1 0 0 1 3-3L20 5a2.1 2.1 0 0 1-3 3"/></svg>'}</div>
+              style="background:${!isWidgetPresetAccent(w.accent)?w.accent:'conic-gradient(#FF5B5B, #FFC24B, #6EDC8C, #4BC9FF, #8C6BFF, #FF5B5B)'};"
+              data-action="open-color-modal" data-target="accent" title="커스텀 색 직접 선택">${!isWidgetPresetAccent(w.accent)?'✓':'<svg width="12" height="12" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#fff"/></svg>'}</div>
           </div>
           <p style="font-size:10px; color:var(--text-faint); margin:6px 2px 0;">무지개 원을 누르면 색을 직접 골라요</p>
         </div>
