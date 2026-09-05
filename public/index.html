@@ -5216,15 +5216,18 @@ function usersListModal(){
   else if(tab === 'old') filtered = users.filter(u=>parseInt(u.studentId.slice(0,4),10) <= prevFull-1);
 
   const assignable = ['student','council','director','vice','president'];
+  const latestCount = users.filter(u=>u.studentId.startsWith(String(latestFull))).length;
+  const prevCount = users.filter(u=>u.studentId.startsWith(String(prevFull))).length;
+  const oldCount = users.filter(u=>parseInt(u.studentId.slice(0,4),10) <= prevFull-1).length;
 
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">가입자 및 직급 관리 (${users.length}명)<button data-action="close-modal">${ICON.close}</button></div>
     <div class="subtabs" style="margin-bottom:10px;">
       <div class="subtab ${tab==='all'?'active':''}" data-action="user-tab" data-tab="all">전체(${users.length})</div>
-      <div class="subtab ${tab==='latest'?'active':''}" data-action="user-tab" data-tab="latest">${latestY}학번</div>
-      <div class="subtab ${tab==='prev'?'active':''}" data-action="user-tab" data-tab="prev">${prevY}학번</div>
-      <div class="subtab ${tab==='old'?'active':''}" data-action="user-tab" data-tab="old">${prevY-1}이전</div>
+      <div class="subtab ${tab==='latest'?'active':''}" data-action="user-tab" data-tab="latest">${latestY}학번(${latestCount})</div>
+      <div class="subtab ${tab==='prev'?'active':''}" data-action="user-tab" data-tab="prev">${prevY}학번(${prevCount})</div>
+      <div class="subtab ${tab==='old'?'active':''}" data-action="user-tab" data-tab="old">${prevY-1}이전(${oldCount})</div>
       <div class="subtab ${tab==='unreg'?'active':''}" data-action="user-tab" data-tab="unreg">미가입(${unregUsers.length})</div>
     </div>
     <div style="max-height:380px; overflow-y:auto; padding:2px;">
