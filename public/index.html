@@ -635,6 +635,7 @@ const PATCH_NOTES = [
     '위젯 강조 색에서 커스텀 색 선택 버튼이 다른 색상 견본과 똑같이 생겨 눈에 안 띄던 문제 수정 — 무지개색 원으로 바꾸고 안내 문구 추가',
     '위젯 커스텀 색 아이콘을 스포이드에서 원 안에 꽉 차는 흰 점으로 변경',
     '위젯 강조 색의 "직접 선택" 원 배경을 일반 무지개색 대신, 옆 프리셋 6색을 이어붙인 그러데이션으로 변경 (앱 색감에 맞게)',
+    '위젯 강조 색의 커스텀 선택 방식을 시간표 수업 색상과 같은 방식(+ 버튼 → 그 자리에서 바로 펼쳐지는 색상 선택기)으로 통일 — 팝업 대신 접었다 펴는 패널로 변경',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
@@ -1833,9 +1834,6 @@ const WIDGET_BGS = [
 const WIDGET_BG_DEFAULT_CUSTOM = '#8C1D2B';
 const WIDGET_ACCENTS = ['#F5C563','#4ECDC4','#B20923','#5B8DEF','#3DDC97','#C77DFF'];
 function isWidgetPresetAccent(hex){ return WIDGET_ACCENTS.some(h=>h.toLowerCase()===String(hex||'').toLowerCase()); }
-// "직접 선택" 견본은 일반 무지개색 대신, 위젯 강조 색 프리셋 6개를 그대로 이어붙인 그러데이션을 써서
-// 시간표처럼 알록달록한 이 앱만의 색감이 느껴지게 한다.
-function widgetAccentGradientCss(){ return `conic-gradient(${WIDGET_ACCENTS.concat(WIDGET_ACCENTS[0]).join(', ')})`; }
 function isValidHexColor(s){ return /^#[0-9a-fA-F]{6}$/.test(s); }
 
 /* ===== HSV <-> HEX 변환 (직접 만든 색상 선택기용) ===== */
@@ -2127,15 +2125,13 @@ function renderWidgetSettingsTab(){
 
         <div class="field" style="margin-bottom:12px;">
           <label>강조 색</label>
-          <div class="swatches">
+          <div class="swatches" id="widget-accent-swatches-wrap">
             ${WIDGET_ACCENTS.map(hex=>`
               <div class="swatch ${w.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
                 data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${w.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
-            <div class="swatch swatch-custom ${!isWidgetPresetAccent(w.accent)?'selected':''}"
-              style="background:${!isWidgetPresetAccent(w.accent)?w.accent:widgetAccentGradientCss()};"
-              data-action="open-color-modal" data-target="accent" title="커스텀 색 직접 선택">${!isWidgetPresetAccent(w.accent)?'✓':'<svg width="12" height="12" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#fff"/></svg>'}</div>
+            ${inlineColorSwatchHtml('widget-accent', w.accent, !isWidgetPresetAccent(w.accent))}
           </div>
-          <p style="font-size:10px; color:var(--text-faint); margin:6px 2px 0;">무지개 원을 누르면 색을 직접 골라요</p>
+          ${inlineColorPanelHtml('widget-accent', w.accent)}
         </div>
 
         <div class="field" style="margin-bottom:12px;">
@@ -6913,6 +6909,16 @@ INLINE_COLOR_HANDLERS['ttnow'] = (hex)=>{
     if(isPicker) s.style.background = hex;
   });
 };
+// 위젯 강조 색 — 폼 제출이 없으므로(설정은 바로 적용) 여기서 곧장 저장까지 한다.
+INLINE_COLOR_HANDLERS['widget-accent'] = (hex)=>{
+  setWidgetSetting(state.widgetFontScaleTarget, { accent: hex });
+  document.querySelectorAll('#widget-accent-swatches-wrap .swatch').forEach(s=>{
+    const isPicker = s.dataset.action === 'toggle-inline-color';
+    s.classList.toggle('selected', isPicker);
+    s.innerHTML = isPicker ? '✓' : '';
+    if(isPicker) s.style.background = hex;
+  });
+};
 
 document.addEventListener('change', async (e)=>{
   const t = e.target;
@@ -7264,7 +7270,15 @@ document.addEventListener('click', async (e)=>{
     else if(a==='settings-tab'){ state.settingsTab = el.dataset.tab; renderMain(); }
     // 위젯 설정은 지금 고른 위젯(state.widgetFontScaleTarget) 하나에만 적용된다
     else if(a==='set-widget-bg'){ setWidgetSetting(state.widgetFontScaleTarget, { bg: el.dataset.bg }); renderMain(); }
-    else if(a==='set-widget-accent'){ setWidgetSetting(state.widgetFontScaleTarget, { accent: el.dataset.hex }); renderMain(); }
+    else if(a==='set-widget-accent'){
+      setWidgetSetting(state.widgetFontScaleTarget, { accent: el.dataset.hex });
+      document.querySelectorAll('#widget-accent-swatches-wrap .swatch').forEach(s=>{
+        const isPicker = s.dataset.action === 'toggle-inline-color';
+        s.classList.remove('selected'); s.innerHTML = '';
+        if(isPicker) s.style.background = 'var(--surface-2)';
+      });
+      el.classList.add('selected'); el.innerHTML = '✓';
+    }
     else if(a==='open-color-modal'){
       const target = el.dataset.target;
       const wkey = state.widgetFontScaleTarget;
