@@ -155,10 +155,12 @@ public class WeekWidget extends BaseWidget {
                     chip.setTextViewText(R.id.chip_subject, c.optString("subject", ""));
                     theme.size(chip, R.id.chip_subject, 9.5f);
                     if (!canSize || blockDp >= TIME_LINE_MIN_DP * theme.fontScale) {
-                        String room = showRoom ? c.optString("room", "") : "";
-                        String timeText = room.isEmpty() ? c.optString("startLabel", "") : c.optString("startLabel", "") + " · " + room;
+                        // 밑줄 한 줄은 강의실 표시가 켜져 있으면 강의실을, 아니면 시작 시각을 보여준다
+                        // (둘을 한 줄에 욱여넣으면 좁은 칸에서 잘려서 둘 다 따로 고를 수 있게 함).
+                        String room = c.optString("room", "");
+                        String line = (showRoom && !room.isEmpty()) ? room : c.optString("startLabel", "");
                         chip.setViewVisibility(R.id.chip_time, View.VISIBLE);
-                        chip.setTextViewText(R.id.chip_time, timeText);
+                        chip.setTextViewText(R.id.chip_time, line);
                         theme.size(chip, R.id.chip_time, 8f);
                     } else {
                         chip.setViewVisibility(R.id.chip_time, View.GONE);

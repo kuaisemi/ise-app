@@ -4,7 +4,6 @@
     android:id="@+id/hour_text"
     android:layout_width="match_parent"
     android:layout_height="0dp"
-    android:gravity="top|end"
-    android:paddingEnd="3dp"
+    android:gravity="top|center_horizontal"
     android:maxLines="1"
     android:textSize="8sp" />
