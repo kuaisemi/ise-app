@@ -112,6 +112,7 @@ a{color:inherit;}
 .apk-popup-benefits li svg{flex-shrink:0; color:var(--teal);}
 .apk-popup-actions{display:flex; flex-direction:column; gap:8px;}
 .apk-popup-actions .btn{width:100%; text-decoration:none;}
+.apk-popup-never{background:none; border:none; color:var(--text-faint); font-size:11.5px; padding:4px; margin-top:2px; text-decoration:underline;}
 .auth-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px 20px; position:relative; box-shadow:0 12px 32px rgba(0,0,0,0.3);}
 .auth-card::before{content:''; position:absolute; top:0; left:20px; right:20px; height:1px; background:linear-gradient(90deg, transparent, var(--teal), transparent); opacity:.5;}
 .auth-title{font-size:15.5px; font-weight:700; margin:0 0 4px;}
@@ -167,7 +168,7 @@ a{color:inherit;}
 .btn-settings-mini{background:transparent; border:none; padding:4px; margin-left:-2px; color:var(--text-faint); display:flex; align-items:center; cursor:pointer;}
 .btn-settings-mini:active{color:var(--teal); transform:scale(0.9);}
 .top-actions{display:flex; align-items:center; gap:6px;}
-.btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; width:29px; height:29px; padding:0; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center;}
+.btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; width:29px; height:29px; padding:0; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none;}
 .btn-top-refresh:active{transform:scale(0.9); color:var(--teal);}
 .btn-top-bell{position:relative;}
 .btn-top-bell .bell-dot{position:absolute; top:5px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--crimson); border:1.5px solid var(--surface-2);}
@@ -618,6 +619,7 @@ const PATCH_NOTES = [
     { text:'가입자 관리 화면 학번별 탭에 인원수 표시 추가', admin:true },
     '홈 화면 설치(PWA) 아이콘의 흰색 로고가 너무 작게 그려지던 문제 수정 (배경 대비 로고 비율 확대, 두 차례 더 키움)',
     'APK 설치 안내를 배너 대신 팝업으로 변경 — 안드로이드 브라우저로 접속하면(새로고침 포함, 3일에 한 번) 혜택과 함께 설치를 권하고, 다운로드 버튼을 누르면 최신 APK가 바로 받아짐. MY탭 위젯 설정 화면에도 같은 다운로드 버튼 추가',
+    '설치 팝업에 "다신 보지 않기" 추가, 안드로이드 브라우저 상단바(새로고침 옆)에 항상 남는 다운로드 아이콘 추가',
   ]},
   { version:'Alpha', date:'2026-09-05', items:[
     '홈 화면 위젯 전면 개편 — 주간 시간표 위젯을 앱 화면처럼 실제 시각 위치·길이로 재제작, 위젯마다 배경·강조색·글씨크기 따로 설정, "달력(가로형)" 위젯 추가',
@@ -2546,9 +2548,11 @@ const APK_DOWNLOAD_URL = 'https://github.com/kuaisemi/ise-app/releases/latest/do
 
 let apkPopupShownThisLoad = false;
 // 페이지가 켜질 때(새로고침 포함) 안드로이드 브라우저면 한 번 설치를 권하는 팝업.
-// 매번 뜨면 성가시니 "나중에"를 누르거나 그냥 닫아도 3일간은 다시 안 뜬다.
+// 매번 뜨면 성가시니 "나중에"를 누르거나 그냥 닫아도 3일간은 다시 안 뜨고,
+// "다신 보지 않기"를 누르면 영구히 안 뜬다(맨 위 다운로드 아이콘은 항상 남아있으니 필요하면 거기서).
 function maybeShowApkInstallPopup(){
   if(apkPopupShownThisLoad || !isAndroidWeb()) return;
+  try{ if(localStorage.getItem('apkPopupDismissedForever')==='1') return; }catch(e){}
   let last = 0;
   try{ last = parseInt(localStorage.getItem('apkPopupLastShown')||'0', 10) || 0; }catch(e){}
   if(Date.now() - last < 3*24*60*60*1000) return;
@@ -2576,6 +2580,7 @@ function showApkInstallPopup(){
         <div class="apk-popup-actions">
           <a class="btn btn-primary" href="${APK_DOWNLOAD_URL}" data-action="apk-popup-download">다운로드</a>
           <button type="button" class="btn btn-ghost" data-action="apk-popup-dismiss">나중에</button>
+          <button type="button" class="apk-popup-never" data-action="apk-popup-dismiss-forever">다신 보지 않기</button>
         </div>
       </div>
     </div>`;
@@ -2660,6 +2665,7 @@ function renderShell(){
             <span class="role-badge ${myRole()}">${roleLabel(myRole())}</span>
           </div>` : ''}
           <div class="top-actions" style="display:flex; align-items:center; gap:6px;">
+            ${isAndroidWeb() ? `<a class="btn-top-refresh" href="${APK_DOWNLOAD_URL}" title="APK 다운로드">${ICON.download}</a>` : ''}
             <button type="button" class="btn-top-refresh" data-action="global-refresh" title="새로고침">${ICON.refresh}</button>
             <button type="button" class="btn-top-refresh btn-top-bell" data-action="open-notif-feed" title="알림">${ICON.bell}${hasUnseenNotifications() ? '<span class="bell-dot"></span>' : ''}</button>
             <span class="date-pill" data-action="go-calendar-tab">${dateLabel}</span>
@@ -6850,6 +6856,11 @@ document.addEventListener('click', async (e)=>{
   try{
     if(a === 'switch-auth'){ state.authMode = el.dataset.mode; renderAuth(); }
     else if(a === 'apk-popup-dismiss'){ e.preventDefault(); closeApkInstallPopup(); }
+    else if(a === 'apk-popup-dismiss-forever'){
+      e.preventDefault();
+      try{ localStorage.setItem('apkPopupDismissedForever','1'); }catch(err){}
+      closeApkInstallPopup();
+    }
     else if(a === 'apk-popup-download'){ closeApkInstallPopup(); }
     else if(a === 'tp-step'){
       const picker = el.closest('.time-picker');
