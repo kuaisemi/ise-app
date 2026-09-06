@@ -117,6 +117,10 @@ service cloud.firestore {
     // 삭제 기록(누가 · 언제 · 어디서 지웠는지) — 학생회장 이상만 볼 수 있고, 기록 자체는
     // 삭제 권한이 있는 학생회 계정이면 남길 수 있다.
     match /shared/auditLog { allow read: if isPresident(); allow write: if isCouncil(); }
+    // 탈퇴 대기열. 클라이언트 SDK는 남의 Firebase Auth 계정을 지울 수 없어서(본인 것이거나
+    // Admin SDK여야 한다), 회장이 탈퇴시킨 uid를 여기에 쌓아두고 서버(GitHub Actions)가
+    // 대신 지운다. 지우기 전까지 그 계정은 로그인해도 명단·프로필이 없어 막힌다.
+    match /shared/pendingAuthDeletes { allow read, write: if isPresident(); }
     // 사진 인식(Gemini) API 키. 예전에는 빌드할 때 키를 index.html에 끼워 넣었는데, 이 앱은
     // 웹뷰를 그대로 감싼 구조라 index.html이 배포 사이트 소스에도 APK 안에도 텍스트 그대로
     // 들어간다. "페이지 소스 보기" 한 번이면 키가 나왔고, 실제로 구글에 탐지돼 반복해서

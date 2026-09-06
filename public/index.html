@@ -1117,8 +1117,8 @@ function hasUserVoted(p){
 // lastSeen이 없다는 건 이 사람이 아직 새 버전을 한 번도 안 열었다는 뜻이다(접속 기록을
 // users/{uid}에 남기도록 바꾼 뒤로 쌓이는 값이라, 그전 기록은 넘어오지 않았다).
 // 그냥 "기록 없음"만 띄우면 계정이 이상한 것처럼 보여서, 가입일이라도 대신 보여준다.
-function fmtLastSeen(ts, createdAt){
-  if(!ts) return createdAt ? `가입 ${fmtDateShort(new Date(createdAt).toISOString().slice(0,10))} · 접속 기록 없음` : '접속 기록 없음';
+function fmtLastSeen(ts){
+  if(!ts) return '접속 기록 없음';
   const diff = Math.floor((now() - Number(ts))/60000);
   if(diff < 1) return '방금 전';
   if(diff < 60) return `${diff}분 전`;
@@ -5825,7 +5825,8 @@ function userDetailBody(sid){
     <div class="card" style="padding:14px;">
       <div class="meta">학번 <b style="color:var(--text);">${escapeHtml(sid)}</b> (${fmtStudentYear(sid)})</div>
       <div class="meta" style="margin-top:4px;">직급 <b style="color:var(--text);">${roleLabel(u.role||'student')}</b></div>
-      <div class="meta" style="margin-top:4px;">최근 접속 ${online ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : escapeHtml(fmtLastSeen(u.lastSeen, u.createdAt))}</div>
+      <div class="meta" style="margin-top:4px;">가입일 <b style="color:var(--text);">${u.createdAt ? fmtDateTime(u.createdAt) : '알 수 없음'}</b></div>
+      <div class="meta" style="margin-top:4px;">최근 접속 ${online ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : escapeHtml(fmtLastSeen(u.lastSeen))}</div>
       ${u.platform ? `<div class="meta" style="margin-top:4px;">기기 ${escapeHtml(platformLabel(u.platform))}</div>` : ''}
       ${dev ? `<div class="meta" style="margin-top:4px; font-family:var(--font-mono);">최종 접속 IP ${escapeHtml((meta && meta.lastIp) || '기록 없음')}</div>` : ''}
     </div>
@@ -5977,7 +5978,7 @@ function usersListPanel(){
                 <b>${escapeHtml(u.name)}</b>
                 <span class="tag ${roleLevel(u.role)>=1?'tag-crimson':'tag-blue'}" style="font-size:9px; padding:1px 6px;">${publicRoleLabel(u.role)}</span>
               </div>
-              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen, u.createdAt)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
+              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
             </div>
             <button type="button" class="btn btn-ghost btn-sm" data-action="open-assign-role" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" data-role="${escapeHtml(u.role)}" style="width:auto; max-width:110px; padding:6px 8px; font-size:11.5px; white-space:nowrap; display:flex; align-items:center; gap:3px;">${roleLabel(u.role)} ${ICON.chevDown}</button>
             ${(state.user && u.studentId!==state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">탈퇴</button>` : ''}
@@ -7354,17 +7355,34 @@ async function handleKickMemberSubmit(fd){
   if(!password){ toast('비밀번호를 입력해주세요'); return; }
   const btn = document.querySelector('#kick-member-form button[type=submit]');
   if(btn) btn.disabled = true;
+  // 본인 확인과 그 뒤의 삭제를 따로 감싼다. 예전에는 하나로 묶여 있어서 권한 문제로
+  // 삭제가 실패해도 "비밀번호가 올바르지 않습니다"가 떠서 원인을 알 수가 없었다.
   try{
     const user = auth.currentUser;
     await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  }catch(err){
+    toast('비밀번호가 올바르지 않습니다');
+    if(btn) btn.disabled = false;
+    return;
+  }
 
+  try{
     const allUsers = await loadAllUsersList().catch(()=>({}));
     const target = allUsers[targetSid];
     if(target && target.uid){
       await deleteDoc(doc(db,'timetables',target.uid)).catch(()=>{});
+      await deleteDoc(doc(db,'userMeta',target.uid)).catch(()=>{});
       // users/{uid}가 목록의 원본이라 이게 지워져야 실제로 빠진다. 실패를 삼키면 화면에서만
       // 사라지고 다음 새로고침 때 되살아나므로, 여기서는 오류를 그대로 올려보낸다.
       await deleteDoc(doc(db,'users',target.uid));
+
+      // Firebase Auth 계정은 클라이언트가 남의 것을 지울 수 없다(Admin SDK만 가능).
+      // 대기열에 넣어두면 서버 작업이 10분 안에 대신 지운다. 그때까지도 명단·프로필이
+      // 없어서 로그인은 이미 막힌 상태다.
+      await mutateSharedList('pendingAuthDeletes', 'list', (list)=>[
+        ...list.filter(x=>x && x.uid !== target.uid),
+        { uid: target.uid, studentId: targetSid, name: target.name || '', ts: now() },
+      ].slice(-200));
     }
     delete allUsers[targetSid];
     state.allUsers = allUsers;
@@ -7372,11 +7390,13 @@ async function handleKickMemberSubmit(fd){
     const roster = await loadRoster().catch(()=>({}));
     if(roster[targetSid]){ delete roster[targetSid]; await saveRoster(roster); state.roster = roster; }
 
+    logAudit('탈퇴', '계정', `${(target && target.name) || ''} (${targetSid})`);
     closeModal();
-    toast('탈퇴 처리되었습니다');
+    toast('탈퇴 처리되었습니다 · 로그인 계정은 10분 안에 삭제돼요');
     openModal(usersListModal());
   }catch(err){
-    toast('비밀번호가 올바르지 않습니다');
+    console.error('[kick]', err);
+    toast('탈퇴 처리에 실패했습니다 (' + ((err && err.code) || '알 수 없음') + ')');
   }finally{
     if(btn) btn.disabled = false;
   }

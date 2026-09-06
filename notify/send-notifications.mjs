@@ -15,6 +15,7 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
+import { getAuth } from 'firebase-admin/auth';
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
 if (!raw) {
@@ -82,6 +83,40 @@ const TOMBSTONE_DOCS = [
   { name: 'bugReports', field: 'list' },
   { name: 'calendarEvents', field: 'events' },
 ];
+
+// 탈퇴 대기열 처리.
+// 앱(클라이언트 SDK)은 남의 Firebase Auth 계정을 지울 수 없다 — 본인 계정이거나 Admin SDK만
+// 가능하다. 그래서 회장이 탈퇴시키면 프로필·시간표·명단은 앱이 지우고, 로그인 계정만
+// shared/pendingAuthDeletes에 쌓아둔 뒤 여기서 대신 지운다.
+// (지우기 전까지도 프로필과 명단이 없어서 그 계정은 로그인이 막힌 상태다)
+async function purgePendingAuthDeletes() {
+  const ref = db.collection('shared').doc('pendingAuthDeletes');
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  const list = Array.isArray(snap.data().list) ? snap.data().list : [];
+  if (!list.length) return;
+
+  const remaining = [];
+  let removed = 0;
+  for (const entry of list) {
+    const uid = typeof entry === 'string' ? entry : entry && entry.uid;
+    if (!uid) continue;                       // 형태가 깨진 항목은 그냥 버린다
+    try {
+      await getAuth().deleteUser(uid);
+      removed++;
+      console.log('[authPurge] 삭제', uid, (entry && entry.studentId) || '');
+    } catch (e) {
+      if (e && e.code === 'auth/user-not-found') {
+        removed++;                            // 이미 없으면 처리된 것으로 본다
+      } else {
+        remaining.push(entry);                // 그 밖의 오류는 다음 실행에서 다시 시도
+        console.error('[authPurge] 실패', uid, (e && e.code) || e);
+      }
+    }
+  }
+  await ref.set({ list: remaining }, { merge: true });
+  console.log(`[authPurge] ${removed}건 삭제, ${remaining.length}건 남음`);
+}
 
 async function purgeOldTombstones() {
   const cutoff = Date.now() - TOMBSTONE_TTL_MS;
@@ -355,6 +390,7 @@ async function main() {
   );
 
   await purgeOldTombstones();
+  await purgePendingAuthDeletes();
 
   // 만료/무효 토큰 정리 — 배열에서 해당 토큰만 빼고, 단일 필드는 그 토큰일 때만 지운다.
   if (invalidTokens.size) {
