@@ -44,5 +44,19 @@
             android:ellipsize="end"
             android:textColor="#DDFFFFFF"
             android:textSize="8sp" />
+
+        <!--
+          강의실은 시간과 같은 줄을 쓰면 둘 중 하나를 못 보여준다(예전엔 강의실 표시를 켜면
+          시간이 통째로 사라졌다). 줄을 따로 두고, 칸이 충분히 높을 때만 코드에서 켠다.
+        -->
+        <TextView
+            android:id="@+id/chip_room"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="#BBFFFFFF"
+            android:textSize="8sp"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

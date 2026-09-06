@@ -27,7 +27,10 @@ public class WeekWidget extends BaseWidget {
     private static final int DEFAULT_START_HOUR = 9;
     private static final int DEFAULT_END_HOUR = 18;
     /** 시간 칸이 이보다 낮으면 과목명만 넣는다 (시간 줄까지 넣으면 글씨가 잘린다) */
-    private static final float TIME_LINE_MIN_DP = 34f;
+    // 과목명 밑 시간 줄을 보여줄 최소 칸 높이. 시간이 이 위젯의 핵심 정보라 기준을 낮게 잡는다.
+    private static final float TIME_LINE_MIN_DP = 26f;
+    // 강의실은 한 줄 더 필요하므로 그만큼 더 높아야 한다.
+    private static final float ROOM_LINE_MIN_DP = 46f;
     /** 한 시간에 이만큼도 못 주는 크기면 시간축 격자를 포기하고 목록으로 보여준다 */
     // 1시간 칸에 최소 이만큼은 있어야 시간축을 그린다. 16dp였을 때는 9~18시 기준으로
     // 위젯 높이가 217dp를 넘어야 해서(4x4쯤) 웬만한 크기에서는 시간축이 통째로 안 보였다.
@@ -156,28 +159,32 @@ public class WeekWidget extends BaseWidget {
                     RemoteViews chip = new RemoteViews(ctx.getPackageName(), R.layout.widget_week_chip);
                     chip.setTextViewText(R.id.chip_subject, c.optString("subject", ""));
                     theme.size(chip, R.id.chip_subject, 9.5f);
-                    if (!canSize || blockDp >= TIME_LINE_MIN_DP * theme.fontScale) {
-                        // 밑줄 한 줄에 무엇을 보여줄지.
-                        // 시간축을 그린 경우엔 시각이 이미 왼쪽에 있으니, 강의실 표시가 켜져 있으면
-                        // 강의실을 보여준다(둘을 한 줄에 욱여넣으면 좁은 칸에서 잘린다).
-                        // 반대로 시간축을 못 그린 작은 위젯에서는 여기 말고 시각이 나올 곳이 없어서,
-                        // 강의실이 켜져 있어도 시각을 먼저 보여주고 자리가 되면 강의실을 뒤에 붙인다.
-                        String room = c.optString("room", "");
-                        String startLabel = c.optString("startLabel", "");
-                        boolean hasRoom = showRoom && !room.isEmpty();
-                        String line;
-                        if (canSize) {
-                            line = hasRoom ? room : startLabel;
-                        } else if (hasRoom && !startLabel.isEmpty()) {
-                            line = startLabel + " " + room;
-                        } else {
-                            line = startLabel.isEmpty() ? room : startLabel;
-                        }
+                    // 과목명 바로 밑에는 언제나 "몇시~몇시"가 온다. 예전에는 이 한 줄을 시간과
+                    // 강의실이 나눠 쓰는 구조라, 강의실 표시를 켜면 시간이 통째로 사라졌다.
+                    // 게다가 시작 시각만 보내고 있어서 끝나는 시각은 아예 나올 수가 없었다.
+                    String room = c.optString("room", "");
+                    String startLabel = c.optString("startLabel", "");
+                    String endLabel = c.optString("endLabel", "");
+                    String timeLine = startLabel.isEmpty()
+                        ? ""
+                        : (endLabel.isEmpty() ? startLabel : startLabel + "–" + endLabel);
+
+                    if (!timeLine.isEmpty() && (!canSize || blockDp >= TIME_LINE_MIN_DP * theme.fontScale)) {
                         chip.setViewVisibility(R.id.chip_time, View.VISIBLE);
-                        chip.setTextViewText(R.id.chip_time, line);
+                        chip.setTextViewText(R.id.chip_time, timeLine);
                         theme.size(chip, R.id.chip_time, 8f);
                     } else {
                         chip.setViewVisibility(R.id.chip_time, View.GONE);
+                    }
+
+                    // 강의실은 한 줄이 더 들어갈 만큼 칸이 높을 때만 덧붙인다.
+                    if (showRoom && !room.isEmpty()
+                        && (!canSize || blockDp >= ROOM_LINE_MIN_DP * theme.fontScale)) {
+                        chip.setViewVisibility(R.id.chip_room, View.VISIBLE);
+                        chip.setTextViewText(R.id.chip_room, room);
+                        theme.size(chip, R.id.chip_room, 8f);
+                    } else {
+                        chip.setViewVisibility(R.id.chip_room, View.GONE);
                     }
                     chip.setInt(R.id.chip_bg, "setColorFilter",
                         TimetableWidget.parseColor(c.optString("color", ""), theme.accent));
