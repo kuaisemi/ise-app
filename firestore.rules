@@ -89,6 +89,16 @@ service cloud.firestore {
     // 삭제 기록(누가 · 언제 · 어디서 지웠는지) — 학생회장 이상만 볼 수 있고, 기록 자체는
     // 삭제 권한이 있는 학생회 계정이면 남길 수 있다.
     match /shared/auditLog { allow read: if isPresident(); allow write: if isCouncil(); }
+    // 사진 인식(Gemini) API 키. 예전에는 빌드할 때 키를 index.html에 끼워 넣었는데, 이 앱은
+    // 웹뷰를 그대로 감싼 구조라 index.html이 배포 사이트 소스에도 APK 안에도 텍스트 그대로
+    // 들어간다. "페이지 소스 보기" 한 번이면 키가 나왔고, 실제로 구글에 탐지돼 반복해서
+    // 폐기됐다. 여기 두면 배포물에는 키가 남지 않고, 교체할 때 앱을 다시 빌드할 필요도 없다.
+    // 읽기는 가입이 끝난(users 문서가 있는) 사람만 — 계정만 만들고 명단 검증을 통과하지
+    // 않은 상태에서는 못 읽는다. 쓰기는 회장급만.
+    match /shared/geminiKeys {
+      allow read: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow write: if isPresident();
+    }
     // 전체 학생 명단(실명 · 학번 · 출생연도) — 회원가입 검증 때는 아직 users/{uid} 문서가
     // 생기기 전(가입 절차 도중)이라 그 틈에만 읽게 해주고, 가입이 끝나 문서가 생긴 뒤에는
     // 학생회 이상만 읽을 수 있다. (예전엔 명시 규칙이 없어 로그인만 하면 전체가 읽혔음)

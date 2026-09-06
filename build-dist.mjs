@@ -77,34 +77,18 @@ function copyDir(src, dest) {
   }
 }
 
-// public/index.html에는 실제 키를 절대 넣지 않는다 — Public 저장소라 커밋하면 GitHub가
-// 곧바로 구글에 신고하고 구글이 자동으로 키를 폐기해버린다(실제로 여러 번 겪음). 대신
-// 저장소 밖의 secrets.local.json(.gitignore됨)에 실제 값을 두고, 여기서 dist/ 산출물에만
-// 끼워 넣는다 — dist/도 gitignore 대상이라 이 값은 git 기록에 절대 남지 않는다.
-function injectSecrets(html) {
-  const secretsPath = path.join(ROOT, 'secrets.local.json');
-  // terser가 주석을 지우며 따옴표/공백을 다시 포맷하므로(작은따옴표→큰따옴표, 공백 추가 등)
-  // 정확히 같은 문자열이 아니라 자리표시자가 들어있는 선언 자체를 정규식으로 찾는다.
-  const placeholderRe = /const GEMINI_API_KEYS = \[[^\]]*__GEMINI_API_KEYS_PLACEHOLDER__[^\]]*\];/;
-  if (!placeholderRe.test(html)) {
-    throw new Error('GEMINI_API_KEYS 자리표시자를 못 찾음 — public/index.html이 바뀌었는지 확인');
-  }
-  if (!fs.existsSync(secretsPath)) {
-    console.warn('[build-dist] secrets.local.json이 없어서 GEMINI_API_KEYS를 빈 배열로 둡니다 (사진 인식 비활성).');
-    return html.replace(placeholderRe, 'const GEMINI_API_KEYS = [];');
-  }
-  const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf8'));
-  const keys = Array.isArray(secrets.geminiApiKeys) ? secrets.geminiApiKeys : [];
-  const literal = `const GEMINI_API_KEYS = [${keys.map((k) => JSON.stringify(k)).join(', ')}];`;
-  return html.replace(placeholderRe, literal);
-}
+// 예전에는 여기서 secrets.local.json의 Gemini 키를 dist/index.html에 끼워 넣었다.
+// 그런데 이 앱은 웹뷰를 그대로 감싼 구조라 dist/index.html이 배포 사이트 소스에도 APK
+// 안에도 텍스트 그대로 들어간다 — 키를 깃허브에서만 숨겼을 뿐 배포하는 순간 누구나 볼 수
+// 있었고, 그래서 키가 계속 폐기됐다. 지금은 키를 Firestore(shared/geminiKeys)에 두고
+// 앱이 실행할 때 읽어오므로 빌드가 키를 다룰 일이 없다.
+// (secrets.local.json은 더 이상 쓰이지 않는다)
 
 async function main() {
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   copyDir(SRC_DIR, OUT_DIR);
 
-  let strippedHtml = await processIndexHtml();
-  strippedHtml = injectSecrets(strippedHtml);
+  const strippedHtml = await processIndexHtml();
   fs.writeFileSync(path.join(OUT_DIR, 'index.html'), strippedHtml, 'utf8');
 
   const strippedSw = await processSwJs();
