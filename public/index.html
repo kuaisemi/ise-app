@@ -1524,6 +1524,7 @@ async function loadAllUsersList(){
         studentId: v.studentId,
         role: v.role || 'student',
         lastSeen: v.lastSeen || 0,
+        platform: v.platform || '',
         createdAt: v.createdAt || 0,
       };
     });
@@ -1740,6 +1741,25 @@ function boot(){
   }catch(e){ renderApp(); }
 }
 
+// 이 기기가 어떤 형태로 앱을 쓰고 있는지. 홈 화면에 설치한 PWA는 브라우저와 화면이
+// 같아 보이지만 실제로는 별개라서(display-mode로 구분) 따로 표시한다.
+function currentPlatform(){
+  if(typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return 'app';
+  const standalone = isStandaloneDisplay();
+  if(isIOSDevice()) return standalone ? 'ios-pwa' : 'ios';
+  if(/Android/i.test(navigator.userAgent || '')) return standalone ? 'android-pwa' : 'android';
+  return 'web';
+}
+const PLATFORM_LABELS = {
+  'app': '📱 앱',
+  'ios-pwa': '🍎 iOS 홈화면',
+  'ios': '🍎 iOS 브라우저',
+  'android-pwa': '🤖 안드로이드 홈화면',
+  'android': '🤖 안드로이드 브라우저',
+  'web': '💻 웹',
+};
+function platformLabel(p){ return PLATFORM_LABELS[p] || ''; }
+
 async function trackUserPresence(u){
   if(!u || !u.uid) return;
   try{
@@ -1747,9 +1767,10 @@ async function trackUserPresence(u){
     // 예전에는 학생회 전용 문서에 쓰려다 조용히 거부돼서, 학생회가 아닌 사람의 접속 기록이
     // 아예 남지 않았다.
     const ts = now();
-    await setDoc(doc(db,'users',u.uid), { lastSeen: ts }, { merge:true });
+    const platform = currentPlatform();
+    await setDoc(doc(db,'users',u.uid), { lastSeen: ts, platform }, { merge:true });
     if(state.allUsers && state.allUsers[u.studentId]){
-      state.allUsers[u.studentId] = { ...state.allUsers[u.studentId], lastSeen: ts };
+      state.allUsers[u.studentId] = { ...state.allUsers[u.studentId], lastSeen: ts, platform };
     }
   }catch(e){ console.warn('[presence] 갱신 실패', e && e.code); }
 }
@@ -5576,7 +5597,7 @@ function usersListModal(){
                 <b>${escapeHtml(u.name)}</b>
                 <span class="tag ${roleLevel(u.role)>=1?'tag-crimson':'tag-blue'}" style="font-size:9px; padding:1px 6px;">${publicRoleLabel(u.role)}</span>
               </div>
-              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}</div>
+              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
             </div>
             <button type="button" class="btn btn-ghost btn-sm" data-action="open-assign-role" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" data-role="${escapeHtml(u.role)}" style="width:auto; max-width:110px; padding:6px 8px; font-size:11.5px; white-space:nowrap; display:flex; align-items:center; gap:3px;">${roleLabel(u.role)} ${ICON.chevDown}</button>
             ${(state.user && u.studentId!==state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">탈퇴</button>` : ''}
