@@ -340,6 +340,13 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .modal-overlay{position:fixed; inset:0; background:rgba(4,6,10,.75); z-index:50; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .18s; backdrop-filter:blur(3px);}
 .modal-overlay.open{opacity:1; pointer-events:auto;}
 .modal-sheet{width:100%; max-width:480px; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom)); max-height:88vh; overflow-y:auto; transform:translateY(20px); transition:transform .2s;}
+/* 가입자가 늘면 380px 목록으로는 감당이 안 돼서, 이 모달만 화면 위쪽까지 쓴다.
+   :has()를 못 쓰는 브라우저에서도 시트 자체가 스크롤되므로 목록이 잘리지는 않는다. */
+.modal-sheet:has(#users-list-body){max-height:96vh;}
+#users-list-body{max-height:calc(96vh - 250px); min-height:200px; overflow-y:auto; padding:2px;}
+.user-search-wrap{position:relative; margin-bottom:10px;}
+.user-search-input{width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; color:var(--text); outline:none; font-family:var(--font-display);}
+.user-search-input:focus{border-color:var(--teal);}
 .modal-overlay.open .modal-sheet{transform:translateY(0);}
 .modal-handle{width:38px; height:4px; background:var(--border-light); border-radius:3px; margin:0 auto 14px; cursor:grab; touch-action:none;
   position:relative;}
@@ -1662,6 +1669,15 @@ function boot(){
     onAuthStateChanged(auth, async (fbUser)=>{
       booted = true;
       if(fbUser){
+        // 가입 검증(학번·실명·출생연도 대조)이 끝날 때까지 기다린다. 예전에는 이 감지기가
+        // 계정이 만들어지자마자 깨어나 학번만 확인하고 프로필을 만들어 로그인시켜 버려서,
+        // 명단과 다른 이름으로 가입해도 그대로 들어와졌다(handleSignup이 뒤늦게 계정을
+        // 지워도 이미 로그인된 뒤였다). 최대 15초까지만 기다리고, 그 사이 검증에 걸려
+        // 계정이 삭제됐다면 여기서 멈춘다(곧 null로 다시 호출된다).
+        for(let i=0; signupInProgress && i<150; i++){
+          await new Promise(r=>setTimeout(r, 100));
+        }
+        if(!auth.currentUser) return;
         try{
           // fetchUserDoc은 네트워크/권한 오류가 나면 예외를 삼키고 null을 반환한다.
           // 새 창(예: "전체 가입자 관리")을 열면 Firebase Auth 토큰이 막 초기화되는 순간이라
@@ -1690,7 +1706,8 @@ function boot(){
               currentRole = cachedLocal.role || currentRole;
             } else {
               const rosterCheck = await loadRoster().catch(()=>({}));
-              if(Object.keys(rosterCheck).length>0 && !rosterCheck[sid]){
+              const rEntry = rosterEntry(rosterCheck[sid]);
+              if(Object.keys(rosterCheck).length>0 && !rEntry){
                 await signOut(auth).catch(()=>{});
                 state.user = null;
                 renderApp();
@@ -1698,7 +1715,10 @@ function boot(){
                 return;
               }
               // 이 시점에서만 정말로 신규 가입자로 간주해 기본 프로필을 만든다.
-              udoc={ studentId:sid, name:'재학생', role:currentRole, createdAt:now() };
+              // 이름은 지어내지 않고 명단의 실명을 쓴다. 예전처럼 '재학생'으로 만들어두면
+              // 아래 이름 대조에서 명단과 달라 그 계정이 영영 로그인되지 않는다.
+              const fallbackName = (rEntry && String(rEntry.name).trim()) || '재학생';
+              udoc={ studentId:sid, name:fallbackName, role:currentRole, createdAt:now() };
               await createUserDoc(fbUser.uid, udoc);
             }
           } else {
@@ -5168,7 +5188,6 @@ function renderMypage(){
         <div class="link-row" data-action="view-users-list">전체 가입자 및 직급 관리 (${userCount}명) <span class="sub">${ICON.chevR}</span></div>
         <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="manage-roster">학생 명단(로스터) 관리 <span class="sub">${ICON.chevR}</span></div>
-        <div class="link-row" data-action="manage-gemini-keys">AI 인식 키 관리 <span class="sub">${ICON.chevR}</span></div>
         <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="view-audit-log">삭제 기록 보기 <span class="sub">${ICON.chevR}</span></div>
         <div class="divider" style="margin:2px 0;"></div>
@@ -5204,6 +5223,7 @@ function renderMypage(){
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
       ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
     </div>
     ${isPresident() ? `<p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">공지·투표·건의·구인글·학생회 게시글·버그 제보·학사일정 중 삭제된 지 24시간 지난 항목을 완전히 지워요. 이 정리는 서버에서 10분마다 자동으로도 돌아가요.</p>` : ''}
 
@@ -5535,6 +5555,27 @@ function easterEggModal(){
     </div>`;
 }
 
+// 검색은 모달을 다시 그리지 않고 이미 그려진 줄을 감추는 방식이다. 다시 그리면 입력칸이
+// 새로 만들어져서 포커스와 커서 위치가 매번 날아가 한 글자씩밖에 못 친다.
+function filterUsersList(q){
+  const norm = String(q||'').trim().toLowerCase().replace(/\s+/g,'');
+  const body = document.getElementById('users-list-body');
+  if(!body) return;
+  let shown = 0;
+  body.querySelectorAll('[data-search]').forEach(row=>{
+    const hit = !norm || (row.dataset.search||'').includes(norm);
+    row.style.display = hit ? '' : 'none';
+    if(hit) shown++;
+  });
+  const noHit = document.getElementById('users-search-empty');
+  if(noHit) noHit.style.display = (norm && shown===0) ? '' : 'none';
+}
+// 모달은 innerHTML로 통째로 갈아끼워지므로 입력칸에 직접 리스너를 달면 사라진다.
+// 문서 단위로 한 번만 위임해 둔다.
+document.addEventListener('input', (e)=>{
+  if(e.target && e.target.id === 'user-search-input') filterUsersList(e.target.value);
+});
+
 function usersListModal(){
   const users = Object.values(state.allUsers||{}).sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
   const rosterMap = state.roster || {};
@@ -5575,11 +5616,15 @@ function usersListModal(){
       <div class="subtab ${tab==='old'?'active':''}" data-action="user-tab" data-tab="old">${prevY-1}이전(${oldCount})</div>
       <div class="subtab ${tab==='unreg'?'active':''}" data-action="user-tab" data-tab="unreg">미가입(${unregUsers.length})</div>
     </div>
-    <div style="max-height:380px; overflow-y:auto; padding:2px;">
+    <div class="user-search-wrap">
+      <input type="text" id="user-search-input" class="user-search-input" placeholder="이름 또는 학번으로 검색" autocomplete="off">
+    </div>
+    <div id="users-search-empty" class="empty" style="display:none;"><p>검색 결과가 없습니다.</p></div>
+    <div id="users-list-body">
       ${filtered.length ? filtered.map(u=>{
         if(u.unregistered){
           return `
-          <div class="list-item" style="padding:10px 0;">
+          <div class="list-item" style="padding:10px 0;" data-search="${escapeHtml(((u.name||'') + (u.studentId||'')).toLowerCase())}">
             <div class="row-between">
               <div>
                 <b>${escapeHtml(u.name)}</b>
@@ -5590,7 +5635,7 @@ function usersListModal(){
           </div>`;
         }
         return `
-        <div class="list-item" style="padding:10px 0;">
+        <div class="list-item" style="padding:10px 0;" data-search="${escapeHtml(((u.name||'') + (u.studentId||'')).toLowerCase())}">
           <div class="row-between" style="gap:8px;">
             <div style="min-width:0; flex:1;">
               <div style="display:flex; align-items:center; gap:6px;">
@@ -6208,6 +6253,12 @@ async function handleLogin(fd){
   }finally{ if(btn) btn.disabled=false; }
 }
 
+// createUserWithEmailAndPassword가 성공하는 순간 onAuthStateChanged가 먼저 깨어난다.
+// 그런데 그 시점은 handleSignup이 아직 명단의 "이름"을 대조하기 전이라, 감지기가 학번만
+// 보고 통과시켜 버리면 명단에 없는 이름으로도 로그인이 끝나버린다. 가입 처리가 끝날
+// 때까지 감지기가 기다리게 하려고 두는 플래그.
+let signupInProgress = false;
+
 async function handleSignup(fd){
   const studentId=(fd.get('studentId')||'').trim();
   const name=(fd.get('name')||'').trim();
@@ -6234,6 +6285,7 @@ async function handleSignup(fd){
   const btn=document.querySelector('#signup-form button[type=submit]');
   if(btn) btn.disabled=true;
   let cred=null;
+  signupInProgress = true;
   try{
     // 명단 대조는 인증된 상태에서만 신뢰할 수 있어(Firestore 규칙), 계정을 먼저 만들고
     // 그 다음 명단을 확인한다. 명단에 없거나 조회 자체가 실패하면 방금 만든 계정을
@@ -6290,7 +6342,7 @@ async function handleSignup(fd){
   }catch(err){
     if(cred){ await deleteUser(cred.user).catch(()=>{}); }
     showAuthError(mapAuthError(err));
-  }finally{ if(btn) btn.disabled=false; }
+  }finally{ signupInProgress = false; if(btn) btn.disabled=false; }
 }
 
 async function logout(){
