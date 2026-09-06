@@ -57,6 +57,10 @@ service cloud.firestore {
       // 회장 이상은 남의 직급을 바꿀 수 있다(관리자 화면).
       allow update: if isPresident()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']);
+
+      // 회장이 계정을 실제로 뺄 수 있게. 예전엔 delete 규칙이 없어 삭제가 조용히 거부됐고,
+      // 그래서 "탈퇴시키기"가 화면용 캐시에서만 사라지는 시늉으로 끝났다.
+      allow delete: if isPresident();
     }
 
     match /timetables/{uid} {

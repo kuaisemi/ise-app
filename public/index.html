@@ -566,6 +566,8 @@ import {
 
 import {
   getFirestore,
+  collection,
+  getDocs,
   doc,
   getDoc,
   setDoc,
@@ -623,20 +625,32 @@ async function getMessagingInstance(){
 // 이제 배포물에는 키가 전혀 들어가지 않는다. 키를 갈아끼울 때도 앱을 다시 빌드·배포할
 // 필요 없이 MY → "AI 인식 키 관리"(회장급)에서 바꾸면 끝난다.
 let GEMINI_KEYS_CACHE = null;
+let GEMINI_KEYS_ERROR = '';
 async function getGeminiKeys(){
-  if(GEMINI_KEYS_CACHE) return GEMINI_KEYS_CACHE;
+  // 캐시는 키를 실제로 받아왔을 때만 남긴다. 빈 배열([])도 자바스크립트에서는 참이라,
+  // 조건을 그냥 GEMINI_KEYS_CACHE로 두면 첫 조회가 실패했을 때 그 빈 값이 계속 재사용돼
+  // 회장이 키를 저장한 뒤에도 앱을 껐다 켜기 전까지 "키가 없다"가 반복된다.
+  if(GEMINI_KEYS_CACHE && GEMINI_KEYS_CACHE.length) return GEMINI_KEYS_CACHE;
   try{
     const snap = await getDoc(doc(db,'shared','geminiKeys'));
     const list = snap.exists() ? snap.data().keys : null;
     GEMINI_KEYS_CACHE = Array.isArray(list) ? list.map(k=>String(k).trim()).filter(Boolean) : [];
+    GEMINI_KEYS_ERROR = snap.exists() ? '' : 'not-found';
   }catch(e){
-    // 규칙에 막혔거나(가입 미완료) 네트워크가 끊긴 경우. 빈 배열로 두면 호출부에서
-    // "키가 등록되지 않았다"는 안내가 나간다.
+    // 규칙에 막혔거나(가입 미완료) 네트워크가 끊긴 경우.
     GEMINI_KEYS_CACHE = [];
+    GEMINI_KEYS_ERROR = (e && e.code) || 'unknown';
+    console.warn('[geminiKeys] 조회 실패', e);
   }
   return GEMINI_KEYS_CACHE;
 }
-const GEMINI_NO_KEY_MSG = '사진 인식 키가 등록되어 있지 않습니다. 학생회에 문의해주세요.';
+// "키를 분명히 넣었는데 없다고 나온다"에서 원인을 좁히려면 왜 못 읽었는지까지 말해줘야 한다.
+function geminiNoKeyMessage(){
+  if(GEMINI_KEYS_ERROR === 'permission-denied') return '사진 인식 키를 읽을 권한이 없습니다. 로그인 상태를 확인해주세요.';
+  if(GEMINI_KEYS_ERROR === 'not-found') return '사진 인식 키가 아직 등록되지 않았습니다. (MY → AI 인식 키 관리)';
+  if(GEMINI_KEYS_ERROR) return '사진 인식 키를 불러오지 못했습니다 (' + GEMINI_KEYS_ERROR + ')';
+  return '사진 인식 키가 등록되어 있지 않습니다. 학생회에 문의해주세요.';
+}
 
 // 사진 인식 키가 만료·해지되면 구글이 401(UNAUTHENTICATED)을 돌려주는데, 그 영어 원문이 그대로
 // 화면에 뜨면 쓰는 사람 입장에서는 뭘 해야 할지 알 수가 없다. 학생이 손쓸 수 없는 오류라서
@@ -1487,8 +1501,40 @@ async function loadRecruitments(){ return (await loadShared('recruitments',{list
 async function saveRecruitments(a){ return await saveShared('recruitments',{list:a}); }
 async function loadCouncilPosts(){ return (await loadShared('councilPosts',{list:[]})).list || []; }
 async function saveCouncilPosts(a){ return await saveShared('councilPosts',{list:a}); }
-async function loadAllUsersList(){ return (await loadShared('usersList',{map:{}})).map || {}; }
-async function saveAllUsersList(m){ return await saveShared('usersList',{map:m}); }
+// 전체 가입자 목록은 users 컬렉션을 직접 조회해서 만든다.
+//
+// 예전에는 shared/usersList 문서 하나를 캐시로 두고, 로그인할 때마다 "읽어서 → 자기 자신을
+// 끼워 넣고 → 통째로 다시 쓰기"를 했다. 그런데 그 문서는 규칙상 학생회 이상만 읽고 쓸 수
+// 있어서 일반 학생은 자기 자신을 기록조차 못 했다. 그래서 신입생이 가입해도 목록에 안 뜨고
+// "지금 활동중"도 영영 안 떴다. 게다가 읽기가 한 번이라도 실패하면(새 기기·네트워크 끊김)
+// 빈 목록에 자기만 넣어 전체를 덮어쓸 위험까지 있었다.
+//
+// users/{uid}가 원래부터 진짜 원본이고(1600행대 주석 참고) 규칙도 학생회 이상에게 전체
+// 조회를 허용하므로, 캐시를 거치지 말고 그걸 그대로 읽는다. 쓰기가 없으니 덮어쓸 일도 없다.
+async function loadAllUsersList(){
+  try{
+    const snap = await getDocs(collection(db,'users'));
+    const map = {};
+    snap.forEach(d=>{
+      const v = d.data() || {};
+      if(!v.studentId) return;
+      map[v.studentId] = {
+        uid: d.id,
+        name: v.name || '재학생',
+        studentId: v.studentId,
+        role: v.role || 'student',
+        lastSeen: v.lastSeen || 0,
+        createdAt: v.createdAt || 0,
+      };
+    });
+    localSet('shared_usersList', { map });
+    return map;
+  }catch(e){
+    // 학생 계정은 전체 조회 권한이 없다(정상). 예전에 받아둔 캐시가 있으면 그거라도 쓴다.
+    console.warn('[usersList] 조회 실패', e && e.code);
+    return (localGet('shared_usersList', {map:{}}) || {}).map || {};
+  }
+}
 async function loadRoster(){ return (await loadShared('roster',{map:{}})).map || {}; }
 // 회원가입 명단 대조 전용. Firestore 규칙상 로그인 전에는 명단을 읽을 수 없어서,
 // 일반 loadRoster()처럼 읽기 실패를 "명단 없음(=검증 생략)"으로 눙치면
@@ -1695,13 +1741,17 @@ function boot(){
 }
 
 async function trackUserPresence(u){
-  if(!u || !u.studentId) return;
+  if(!u || !u.uid) return;
   try{
-    const users = await loadAllUsersList();
-    users[u.studentId] = { uid:u.uid, name:u.name, studentId:u.studentId, role:u.role, lastSeen: now() };
-    state.allUsers = users;
-    saveAllUsersList(users);
-  }catch(e){}
+    // 본인 문서만 건드리므로 학생 계정도 규칙을 통과한다(직급을 바꾸지 않는 한 수정 허용).
+    // 예전에는 학생회 전용 문서에 쓰려다 조용히 거부돼서, 학생회가 아닌 사람의 접속 기록이
+    // 아예 남지 않았다.
+    const ts = now();
+    await setDoc(doc(db,'users',u.uid), { lastSeen: ts }, { merge:true });
+    if(state.allUsers && state.allUsers[u.studentId]){
+      state.allUsers[u.studentId] = { ...state.allUsers[u.studentId], lastSeen: ts };
+    }
+  }catch(e){ console.warn('[presence] 갱신 실패', e && e.code); }
 }
 let presenceHeartbeatStarted = false;
 // "현재 접속자" 통계(getTrafficStats)가 로그인/재접속 시점의 lastSeen에만 의존하면
@@ -3449,7 +3499,7 @@ async function parseCalendarWithGeminiVision(file){
   // 시간표 인식과 동일하게, 빠른 설정으로 먼저 시도하고 아무것도 못 읽었을 때만 다시 시도한다.
   const attempts = [{ thinkingLevel:'low' }, null];
   const geminiKeys = await getGeminiKeys();
-  if(!geminiKeys.length) throw new Error(GEMINI_NO_KEY_MSG);
+  if(!geminiKeys.length) throw new Error(geminiNoKeyMessage());
   ocr:
   for(const thinkingConfig of attempts){
     for(const apiKey of geminiKeys){
@@ -5930,7 +5980,7 @@ JSON으로만 작성하세요.
   // (대부분의 사진은 1차에서 끝나서 빨라지고, 어려운 사진만 2차로 넘어간다)
   const attempts = [{ thinkingLevel:'low' }, null];
   const geminiKeys = await getGeminiKeys();
-  if(!geminiKeys.length) throw new Error(GEMINI_NO_KEY_MSG);
+  if(!geminiKeys.length) throw new Error(geminiNoKeyMessage());
   ocr:
   for(const thinkingConfig of attempts){
     for(const apiKey of geminiKeys){
@@ -6278,16 +6328,32 @@ async function assignRole(studentId, role){
   if(!users[studentId]) return;
 
   const targetUid = users[studentId].uid;
-  users[studentId]={ ...users[studentId], role };
-  state.allUsers=users;
-  const ok=await saveAllUsersList(users);
-
-  if(targetUid){
-    try{ await setDoc(doc(db,'users',targetUid), { role }, { merge:true }); }catch(e){}
+  if(!targetUid){
+    toast('이 계정의 내부 ID를 찾을 수 없어 직급을 바꿀 수 없습니다');
+    return;
   }
-  if(state.user && state.user.studentId===studentId){
-    state.user.role=role;
-    localSet('user_'+state.user.uid, state.user);
+
+  // 예전에는 화면용 캐시(shared/usersList) 저장 결과로 성공/실패를 판단하고, 정작 진짜
+  // 직급이 들어가는 users/{uid} 쓰기는 catch로 삼켰다. 그래서 규칙에 막혀 직급이 그대로인
+  // 경우에도 "변경했습니다"가 떠서, 권한을 내렸는데 안 내려가는 것처럼 보였다.
+  // 이제 진짜 쓰기 결과만 보고, 실패하면 그 이유를 그대로 띄운다.
+  let ok = false;
+  LAST_SAVE_ERROR = '';
+  try{
+    await setDoc(doc(db,'users',targetUid), { role }, { merge:true });
+    ok = true;
+  }catch(e){
+    LAST_SAVE_ERROR = (e && e.code) || 'unknown';
+    console.error('[assignRole] 직급 변경 실패', e);
+  }
+
+  if(ok){
+    users[studentId]={ ...users[studentId], role };
+    state.allUsers=users;
+    if(state.user && state.user.studentId===studentId){
+      state.user.role=role;
+      localSet('user_'+state.user.uid, state.user);
+    }
   }
   saveResultToast(ok, `${users[studentId].name}님을 ${roleLabel(role)}(으)로 변경했습니다`);
   openModal(usersListModal());
@@ -6866,10 +6932,11 @@ async function handleKickMemberSubmit(fd){
     const target = allUsers[targetSid];
     if(target && target.uid){
       await deleteDoc(doc(db,'timetables',target.uid)).catch(()=>{});
-      await deleteDoc(doc(db,'users',target.uid)).catch(()=>{});
+      // users/{uid}가 목록의 원본이라 이게 지워져야 실제로 빠진다. 실패를 삼키면 화면에서만
+      // 사라지고 다음 새로고침 때 되살아나므로, 여기서는 오류를 그대로 올려보낸다.
+      await deleteDoc(doc(db,'users',target.uid));
     }
     delete allUsers[targetSid];
-    await saveAllUsersList(allUsers);
     state.allUsers = allUsers;
 
     const roster = await loadRoster().catch(()=>({}));
@@ -6933,13 +7000,19 @@ async function handleGeminiKeysSubmit(fd){
   const keys = String(fd.get('keysText')||'')
     .split('\n').map(k=>k.trim()).filter(Boolean);
   let ok = false;
+  LAST_SAVE_ERROR = '';
   try{
     // saveShared를 쓰지 않는 이유: 그쪽은 값을 localStorage에도 캐시하는데, 키를 브라우저
     // 저장소에까지 남길 이유가 없다. 여기서는 메모리 캐시만 갱신한다.
     await setDoc(doc(db,'shared','geminiKeys'), { keys });
     GEMINI_KEYS_CACHE = keys;
+    GEMINI_KEYS_ERROR = '';
     ok = true;
-  }catch(e){ console.error('[geminiKeys] 저장 실패', e); }
+  }catch(e){
+    // 코드를 그대로 넘겨야 saveResultToast가 "저장 권한이 없습니다" 같은 실제 원인을 띄운다.
+    LAST_SAVE_ERROR = (e && e.code) || 'unknown';
+    console.error('[geminiKeys] 저장 실패', e);
+  }
   closeModal();
   saveResultToast(ok, `사진 인식 키 ${keys.length}개가 저장되었습니다`);
 }
