@@ -138,6 +138,11 @@ a{color:inherit;}
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238B93A3' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 12px center;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
+/* iOS는 비밀번호 가림문자를 안드로이드보다 작고 촘촘하게 그려서 몇 자를 쳤는지 세기 어렵다.
+   자간만 아주 살짝 벌린다. 자간은 placeholder에도 걸리므로 거기서만 원래대로 되돌린다.
+   더 벌리려면 0.12em을 키우면 된다. */
+html.is-ios input[type=password]{letter-spacing:0.12em;}
+html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .field.field-invalid input,.field.field-invalid select,.field.field-invalid textarea{border-color:var(--danger);}
 .field-error{color:var(--danger-text); font-size:11px; font-weight:600; margin-top:5px;}
 .field-row{display:flex; gap:10px;}
@@ -264,7 +269,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-switcher-sem{font-size:11.5px; color:var(--text-faint); font-weight:600; flex-shrink:0;}
 .tt-switcher-name{font-size:15.5px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .tt-switcher-empty{background:none; border:none; padding:2px 0; font-size:13.5px; font-weight:700; color:var(--text-dim); display:flex; align-items:center; gap:5px; cursor:pointer;}
-.tt-switcher-icon-btn{flex-shrink:0; width:32px; height:32px; border-radius:9px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.tt-switcher-icon-btn{flex-shrink:0; width:35px; height:35px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+/* 아이콘 SVG마다 width/height 속성이 제각각이라(plus 24, gear 15, more 18) 나란히 놓으면
+   톱니·더보기가 유독 작아 보였다. 게다가 iOS 사파리는 flex 안의 SVG를 내재 크기 아래로
+   줄여버려서 안드로이드보다 더 작게 나온다. 여기서 크기를 한 번에 고정해 둘 다 해결한다. */
+.tt-switcher-icon-btn svg{flex:0 0 auto; width:17px; height:17px;}
 .tt-switcher-divider{width:1px; height:20px; background:var(--border); flex-shrink:0;}
 
 .sem-picker-list{max-height:60vh; overflow-y:auto;}
@@ -321,6 +330,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .bottomnav{position:fixed; left:0; right:0; bottom:0; z-index:20; max-width:480px; margin:0 auto; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); border-top:1px solid var(--border); display:flex; padding:8px 6px calc(8px + var(--safe-bottom));}
 .navbtn{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; background:none; border:none; cursor:pointer; color:var(--text-faint);}
 .navbtn.active{color:var(--teal);}
+/* iOS는 홈 인디케이터 때문에 safe-area-inset-bottom이 34px쯤 잡혀서, 같은 CSS인데도
+   안드로이드보다 탭 아이콘이 위로 떠 보인다. 아래 여백만 조금 줄여 살짝 내리고
+   위아래 간격도 함께 소폭 좁힌다. 더 내리려면 padding-bottom의 6px를 줄이면 된다. */
+html.is-ios .bottomnav{padding-top:9px; padding-bottom:calc(6px + var(--safe-bottom));}
+html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .navbtn span{font-size:9.5px; font-weight:700;}
 
 .modal-overlay{position:fixed; inset:0; background:rgba(4,6,10,.75); z-index:50; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .18s; backdrop-filter:blur(3px);}
@@ -515,9 +529,17 @@ details.likers-accordion summary, details.voters-accordion summary{cursor:pointe
 
 .btn-more-comments{background:none; border:none; color:var(--teal); font-size:11px; font-weight:700; cursor:pointer; padding:6px 0; margin-top:4px; display:inline-block;}
 
-.capture-overlay{position:fixed; inset:0; background:var(--capture-bg); z-index:90; overflow-y:auto; padding:0 16px 40px; display:flex; flex-direction:column; align-items:center;}
-.capture-container{width:100%; max-width:440px; margin:auto;}
-.capture-topbar{position:sticky; top:0; z-index:2; background:var(--capture-bg); padding:16px 0 12px; margin-bottom:4px;}
+/* 짧은 시간표는 화면 가운데 오게 하고 싶은데, 예전처럼 .capture-container{margin:auto}로 하면
+   내용이 화면보다 길어졌을 때 위쪽이 스크롤로 닿지 않는 영역으로 밀려나 버린다(iOS에서 특히).
+   justify-content의 safe 키워드가 정확히 이 경우를 위한 것 — 남는 공간이 있을 때만 가운데로 놓고,
+   넘치면 알아서 위쪽 기준으로 되돌아간다. overscroll-behavior는 고무줄 스크롤이 뒤 페이지로
+   새는 것 차단. */
+.capture-overlay{position:fixed; inset:0; background:var(--capture-bg); z-index:90; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding:0 16px 40px; display:flex; flex-direction:column; justify-content:safe center;}
+.capture-container{width:100%; max-width:440px; margin:0 auto;}
+/* z-index는 시간표 요일 헤더(.tt-head, z-index:4)보다 반드시 높아야 한다. iOS 사파리에서는
+   sticky한 .tt-head가 안쪽 .tt-wrap이 아니라 바깥 오버레이를 기준으로 달라붙어서, 이 값이
+   낮으면 스크롤할 때 요일 헤더가 "닫기 / 캡처 완료" 버튼 위를 덮어 버튼을 누를 수 없게 된다. */
+.capture-topbar{position:sticky; top:0; z-index:12; background:var(--capture-bg); padding:16px 0 12px; margin-bottom:4px;}
 
 .app-version{text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); letter-spacing:.06em; margin:28px 0 2px; opacity:.8;}
 </style>
@@ -2580,6 +2602,15 @@ function isIOSWeb(){
 }
 // 이미 홈 화면에 설치되어 (안드로이드 PWA든 iOS PWA든) standalone으로 떠 있는 상태면
 // 설치를 권할 이유가 없으므로 위 두 함수 모두 여기서 걸러진다.
+// isIOSWeb()은 "홈 화면에 추가" 안내용이라 이미 PWA로 설치된 상태(standalone)를 일부러 제외한다.
+// 위젯 탭 숨김이나 하단탭 여백 보정은 사파리로 열었든 PWA로 설치했든 iOS면 똑같이 필요해서
+// standalone을 걸러내지 않는 별도 판별이 필요하다.
+function isIOSDevice(){
+  if(typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return false;
+  const ua = navigator.userAgent || '';
+  if(/iPad|iPhone|iPod/.test(ua)) return true;
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+}
 function isStandaloneDisplay(){
   try{
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
@@ -3074,9 +3105,11 @@ function renderTimetable(isCapture=false){
         .capture-grid-scope .tt-cell{border-top:1px dashed ${capLine} !important; border-left:1px solid ${capLine} !important;}
         .capture-grid-scope .tt-cell.hour-cell{border-top:1px solid ${capLineStrong} !important;}
         .capture-grid-scope .tt-block{border-color:${capBlockBorder} !important;}
-        .capture-grid-scope .tt-head{background:${capBg} !important;}
+        /* 캡처는 움직이지 않는 한 장의 그림이라 요일 헤더가 따라다닐 이유가 없다.
+           sticky를 풀어야 iOS에서 헤더가 오버레이 위로 떠올라 닫기 버튼을 가리는 일이 없어진다. */
+        .capture-grid-scope .tt-head{background:${capBg} !important; position:static !important; z-index:auto !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;}
       </style>
-      <div class="tt-card-container capture-grid-scope" style="background:${capBg}; border:2px solid var(--capture-border); box-shadow:none;">
+      <div class="tt-card-container capture-grid-scope" style="background:${capBg}; border:2px solid ${capBg}; box-shadow:none;">
         <div class="tt-wrap" style="max-height:none; background:${capBg};">
           <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(11*deviceRatioScale()*1.15)}px;">
             <div class="tt-head" style="grid-column:1; background:${capBg};"></div>
@@ -4942,7 +4975,7 @@ function renderMypage(){
       <div class="subtabs" style="margin-bottom:12px;">
         <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
         <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
-        <div class="subtab ${state.settingsTab==='widget'?'active':''}" data-action="settings-tab" data-tab="widget">위젯</div>
+        ${!isIOSDevice() ? `<div class="subtab ${state.settingsTab==='widget'?'active':''}" data-action="settings-tab" data-tab="widget">위젯</div>` : ''}
       </div>
 
       ${state.settingsTab==='display' ? `
@@ -5001,7 +5034,7 @@ function renderMypage(){
       </p>
       ` : ''}
 
-      ${state.settingsTab==='widget' ? (isNativeApp ? renderWidgetSettingsTab() : `
+      ${(state.settingsTab==='widget' && !isIOSDevice()) ? (isNativeApp ? renderWidgetSettingsTab() : `
         <div class="empty" style="padding:24px 8px;">
           <p style="font-size:12px; line-height:1.7;">
             홈 화면 위젯은 <b>안드로이드 앱(APK)</b>에서만 쓸 수 있어요.<br>
@@ -5496,9 +5529,9 @@ function changePasswordModal(){
     <div class="modal-handle"></div>
     <div class="modal-title">비밀번호 변경<button data-action="close-modal">${ICON.close}</button></div>
     <form id="change-password-form">
-      <div class="field"><label>현재 비밀번호</label><input type="password" name="currentPassword" required></div>
+      <div class="field"><label>현재 비밀번호</label><input type="password" name="currentPassword" required placeholder="지금 쓰는 비밀번호"></div>
       <div class="field"><label>새 비밀번호</label><input type="password" name="newPassword" required minlength="6" placeholder="6자 이상"></div>
-      <div class="field"><label>새 비밀번호 확인</label><input type="password" name="newPassword2" required minlength="6"></div>
+      <div class="field"><label>새 비밀번호 확인</label><input type="password" name="newPassword2" required minlength="6" placeholder="새 비밀번호 다시 입력"></div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">변경하기</button></div>
     </form>`;
 }
@@ -5989,8 +6022,8 @@ function mapAuthError(err){
   const c = err && err.code;
   if(c==='auth/email-already-in-use') return '이미 가입된 학번입니다.';
   if(c==='auth/user-not-found') return '가입되지 않은 학번입니다. 회원가입을 먼저 진행해주세요.';
-  if(c==='auth/wrong-password') return '비밀번호가 올바르지 않습니다.';
-  if(c==='auth/invalid-credential') return '가입되지 않은 학번이거나 비밀번호가 올바르지 않습니다.';
+  if(c==='auth/wrong-password') return '비밀번호가 올바르지 않습니다. 본인의 정보를 정확히 입력해주세요.';
+  if(c==='auth/invalid-credential') return '가입되지 않은 학번이거나 비밀번호가 올바르지 않습니다. 본인의 정보를 정확히 입력해주세요.';
   if(c==='auth/weak-password') return '비밀번호는 6자 이상이어야 합니다.';
   if(c==='auth/invalid-email') return '학번을 다시 확인해주세요.';
   if(c==='auth/too-many-requests') return '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
@@ -7437,6 +7470,7 @@ boot();
 // 실제로 그 문제가 있었다. 그래서 웹(브라우저 PWA)에서만 등록한다.
 const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
 if(isNativeApp) document.documentElement.classList.add('is-native-app'); // 상단바 글씨 크기 등 APK 전용 스타일 스위치
+if(isIOSDevice()) document.documentElement.classList.add('is-ios'); // 하단탭 safe-area 여백 보정용
 if(isNativeApp && 'serviceWorker' in navigator){
   // 예전 버전(네이티브에서도 등록하던 시절)에 이미 깔린 서비스워커·캐시가 남아있을 수 있으니 정리한다.
   navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(()=>{});
