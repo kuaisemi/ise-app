@@ -83,7 +83,8 @@ service cloud.firestore {
     // 읽기는 본인과 개발자만, 쓰기는 본인만(각자 자기 접속 기록을 남긴다).
     match /userMeta/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isDeveloper());
-      allow write: if isSignedIn() && request.auth.uid == uid;
+      // 쓰기는 본인(자기 접속 기록을 남긴다)과 개발자(기록 정리)만.
+      allow write: if isSignedIn() && (request.auth.uid == uid || isDeveloper());
     }
 
     match /timetables/{uid} {

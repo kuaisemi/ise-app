@@ -5430,8 +5430,75 @@ async function clearUserAudit(sid){
   const next = (state.auditLog||[]).filter(e=>e.actorId !== sid);
   const ok = await saveShared('auditLog', { list: next });
   if(ok) state.auditLog = next;
-  openModal(await userDetailModal(sid));
+  refreshUserDetailBody();
   saveResultToast(ok, '삭제 기록을 지웠습니다');
+}
+
+// 접속 IP 기록 비우기. 규칙상 개발자만 이 문서를 건드릴 수 있다.
+async function clearUserIps(sid){
+  if(!isDeveloper()) return;
+  const u = (state.allUsers||{})[sid] || {};
+  if(!u.uid) return;
+  if(!await showConfirm(`${u.name||sid}님의 접속 IP 기록을 지울까요?\n(되돌릴 수 없습니다)`)) return;
+  let ok = false;
+  LAST_SAVE_ERROR = '';
+  try{
+    await setDoc(doc(db,'userMeta',u.uid), { ipHistory: [] }, { merge:true });
+    if(state.userDetail.meta) state.userDetail.meta.ipHistory = [];
+    ok = true;
+  }catch(e){ LAST_SAVE_ERROR = (e && e.code) || 'unknown'; }
+  refreshUserDetailBody();
+  saveResultToast(ok, '접속 IP 기록을 지웠습니다');
+}
+
+// 이 사람이 쓴 공개 게시물을 한 번에 내린다. 다른 삭제와 똑같이 실제로 지우지 않고
+// deleted 표시만 남기며(24시간 뒤 정리 작업이 완전히 지운다), 삭제 기록도 함께 남긴다.
+async function deleteUserPosts(sid){
+  if(!isPresident()) return;
+  const u = (state.allUsers||{})[sid] || {};
+  const total = collectUserPosts(sid).length;
+  if(!total){ toast('삭제할 게시물이 없습니다'); return; }
+  if(!await showConfirm(`${u.name||sid}님이 쓴 공개 게시물 ${total}건을 모두 삭제할까요?\n(24시간 뒤 완전히 지워집니다)`)) return;
+
+  const mark = (arr)=> (arr||[]).map(x =>
+    (x && x.authorId === sid && !x.deleted) ? { ...x, deleted:true, updatedAt: now() } : x);
+  const jobs = [
+    ['notices', loadNotices, saveNotices, v=>{ state.notices = v; }],
+    ['suggestions', loadSuggestions, saveSuggestions, v=>{ state.suggestions = v; }],
+    ['recruitments', loadRecruitments, saveRecruitments, v=>{ state.recruitmentPosts = v; }],
+    ['polls', loadPolls, savePolls, v=>{ state.polls = v; }],
+    ['calendar', loadCalendar, saveCalendar, v=>{ state.calendar = v; }],
+  ];
+  let ok = true;
+  for(const [, loadFn, saveFn, setFn] of jobs){
+    try{
+      const latest = await loadFn();
+      const next = mark(latest);
+      if(JSON.stringify(next) === JSON.stringify(latest)) continue;
+      if(!await saveFn(next)) ok = false; else setFn(next);
+    }catch(e){ ok = false; console.error('[deleteUserPosts]', e); }
+  }
+  // 학생회 게시글은 글 자체와 그 안의 댓글을 함께 본다.
+  try{
+    const latest = await loadCouncilPosts();
+    const next = latest.map(p=>{
+      if(!p) return p;
+      const q = (p.authorId === sid && !p.deleted) ? { ...p, deleted:true, updatedAt: now() } : { ...p };
+      if(Array.isArray(q.comments)){
+        q.comments = q.comments.map(c =>
+          (c && c.authorId === sid && !c.deleted) ? { ...c, deleted:true } : c);
+      }
+      return q;
+    });
+    if(JSON.stringify(next) !== JSON.stringify(latest)){
+      if(!await saveCouncilPosts(next)) ok = false; else state.councilPosts = next;
+    }
+  }catch(e){ ok = false; console.error('[deleteUserPosts] councilPosts', e); }
+
+  logAudit('전체 삭제', '작성 게시물', `${u.name||sid} ${total}건`);
+  refreshUserDetailBody();
+  renderMain();
+  saveResultToast(ok, `${u.name||sid}님의 게시물 ${total}건을 삭제했습니다`);
 }
 
 async function clearAuditLog(){
@@ -5717,13 +5784,88 @@ function collectUserPosts(sid){
   return out.sort((a,b)=>(b.ts||0)-(a.ts||0));
 }
 
-async function userDetailModal(sid){
+// 상세 화면의 펼침 상태와 몇 개까지 보여줄지. 구역을 열고 더보기를 눌러도 모달을 다시
+// 열지 않고 안쪽만 갈아끼우려면 이 값들이 화면 밖에 남아 있어야 한다.
+const DETAIL_PAGE = 10;
+state.userDetail = { sid:'', meta:null, open:{posts:false, audit:false, ip:false}, limit:{posts:DETAIL_PAGE, audit:DETAIL_PAGE, ip:DETAIL_PAGE} };
+
+function detailSectionHead(sid, key, title, count, clearAction, clearLabel){
+  const open = !!state.userDetail.open[key];
+  return `
+    <div class="row-between" style="margin:14px 0 6px; gap:8px;">
+      <button type="button" data-action="toggle-detail-sec" data-sec="${key}" style="background:none; border:none; padding:0; cursor:pointer; display:flex; align-items:center; gap:5px; color:var(--text);">
+        <span class="section-title" style="margin:0;">${title} (${count})</span>
+        <span style="display:flex; color:var(--text-dim); transform:rotate(${open?180:0}deg); transition:transform .15s;">${ICON.chevDown}</span>
+      </button>
+      ${(open && count && clearAction) ? `<button type="button" class="btn btn-danger btn-sm" data-action="${clearAction}" data-sid="${escapeHtml(sid)}" style="width:auto; padding:4px 10px; font-size:11px;">${clearLabel}</button>` : ''}
+    </div>`;
+}
+
+// 목록이 길어지면 화면이 끝없이 늘어나므로 처음엔 조금만 보여주고 더보기로 늘린다.
+function detailRows(key, items, renderRow, emptyText){
+  if(!items.length) return `<div class="empty" style="padding:12px 0;"><p>${emptyText}</p></div>`;
+  const lim = state.userDetail.limit[key] || DETAIL_PAGE;
+  const rest = items.length - lim;
+  return items.slice(0, lim).map(renderRow).join('')
+    + (rest > 0 ? `<button type="button" class="btn btn-ghost btn-sm" data-action="more-detail-sec" data-sec="${key}" style="width:100%; margin-top:6px;">더보기 (${rest}개 더)</button>` : '');
+}
+
+function userDetailBody(sid){
   const u = (state.allUsers||{})[sid] || {};
+  const meta = state.userDetail.meta;
   const posts = collectUserPosts(sid);
   const audits = [...(state.auditLog||[])].filter(e=>e.actorId===sid).sort((a,b)=>b.ts-a.ts);
-  // IP는 개발자만. 규칙에서도 막혀 있어서 회장이 불러도 null이 온다.
-  const meta = isDeveloper() && u.uid ? await loadUserMeta(u.uid) : null;
+  const ips = (meta && Array.isArray(meta.ipHistory)) ? [...meta.ipHistory].reverse() : [];
   const online = u.lastSeen && (now()-u.lastSeen) <= 5*60*1000;
+  const dev = isDeveloper();
+
+  return `
+    ${(state.user && sid !== state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(sid)}" data-name="${escapeHtml(u.name||'')}" style="width:100%; margin-bottom:12px;">이 계정 탈퇴시키기</button>` : ''}
+    <div class="card" style="padding:14px;">
+      <div class="meta">학번 <b style="color:var(--text);">${escapeHtml(sid)}</b> (${fmtStudentYear(sid)})</div>
+      <div class="meta" style="margin-top:4px;">직급 <b style="color:var(--text);">${roleLabel(u.role||'student')}</b></div>
+      <div class="meta" style="margin-top:4px;">최근 접속 ${online ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : escapeHtml(fmtLastSeen(u.lastSeen, u.createdAt))}</div>
+      ${u.platform ? `<div class="meta" style="margin-top:4px;">기기 ${escapeHtml(platformLabel(u.platform))}</div>` : ''}
+      ${dev ? `<div class="meta" style="margin-top:4px; font-family:var(--font-mono);">최종 접속 IP ${escapeHtml((meta && meta.lastIp) || '기록 없음')}</div>` : ''}
+    </div>
+
+    ${detailSectionHead(sid, 'posts', '작성한 공개 게시물', posts.length, 'delete-user-posts', '전부 삭제')}
+    ${state.userDetail.open.posts ? detailRows('posts', posts, p=>`
+      <div class="list-item" style="padding:8px 0;">
+        <div class="title-line"><b style="font-size:11.5px; color:var(--teal);">${escapeHtml(p.type)}</b></div>
+        <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(p.title||'(제목 없음)')}</div>
+        <div class="meta" style="margin-top:2px;">${p.ts ? fmtDateTime(p.ts) : ''}</div>
+      </div>`, '작성한 글이 없습니다.') : ''}
+
+    ${detailSectionHead(sid, 'audit', '이 사람의 삭제 기록', audits.length, 'clear-user-audit', '기록 지우기')}
+    ${state.userDetail.open.audit ? detailRows('audit', audits, e=>`
+      <div class="list-item" style="padding:8px 0;">
+        <div class="title-line"><b style="font-size:11.5px;">${escapeHtml(e.action)} · ${escapeHtml(e.itemType)}</b></div>
+        <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(e.itemTitle||'')}</div>
+        <div class="meta" style="margin-top:2px;">${fmtDateTime(e.ts)}${dev ? ' · IP ' + escapeHtml(e.ip||'알 수 없음') : ''}</div>
+      </div>`, '삭제 기록이 없습니다.') : ''}
+
+    ${dev ? detailSectionHead(sid, 'ip', '접속 IP 기록', ips.length, 'clear-user-ips', '기록 지우기') : ''}
+    ${(dev && state.userDetail.open.ip) ? detailRows('ip', ips, h=>`
+      <div class="list-item" style="padding:7px 0;">
+        <div class="meta" style="font-family:var(--font-mono); color:var(--text);">${escapeHtml(h.ip||'')}</div>
+        <div class="meta" style="margin-top:2px;">${h.ts ? fmtDateTime(h.ts) : ''}${h.platform ? ' · ' + escapeHtml(platformLabel(h.platform)) : ''}</div>
+      </div>`, '접속 기록이 없습니다.') : ''}`;
+}
+
+function refreshUserDetailBody(){
+  const el = document.getElementById('user-detail-body');
+  if(el) el.innerHTML = userDetailBody(state.userDetail.sid);
+}
+
+async function userDetailModal(sid){
+  const u = (state.allUsers||{})[sid] || {};
+  // 다른 사람을 열었을 때만 펼침 상태와 IP 기록을 새로 받는다.
+  if(state.userDetail.sid !== sid){
+    state.userDetail = { sid, meta:null, open:{posts:false, audit:false, ip:false},
+                         limit:{posts:DETAIL_PAGE, audit:DETAIL_PAGE, ip:DETAIL_PAGE} };
+    state.userDetail.meta = (isDeveloper() && u.uid) ? await loadUserMeta(u.uid) : null;
+  }
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">
@@ -5733,49 +5875,7 @@ async function userDetailModal(sid){
       </span>
       <button data-action="close-modal">${ICON.close}</button>
     </div>
-    ${(state.user && sid !== state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(sid)}" data-name="${escapeHtml(u.name||'')}" style="width:100%; margin-bottom:12px;">이 계정 탈퇴시키기</button>` : ''}
-    <div class="card" style="padding:14px; margin-bottom:10px;">
-      <div class="meta">학번 <b style="color:var(--text);">${escapeHtml(sid)}</b> (${fmtStudentYear(sid)})</div>
-      <div class="meta" style="margin-top:4px;">직급 <b style="color:var(--text);">${roleLabel(u.role||'student')}</b></div>
-      <div class="meta" style="margin-top:4px;">최근 접속 ${online ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : escapeHtml(fmtLastSeen(u.lastSeen, u.createdAt))}</div>
-      ${u.platform ? `<div class="meta" style="margin-top:4px;">기기 ${escapeHtml(platformLabel(u.platform))}</div>` : ''}
-      ${isDeveloper() ? `<div class="meta" style="margin-top:4px; font-family:var(--font-mono);">최종 접속 IP ${escapeHtml((meta && meta.lastIp) || '기록 없음')} <span style="font-family:var(--font-display); color:var(--text-faint);">(개발자만 보임)</span></div>` : ''}
-    </div>
-
-    ${isDeveloper() ? `
-    <div class="section-title" style="margin:14px 0 6px;">접속 IP 기록 (${(meta && meta.ipHistory || []).length})</div>
-    <div style="max-height:24vh; overflow-y:auto;">
-      ${(meta && Array.isArray(meta.ipHistory) && meta.ipHistory.length)
-        ? [...meta.ipHistory].reverse().map(h=>`
-          <div class="list-item" style="padding:7px 0;">
-            <div class="meta" style="font-family:var(--font-mono); color:var(--text);">${escapeHtml(h.ip||'')}</div>
-            <div class="meta" style="margin-top:2px;">${h.ts ? fmtDateTime(h.ts) : ''}${h.platform ? ' · ' + escapeHtml(platformLabel(h.platform)) : ''}</div>
-          </div>`).join('')
-        : '<div class="empty" style="padding:12px 0;"><p>접속 기록이 없습니다.</p></div>'}
-    </div>` : ''}
-
-    <div class="section-title" style="margin:14px 0 6px;">작성한 공개 게시물 (${posts.length})</div>
-    <div style="max-height:34vh; overflow-y:auto;">
-      ${posts.length ? posts.map(p=>`
-        <div class="list-item" style="padding:8px 0;">
-          <div class="title-line"><b style="font-size:11.5px; color:var(--teal);">${escapeHtml(p.type)}</b></div>
-          <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(p.title||'(제목 없음)')}</div>
-          <div class="meta" style="margin-top:2px;">${p.ts ? fmtDateTime(p.ts) : ''}</div>
-        </div>`).join('') : '<div class="empty" style="padding:12px 0;"><p>작성한 글이 없습니다.</p></div>'}
-    </div>
-
-    <div class="row-between" style="margin:14px 0 6px;">
-      <div class="section-title" style="margin:0;">이 사람의 삭제 기록 (${audits.length})</div>
-      ${audits.length ? `<button type="button" class="btn btn-danger btn-sm" data-action="clear-user-audit" data-sid="${escapeHtml(sid)}" style="width:auto; padding:4px 10px; font-size:11px;">이 기록 지우기</button>` : ''}
-    </div>
-    <div style="max-height:28vh; overflow-y:auto;">
-      ${audits.length ? audits.map(e=>`
-        <div class="list-item" style="padding:8px 0;">
-          <div class="title-line"><b style="font-size:11.5px;">${escapeHtml(e.action)} · ${escapeHtml(e.itemType)}</b></div>
-          <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(e.itemTitle||'')}</div>
-          <div class="meta" style="margin-top:2px;">${fmtDateTime(e.ts)}${isDeveloper() ? ' · IP ' + escapeHtml(e.ip||'알 수 없음') : ''}</div>
-        </div>`).join('') : '<div class="empty" style="padding:12px 0;"><p>삭제 기록이 없습니다.</p></div>'}
-    </div>`;
+    <div id="user-detail-body">${userDetailBody(sid)}</div>`;
 }
 
 function usersListModal(){
@@ -7770,6 +7870,19 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'back-to-users-list'){ openModal(usersListModal()); }
     else if(a === 'clear-user-audit'){ await clearUserAudit(el.dataset.sid); }
+    else if(a === 'clear-user-ips'){ await clearUserIps(el.dataset.sid); }
+    else if(a === 'delete-user-posts'){ await deleteUserPosts(el.dataset.sid); }
+    else if(a === 'toggle-detail-sec'){
+      const k = el.dataset.sec;
+      state.userDetail.open[k] = !state.userDetail.open[k];
+      state.userDetail.limit[k] = DETAIL_PAGE;   // 다시 열 땐 처음부터
+      refreshUserDetailBody();
+    }
+    else if(a === 'more-detail-sec'){
+      const k = el.dataset.sec;
+      state.userDetail.limit[k] = (state.userDetail.limit[k] || DETAIL_PAGE) + DETAIL_PAGE;
+      refreshUserDetailBody();
+    }
     else if(a === 'reload-app'){ await reloadForUpdate(); }
     else if(a === 'manage-roster'){ openModal(await rosterModal()); }
     else if(a === 'manage-gemini-keys'){ openModal(await geminiKeysModal()); }
