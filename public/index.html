@@ -1760,8 +1760,30 @@ function setupPresenceHeartbeat(){
   if(presenceHeartbeatStarted) return;
   presenceHeartbeatStarted = true;
   setInterval(()=>{
-    if(state.user) trackUserPresence(state.user);
+    if(state.user){ trackUserPresence(state.user); syncMyRole(); }
   }, 3*60*1000);
+  // 앱을 다시 열었을 때는 3분을 기다리지 않고 바로 맞춘다. 직급이 바뀌었다는 연락을 받고
+  // 앱을 켜보는 게 보통이라 이쪽이 실제로 더 자주 걸린다.
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden && state.user){ trackUserPresence(state.user); syncMyRole(); }
+  });
+}
+
+// 내 직급을 서버 기준으로 다시 맞춘다.
+// state.user.role은 로그인할 때 한 번만 채워져서, 회장이 직급을 바꿔도 그 사람이 앱을
+// 껐다 켜기 전까지는 예전 권한이 그대로 남아 있었다. 바꾼 쪽에서는 "안 내려간다"로 보인다.
+async function syncMyRole(){
+  if(!state.user || !state.user.uid) return;
+  try{
+    const udoc = await fetchUserDoc(state.user.uid);
+    if(!udoc || !udoc.role) return;
+    const fresh = ROLES[udoc.role] ? udoc.role : 'student';
+    if(fresh === state.user.role) return;
+    state.user.role = fresh;
+    localSet('user_'+state.user.uid, state.user);
+    renderApp();
+    toast(`직급이 ${roleLabel(fresh)}(으)로 변경되었습니다`);
+  }catch(e){ console.warn('[syncMyRole] 실패', e && e.code); }
 }
 
 /* ===== 알림 설정 ===== */
@@ -6356,7 +6378,7 @@ async function assignRole(studentId, role){
     }
   }
   saveResultToast(ok, `${users[studentId].name}님을 ${roleLabel(role)}(으)로 변경했습니다`);
-  openModal(usersListModal());
+  // 목록 다시 그리기는 호출한 쪽(pick-role)이 서버에서 새로 읽어서 한다.
 }
 
 /* ===== 시간표 저장 ===== */
@@ -7260,7 +7282,13 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'go-notice-tab'){ state.view = 'council'; state.councilTab = 'notice'; renderShell(); }
     else if(a === 'go-calendar-tab'){ state.view = 'info'; state.infoTab = 'examCal'; renderShell(); }
     else if(a === 'open-assign-role'){ openModal(assignRoleModal(el.dataset.sid, el.dataset.name, el.dataset.role)); }
-    else if(a === 'pick-role'){ await assignRole(el.dataset.sid, el.dataset.role); closeModal(); renderMain(); }
+    else if(a === 'pick-role'){
+      await assignRole(el.dataset.sid, el.dataset.role);
+      // 서버에서 다시 읽어 목록을 그린다. 메모리 값만 고쳐서 보여주면 실제로는 안 바뀐
+      // 경우에도 바뀐 것처럼 보여서, 뭐가 잘못됐는지 알 수가 없다.
+      await refreshUsersList();
+      openModal(usersListModal());
+    }
     else if(a === 'open-notif-feed'){
       markNotificationsSeen();
       openModal(notifFeedModal());
