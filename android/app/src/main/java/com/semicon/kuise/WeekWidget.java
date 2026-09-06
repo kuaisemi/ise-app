@@ -29,7 +29,9 @@ public class WeekWidget extends BaseWidget {
     /** 시간 칸이 이보다 낮으면 과목명만 넣는다 (시간 줄까지 넣으면 글씨가 잘린다) */
     private static final float TIME_LINE_MIN_DP = 34f;
     /** 한 시간에 이만큼도 못 주는 크기면 시간축 격자를 포기하고 목록으로 보여준다 */
-    private static final float HOUR_MIN_DP = 16f;
+    // 1시간 칸에 최소 이만큼은 있어야 시간축을 그린다. 16dp였을 때는 9~18시 기준으로
+    // 위젯 높이가 217dp를 넘어야 해서(4x4쯤) 웬만한 크기에서는 시간축이 통째로 안 보였다.
+    private static final float HOUR_MIN_DP = 11f;
 
     @Override
     protected int layoutId() {
@@ -155,10 +157,22 @@ public class WeekWidget extends BaseWidget {
                     chip.setTextViewText(R.id.chip_subject, c.optString("subject", ""));
                     theme.size(chip, R.id.chip_subject, 9.5f);
                     if (!canSize || blockDp >= TIME_LINE_MIN_DP * theme.fontScale) {
-                        // 밑줄 한 줄은 강의실 표시가 켜져 있으면 강의실을, 아니면 시작 시각을 보여준다
-                        // (둘을 한 줄에 욱여넣으면 좁은 칸에서 잘려서 둘 다 따로 고를 수 있게 함).
+                        // 밑줄 한 줄에 무엇을 보여줄지.
+                        // 시간축을 그린 경우엔 시각이 이미 왼쪽에 있으니, 강의실 표시가 켜져 있으면
+                        // 강의실을 보여준다(둘을 한 줄에 욱여넣으면 좁은 칸에서 잘린다).
+                        // 반대로 시간축을 못 그린 작은 위젯에서는 여기 말고 시각이 나올 곳이 없어서,
+                        // 강의실이 켜져 있어도 시각을 먼저 보여주고 자리가 되면 강의실을 뒤에 붙인다.
                         String room = c.optString("room", "");
-                        String line = (showRoom && !room.isEmpty()) ? room : c.optString("startLabel", "");
+                        String startLabel = c.optString("startLabel", "");
+                        boolean hasRoom = showRoom && !room.isEmpty();
+                        String line;
+                        if (canSize) {
+                            line = hasRoom ? room : startLabel;
+                        } else if (hasRoom && !startLabel.isEmpty()) {
+                            line = startLabel + " " + room;
+                        } else {
+                            line = startLabel.isEmpty() ? room : startLabel;
+                        }
                         chip.setViewVisibility(R.id.chip_time, View.VISIBLE);
                         chip.setTextViewText(R.id.chip_time, line);
                         theme.size(chip, R.id.chip_time, 8f);

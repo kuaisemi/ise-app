@@ -403,6 +403,9 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .checkline{display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--text-dim); margin-bottom:14px;}
 .checkline input{width:16px; height:16px; accent-color:var(--teal);}
 
+/* 새 버전 알림 막대. 하단 탭 바로 위에 뜬다. */
+.update-bar{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(76px + var(--safe-bottom)); z-index:40; width:min(456px, calc(100% - 24px)); display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; background:var(--crimson); color:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(0,0,0,.4); font-size:12.5px; font-weight:700;}
+.update-bar-btn{background:#fff; color:var(--crimson); border:none; border-radius:8px; padding:7px 13px; font-size:12px; font-weight:800; cursor:pointer; flex-shrink:0;}
 .toast{position:fixed; left:50%; bottom:calc(90px + var(--safe-bottom)); transform:translateX(-50%) translateY(10px); background:var(--surface-3); border:1px solid var(--border-light); color:var(--text); padding:10px 18px; border-radius:30px; font-size:11.5px; font-weight:600; z-index:60; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,.5); max-width:86%; text-align:center; line-height:1.45;}
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
@@ -891,6 +894,9 @@ function myLevel(){ return roleLevel(myRole()); }
 function isCouncil(){ return myLevel() >= 1; }
 function canPoll(){ return myLevel() >= 2; }
 function isPresident(){ return myRole() === 'president' || myRole() === 'developer'; }
+// 최종 접속 IP 같은 건 회장도 아닌 개발자만 본다. myRole()을 쓰므로 "학생 화면 미리보기"를
+// 켜 두면 개발자 본인에게도 안 보인다(미리보기의 취지대로).
+function isDeveloper(){ return myRole() === 'developer'; }
 function canModify(item){
   if(!item) return false;
   if(state.user && item.authorId === state.user.studentId) return true;
@@ -1108,8 +1114,11 @@ function hasUserVoted(p){
   if(!state.user || !p || !p.votes) return false;
   return !!p.votes[state.user.studentId];
 }
-function fmtLastSeen(ts){
-  if(!ts) return '기록 없음';
+// lastSeen이 없다는 건 이 사람이 아직 새 버전을 한 번도 안 열었다는 뜻이다(접속 기록을
+// users/{uid}에 남기도록 바꾼 뒤로 쌓이는 값이라, 그전 기록은 넘어오지 않았다).
+// 그냥 "기록 없음"만 띄우면 계정이 이상한 것처럼 보여서, 가입일이라도 대신 보여준다.
+function fmtLastSeen(ts, createdAt){
+  if(!ts) return createdAt ? `가입 ${fmtDateShort(new Date(createdAt).toISOString().slice(0,10))} · 접속 기록 없음` : '접속 기록 없음';
   const diff = Math.floor((now() - Number(ts))/60000);
   if(diff < 1) return '방금 전';
   if(diff < 60) return `${diff}분 전`;
@@ -1354,6 +1363,19 @@ async function mutateSharedList(name, field, mutate){
 // 삭제 기록 — "누가 · 언제 · 어디서(IP) 뭘 지웠는지" 학생회장이 나중에 확인할 수 있게 남긴다.
 // IP는 클라이언트가 외부 서비스(ipify)에 직접 물어본 값이라 조작하려면 얼마든지 가능하다 —
 // 서버 없이(Cloud Functions 없이) 만드는 구조상 한계라, 진짜 감사 기록이 아니라 참고용이다.
+// 배포할 때마다 build-dist.mjs가 이 자리에 그 빌드의 식별자를 넣고, 같은 값을
+// dist/version.json 으로도 함께 내보낸다. 둘을 비교해 새 버전이 떴는지 안다.
+// (빌드를 거치지 않은 public/ 원본에는 자리표시자가 그대로 남아 있어서 검사를 건너뛴다)
+const BUILD_ID = '__BUILD_ID__';
+
+let SESSION_IP = null;        // 한 번 받아온 뒤 이 세션 동안 재사용
+let SESSION_IP_LOGGED = false; // 접속 이력은 세션당 한 줄만 남긴다
+async function loadUserMeta(uidStr){
+  try{
+    const snap = await getDoc(doc(db,'userMeta',uidStr));
+    return (snap && snap.exists() && snap.data()) || null;
+  }catch(e){ return null; }   // 개발자가 아니면 규칙에 막힌다(정상)
+}
 async function getClientIp(){
   try{
     const res = await fetch('https://api.ipify.org?format=json', { cache:'no-store' });
@@ -1560,15 +1582,24 @@ async function loadRosterStrict(){
 }
 // 코드 조회는 이제 "회장이 코드를 확인·재발급하는 화면"에서만 쓴다(규칙상 회장급만 읽힘).
 // 승급 검증에는 쓰지 않는다 — 그건 Firestore 규칙이 서버에서 대조한다.
-async function loadCouncilCode(){
-  const s = await loadShared('councilCode', null);
-  return (s && s.code) || null;
+// 직급별 코드 3종. 규칙(roleCodeValid)이 보는 필드 이름과 반드시 같아야 한다.
+const CODE_FIELDS = [
+  ['code', '학생회 부원', '학생회 부원으로 가입하거나 승급할 때'],
+  ['presidentCode', '학생회장', '학생회장 권한을 받을 때'],
+  ['developerCode', '개발자', '개발자 권한을 받을 때'],
+];
+async function loadCouncilCodes(){
+  try{
+    const snap = await getDoc(doc(db,'shared','councilCode'));
+    return (snap && snap.exists() && snap.data()) || {};
+  }catch(e){ return {}; }
 }
-async function saveCouncilCode(code){
-  // 회장·개발자 코드까지 같이 날아가지 않도록 merge로 code만 갱신한다.
+async function saveCouncilCodeField(field, code){
+  if(!CODE_FIELDS.some(f=>f[0]===field)) return false;
+  // 나머지 코드까지 같이 날아가지 않도록 merge로 해당 필드만 갱신한다.
   try{
     await setDoc(doc(db,'shared','councilCode'),
-      { code, updatedAt: now(), updatedBy: (state.user&&state.user.studentId)||'' }, { merge:true });
+      { [field]: code, updatedAt: now(), updatedBy: (state.user&&state.user.studentId)||'' }, { merge:true });
     return true;
   }catch(e){ return false; }
 }
@@ -1771,12 +1802,12 @@ function currentPlatform(){
   return 'web';
 }
 const PLATFORM_LABELS = {
-  'app': '📱 앱',
-  'ios-pwa': '🍎 iOS 홈화면',
-  'ios': '🍎 iOS 브라우저',
-  'android-pwa': '🤖 안드로이드 홈화면',
-  'android': '🤖 안드로이드 브라우저',
-  'web': '💻 웹',
+  'app': '앱',
+  'ios-pwa': 'iOS 홈화면',
+  'ios': 'iOS 브라우저',
+  'android-pwa': '안드로이드 홈화면',
+  'android': '안드로이드 브라우저',
+  'web': '웹',
 };
 function platformLabel(p){ return PLATFORM_LABELS[p] || ''; }
 
@@ -1789,6 +1820,28 @@ async function trackUserPresence(u){
     const ts = now();
     const platform = currentPlatform();
     await setDoc(doc(db,'users',u.uid), { lastSeen: ts, platform }, { merge:true });
+    // IP는 users 문서가 아니라 userMeta에 따로 남긴다(위 규칙 참고).
+    // 외부 조회라 3분마다 부르면 낭비여서 한 세션에 한 번만 받아 재사용한다.
+    try{
+      if(SESSION_IP === null) SESSION_IP = await getClientIp();
+      if(SESSION_IP){
+        if(SESSION_IP_LOGGED){
+          // 이번 세션 이력은 이미 남겼으니 최종 접속 시각만 갱신한다.
+          await setDoc(doc(db,'userMeta',u.uid), { lastIp: SESSION_IP, lastSeen: ts, platform }, { merge:true });
+        } else {
+          SESSION_IP_LOGGED = true;
+          // 이력은 30건까지만. 같은 IP로 12시간 안에 다시 들어온 건 같은 자리로 보고 넘긴다
+          // (재접속할 때마다 같은 줄이 쌓이면 목록이 의미 없어진다).
+          const prev = await loadUserMeta(u.uid);
+          const hist = Array.isArray(prev && prev.ipHistory) ? prev.ipHistory : [];
+          const last = hist[hist.length-1];
+          const dup = last && last.ip === SESSION_IP && (ts - (last.ts||0)) < 12*60*60*1000;
+          const nextHist = dup ? hist : [...hist, { ip: SESSION_IP, ts, platform }].slice(-30);
+          await setDoc(doc(db,'userMeta',u.uid),
+            { lastIp: SESSION_IP, lastSeen: ts, platform, ipHistory: nextHist }, { merge:true });
+        }
+      }
+    }catch(e){ console.warn('[presence] IP 기록 실패', e && e.code); }
     if(state.allUsers && state.allUsers[u.studentId]){
       state.allUsers[u.studentId] = { ...state.allUsers[u.studentId], lastSeen: ts, platform };
     }
@@ -1797,16 +1850,62 @@ async function trackUserPresence(u){
 let presenceHeartbeatStarted = false;
 // "현재 접속자" 통계(getTrafficStats)가 로그인/재접속 시점의 lastSeen에만 의존하면
 // 앱을 오래 켜둔 사용자가 금방 "접속 종료"로 잡혀버리므로, 몇 분마다 조용히 lastSeen만 갱신한다.
+// 웹/PWA는 앱을 켜 둔 채로 새 버전이 배포되면 예전 코드가 계속 돈다. 사용자는 뭐가
+// 바뀐 줄도 모르고 이미 고친 버그를 계속 겪는다. 그래서 빌드 식별자를 비교해 새 버전이
+// 올라왔으면 새로고침을 권한다.
+//
+// 서비스워커의 업데이트 감지를 쓰지 않는 이유: sw.js 파일 내용은 배포해도 그대로라서
+// 브라우저가 "새 서비스워커"로 보지 않는다. 그래서 매 빌드마다 값이 바뀌는 version.json을
+// 따로 둔다. APK는 index.html이 apk 안에 들어 있어 새로고침해도 그대로라 대상이 아니다.
+let updateBannerShown = false;
+function isNativePlatformNow(){
+  return typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+}
+async function checkForUpdate(){
+  if(updateBannerShown || isNativePlatformNow()) return;
+  if(BUILD_ID.indexOf('__BUILD') === 0) return;   // 빌드를 거치지 않은 원본
+  try{
+    const res = await fetch('./version.json?t=' + Date.now(), { cache:'no-store' });
+    if(!res.ok) return;
+    const j = await res.json();
+    if(j && j.build && j.build !== BUILD_ID) showUpdateBanner();
+  }catch(e){ /* 오프라인이면 그냥 넘어간다 */ }
+}
+function showUpdateBanner(){
+  if(updateBannerShown) return;
+  updateBannerShown = true;
+  const bar = document.createElement('div');
+  bar.className = 'update-bar';
+  bar.innerHTML = '<span>새 버전이 나왔어요</span><button type="button" class="update-bar-btn" data-action="reload-app">새로고침</button>';
+  document.body.appendChild(bar);
+}
+async function reloadForUpdate(){
+  // 캐시를 비우고 새로 받는다. 안 비우면 서비스워커가 들고 있던 예전 index.html이
+  // 그대로 다시 뜰 수 있다.
+  try{
+    if(window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+  }catch(e){}
+  location.reload();
+}
+
 function setupPresenceHeartbeat(){
   if(presenceHeartbeatStarted) return;
   presenceHeartbeatStarted = true;
   setInterval(()=>{
     if(state.user){ trackUserPresence(state.user); syncMyRole(); }
+    checkForUpdate();
   }, 3*60*1000);
+  checkForUpdate();
   // 앱을 다시 열었을 때는 3분을 기다리지 않고 바로 맞춘다. 직급이 바뀌었다는 연락을 받고
   // 앱을 켜보는 게 보통이라 이쪽이 실제로 더 자주 걸린다.
   document.addEventListener('visibilitychange', ()=>{
-    if(!document.hidden && state.user){ trackUserPresence(state.user); syncMyRole(); }
+    if(!document.hidden){
+      checkForUpdate();
+      if(state.user){ trackUserPresence(state.user); syncMyRole(); }
+    }
   });
 }
 
@@ -5323,6 +5422,18 @@ function auditLogModal(){
         </div>`).join('') : `<div class="empty"><p>기록이 없습니다.</p></div>`}
     </div>`;
 }
+// 전체 비우기와 달리 이 사람이 남긴 기록만 골라 지운다. 상세 화면에서 바로 정리할 수 있게.
+async function clearUserAudit(sid){
+  if(!isPresident()) return;
+  const u = (state.allUsers||{})[sid] || {};
+  if(!await showConfirm(`${u.name||sid}님의 삭제 기록을 지울까요?\n(되돌릴 수 없습니다)`)) return;
+  const next = (state.auditLog||[]).filter(e=>e.actorId !== sid);
+  const ok = await saveShared('auditLog', { list: next });
+  if(ok) state.auditLog = next;
+  openModal(await userDetailModal(sid));
+  saveResultToast(ok, '삭제 기록을 지웠습니다');
+}
+
 async function clearAuditLog(){
   if(!isPresident()) return;
   if(!await showConfirm('삭제 기록을 전부 비우시겠습니까?\n(되돌릴 수 없습니다)')) return;
@@ -5451,37 +5562,42 @@ async function handleEasterEggTap(){
   }
 }
 async function councilCodeAdminModal(){
-  const code = (await loadCouncilCode().catch(()=>null)) || '(불러오지 못함)';
+  const codes = await loadCouncilCodes();
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${ICON.key} 학생회 인증코드 관리</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.key} 인증코드 관리</span><button data-action="close-modal">${ICON.close}</button></div>
     <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 14px; line-height:1.6;">
-      신규 학생회 부원 가입 시 필요한 인증코드예요. 새로 발급하면 이전 코드는 즉시 사용할 수 없게 돼요.<br>
+      직급별 인증코드예요. 새로 발급하면 이전 코드는 즉시 사용할 수 없게 돼요.<br>
       <span style="color:var(--text-faint);">(이 화면은 학생회장/개발자에게만 보이는 숨겨진 메뉴예요)</span>
     </p>
-    <div class="card" style="text-align:center; padding:22px 16px; margin-bottom:14px;">
-      <div id="council-code-display" style="font-family:var(--font-mono); font-size:18px; font-weight:800; letter-spacing:1px; color:var(--teal);">${escapeHtml(code)}</div>
-    </div>
-    <div class="modal-actions" style="display:flex; gap:8px;">
-      <button type="button" class="btn btn-ghost" data-action="copy-council-code" style="flex:1;">코드 복사</button>
-      <button type="button" class="btn btn-primary" data-action="regen-council-code" style="flex:1;">새 코드 발급</button>
-    </div>`;
+    ${CODE_FIELDS.map(([f,label,desc])=>`
+      <div class="card" style="padding:14px; margin-bottom:10px;">
+        <b style="font-size:12.5px; display:block;">${label}</b>
+        <span style="font-size:10px; color:var(--text-faint); display:block; margin-top:2px;">${desc}</span>
+        <div id="council-code-${f}" style="font-family:var(--font-mono); font-size:16px; font-weight:800; letter-spacing:1px; color:var(--teal); text-align:center; padding:12px 0;">${escapeHtml(codes[f] || '(아직 발급 안 됨)')}</div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-ghost btn-sm" data-action="copy-council-code" data-field="${f}" style="flex:1;">복사</button>
+          <button type="button" class="btn btn-primary btn-sm" data-action="regen-council-code" data-field="${f}" style="flex:1;">새 코드 발급</button>
+        </div>
+      </div>`).join('')}`;
 }
-async function regenCouncilCode(){
+async function regenCouncilCode(field){
   if(!isPresident()) return;
-  if(!await showConfirm('새 코드를 발급하면 기존 코드는 더 이상 사용할 수 없어요. 계속할까요?')) return;
+  const meta = CODE_FIELDS.find(f=>f[0]===field);
+  if(!meta) return;
+  if(!await showConfirm(`${meta[1]} 코드를 새로 발급하면 기존 코드는 더 이상 쓸 수 없어요. 계속할까요?`)) return;
   const newCode = generateCouncilCodeString();
-  const ok = await saveCouncilCode(newCode);
+  const ok = await saveCouncilCodeField(field, newCode);
   if(ok){
-    const disp = document.getElementById('council-code-display');
+    const disp = document.getElementById('council-code-'+field);
     if(disp) disp.textContent = newCode;
-    toast('새 인증코드가 발급되었습니다');
+    toast(`${meta[1]} 인증코드가 발급되었습니다`);
   } else {
     saveResultToast(false);
   }
 }
-function copyCouncilCode(){
-  const disp = document.getElementById('council-code-display');
+function copyCouncilCode(field){
+  const disp = document.getElementById('council-code-'+field);
   const text = disp ? disp.textContent : '';
   if(!text) return;
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -5576,6 +5692,92 @@ document.addEventListener('input', (e)=>{
   if(e.target && e.target.id === 'user-search-input') filterUsersList(e.target.value);
 });
 
+// 이 사람이 전체에게 보이는 글로 무엇을 썼는지. 따로 로그를 쌓지 않고 이미 저장된
+// 게시물에서 작성자로 추려낸다 — 새 수집 없이도 과거 글까지 전부 나온다.
+function collectUserPosts(sid){
+  const out = [];
+  const push = (arr, type, titleOf) => {
+    (arr||[]).forEach(it=>{
+      if(!it || it.authorId !== sid || it.deleted) return;
+      out.push({ type, title: String(titleOf(it)||'').slice(0,80), ts: it.createdAt || it.updatedAt || 0 });
+    });
+  };
+  push(state.notices, '공지', it=>it.title);
+  push(state.suggestions, '건의사항', it=>it.title || it.content);
+  push(state.recruitmentPosts, '구인글', it=>it.title);
+  push(state.councilPosts, '학생회 게시글', it=>it.title);
+  push(state.polls, '투표', it=>it.question);
+  push(state.calendar, '학사일정', it=>it.title);
+  (state.councilPosts||[]).forEach(p=>{
+    (Array.isArray(p.comments)?p.comments:[]).forEach(c=>{
+      if(!c || c.authorId !== sid || c.deleted) return;
+      out.push({ type:'학생회 댓글', title:String(c.content||'').slice(0,80), ts:c.createdAt||0 });
+    });
+  });
+  return out.sort((a,b)=>(b.ts||0)-(a.ts||0));
+}
+
+async function userDetailModal(sid){
+  const u = (state.allUsers||{})[sid] || {};
+  const posts = collectUserPosts(sid);
+  const audits = [...(state.auditLog||[])].filter(e=>e.actorId===sid).sort((a,b)=>b.ts-a.ts);
+  // IP는 개발자만. 규칙에서도 막혀 있어서 회장이 불러도 null이 온다.
+  const meta = isDeveloper() && u.uid ? await loadUserMeta(u.uid) : null;
+  const online = u.lastSeen && (now()-u.lastSeen) <= 5*60*1000;
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span class="modal-title-text" style="display:flex; align-items:center; gap:6px;">
+        <button type="button" data-action="back-to-users-list" title="목록으로" style="background:none; border:none; color:var(--text-dim); padding:0 2px; cursor:pointer; display:flex;">${ICON.chevL}</button>
+        ${escapeHtml(u.name || sid)}
+      </span>
+      <button data-action="close-modal">${ICON.close}</button>
+    </div>
+    ${(state.user && sid !== state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(sid)}" data-name="${escapeHtml(u.name||'')}" style="width:100%; margin-bottom:12px;">이 계정 탈퇴시키기</button>` : ''}
+    <div class="card" style="padding:14px; margin-bottom:10px;">
+      <div class="meta">학번 <b style="color:var(--text);">${escapeHtml(sid)}</b> (${fmtStudentYear(sid)})</div>
+      <div class="meta" style="margin-top:4px;">직급 <b style="color:var(--text);">${roleLabel(u.role||'student')}</b></div>
+      <div class="meta" style="margin-top:4px;">최근 접속 ${online ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : escapeHtml(fmtLastSeen(u.lastSeen, u.createdAt))}</div>
+      ${u.platform ? `<div class="meta" style="margin-top:4px;">기기 ${escapeHtml(platformLabel(u.platform))}</div>` : ''}
+      ${isDeveloper() ? `<div class="meta" style="margin-top:4px; font-family:var(--font-mono);">최종 접속 IP ${escapeHtml((meta && meta.lastIp) || '기록 없음')} <span style="font-family:var(--font-display); color:var(--text-faint);">(개발자만 보임)</span></div>` : ''}
+    </div>
+
+    ${isDeveloper() ? `
+    <div class="section-title" style="margin:14px 0 6px;">접속 IP 기록 (${(meta && meta.ipHistory || []).length})</div>
+    <div style="max-height:24vh; overflow-y:auto;">
+      ${(meta && Array.isArray(meta.ipHistory) && meta.ipHistory.length)
+        ? [...meta.ipHistory].reverse().map(h=>`
+          <div class="list-item" style="padding:7px 0;">
+            <div class="meta" style="font-family:var(--font-mono); color:var(--text);">${escapeHtml(h.ip||'')}</div>
+            <div class="meta" style="margin-top:2px;">${h.ts ? fmtDateTime(h.ts) : ''}${h.platform ? ' · ' + escapeHtml(platformLabel(h.platform)) : ''}</div>
+          </div>`).join('')
+        : '<div class="empty" style="padding:12px 0;"><p>접속 기록이 없습니다.</p></div>'}
+    </div>` : ''}
+
+    <div class="section-title" style="margin:14px 0 6px;">작성한 공개 게시물 (${posts.length})</div>
+    <div style="max-height:34vh; overflow-y:auto;">
+      ${posts.length ? posts.map(p=>`
+        <div class="list-item" style="padding:8px 0;">
+          <div class="title-line"><b style="font-size:11.5px; color:var(--teal);">${escapeHtml(p.type)}</b></div>
+          <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(p.title||'(제목 없음)')}</div>
+          <div class="meta" style="margin-top:2px;">${p.ts ? fmtDateTime(p.ts) : ''}</div>
+        </div>`).join('') : '<div class="empty" style="padding:12px 0;"><p>작성한 글이 없습니다.</p></div>'}
+    </div>
+
+    <div class="row-between" style="margin:14px 0 6px;">
+      <div class="section-title" style="margin:0;">이 사람의 삭제 기록 (${audits.length})</div>
+      ${audits.length ? `<button type="button" class="btn btn-danger btn-sm" data-action="clear-user-audit" data-sid="${escapeHtml(sid)}" style="width:auto; padding:4px 10px; font-size:11px;">이 기록 지우기</button>` : ''}
+    </div>
+    <div style="max-height:28vh; overflow-y:auto;">
+      ${audits.length ? audits.map(e=>`
+        <div class="list-item" style="padding:8px 0;">
+          <div class="title-line"><b style="font-size:11.5px;">${escapeHtml(e.action)} · ${escapeHtml(e.itemType)}</b></div>
+          <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(e.itemTitle||'')}</div>
+          <div class="meta" style="margin-top:2px;">${fmtDateTime(e.ts)}${isDeveloper() ? ' · IP ' + escapeHtml(e.ip||'알 수 없음') : ''}</div>
+        </div>`).join('') : '<div class="empty" style="padding:12px 0;"><p>삭제 기록이 없습니다.</p></div>'}
+    </div>`;
+}
+
 function usersListModal(){
   const users = Object.values(state.allUsers||{}).sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
   const rosterMap = state.roster || {};
@@ -5609,6 +5811,38 @@ function usersListModal(){
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">가입자 및 직급 관리 (${users.length}명)<button data-action="close-modal">${ICON.close}</button></div>
+    <div id="users-list-panel">${usersListPanel()}</div>`;
+}
+
+// 학번 탭을 누를 때마다 모달을 통째로 다시 열면 열림 애니메이션이 다시 돌고 스크롤 위치와
+// 입력해 둔 검색어가 매번 날아간다. 그래서 바뀌는 부분만 따로 떼어내 이 안만 갈아끼운다.
+function usersListPanel(){
+  const users = Object.values(state.allUsers||{}).sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+  const rosterMap = state.roster || {};
+  const registeredSids = new Set(users.map(u=>u.studentId));
+  const unregUsers = Object.entries(rosterMap).filter(([sid])=>!registeredSids.has(sid)).map(([sid, v])=>({
+    studentId: sid,
+    name: (rosterEntry(v)||{}).name || '',
+    unregistered: true
+  }));
+  const tab = state.activeUserListTab || 'all';
+  const latestY = currentAdmissionYear2();
+  const prevY = latestY - 1;
+  const latestFull = 2000 + latestY;
+  const prevFull = 2000 + prevY;
+
+  let filtered = [];
+  if(tab === 'all') filtered = users;
+  else if(tab === 'unreg') filtered = unregUsers;
+  else if(tab === 'latest') filtered = users.filter(u=>u.studentId.startsWith(String(latestFull)));
+  else if(tab === 'prev') filtered = users.filter(u=>u.studentId.startsWith(String(prevFull)));
+  else if(tab === 'old') filtered = users.filter(u=>parseInt(u.studentId.slice(0,4),10) <= prevFull-1);
+
+  const latestCount = users.filter(u=>u.studentId.startsWith(String(latestFull))).length;
+  const prevCount = users.filter(u=>u.studentId.startsWith(String(prevFull))).length;
+  const oldCount = users.filter(u=>parseInt(u.studentId.slice(0,4),10) <= prevFull-1).length;
+
+  return `
     <div class="subtabs" style="margin-bottom:10px;">
       <div class="subtab ${tab==='all'?'active':''}" data-action="user-tab" data-tab="all">전체(${users.length})</div>
       <div class="subtab ${tab==='latest'?'active':''}" data-action="user-tab" data-tab="latest">${latestY}학번(${latestCount})</div>
@@ -5637,12 +5871,12 @@ function usersListModal(){
         return `
         <div class="list-item" style="padding:10px 0;" data-search="${escapeHtml(((u.name||'') + (u.studentId||'')).toLowerCase())}">
           <div class="row-between" style="gap:8px;">
-            <div style="min-width:0; flex:1;">
+            <div style="min-width:0; flex:1; cursor:pointer;" data-action="open-user-detail" data-sid="${escapeHtml(u.studentId)}">
               <div style="display:flex; align-items:center; gap:6px;">
                 <b>${escapeHtml(u.name)}</b>
                 <span class="tag ${roleLevel(u.role)>=1?'tag-crimson':'tag-blue'}" style="font-size:9px; padding:1px 6px;">${publicRoleLabel(u.role)}</span>
               </div>
-              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
+              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen, u.createdAt)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
             </div>
             <button type="button" class="btn btn-ghost btn-sm" data-action="open-assign-role" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" data-role="${escapeHtml(u.role)}" style="width:auto; max-width:110px; padding:6px 8px; font-size:11.5px; white-space:nowrap; display:flex; align-items:center; gap:3px;">${roleLabel(u.role)} ${ICON.chevDown}</button>
             ${(state.user && u.studentId!==state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">탈퇴</button>` : ''}
@@ -7248,7 +7482,7 @@ document.addEventListener('click', async (e)=>{
 
   const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','delete-event','edit-meal','add-council-post','delete-council-post','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
-  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys'];
+  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail'];
   if(councilOnly.includes(a) && !isCouncil()){ toast('학생회 권한이 필요한 기능입니다'); return; }
   if(pollOnly.includes(a) && !canPoll()){ toast('국장 이상 권한이 필요한 기능입니다'); return; }
   if(presidentOnly.includes(a) && !isPresident()){ toast('학생회장 권한이 필요한 기능입니다'); return; }
@@ -7510,9 +7744,33 @@ document.addEventListener('click', async (e)=>{
       closeModal();
       renderMain();
     }
-    else if(a === 'regen-council-code'){ await regenCouncilCode(); }
-    else if(a === 'copy-council-code'){ copyCouncilCode(); }
-    else if(a === 'user-tab'){ state.activeUserListTab = el.dataset.tab; openModal(usersListModal()); }
+    else if(a === 'regen-council-code'){ await regenCouncilCode(el.dataset.field); }
+    else if(a === 'copy-council-code'){ copyCouncilCode(el.dataset.field); }
+    else if(a === 'user-tab'){
+      // 모달을 통째로 다시 열면 열림 애니메이션이 다시 돌고 검색어·스크롤이 날아간다.
+      // 안쪽 패널만 바꾸고, 쳐 두었던 검색어는 그대로 되살린다.
+      const prevInput = document.getElementById('user-search-input');
+      const q = prevInput ? prevInput.value : '';
+      state.activeUserListTab = el.dataset.tab;
+      const panel = document.getElementById('users-list-panel');
+      if(panel){
+        panel.innerHTML = usersListPanel();
+        const inp = document.getElementById('user-search-input');
+        if(inp && q){ inp.value = q; filterUsersList(q); }
+      } else {
+        openModal(usersListModal());
+      }
+    }
+    else if(a === 'open-user-detail'){
+      // 삭제 기록은 이 화면에서 처음 필요해질 수 있으니 아직 안 받아왔으면 여기서 받는다.
+      if(!Array.isArray(state.auditLog) || !state.auditLog.length){
+        state.auditLog = ((await loadShared('auditLog', {list:[]})).list) || [];
+      }
+      openModal(await userDetailModal(el.dataset.sid));
+    }
+    else if(a === 'back-to-users-list'){ openModal(usersListModal()); }
+    else if(a === 'clear-user-audit'){ await clearUserAudit(el.dataset.sid); }
+    else if(a === 'reload-app'){ await reloadForUpdate(); }
     else if(a === 'manage-roster'){ openModal(await rosterModal()); }
     else if(a === 'manage-gemini-keys'){ openModal(await geminiKeysModal()); }
     else if(a === 'change-password'){ openModal(changePasswordModal()); }
@@ -7706,6 +7964,13 @@ boot();
 // 오히려 새 버전을 설치해도 예전 index.html(예전 API 키 등)을 캐시에서 계속 물고 있을 수 있어
 // 실제로 그 문제가 있었다. 그래서 웹(브라우저 PWA)에서만 등록한다.
 const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+// 새 버전 확인은 로그인 여부와 상관없이 돌아야 한다. 로그인 화면에 머물러 있는
+// 사람도 예전 코드를 쓰고 있는 건 마찬가지다.
+if(!isNativeApp){
+  checkForUpdate();
+  setInterval(checkForUpdate, 10*60*1000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkForUpdate(); });
+}
 if(isNativeApp) document.documentElement.classList.add('is-native-app'); // 상단바 글씨 크기 등 APK 전용 스타일 스위치
 if(isIOSDevice()) document.documentElement.classList.add('is-ios'); // 하단탭 safe-area 여백 보정용
 if(isNativeApp && 'serviceWorker' in navigator){

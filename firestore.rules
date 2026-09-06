@@ -16,6 +16,12 @@ service cloud.firestore {
         && userDoc().role in ['council','director','vice','president','developer'];
     }
 
+    function isDeveloper() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role == 'developer';
+    }
+
     function isPresident() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -25,15 +31,23 @@ service cloud.firestore {
 
     // 인증코드 원본. 클라이언트 코드에는 절대 값이 들어가지 않고, 아래 users/{uid} 규칙
     // 안에서 서버가 직접 대조한다(규칙 내부 get()은 read 권한과 무관하게 동작).
+    // 문서가 아직 없을 수도 있으므로 exists()로 먼저 거른다. 없는 키를 점 표기(codes().x)로
+    // 읽으면 규칙 평가 자체가 오류로 끝나 무조건 거부되기 때문에, 값은 get(키, 기본값)으로 읽는다.
+    // (실제로 presidentCode·developerCode를 저장하는 코드가 없어서 회장/개발자 코드가
+    //  아예 통과할 수 없던 문제가 있었다)
     function codes() {
-      return get(/databases/$(database)/documents/shared/councilCode).data;
+      return exists(/databases/$(database)/documents/shared/councilCode)
+        ? get(/databases/$(database)/documents/shared/councilCode).data
+        : {};
     }
     // 승급하려는 직급이, 함께 제출한 코드(roleCode)와 실제로 맞는지 서버에서 확인한다.
+    // submitted != '' 를 함께 보는 이유: 아직 발급되지 않은 코드의 기본값('')과 빈 입력이
+    // 우연히 같아져서 통과하는 일을 막는다.
     function roleCodeValid(role, submitted) {
       return (role == 'student')
-        || (role == 'council'   && submitted == codes().code)
-        || (role == 'president' && submitted == codes().presidentCode)
-        || (role == 'developer' && submitted == codes().developerCode);
+        || (role == 'council'   && submitted != '' && submitted == codes().get('code', ''))
+        || (role == 'president' && submitted != '' && submitted == codes().get('presidentCode', ''))
+        || (role == 'developer' && submitted != '' && submitted == codes().get('developerCode', ''));
     }
 
     match /users/{uid} {
@@ -61,6 +75,15 @@ service cloud.firestore {
       // 회장이 계정을 실제로 뺄 수 있게. 예전엔 delete 규칙이 없어 삭제가 조용히 거부됐고,
       // 그래서 "탈퇴시키기"가 화면용 캐시에서만 사라지는 시늉으로 끝났다.
       allow delete: if isPresident();
+    }
+
+    // 최종 접속 IP처럼 학생회 부원에게도 보이면 안 되는 기록. users/{uid}에 두면 그 문서는
+    // 학생회 이상 읽기가 열려 있어서 부원 전원에게 노출된다. Firestore는 한 문서 안에서
+    // 필드별로 권한을 나눌 수 없으므로 문서를 아예 따로 뺀다.
+    // 읽기는 본인과 개발자만, 쓰기는 본인만(각자 자기 접속 기록을 남긴다).
+    match /userMeta/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isDeveloper());
+      allow write: if isSignedIn() && request.auth.uid == uid;
     }
 
     match /timetables/{uid} {

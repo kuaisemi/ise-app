@@ -2,7 +2,7 @@
 // 목적: PWA 설치 가능 조건 충족 + 오프라인 시 기본 화면(껍데기) 표시
 // 주의: Firebase Auth/Firestore 통신은 캐시하지 않음 (항상 최신 데이터 필요)
 
-const CACHE_NAME = 'ies-app-shell-v1';
+const CACHE_NAME = 'ies-app-shell-v2';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -36,6 +36,9 @@ self.addEventListener('fetch', (event) => {
     url.origin.includes('fonts.googleapis.com') ||
     url.origin.includes('allorigins.win') ||
     url.origin.includes('corsproxy.io') ||
+    // 새 버전 확인용 파일은 항상 네트워크에서 그대로 받아야 한다.
+    // 캐시된 값이 돌아오면 새 버전이 떠도 영영 눈치채지 못한다.
+    url.pathname.endsWith('/version.json') ||
     event.request.method !== 'GET'
   ) {
     return; // 브라우저 기본 동작에 맡김

@@ -84,12 +84,28 @@ function copyDir(src, dest) {
 // 앱이 실행할 때 읽어오므로 빌드가 키를 다룰 일이 없다.
 // (secrets.local.json은 더 이상 쓰이지 않는다)
 
+// 웹/PWA에서 "새 버전 나왔어요"를 띄우려면 지금 돌고 있는 코드가 어느 빌드인지 알아야 한다.
+// 빌드할 때마다 바뀌는 값을 index.html 안에 심고, 같은 값을 version.json으로도 내보낸다.
+// 앱은 주기적으로 version.json을 받아 자기 값과 다르면 새로고침을 권한다.
+// (terser가 따옴표를 바꿔 쓰므로 정확한 문자열이 아니라 선언 자체를 정규식으로 찾는다)
+function injectBuildId(html, buildId) {
+  const re = /const BUILD_ID = ["'][^"']*["'];/;
+  if (!re.test(html)) {
+    throw new Error('BUILD_ID 자리표시자를 못 찾음 — public/index.html이 바뀌었는지 확인');
+  }
+  return html.replace(re, `const BUILD_ID = "${buildId}";`);
+}
+
 async function main() {
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   copyDir(SRC_DIR, OUT_DIR);
 
-  const strippedHtml = await processIndexHtml();
+  const buildId = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+
+  let strippedHtml = await processIndexHtml();
+  strippedHtml = injectBuildId(strippedHtml, buildId);
   fs.writeFileSync(path.join(OUT_DIR, 'index.html'), strippedHtml, 'utf8');
+  fs.writeFileSync(path.join(OUT_DIR, 'version.json'), JSON.stringify({ build: buildId }) + '\n', 'utf8');
 
   const strippedSw = await processSwJs();
   fs.writeFileSync(path.join(OUT_DIR, 'sw.js'), strippedSw, 'utf8');
