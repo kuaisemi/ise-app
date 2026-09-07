@@ -688,8 +688,17 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.0.0';
+const APP_VERSION = 'Beta 0.0.1';
 const PATCH_NOTES = [
+  { version:'Beta 0.0.1', date:'2026-09-07', items:[
+    '친구 추가(학번으로 요청→수락) 기능 추가 — 친구가 되면 서로 시간표를 볼 수 있어요. 원하면 특정 친구에게만 시간표 공개를 꺼둘 수 있고, 친구끼리 실시간 채팅도 가능해요',
+    '채팅에 "신고하기" 추가 — 문제되는 대화는 학생회에 바로 신고할 수 있어요',
+    '공식 학사일정이 계속 안 불러와지던 문제 수정 — 매일 자정 이후 서버가 자동으로 최신 학사일정을 반영해요',
+    '회원 탈퇴 시 프로필 정보가 완전히 정리되지 않던 문제 수정',
+    { text:'삭제 기록 화면: 누가 지웠는지는 눌러야 보이도록 바꾸고, 기록 한 건만 지우는 기능 추가', admin:true },
+    { text:'채팅 신고함 추가(학생회 전용)', admin:true },
+    '알림 아이콘이 기본 느낌표(!)로 뜨던 문제 수정 — 반도체 칩 모양 아이콘으로 교체',
+  ]},
   { version:'Beta 0.0.0', date:'2026-09-05', items:[
     '버전 표기 정리 — 그동안의 개발 버전은 전부 알파로, 지금부터를 베타 0.0.0으로 새로 시작',
     { text:'홈 화면 위젯 추가 목록에서 미리보기가 빈 상자로만 보이던 문제 수정 (8종 전체)', admin:true },
@@ -5592,30 +5601,34 @@ function friendListBody(){
 
     ${incoming.length ? `
     <div class="section-title">받은 친구 요청 (${incoming.length})</div>
-    <div class="card" style="padding:2px 12px; margin-bottom:12px;">
+    <div class="card" style="padding:0 12px; margin-bottom:12px;">
       ${incoming.map(r=>`
-        <div class="row-between" style="padding:9px 0; border-bottom:1px solid var(--border);">
-          <div><b style="font-size:13px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)}</div></div>
-          <div style="display:flex; gap:6px;">
-            <button type="button" class="btn btn-primary btn-sm" data-action="accept-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">수락</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">거절</button>
+        <div class="list-item">
+          <div class="row-between">
+            <div><b style="font-size:13.5px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)}</div></div>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-primary btn-sm" data-action="accept-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">수락</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">거절</button>
+            </div>
           </div>
         </div>`).join('')}
     </div>` : ''}
 
     ${outgoing.length ? `
     <div class="section-title">보낸 요청 (${outgoing.length})</div>
-    <div class="card" style="padding:2px 12px; margin-bottom:12px;">
+    <div class="card" style="padding:0 12px; margin-bottom:12px;">
       ${outgoing.map(r=>`
-        <div class="row-between" style="padding:9px 0; border-bottom:1px solid var(--border);">
-          <div><b style="font-size:13px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)} · 응답 대기중</div></div>
-          <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">취소</button>
+        <div class="list-item">
+          <div class="row-between">
+            <div><b style="font-size:13.5px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)} · 응답 대기중</div></div>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">취소</button>
+          </div>
         </div>`).join('')}
     </div>` : ''}
 
     <div class="section-title">내 친구 (${friends.length})</div>
     ${friends.length ? friends.map(f=>`
-      <div class="list-item" style="padding:10px 0; cursor:pointer;" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
+      <div class="list-item" style="cursor:pointer;" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
         <div class="row-between">
           <div><b style="font-size:13.5px;">${escapeHtml(f.name)}</b><div class="meta">${escapeHtml(f.studentId)}</div></div>
           <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
