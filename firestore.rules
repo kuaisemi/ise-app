@@ -130,7 +130,10 @@ service cloud.firestore {
     // 신청자가 자기 자신을 포함시켰는지, 문서 ID가 정말 그 두 uid를 정렬해 이어붙인 값인지를
     // 검사해서 아무나 남의 이름으로 관계를 조작해 만들 수 없게 한다.
     match /friendLinks/{pairId} {
-      allow read: if isSignedIn() && request.auth.uid in resource.data.uids;
+      // 문서가 아직 없을 때(신청 전, "이미 친구인지" 확인차 읽는 경우)는 resource가 null이라
+      // resource.data.uids를 그대로 읽으면 규칙 평가 자체가 오류로 끝나 permission-denied가
+      // 난다 — 그래서 존재하지 않는 문서는 먼저 걸러준다(안 그래도 없는 문서라 읽어봤자 빈 결과).
+      allow read: if isSignedIn() && (resource == null || request.auth.uid in resource.data.uids);
       // 신청: 반드시 status:'pending'으로 시작하고, 신청자 본인이 requestedBy여야 한다.
       allow create: if isSignedIn()
         && request.auth.uid in request.resource.data.uids
