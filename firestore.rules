@@ -28,6 +28,12 @@ service cloud.firestore {
         && userDoc().role in ['president','developer'];
     }
 
+    function isDirectorPlus() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role in ['director','vice','president','developer'];
+    }
+
 
     // 인증코드 원본. 클라이언트 코드에는 절대 값이 들어가지 않고, 아래 users/{uid} 규칙
     // 안에서 서버가 직접 대조한다(규칙 내부 get()은 read 권한과 무관하게 동작).
@@ -58,8 +64,17 @@ service cloud.firestore {
 
       // 가입: 자기 문서만, 그리고 학생회 이상으로 만들려면 코드가 실제로 맞아야 한다.
       // (예전에는 필드 제한이 없어서 아무나 role:'developer'를 그냥 써넣을 수 있었다)
-      allow create: if isSignedIn() && request.auth.uid == uid
-        && roleCodeValid(request.resource.data.role, request.resource.data.get('roleCode', ''));
+      //
+      // 명단과 안 맞아 signupInquiries에 문의를 넣은 사람은, 국장 이상이 그 문의를
+      // 승인(status:'approved')한 뒤에 한해 국장 이상이 대신 이 문서를 만들어줄 수 있다
+      // (본인 Auth 계정은 가입 시도 때 이미 만들어져 있고, 여기선 프로필만 뒤늦게 붙는다).
+      allow create: if isSignedIn() && (
+        (request.auth.uid == uid
+          && roleCodeValid(request.resource.data.role, request.resource.data.get('roleCode', '')))
+        || (isDirectorPlus() && request.resource.data.role == 'student'
+          && exists(/databases/$(database)/documents/signupInquiries/$(uid))
+          && get(/databases/$(database)/documents/signupInquiries/$(uid)).data.status == 'approved')
+      );
 
       allow update: if isSignedIn() && request.auth.uid == uid && (
         // 평소 수정: 직급은 그대로 두어야 한다.
@@ -124,6 +139,22 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['studentId', 'name']);
+    }
+
+    // 가입 시 명단과 안 맞은 사람이 남기는 문의. 가입 절차상 이 시점엔 이미 본인 Auth
+    // 계정이 있는 상태라(그래야 나중에 승인돼도 비밀번호를 다시 받을 필요가 없다),
+    // 자기 uid로만 문서 하나를 만들 수 있게 한다. 국장 이상이 승인/거절만 바꿀 수 있고,
+    // 그 결과로 users/{uid} 생성이 허용되는지가 갈린다(위 users 규칙 참고).
+    match /signupInquiries/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isDirectorPlus());
+      allow create: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['studentId','name','birthYear','status','createdAt'])
+        && request.resource.data.status == 'pending';
+      allow update: if isDirectorPlus()
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved','rejected']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','resolvedAt','resolvedBy']);
+      allow delete: if isDirectorPlus() || (isSignedIn() && request.auth.uid == uid);
     }
 
     // 친구 관계 — 요청 → 수락 절차가 있다. 문서 하나가 두 사람을 모두 가리키므로(uids 배열),

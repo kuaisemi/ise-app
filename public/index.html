@@ -912,6 +912,7 @@ function isRawDeveloper(){ return !!(state.user && state.user.role === 'develope
 function myLevel(){ return roleLevel(myRole()); }
 function isCouncil(){ return myLevel() >= 1; }
 function canPoll(){ return myLevel() >= 2; }
+function isDirectorPlus(){ return myLevel() >= 2; }
 function isPresident(){ return myRole() === 'president' || myRole() === 'developer'; }
 // 최종 접속 IP 같은 건 회장도 아닌 개발자만 본다. myRole()을 쓰므로 "학생 화면 미리보기"를
 // 켜 두면 개발자 본인에게도 안 보인다(미리보기의 취지대로).
@@ -1786,6 +1787,7 @@ function boot(){
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
           setupPresenceHeartbeat();
           startRoleRealtimeListener();
+          if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
           setupForegroundMessageListener();
           // 첫 실행 안내(runNotificationOnboarding)를 아직 안 본 기기에서는 여기서 권한창을 띄우지 않는다.
           // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
@@ -1806,6 +1808,7 @@ function boot(){
         state.user = null;
         state.authMode = 'login';
         renderApp();
+        if(state.pendingAuthFlash){ showAuthError(state.pendingAuthFlash); state.pendingAuthFlash = null; }
         setTimeout(()=>{ maybeShowApkInstallPopup(); }, 1200);
       }
     });
@@ -1916,6 +1919,7 @@ function setupPresenceHeartbeat(){
   presenceHeartbeatStarted = true;
   setInterval(()=>{
     if(state.user){ trackUserPresence(state.user); syncMyRole(); }
+    if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
     checkForUpdate();
   }, 3*60*1000);
   checkForUpdate();
@@ -2612,6 +2616,28 @@ function applyWidgetDeepLink(target){
    (공지·투표 createdAt)로 다시 추려서 보여준다 — 새 서버 저장소 없이 개인별 최근 알림
    내역을 훑어볼 수 있게 하는 목적. */
 const NOTIF_FEED_WINDOW_MS = 48*60*60*1000;
+
+// 학생회용 "처리할 게 있어요" 배지. 개인 알림(공지·투표)과 달리 이건 "몇 건 밀려있는지"가
+// 중요해서 읽음 처리 없이, 큐가 비면(전부 처리하면) 저절로 사라진다.
+state.adminBadge = { bugReports:0, chatReports:0, signupInquiries:0 };
+async function refreshAdminBadgeCounts(){
+  if(!state.user) return;
+  try{
+    if(isCouncil()){
+      const [br, cr] = await Promise.all([
+        loadShared('bugReports', {list:[]}),
+        loadShared('chatReports', {list:[]}),
+      ]);
+      state.adminBadge.bugReports = (br.list||[]).filter(r=>r.status!=='해결').length;
+      state.adminBadge.chatReports = (cr.list||[]).filter(r=>r.status!=='해결').length;
+    }
+    if(isDirectorPlus()){
+      const q = query(collection(db,'signupInquiries'), where('status','==','pending'));
+      const snap = await getDocs(q);
+      state.adminBadge.signupInquiries = snap.size;
+    }
+  }catch(e){ console.warn('[adminBadge]', e); }
+}
 function getDismissedNotifIds(){ return localGet('notif_feed_dismissed', []); }
 function dismissNotification(id){
   const cur = getDismissedNotifIds();
@@ -2625,6 +2651,11 @@ function getNotificationFeed(){
   const cutoff = now() - NOTIF_FEED_WINDOW_MS;
   const dismissed = new Set(getDismissedNotifIds());
   const items = [];
+  const b = state.adminBadge || {};
+  const nowTs = now();
+  if(isDirectorPlus() && b.signupInquiries>0) items.push({ id:'admin_signup_'+b.signupInquiries, ts:nowTs, icon:ICON.person, title:'가입 승인 대기', body:`${b.signupInquiries}건 확인이 필요해요`, action:'open-signup-inquiries' });
+  if(isCouncil() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
+  if(isCouncil() && b.chatReports>0) items.push({ id:'admin_chat_'+b.chatReports, ts:nowTs-2, icon:ICON.inbox, title:'채팅 신고', body:`처리 안 된 신고 ${b.chatReports}건`, action:'open-chat-report-inbox' });
   live(state.notices).forEach(n=>{
     const ts = n.createdAt || (n.date ? new Date(n.date+'T00:00:00').getTime() : 0);
     const id = 'notice_'+n.id;
@@ -2637,7 +2668,21 @@ function getNotificationFeed(){
   });
   return items.sort((a,b)=>b.ts-a.ts);
 }
+// 배지 개수는 3분 하트비트 등 백그라운드에서도 갱신되는데, renderMain()은 #main-content만
+// 다시 그려서 상단바 벨(topbar, renderShell에서만 그림)까지는 안 닿는다. 그렇다고 매번
+// renderShell()을 부르면 열려 있던 모달(#modal-root도 통째로 다시 그려짐)까지 닫혀버리므로,
+// 벨 아이콘의 점만 직접 붙이거나 뗀다.
+function refreshBellDot(){
+  const btn = document.querySelector('.btn-top-bell');
+  if(!btn) return;
+  const existing = btn.querySelector('.bell-dot');
+  const should = hasUnseenNotifications();
+  if(should && !existing) btn.insertAdjacentHTML('beforeend', '<span class="bell-dot"></span>');
+  else if(!should && existing) existing.remove();
+}
 function hasUnseenNotifications(){
+  const b = state.adminBadge;
+  if(b && (b.bugReports>0 || b.chatReports>0 || b.signupInquiries>0)) return true;
   const feed = getNotificationFeed();
   if(!feed.length) return false;
   const lastSeen = localGet('notif_feed_seen_at', 0);
@@ -5268,6 +5313,7 @@ function renderMypage(){
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
       ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-chat-report-inbox"><span class="link-row-label">${ICON.inbox} 채팅 신고함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
     </div>
@@ -5904,6 +5950,77 @@ async function deleteChatReport(id){
   if(document.querySelector('.modal-sheet')) openModal(chatReportInboxModal());
   saveResultToast(ok, '삭제했습니다');
 }
+
+/* ===== 가입 승인 대기함 (국장 이상) =====
+ * 회원가입 때 명단과 안 맞은 사람이 "학생회에 문의 넣기"를 누르면 여기 쌓인다.
+ * 승인하면 (1) 명단(로스터)에 이 학번·이름을 추가하고 (2) users/{uid} 프로필을
+ * 바로 만들어 가입을 완료시킨다 — 본인 Auth 계정은 가입 시도 때 이미 만들어져 있어서
+ * 비밀번호를 다시 받을 필요가 없다(규칙에서 승인된 문의가 있어야만 국장 이상이
+ * 대신 프로필을 만들 수 있게 막아둠).
+ */
+async function loadSignupInquiries(){
+  const q = query(collection(db,'signupInquiries'), where('status','==','pending'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d=>({ uid:d.id, ...d.data() }));
+}
+function signupInquiriesModal(){
+  const list = [...(state.signupInquiries||[])].sort((a,b)=>a.createdAt-b.createdAt);
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.person} 가입 승인 대기</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">학과 명단과 자동으로 안 맞아 문의가 들어온 가입 신청이에요. 승인하면 명단에 추가되고 바로 가입이 완료됩니다.</p>
+    <div style="max-height:64vh; overflow-y:auto;">
+      ${list.length ? list.map(r=>`
+        <div class="card" style="margin-bottom:10px;">
+          <div class="row-between" style="margin-bottom:4px;">
+            <b style="font-size:13px;">${escapeHtml(r.name)}</b>
+            <span class="meta" style="font-family:var(--font-mono);">${escapeHtml(r.studentId)}</span>
+          </div>
+          ${r.birthYear ? `<div class="meta" style="margin-bottom:6px;">출생연도 ${escapeHtml(r.birthYear)}</div>` : ''}
+          <div class="meta" style="margin-bottom:8px;">신청 ${fmtDateTime(r.createdAt)}</div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-primary btn-sm" data-action="approve-signup-inquiry" data-uid="${escapeHtml(r.uid)}">승인</button>
+            <button class="btn btn-danger btn-sm" data-action="reject-signup-inquiry" data-uid="${escapeHtml(r.uid)}">거절</button>
+          </div>
+        </div>`).join('') : `<div class="empty"><p>대기 중인 가입 신청이 없습니다.</p></div>`}
+    </div>`;
+}
+async function approveSignupInquiry(uid){
+  const inq = (state.signupInquiries||[]).find(r=>r.uid===uid);
+  if(!inq) return;
+  if(!await showConfirm(`${inq.name}(${inq.studentId})님의 가입을 승인할까요?\n학과 명단에 자동으로 추가됩니다.`)) return;
+  try{
+    await updateDoc(doc(db,'signupInquiries',uid), { status:'approved', resolvedAt:now(), resolvedBy:state.user.studentId });
+    const roster = await loadRoster().catch(()=>({}));
+    roster[inq.studentId] = inq.birthYear ? { name:inq.name, birthYear:inq.birthYear } : { name:inq.name };
+    await saveRoster(roster);
+    state.roster = roster;
+    await setDoc(doc(db,'users',uid), { studentId:inq.studentId, name:inq.name, role:'student', createdAt: now() });
+    state.signupInquiries = (state.signupInquiries||[]).filter(r=>r.uid!==uid);
+    state.adminBadge.signupInquiries = state.signupInquiries.length; refreshBellDot();
+    if(document.querySelector('.modal-sheet')) openModal(signupInquiriesModal());
+    toast(`${inq.name}님의 가입을 승인했어요`);
+  }catch(e){
+    console.error('[approveSignupInquiry]', e);
+    toast('승인 처리에 실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')');
+  }
+}
+async function rejectSignupInquiry(uid){
+  const inq = (state.signupInquiries||[]).find(r=>r.uid===uid);
+  if(!inq) return;
+  if(!await showConfirm(`${inq.name}(${inq.studentId})님의 가입 신청을 거절할까요?`)) return;
+  try{
+    await updateDoc(doc(db,'signupInquiries',uid), { status:'rejected', resolvedAt:now(), resolvedBy:state.user.studentId });
+    state.signupInquiries = (state.signupInquiries||[]).filter(r=>r.uid!==uid);
+    state.adminBadge.signupInquiries = state.signupInquiries.length; refreshBellDot();
+    if(document.querySelector('.modal-sheet')) openModal(signupInquiriesModal());
+    toast('가입 신청을 거절했어요');
+  }catch(e){
+    console.error('[rejectSignupInquiry]', e);
+    toast('거절 처리에 실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')');
+  }
+}
+
 function bugReportInboxModal(){
   const list=live(state.bugReports).sort((a,b)=>b.createdAt-a.createdAt);
   return `
@@ -7018,10 +7135,42 @@ async function handleSignup(fd){
   if(btn) btn.disabled=true;
   let cred=null;
   signupInProgress = true;
+  const birthYear=(fd.get('birthYear')||'').trim();
+
+  // 명단과 안 맞을 때, 예전엔 바로 계정을 지우고 실패 메시지만 띄웠다. 이제는 본인 확인
+  // (오타)인지 정말 명단에 없는 건지 갈라서, 후자는 계정을 지우지 않고 학생회에 문의를
+  // 넣을 수 있게 한다 — 계정은 이미 본인이 비밀번호까지 정해서 만든 상태라, 나중에
+  // 학생회가 승인만 하면 비밀번호를 다시 받을 필요 없이 바로 프로필이 붙는다.
+  const offerInquiry = async (reason) => {
+    const goInquiry = await showConfirm(
+      `${reason}\n\n학번·이름을 다시 확인하시겠어요, 아니면 학생회에 확인을 요청할까요?`,
+      { okLabel:'학생회에 문의 넣기', cancelLabel:'다시 입력', danger:false }
+    );
+    if(goInquiry){
+      try{
+        await setDoc(doc(db,'signupInquiries',cred.user.uid), {
+          studentId, name, birthYear, status:'pending', createdAt: now(),
+        });
+        // signOut()이 onAuthStateChanged를 깨워 로그인 화면으로 다시 그려버리므로, 여기서
+        // 바로 showAuthError를 불러도 그 DOM이 곧 통째로 사라진다. 로그인 화면이 다시
+        // 그려진 뒤에 대신 띄워줄 메시지를 남겨둔다.
+        state.pendingAuthFlash = '문의가 접수됐어요. 학생회 확인 후 가입이 완료되면 이 학번으로 다시 로그인해주세요.';
+      }catch(e){
+        await deleteUser(cred.user).catch(()=>{});
+        showAuthError('문의 접수에 실패했습니다. 다시 시도해주세요.');
+        return;
+      }
+      await signOut(auth).catch(()=>{});
+    }else{
+      await deleteUser(cred.user).catch(()=>{});
+      showAuthError('학번과 이름을 다시 확인해주세요.');
+    }
+  };
+
   try{
     // 명단 대조는 인증된 상태에서만 신뢰할 수 있어(Firestore 규칙), 계정을 먼저 만들고
-    // 그 다음 명단을 확인한다. 명단에 없거나 조회 자체가 실패하면 방금 만든 계정을
-    // 즉시 삭제해 되돌린다("조회 실패"를 "검증 통과"로 오인하지 않도록 fail-closed 처리).
+    // 그 다음 명단을 확인한다. 조회 자체가 실패하면 방금 만든 계정을 즉시 삭제해 되돌린다
+    // ("조회 실패"를 "검증 통과"로 오인하지 않도록 fail-closed 처리).
     cred = await createUserWithEmailAndPassword(auth, studentId+STUDENT_EMAIL_DOMAIN, password);
 
     const rosterCheck = await loadRosterStrict();
@@ -7031,30 +7180,13 @@ async function handleSignup(fd){
       return;
     }
     const roster = rosterCheck.map;
-    if(Object.keys(roster).length>0){
+    if(Object.keys(roster).length>0 && state.signupRole!=='council'){
       const rEntry = rosterEntry(roster[studentId]);
-      if(!rEntry){
-        await deleteUser(cred.user).catch(()=>{});
-        showAuthError('학과 명단에 등록되지 않은 학번입니다. 학생회에 문의해주세요.');
-        return;
-      }
-      if(String(rEntry.name).trim()!==name){
-        await deleteUser(cred.user).catch(()=>{});
-        showAuthError('명단에 등록된 이름과 일치하지 않습니다. 실명을 정확히 입력해주세요.');
-        return;
-      }
+      if(!rEntry){ await offerInquiry('학과 명단에 등록되지 않은 학번이에요.'); return; }
+      if(String(rEntry.name).trim()!==name){ await offerInquiry('명단에 등록된 이름과 일치하지 않아요.'); return; }
       if(rEntry.birthYear){
-        const birthYear=(fd.get('birthYear')||'').trim();
-        if(!birthYear){
-          await deleteUser(cred.user).catch(()=>{});
-          showAuthError('명단에 출생연도 확인이 필요합니다. 출생연도(4자리)를 입력해주세요.');
-          return;
-        }
-        if(birthYear!==String(rEntry.birthYear).trim()){
-          await deleteUser(cred.user).catch(()=>{});
-          showAuthError('입력하신 출생연도가 명단과 일치하지 않습니다.');
-          return;
-        }
+        if(!birthYear){ await offerInquiry('명단에 출생연도 확인이 필요해요. 출생연도(4자리)를 입력해주세요.'); return; }
+        if(birthYear!==String(rEntry.birthYear).trim()){ await offerInquiry('입력하신 출생연도가 명단과 일치하지 않아요.'); return; }
       }
     }
 
@@ -7068,13 +7200,17 @@ async function handleSignup(fd){
         return;
       }
     }else{
+      // 명단이 실제로 맞아도, 곧바로 로그인시키지 않고 "승인 후 완료" 느낌으로 잠깐
+      // 기다렸다가 마무리한다(요청하신 방식). 이 사이 되돌아갈 곳은 없으므로 그냥 대기만.
+      if(btn) btn.textContent = '학생회 승인 후 가입이 완료됩니다 (약 10초 소요)…';
+      await new Promise(resolve=>setTimeout(resolve, 10000));
       const ok=await createUserDoc(cred.user.uid, { studentId, name, role:'student', createdAt: now() });
       if(!ok) toast('프로필 저장에 실패했습니다.');
     }
   }catch(err){
     if(cred){ await deleteUser(cred.user).catch(()=>{}); }
     showAuthError(mapAuthError(err));
-  }finally{ signupInProgress = false; if(btn) btn.disabled=false; }
+  }finally{ signupInProgress = false; if(btn){ btn.disabled=false; btn.textContent='가입하기'; } }
 }
 
 async function logout(){
@@ -8190,6 +8326,9 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'unfriend'){ await unfriend(); }
     else if(a === 'open-report-friend'){ openModal(reportFriendChatModal()); }
     else if(a === 'open-chat-report-inbox'){ state.chatReports = await loadShared('chatReports', {list:[]}); openModal(chatReportInboxModal()); }
+    else if(a === 'open-signup-inquiries'){ state.signupInquiries = await loadSignupInquiries().catch(()=>[]); openModal(signupInquiriesModal()); }
+    else if(a === 'approve-signup-inquiry'){ await approveSignupInquiry(el.dataset.uid); }
+    else if(a === 'reject-signup-inquiry'){ await rejectSignupInquiry(el.dataset.uid); }
     else if(a === 'toggle-chat-report-status'){ await toggleChatReportStatus(el.dataset.id); }
     else if(a === 'delete-chat-report'){ await deleteChatReport(el.dataset.id); }
     else if(a === 'purge-tombstones'){
