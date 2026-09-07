@@ -594,8 +594,7 @@ import {
   addDoc,
   orderBy,
   limit,
-  onSnapshot,
-  writeBatch
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 import {
@@ -5559,6 +5558,7 @@ async function refreshFriendsData(){
         name: (data.names&&data.names[otherUid]) || '(이름 없음)',
         studentId: (data.studentIds&&data.studentIds[otherUid]) || '',
         shareTimetable: data.shareTimetable || {},
+        clearedAt: data.clearedAt || {},
       };
       if((data.status||'accepted') === 'pending'){
         if(data.requestedBy === state.user.uid) outgoing.push(entry); else incoming.push(entry);
@@ -5743,6 +5743,7 @@ function openFriendDetail(uid, name, pairId){
   state.friendsUI.activeName = name;
   state.friendsUI.activePairId = pairId;
   state.friendsUI.myShareOn = !rec || rec.shareTimetable[state.user.uid] !== false;
+  state.friendsUI.myClearedAt = (rec && rec.clearedAt && rec.clearedAt[state.user.uid]) || 0;
   refreshFriendsModalBody();
 }
 function friendsBackToList(){
@@ -5838,8 +5839,12 @@ function openFriendChatListener(pairId, otherUid){
     if(state.friendsUI.activePairId !== pairId) return; // 이미 다른 친구로 넘어간 뒤 도착한 응답
     const el = document.getElementById('friend-chat-log');
     if(!el) return;
-    if(snap.empty){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = snap.docs.map(d=>{
+    // "채팅 비우기"는 메시지를 실제로 지우지 않고 내 쪽 기준 시각(myClearedAt)만 남긴다 —
+    // 상대방에게는 그대로 보이고, 나만 이 시각 이전 메시지를 걸러서 안 본다.
+    const myClearedAt = state.friendsUI.myClearedAt || 0;
+    const docs = snap.docs.filter(d => (d.data().createdAt||0) > myClearedAt);
+    if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
+    el.innerHTML = docs.map(d=>{
       const m = d.data();
       const mine = m.senderUid === state.user.uid;
       return `<div style="max-width:78%; padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; align-self:${mine?'flex-end':'flex-start'}; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div></div>`;
@@ -5868,16 +5873,16 @@ async function sendFriendChatMessage(){
 }
 
 async function clearFriendChat(){
-  if(!await showConfirm('이 친구와의 채팅을 모두 비울까요?\n(상대방 화면에서도 함께 지워지고, 되돌릴 수 없습니다)')) return;
+  if(!await showConfirm('내 화면에서 이 채팅을 비울까요?\n(상대방 화면에는 그대로 남고, 메시지 자체는 24시간 뒤 서버에서 자동으로 지워져요)')) return;
   const pairId = state.friendsUI.activePairId;
+  const ts = now();
   try{
-    const q = query(collection(db,'chats',pairId,'messages'), orderBy('createdAt'), limit(500));
-    const snap = await getDocs(q);
-    if(!snap.empty){
-      const batch = writeBatch(db);
-      snap.docs.forEach(d=>batch.delete(d.ref));
-      await batch.commit();
-    }
+    await updateDoc(doc(db,'friendLinks',pairId), { ['clearedAt.'+state.user.uid]: ts });
+    state.friendsUI.myClearedAt = ts;
+    const rec = state.friendsUI.data.friends.find(f=>f.pairId===pairId);
+    if(rec) rec.clearedAt = { ...(rec.clearedAt||{}), [state.user.uid]: ts };
+    const el = document.getElementById('friend-chat-log');
+    if(el) el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`;
     toast('채팅을 비웠어요');
   }catch(e){
     console.error('[clearFriendChat]', e);
