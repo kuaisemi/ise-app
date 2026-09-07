@@ -3855,7 +3855,7 @@ async function fetchOfficialScheduleHTML(){
       if(text && text.length>1000 && /학사일정/.test(text)) return text;
     }catch(e){}
   }
-  throw new Error('학사일정 페이지에 접근하지 못했습니다.');
+  throw new Error('지금 브라우저에서 직접 불러오는 데는 실패했지만, 서버가 매일 자정 이후 자동으로 반영하고 있어요. 학사일정 탭을 새로고침해보세요.');
 }
 
 function setupOfficialScheduleModalListeners(){
