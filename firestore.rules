@@ -89,8 +89,43 @@ service cloud.firestore {
       allow write: if isSignedIn() && (request.auth.uid == uid || isDeveloper());
     }
 
+    // 두 uid를 사전순으로 이어붙인 키. 누가 먼저 추가했든 같은 두 사람이면 항상 같은
+    // 문서 하나를 가리키게 하려고 정렬해서 합친다(문자열 비교는 규칙에서도 그냥 </<=/> 로 된다).
+    function pairKey(a, b) {
+      return a < b ? a + '_' + b : b + '_' + a;
+    }
+    function friendsWith(a, b) {
+      return exists(/databases/$(database)/documents/friendLinks/$(pairKey(a, b)));
+    }
+
     match /timetables/{uid} {
-      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      // 친구가 된 사람끼리는 서로 시간표를 볼 수 있다(시간표 공유 기능). 쓰기는 여전히 본인만.
+      allow read: if isSignedIn() && (request.auth.uid == uid || friendsWith(request.auth.uid, uid));
+      allow write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // 친구 찾기용 최소 정보(학번·이름)만 담은 공개 명단. users/{uid}는 본인·학생회만 읽을 수
+    // 있어서 일반 학생이 학번으로 서로를 찾을 방법이 없었다 — 그렇다고 users 전체를 열면
+    // 직급·가입일 같은 정보까지 다 새어나가므로, 이 용도로만 쓸 아주 작은 문서를 따로 둔다.
+    match /studentDirectory/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['studentId', 'name']);
+    }
+
+    // 친구 관계. 문서 하나가 두 사람을 모두 가리키므로(uids 배열), 만든 사람이 자기
+    // 자신을 포함시켰는지, 문서 ID가 정말 그 두 uid를 정렬해 이어붙인 값인지를 검사해서
+    // 아무나 남의 이름으로 관계를 조작해 만들 수 없게 한다.
+    match /friendLinks/{pairId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.uids;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.uids
+        && request.resource.data.uids.size() == 2
+        && request.resource.data.uids[0] != request.resource.data.uids[1]
+        && pairId == pairKey(request.resource.data.uids[0], request.resource.data.uids[1])
+        && request.resource.data.createdBy == request.auth.uid;
+      // 둘 중 누구든 관계를 끊을 수 있다(친구 삭제).
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.uids;
     }
 
     // 개인 메모장 — 본인 것만 읽고 쓸 수 있다. 공용 문서(shared/*)와 달리 사용자별로
