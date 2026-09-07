@@ -131,6 +131,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- 상태 표시줄 알림 아이콘. 지정하지 않으면 안드로이드가 앱 아이콘을 실루엣으로
+             못 만들어 기본 느낌표(!) 아이콘을 대신 띄운다. FCM(백그라운드 푸시)은 이 메타데이터를,
+             LocalNotifications(포그라운드/예약 알림)는 capacitor.config.json 설정을 따로 본다. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notify" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notificationColor" />
     </application>
 
     <!-- Permissions -->

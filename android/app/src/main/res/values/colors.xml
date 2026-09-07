@@ -10,4 +10,7 @@
       라이트/다크 설정을 그대로 따라가는 무채색(흰/검)으로 바꿨다. 이 파일(values/)이
       라이트 쪽 기본값이고, values-night/colors.xml에 다크용 값이 따로 있다. -->
     <color name="splashBackground">#FFFFFF</color>
+
+    <!-- 알림 아이콘 색. 아이콘 자체는 실루엣(흰색+투명)이라 시스템이 이 색으로 칠한다. -->
+    <color name="notificationColor">#A72A3A</color>
 </resources>

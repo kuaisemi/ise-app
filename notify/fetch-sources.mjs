@@ -24,6 +24,7 @@ const db = getFirestore();
 const MEAL_SOURCE_URL = 'https://gpa.korea.ac.kr/koreaSejong/8028/subview.do';
 const DEPT_NOTICE_URL = 'https://aisemi.korea.ac.kr/AISEMI/3600/subview.do';
 const DEPT_ORIGIN = 'https://aisemi.korea.ac.kr';
+const OFFICIAL_SCHEDULE_URL = 'https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
@@ -199,6 +200,87 @@ function parseMealTables(dom, doc) {
   return results;
 }
 
+/* ===== 공식 학사일정 파싱 (앱의 parseOfficialScheduleHTML과 동일 로직) =====
+ * 원래 이 파싱은 브라우저(client)에서 공개 CORS 프록시(allorigins 등)를 거쳐서만 했는데,
+ * 그 프록시들이 무료 공개 서비스라 자주 죽어 있어 "학사일정 안 불러와짐"으로 이어졌다.
+ * 여기(서버)는 CORS 제약이 없어 학교 페이지를 직접 받을 수 있으므로, 같은 파싱 로직을
+ * 서버로 옮겨서 매일 자동으로 Firestore에 반영한다. */
+function parseOfficialScheduleHTML(html, doc) {
+  const bodyText = doc.body ? doc.body.textContent : html;
+  const semMatches = [...bodyText.matchAll(/(\d{4})학년도\s*(\d)학기/g)];
+  if (semMatches.length === 0) throw new Error('학기 정보를 찾지 못했습니다.');
+  const lastSem = semMatches[semMatches.length - 1];
+  const academicYear = parseInt(lastSem[1], 10);
+
+  const tables = Array.from(doc.querySelectorAll('table'));
+  const table = tables.find((t) => /\d{1,2}\([월화수목금토일]\)/.test(t.textContent)) || tables[0];
+  if (!table) throw new Error('일정표를 찾지 못했습니다.');
+  // 달(월) 칸은 그 달의 첫 행에만 <th rowspan="n">으로 걸쳐 있고, 나머지 행은 <td> 두 개
+  // (날짜/내용)뿐이다. td만 세면 <th>가 딸린 첫 행에서도 td가 2개라 "else(날짜/내용)" 쪽으로
+  // 잘못 들어가 버려서 curMonth가 끝내 null로 남고 전체 파싱이 통째로 실패했었다.
+  // th/td를 가리지 않고 그 행의 모든 칸(children)을 순서대로 보면 첫 행은 3칸, 나머지는 2칸이 된다.
+  const rows = Array.from(table.querySelectorAll('tr')).filter((tr) => tr.children.length >= 2);
+
+  let curMonth = null, prevMonth = 0, year = academicYear;
+  const items = [];
+  for (const tr of rows) {
+    const cells = Array.from(tr.children);
+    let monthCell, dateCell, titleCell;
+    if (cells.length >= 3) { monthCell = cells[0]; dateCell = cells[1]; titleCell = cells[2]; }
+    else { dateCell = cells[0]; titleCell = cells[1]; }
+    if (monthCell) {
+      const mm = (monthCell.textContent || '').replace(/[^0-9]/g, '');
+      if (mm) curMonth = parseInt(mm, 10);
+    }
+    if (!curMonth) continue;
+    if (curMonth < prevMonth) year++;
+    prevMonth = curMonth;
+
+    const dateText = (dateCell.textContent || '').trim();
+    const m = dateText.match(/(\d{1,2})\([^)]*\)(?:\s*[~\-]\s*(\d{1,2})\([^)]*\))?/);
+    if (!m) continue;
+    const d1 = parseInt(m[1], 10), d2 = m[2] ? parseInt(m[2], 10) : d1;
+    const title = (titleCell.textContent || '').trim();
+    if (!title) continue;
+
+    let category = 'academic';
+    if (/공휴일|대체휴일/.test(title)) category = 'holiday';
+    else if (/고사|시험/.test(title)) category = 'exam';
+    else if (/방학/.test(title)) category = 'vacation';
+    else if (/개강|종강|축제|고·연전|고연전/.test(title)) category = 'event';
+
+    items.push({ title, startDate: `${year}-${pad(curMonth)}-${pad(d1)}`, endDate: `${year}-${pad(curMonth)}-${pad(d2)}`, category });
+  }
+  if (items.length === 0) throw new Error('일정 항목을 찾지 못했습니다.');
+  return items;
+}
+
+async function runOfficialSchedule() {
+  const html = await fetchHtml(OFFICIAL_SCHEDULE_URL);
+  if (!html || html.length < 1000 || !/학사일정/.test(html)) {
+    throw new Error('학사일정 페이지 응답이 예상과 다름');
+  }
+  const dom = new JSDOM(html).window.document;
+  const items = parseOfficialScheduleHTML(html, dom);
+
+  const ref = db.collection('shared').doc('calendarEvents');
+  const snap = await ref.get();
+  const events = (snap.exists && Array.isArray(snap.data().events)) ? snap.data().events : [];
+  const existingKeys = new Set(events.filter((e) => e && !e.deleted).map((e) => e.title + '|' + e.startDate));
+  const additions = items
+    .filter((it) => !existingKeys.has(it.title + '|' + it.startDate))
+    .map((it) => ({
+      id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title: it.title, startDate: it.startDate, endDate: it.endDate, category: it.category,
+      source: 'official', color: '', description: '',
+      authorId: 'system', authorRole: 'developer', updatedAt: Date.now(),
+    }));
+  if (additions.length) {
+    await ref.set({ events: [...events, ...additions] });
+  }
+  return additions.length;
+}
+
 /* ===== 실행 ===== */
 async function runDeptNotices() {
   const html = await fetchHtml(DEPT_NOTICE_URL);
@@ -273,6 +355,20 @@ async function main() {
     }
     // 성공/실패와 무관하게 이 슬롯은 소진 처리 (다음 슬롯에서 다시 시도)
     newSlots.push(slot);
+  }
+
+  // 공식 학사일정 — 매일 00:10. 브라우저 쪽 CORS 프록시가 죽어 있어도 여기는 영향받지 않는다.
+  {
+    const slot = `officialSchedule_${today}_0010`;
+    if (!doneSlots.has(slot) && isDue(0, 10)) {
+      try {
+        const n = await runOfficialSchedule();
+        console.log(`공식 학사일정 갱신 완료 (00:10 슬롯) — 신규 ${n}건`);
+      } catch (e) {
+        console.warn('공식 학사일정 갱신 실패 (00:10 슬롯):', e.message);
+      }
+      newSlots.push(slot);
+    }
   }
 
   // 학식 — 평일 10:00 → 10:30 → 11:00 → 12:00, 한 번 성공하면 그 주는 더 시도하지 않음.

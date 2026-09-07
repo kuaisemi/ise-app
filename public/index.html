@@ -3796,15 +3796,19 @@ function parseOfficialScheduleHTML(html){
   const tables = Array.from(dom.querySelectorAll('table'));
   const table = tables.find(t => /\d{1,2}\([월화수목금토일]\)/.test(t.textContent)) || tables[0];
   if(!table) throw new Error('일정표를 찾지 못했습니다.');
-  const rows = Array.from(table.querySelectorAll('tr')).filter(tr => tr.querySelectorAll('td').length>=2);
+  // 달(월) 칸은 그 달의 첫 행에만 <th rowspan="n">으로 걸쳐 있고, 나머지 행은 <td> 두 개
+  // (날짜/내용)뿐이다. td만 세면 <th>가 딸린 첫 행에서도 td가 2개라 "else(날짜/내용)" 쪽으로
+  // 잘못 들어가 버려서 curMonth가 끝내 null로 남고 전체 파싱이 통째로 실패했다 — 이게
+  // "공식 학사일정이 안 불러와짐"의 실제 원인이었다.
+  const rows = Array.from(table.querySelectorAll('tr')).filter(tr => tr.children.length>=2);
 
   let curMonth=null, prevMonth=0, year=academicYear;
   const items=[];
   for(const tr of rows){
-    const tds = Array.from(tr.querySelectorAll('td'));
+    const cells = Array.from(tr.children);
     let monthCell, dateCell, titleCell;
-    if(tds.length>=3){ monthCell=tds[0]; dateCell=tds[1]; titleCell=tds[2]; }
-    else { dateCell=tds[0]; titleCell=tds[1]; }
+    if(cells.length>=3){ monthCell=cells[0]; dateCell=cells[1]; titleCell=cells[2]; }
+    else { dateCell=cells[0]; titleCell=cells[1]; }
     if(monthCell){
       const mm=(monthCell.textContent||'').replace(/[^0-9]/g,'');
       if(mm) curMonth=parseInt(mm,10);
@@ -5406,22 +5410,57 @@ function setupBugReportModalListeners(){
 
 // 삭제 기록 — logAudit()이 남긴 항목을 최신순으로 보여준다. IP는 클라이언트가 직접
 // 조회한 값이라 참고용이라는 점을 위에 안내한다.
+// 누가 지웠는지(이름·학번·직급·IP)는 기본적으로 숨기고, 그 사람 줄을 눌러야만 펼쳐 보이게
+// 한다 — 목록만 봐도 개인정보가 그대로 드러나던 문제. 항목 하나만 지우는 버튼도 함께 둬서
+// "전체 비우기" 밖에 없어 통째로만 지울 수 있던 것도 고쳤다.
+const revealedAuditIds = new Set();
 function auditLogModal(){
   const list = [...(state.auditLog||[])].sort((a,b)=>b.ts-a.ts);
   return `
     <div class="modal-handle"></div>
     <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} 삭제 기록</span><button data-action="close-modal">${ICON.close}</button></div>
-    <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">IP는 기기가 직접 조회해 남긴 값이라 참고용이에요 (조작 가능, 법적 증거로는 못 씀).</p>
+    <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">누가 지웠는지는 줄을 눌러야 보여요. IP는 기기가 직접 조회해 남긴 값이라 참고용이에요 (조작 가능, 법적 증거로는 못 씀).</p>
     ${isPresident() && list.length ? `<button class="btn btn-danger btn-sm" data-action="clear-audit-log" style="margin-bottom:10px;">전체 비우기</button>` : ''}
-    <div style="max-height:64vh; overflow-y:auto;">
-      ${list.length ? list.map(e=>`
-        <div class="list-item">
+    <div id="audit-log-items" style="max-height:64vh; overflow-y:auto;">${auditLogItemsHtml(list)}</div>`;
+}
+function auditLogItemsHtml(list){
+  if(!list.length) return `<div class="empty"><p>기록이 없습니다.</p></div>`;
+  return list.map(e=>{
+    const open = revealedAuditIds.has(e.id);
+    return `
+    <div class="list-item">
+      <div class="row-between" style="gap:8px; cursor:pointer;" data-action="toggle-audit-reveal" data-id="${escapeHtml(e.id)}">
+        <div style="min-width:0; flex:1;">
           <div class="title-line"><b style="font-size:12px;">${escapeHtml(e.action)} · ${escapeHtml(e.itemType)}</b></div>
           <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(e.itemTitle||'')}</div>
-          <div class="meta" style="margin-top:4px;">${escapeHtml(e.actorName||'')} (${escapeHtml(e.actorId||'')}, ${roleLabel(e.actorRole)}) · ${fmtDateTime(e.ts)}</div>
-          <div class="meta" style="font-family:var(--font-mono);">IP ${escapeHtml(e.ip||'알 수 없음')}</div>
-        </div>`).join('') : `<div class="empty"><p>기록이 없습니다.</p></div>`}
+          <div class="meta" style="margin-top:2px;">${fmtDateTime(e.ts)}</div>
+        </div>
+        <span style="display:flex; color:var(--text-dim); transform:rotate(${open?180:0}deg); transition:transform .15s; flex-shrink:0;">${ICON.chevDown}</span>
+      </div>
+      ${open ? `
+      <div style="margin-top:6px; padding-top:6px; border-top:1px solid var(--border);">
+        <div class="meta">${escapeHtml(e.actorName||'')} (${escapeHtml(e.actorId||'')}, ${roleLabel(e.actorRole)})</div>
+        <div class="meta" style="font-family:var(--font-mono); margin-top:2px;">IP ${escapeHtml(e.ip||'알 수 없음')}</div>
+        ${isPresident() ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-audit-entry" data-id="${escapeHtml(e.id)}" style="width:auto; padding:4px 10px; font-size:11px; margin-top:6px;">이 기록만 삭제</button>` : ''}
+      </div>` : ''}
     </div>`;
+  }).join('');
+}
+function toggleAuditReveal(id){
+  if(revealedAuditIds.has(id)) revealedAuditIds.delete(id); else revealedAuditIds.add(id);
+  const el = document.getElementById('audit-log-items');
+  if(el) el.innerHTML = auditLogItemsHtml([...(state.auditLog||[])].sort((a,b)=>b.ts-a.ts));
+}
+// 항목 하나만 골라 지운다. "전체 비우기"처럼 전부 날리는 게 아니라 이 기록 하나만.
+async function deleteAuditEntry(id){
+  if(!isPresident()) return;
+  if(!await showConfirm('이 기록을 삭제할까요?\n(되돌릴 수 없습니다)')) return;
+  const next = (state.auditLog||[]).filter(e=>e.id !== id);
+  const ok = await saveShared('auditLog', { list: next });
+  if(ok) state.auditLog = next;
+  const el = document.getElementById('audit-log-items');
+  if(el) el.innerHTML = auditLogItemsHtml([...(state.auditLog||[])].sort((a,b)=>b.ts-a.ts));
+  saveResultToast(ok, '기록을 삭제했습니다');
 }
 // 전체 비우기와 달리 이 사람이 남긴 기록만 골라 지운다. 상세 화면에서 바로 정리할 수 있게.
 async function clearUserAudit(sid){
@@ -5450,56 +5489,6 @@ async function clearUserIps(sid){
   }catch(e){ LAST_SAVE_ERROR = (e && e.code) || 'unknown'; }
   refreshUserDetailBody();
   saveResultToast(ok, '접속 IP 기록을 지웠습니다');
-}
-
-// 이 사람이 쓴 공개 게시물을 한 번에 내린다. 다른 삭제와 똑같이 실제로 지우지 않고
-// deleted 표시만 남기며(24시간 뒤 정리 작업이 완전히 지운다), 삭제 기록도 함께 남긴다.
-async function deleteUserPosts(sid){
-  if(!isPresident()) return;
-  const u = (state.allUsers||{})[sid] || {};
-  const total = collectUserPosts(sid).length;
-  if(!total){ toast('삭제할 게시물이 없습니다'); return; }
-  if(!await showConfirm(`${u.name||sid}님이 쓴 공개 게시물 ${total}건을 모두 삭제할까요?\n(24시간 뒤 완전히 지워집니다)`)) return;
-
-  const mark = (arr)=> (arr||[]).map(x =>
-    (x && x.authorId === sid && !x.deleted) ? { ...x, deleted:true, updatedAt: now() } : x);
-  const jobs = [
-    ['notices', loadNotices, saveNotices, v=>{ state.notices = v; }],
-    ['suggestions', loadSuggestions, saveSuggestions, v=>{ state.suggestions = v; }],
-    ['recruitments', loadRecruitments, saveRecruitments, v=>{ state.recruitmentPosts = v; }],
-    ['polls', loadPolls, savePolls, v=>{ state.polls = v; }],
-    ['calendar', loadCalendar, saveCalendar, v=>{ state.calendar = v; }],
-  ];
-  let ok = true;
-  for(const [, loadFn, saveFn, setFn] of jobs){
-    try{
-      const latest = await loadFn();
-      const next = mark(latest);
-      if(JSON.stringify(next) === JSON.stringify(latest)) continue;
-      if(!await saveFn(next)) ok = false; else setFn(next);
-    }catch(e){ ok = false; console.error('[deleteUserPosts]', e); }
-  }
-  // 학생회 게시글은 글 자체와 그 안의 댓글을 함께 본다.
-  try{
-    const latest = await loadCouncilPosts();
-    const next = latest.map(p=>{
-      if(!p) return p;
-      const q = (p.authorId === sid && !p.deleted) ? { ...p, deleted:true, updatedAt: now() } : { ...p };
-      if(Array.isArray(q.comments)){
-        q.comments = q.comments.map(c =>
-          (c && c.authorId === sid && !c.deleted) ? { ...c, deleted:true } : c);
-      }
-      return q;
-    });
-    if(JSON.stringify(next) !== JSON.stringify(latest)){
-      if(!await saveCouncilPosts(next)) ok = false; else state.councilPosts = next;
-    }
-  }catch(e){ ok = false; console.error('[deleteUserPosts] councilPosts', e); }
-
-  logAudit('전체 삭제', '작성 게시물', `${u.name||sid} ${total}건`);
-  refreshUserDetailBody();
-  renderMain();
-  saveResultToast(ok, `${u.name||sid}님의 게시물 ${total}건을 삭제했습니다`);
 }
 
 async function clearAuditLog(){
@@ -5831,7 +5820,7 @@ function userDetailBody(sid){
       ${dev ? `<div class="meta" style="margin-top:4px; font-family:var(--font-mono);">최종 접속 IP ${escapeHtml((meta && meta.lastIp) || '기록 없음')}</div>` : ''}
     </div>
 
-    ${detailSectionHead(sid, 'posts', '작성한 공개 게시물', posts.length, 'delete-user-posts', '전부 삭제')}
+    ${detailSectionHead(sid, 'posts', '작성한 공개 게시물', posts.length, 'clear-user-audit', '기록 지우기')}
     ${state.userDetail.open.posts ? detailRows('posts', posts, p=>`
       <div class="list-item" style="padding:8px 0;">
         <div class="title-line"><b style="font-size:11.5px; color:var(--teal);">${escapeHtml(p.type)}</b></div>
@@ -7407,20 +7396,33 @@ async function handleDeleteAccountSubmit(fd){
   if(!password){ toast('비밀번호를 입력해주세요'); return; }
   const btn = document.querySelector('#delete-account-form button[type=submit]');
   if(btn) btn.disabled = true;
+  // 본인 확인과 그 뒤의 삭제를 따로 감싼다. 예전에는 하나로 묶여 있어서 users 문서 삭제가
+  // 권한 문제로 실패해도(.catch로 삼켜짐) "비밀번호가 올바르지 않습니다"만 뜨고, Auth 계정만
+  // 지워진 채 Firestore에 유령 프로필이 남았다. 이제 users 문서 삭제 실패는 그대로 올려보내
+  // Auth 계정을 지우기 전에 멈춘다(둘 다 지워지거나, 둘 다 남거나).
+  const user = auth.currentUser;
+  if(!user) return;
   try{
-    const user = auth.currentUser;
-    if(!user) return;
-    const uidStr = user.uid;
     await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  }catch(err){
+    toast('비밀번호가 올바르지 않습니다');
+    if(btn) btn.disabled = false;
+    return;
+  }
+
+  const uidStr = user.uid;
+  try{
     await deleteDoc(doc(db, 'timetables', uidStr)).catch(() => {});
-    await deleteDoc(doc(db, 'users', uidStr)).catch(() => {});
+    await deleteDoc(doc(db, 'userMeta', uidStr)).catch(() => {});
+    await deleteDoc(doc(db, 'users', uidStr));
     await deleteUser(user);
     state.user = null;
     closeModal();
     renderApp();
     toast('회원 탈퇴가 완료되었습니다');
   }catch(err){
-    toast('비밀번호가 올바르지 않습니다');
+    console.error('[delete-account]', err);
+    toast('탈퇴 처리에 실패했습니다 (' + ((err && err.code) || '알 수 없음') + ')');
   }finally{
     if(btn) btn.disabled = false;
   }
@@ -7760,6 +7762,8 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'view-users-list'){ await refreshUsersList(); state.activeUserListTab='all'; openModal(usersListModal()); }
     else if(a === 'view-audit-log'){ state.auditLog = ((await loadShared('auditLog', {list:[]})).list)||[]; openModal(auditLogModal()); }
     else if(a === 'clear-audit-log'){ await clearAuditLog(); }
+    else if(a === 'toggle-audit-reveal'){ toggleAuditReveal(el.dataset.id); }
+    else if(a === 'delete-audit-entry'){ await deleteAuditEntry(el.dataset.id); }
     else if(a === 'show-patch-notes'){ openModal(patchNotesModal()); }
     else if(a === 'toggle-patch-cat'){
       const cat = el.dataset.cat;
@@ -7892,7 +7896,6 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'back-to-users-list'){ openModal(usersListModal()); }
     else if(a === 'clear-user-audit'){ await clearUserAudit(el.dataset.sid); }
     else if(a === 'clear-user-ips'){ await clearUserIps(el.dataset.sid); }
-    else if(a === 'delete-user-posts'){ await deleteUserPosts(el.dataset.sid); }
     else if(a === 'toggle-detail-sec'){
       const k = el.dataset.sec;
       state.userDetail.open[k] = !state.userDetail.open[k];

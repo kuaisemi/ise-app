@@ -74,7 +74,9 @@ service cloud.firestore {
 
       // 회장이 계정을 실제로 뺄 수 있게. 예전엔 delete 규칙이 없어 삭제가 조용히 거부됐고,
       // 그래서 "탈퇴시키기"가 화면용 캐시에서만 사라지는 시늉으로 끝났다.
-      allow delete: if isPresident();
+      // 본인 탈퇴(회원 탈퇴)도 마찬가지 이유로 막혀 있었다 — 클라이언트가 .catch(()=>{})로
+      // 그 실패를 삼키고 Auth 계정만 지워버려서, Firestore에는 유령 프로필만 남았다.
+      allow delete: if isPresident() || (isSignedIn() && request.auth.uid == uid);
     }
 
     // 최종 접속 IP처럼 학생회 부원에게도 보이면 안 되는 기록. users/{uid}에 두면 그 문서는
