@@ -264,7 +264,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .subtab{flex:1; min-width:62px; text-align:center; padding:9px 4px; border-radius:9px; font-size:11.5px; font-weight:700; color:var(--text-dim); cursor:pointer; white-space:nowrap;}
 .subtab.active{background:var(--crimson); color:#fff;}
 
-.tt-switcher{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+/* 위(main의 padding-top 16px)와 아래(margin-bottom 12px) 간격이 안 맞아 보이던 것을
+   맞춤 — main의 전역 여백은 다른 탭에도 쓰이니 건드리지 않고, 이 줄만 4px 끌어올려서
+   위쪽 실제 여백도 12px로 맞춘다. */
+.tt-switcher{display:flex; align-items:center; gap:8px; margin-top:-4px; margin-bottom:12px;}
 .tt-switcher-label{display:flex; align-items:baseline; gap:8px; flex:1; min-width:0; background:none; border:none; padding:2px 0; text-align:left; cursor:pointer;}
 .tt-switcher-sem{font-size:11.5px; color:var(--text-faint); font-weight:600; flex-shrink:0;}
 .tt-switcher-name{font-size:15.5px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -1792,7 +1795,6 @@ function boot(){
           setupWidgetDeepLink();
           checkWeeklyAutoMealFetch();
           checkAutoDeptNoticeFetch();
-          checkAutoOfficialScheduleFetch();
         }catch(err){ console.error('부팅 오류', err); }
         renderApp();
         toast(`${state.user.name}님 환영합니다`);
@@ -2751,29 +2753,11 @@ function checkAutoDeptNoticeFetch(){
     fetchDeptNoticesFromSource(true);
   }
 }
-// 공식 학사일정도 학과 공지와 같은 주기(자정 이후 하루 1회)로 자동 반영.
-// 실제 클라우드 저장은 학생회 계정만 성공하므로(Firestore 규칙), 학생회 계정에서만 시도한다.
-async function checkAutoOfficialScheduleFetch(){
-  if(!isCouncil()) return;
-  const lastDate = localGet('last_official_sch_fetch_date','');
-  const today = todayStr();
-  if(lastDate === today) return;
-  localSet('last_official_sch_fetch_date', today);
-  try{
-    const html = await fetchOfficialScheduleHTML();
-    const { items } = parseOfficialScheduleHTML(html);
-    const latest = await loadCalendar();
-    const existingKeys = new Set(live(latest).map(e=>e.title+'|'+e.startDate));
-    const additions = items
-      .filter(it=>!existingKeys.has(it.title+'|'+it.startDate))
-      .map(it=>({ id:uid(), title:it.title, startDate:it.startDate, endDate:it.endDate, category:it.category, source:'official', color:'', description:'', authorId:state.user.studentId, authorRole:myRole(), updatedAt:now() }));
-    if(additions.length){
-      const next=[...latest, ...additions];
-      const ok=await saveCalendar(next);
-      if(ok){ state.calendar=next; if(state.view==='info' && state.infoTab==='calendar') renderMain(); }
-    }
-  }catch(e){}
-}
+// 공식 학사일정은 이제 브라우저가 아니라 서버(GitHub Actions, notify/fetch-sources.mjs)가
+// 매일 자정 이후 직접 가져와 Firestore에 반영한다. 예전엔 여기서도 같은 걸 브라우저로 한 번
+// 더 시도했는데, 공개 CORS 프록시(allorigins 등)에 기대는 방식이라 접속할 때마다 거의 항상
+// 조용히 실패했다 — 실패해도 사용자에게 안 보였을 뿐, 매번 헛수고였다. 서버 쪽이 이미
+// 안정적으로 하고 있으므로 브라우저에서는 더 이상 시도하지 않는다.
 
 const ICON = {
   chipMark:`<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>`,
@@ -3784,151 +3768,46 @@ function setupCalendarOcrModalListeners(){
   }
 }
 
-/* ===== 학사일정 자동 가져오기 (registrar.korea.ac.kr) ===== */
-const OFFICIAL_SCHEDULE_URL = 'https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do';
+/* ===== 공식 학사일정 새로고침 =====
+ * 예전엔 이 버튼을 누르면 브라우저가 학교 사이트(registrar.korea.ac.kr)를 공개 CORS
+ * 프록시(allorigins 등)를 거쳐 직접 긁어왔다. 그 프록시들이 무료 공개 서비스라 거의
+ * 항상 죽어있어서, 누를 때마다 실패했다 — 구조적으로 될 수가 없는 방식이었다.
+ * 지금은 서버(GitHub Actions, notify/fetch-sources.mjs)가 매일 자정 이후 학교 사이트를
+ * 직접 받아 Firestore에 반영해두므로, 이 버튼은 그 결과를 다시 불러오기만 하면 된다.
+ */
 function officialScheduleModal(){
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">공식 학사일정 가져오기<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title">공식 학사일정 새로고침<button data-action="close-modal">${ICON.close}</button></div>
     <div style="background:rgba(var(--amber-rgb),0.08); border:1px solid rgba(var(--amber-rgb),0.25); border-radius:var(--radius-sm); padding:11px; margin-bottom:12px; font-size:11px; color:var(--text-dim); line-height:1.55;">
       <b style="color:var(--amber);">안내</b><br>
-      고려대학교 교육정보(registrar) 홈페이지에 게시된 현재 학기 학사일정표를 그대로 불러옵니다. 매일 자정 이후 자동으로도 새 항목을 반영하고 있어요. 이 버튼으로 직접 불러오면 바로 등록되지 않고, 아래에서 확인 후 선택한 것만 등록돼요. 같은 제목+날짜는 자동으로 건너뜁니다.
+      고려대학교 교육정보(registrar) 홈페이지의 학사일정표는 서버가 매일 자정 이후 자동으로 확인해서 새 항목을 반영해요. 이 버튼은 그 결과를 바로 다시 불러올 뿐, 지금 직접 학교 사이트를 다시 긁어오지는 않아요.
     </div>
-    <button type="button" class="btn btn-primary" id="btn-fetch-official-schedule" style="margin-bottom:12px;">${ICON.globe} 불러오기</button>
-    <div id="official-sch-status-box" style="font-size:11.5px; color:var(--text-dim); margin-bottom:12px; display:none; line-height:1.5;"></div>
-    <div id="official-sch-results-wrap" style="display:none;">
-      <div class="section-title" style="margin:8px 0 6px;">불러온 일정 (<span id="official-sch-count">0</span>건)</div>
-      <div id="official-sch-items-list" style="max-height:280px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; background:var(--surface-2); margin-bottom:12px;"></div>
-      <div class="modal-actions"><button type="button" class="btn btn-primary" id="btn-save-official-schedule">선택한 일정 등록하기</button></div>
-    </div>`;
-}
-
-function parseOfficialScheduleHTML(html){
-  const dom = new DOMParser().parseFromString(html, 'text/html');
-  const bodyText = dom.body ? dom.body.textContent : html;
-  const semMatches = [...bodyText.matchAll(/(\d{4})학년도\s*(\d)학기/g)];
-  if(semMatches.length===0) throw new Error('학기 정보를 찾지 못했습니다.');
-  const lastSem = semMatches[semMatches.length-1];
-  const academicYear = parseInt(lastSem[1],10);
-  const term = parseInt(lastSem[2],10);
-
-  const tables = Array.from(dom.querySelectorAll('table'));
-  const table = tables.find(t => /\d{1,2}\([월화수목금토일]\)/.test(t.textContent)) || tables[0];
-  if(!table) throw new Error('일정표를 찾지 못했습니다.');
-  // 달(월) 칸은 그 달의 첫 행에만 <th rowspan="n">으로 걸쳐 있고, 나머지 행은 <td> 두 개
-  // (날짜/내용)뿐이다. td만 세면 <th>가 딸린 첫 행에서도 td가 2개라 "else(날짜/내용)" 쪽으로
-  // 잘못 들어가 버려서 curMonth가 끝내 null로 남고 전체 파싱이 통째로 실패했다 — 이게
-  // "공식 학사일정이 안 불러와짐"의 실제 원인이었다.
-  const rows = Array.from(table.querySelectorAll('tr')).filter(tr => tr.children.length>=2);
-
-  let curMonth=null, prevMonth=0, year=academicYear;
-  const items=[];
-  for(const tr of rows){
-    const cells = Array.from(tr.children);
-    let monthCell, dateCell, titleCell;
-    if(cells.length>=3){ monthCell=cells[0]; dateCell=cells[1]; titleCell=cells[2]; }
-    else { dateCell=cells[0]; titleCell=cells[1]; }
-    if(monthCell){
-      const mm=(monthCell.textContent||'').replace(/[^0-9]/g,'');
-      if(mm) curMonth=parseInt(mm,10);
-    }
-    if(!curMonth) continue;
-    if(curMonth < prevMonth) year++;
-    prevMonth = curMonth;
-
-    const dateText = (dateCell.textContent||'').trim();
-    const m = dateText.match(/(\d{1,2})\([^)]*\)(?:\s*[~\-]\s*(\d{1,2})\([^)]*\))?/);
-    if(!m) continue;
-    const d1=parseInt(m[1],10), d2=m[2]?parseInt(m[2],10):d1;
-    const title=(titleCell.textContent||'').trim();
-    if(!title) continue;
-
-    let category='academic';
-    if(/공휴일|대체휴일/.test(title)) category='holiday';
-    else if(/고사|시험/.test(title)) category='exam';
-    else if(/방학/.test(title)) category='vacation';
-    else if(/개강|종강|축제|고·연전|고연전/.test(title)) category='event';
-
-    items.push({ title, startDate:`${year}-${pad(curMonth)}-${pad(d1)}`, endDate:`${year}-${pad(curMonth)}-${pad(d2)}`, category });
-  }
-  if(items.length===0) throw new Error('일정 항목을 찾지 못했습니다.');
-  return { items, academicYear, term };
-}
-
-async function fetchOfficialScheduleHTML(){
-  const proxies = [
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-    u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
-    u => 'https://proxy.cors.sh/' + u,
-  ];
-  const PROXY_TIMEOUT_MS = 8000;
-  for(const gen of proxies){
-    try{
-      const ctrl=new AbortController();
-      const t=setTimeout(()=>ctrl.abort(), PROXY_TIMEOUT_MS);
-      const res=await fetch(gen(OFFICIAL_SCHEDULE_URL), {cache:'no-store', signal:ctrl.signal}).finally(()=>clearTimeout(t));
-      if(!res.ok) continue;
-      let text=await res.text();
-      try{ const j=JSON.parse(text); if(j && j.contents) text=j.contents; }catch(_){}
-      if(text && text.length>1000 && /학사일정/.test(text)) return text;
-    }catch(e){}
-  }
-  throw new Error('지금 브라우저에서 직접 불러오는 데는 실패했지만, 서버가 매일 자정 이후 자동으로 반영하고 있어요. 학사일정 탭을 새로고침해보세요.');
+    <button type="button" class="btn btn-primary" id="btn-fetch-official-schedule" style="margin-bottom:12px;">${ICON.refresh} 새로고침</button>
+    <div id="official-sch-status-box" style="font-size:11.5px; color:var(--text-dim); line-height:1.5;"></div>`;
 }
 
 function setupOfficialScheduleModalListeners(){
   const btnFetch=document.getElementById('btn-fetch-official-schedule');
   const statusBox=document.getElementById('official-sch-status-box');
-  const resultsWrap=document.getElementById('official-sch-results-wrap');
-  const itemsList=document.getElementById('official-sch-items-list');
-  const countEl=document.getElementById('official-sch-count');
-  const btnSave=document.getElementById('btn-save-official-schedule');
   if(!btnFetch) return;
 
   btnFetch.onclick=async ()=>{
     btnFetch.disabled=true;
-    statusBox.style.display='block'; statusBox.textContent='공식 학사일정을 불러오는 중…';
-    resultsWrap.style.display='none';
+    statusBox.textContent='불러오는 중…';
     try{
-      const html=await fetchOfficialScheduleHTML();
-      const { items, academicYear, term } = parseOfficialScheduleHTML(html);
-      state.officialParsedSchedule=items;
-      statusBox.innerHTML=`<span style="color:var(--teal);">${academicYear}학년도 ${term}학기 기준 · ${items.length}건 발견</span>`;
-      itemsList.innerHTML=items.map((it,i)=>`
-        <label style="display:flex; align-items:flex-start; gap:8px; padding:7px 0; border-bottom:1px solid var(--border); font-size:11.5px; cursor:pointer;">
-          <input type="checkbox" class="official-sch-check-item" data-idx="${i}" checked style="margin-top:2px;">
-          <span><span class="tag ${catTag(it.category)}" style="margin-right:5px;">${catLabel(it.category)}</span><b>${escapeHtml(it.title)}</b><br><span style="color:var(--text-faint); font-family:var(--font-mono); font-size:10.5px;">${it.startDate}${it.endDate!==it.startDate?' ~ '+it.endDate:''}</span></span>
-        </label>`).join('');
-      countEl.textContent=items.length;
-      resultsWrap.style.display='block';
+      const before = state.calendar.length;
+      const latest = await loadCalendar();
+      state.calendar = latest;
+      renderMain();
+      const officialCount = live(latest).filter(e=>e.source==='official').length;
+      statusBox.innerHTML = `<span style="color:var(--teal);">최신 상태로 불러왔어요 · 공식 학사일정 ${officialCount}건</span>`;
     }catch(err){
-      statusBox.innerHTML=`<span style="color:var(--danger);">${escapeHtml(err.message||'불러오기에 실패했습니다.')}</span>`;
+      statusBox.innerHTML=`<span style="color:var(--danger);">불러오기에 실패했어요 (${escapeHtml((err&&err.code)||'알 수 없음')})</span>`;
     }finally{
       btnFetch.disabled=false;
     }
   };
-
-  if(btnSave){
-    btnSave.onclick=async ()=>{
-      const idxs=Array.from(document.querySelectorAll('.official-sch-check-item:checked')).map(cb=>parseInt(cb.dataset.idx,10));
-      const list=(state.officialParsedSchedule||[]).filter((_,i)=>idxs.includes(i));
-      if(list.length===0){ toast('선택된 일정이 없습니다'); return; }
-      const latest = await loadCalendar();
-      const existingKeys = new Set(live(latest).map(e=>e.title+'|'+e.startDate));
-      const additions=[];
-      list.forEach(it=>{
-        const key=it.title+'|'+it.startDate;
-        if(existingKeys.has(key)) return;
-        additions.push({ id:uid(), title:it.title, startDate:it.startDate, endDate:it.endDate, category:it.category, source:'official', color:'', description:'', authorId:state.user.studentId, authorRole:myRole(), updatedAt:now() });
-      });
-      const next=[...latest, ...additions];
-      const ok=await saveCalendar(next);
-      state.calendar=next;
-      closeModal(); renderMain();
-      saveResultToast(ok, `${additions.length}건의 학사일정이 등록되었습니다`);
-    };
-  }
 }
 
 /* ===== 학사정보 탭 ===== */
@@ -3998,7 +3877,7 @@ function renderCalendarTab(){
       <button class="btn btn-teal btn-sm" data-action="ocr-calendar" style="flex:1;">${ICON.camera} 사진 인식</button>
     </div>
     <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <button class="btn btn-ghost btn-sm" data-action="open-official-schedule" style="flex:1;">${ICON.globe} 공식 학사일정 가져오기</button>
+      <button class="btn btn-ghost btn-sm" data-action="open-official-schedule" style="flex:1;">${ICON.globe} 공식 학사일정 새로고침</button>
       <button class="btn btn-danger btn-sm" data-action="delete-all-calendar" style="flex:1;">전체 삭제</button>
     </div>` : ''}
     <div class="card">
@@ -8123,12 +8002,12 @@ document.addEventListener('click', async (e)=>{
       document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
       renderMain();
       if(['home', 'info', 'council'].includes(state.view)){ await refreshShared(); renderMain(); }
-      if(state.view === 'info' && state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); checkAutoOfficialScheduleFetch(); }
+      if(state.view === 'info' && state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); }
     }
     else if(a === 'info-tab'){
       state.infoTab = el.dataset.tab; renderMain();
       if(state.infoTab === 'meal') checkWeeklyAutoMealFetch();
-      if(state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); checkAutoOfficialScheduleFetch(); }
+      if(state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); }
     }
     else if(a === 'refresh-dept-notices'){ await fetchDeptNoticesFromSource(false); }
     else if(a === 'council-tab'){ state.councilTab = el.dataset.tab; renderMain(); }
