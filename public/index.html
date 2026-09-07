@@ -698,8 +698,14 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.1.0';
+const APP_VERSION = 'Beta 0.1.1';
 const PATCH_NOTES = [
+  { version:'Beta 0.1.1', date:'2026-09-08', items:[
+    '학사정보에 "셔틀버스" 탭 추가 — 학교 ↔ 조치원역 ↔ 오송역 시간표를 정류장별로 한눈에, 상단에 다음 셔틀 출발까지 남은 시간을 실시간으로 표시 (금요일 운휴 회차 · 일요일 별도 시간표 자동 반영)',
+    'MY탭 환경설정에 "홈 화면" 항목 추가 — 진행 중인 투표(참여 완료 시) · 오늘의 시간표 · 오늘의 학식 · 다가오는 학사일정 · 학생회 공지(없을 때)를 각각 숨길 수 있어요',
+    '홈 화면 인사말의 이름을 누르면 MY탭으로 이동',
+    '환경설정 화면 상단에 제목 추가',
+  ]},
   { version:'Beta 0.1.0', date:'2026-09-07', items:[
     '전체 재학생 대상 정식 배포 시작',
     '친구 시간표 · 채팅으로 바로 가는 버튼을 상단바(새로고침 옆, 사람 모양)에 추가',
@@ -908,6 +914,16 @@ async function loadDeptNotices(){
   const s = await loadShared('deptNotices', { items: [], updatedAt: 0 });
   return { items: (s && s.items) || [], updatedAt: (s && s.updatedAt) || 0 };
 }
+const SHUTTLE_SOURCE_URL = 'https://gpa.korea.ac.kr/koreaSejong/7803/subview.do';
+async function loadShuttle(){
+  const s = await loadShared('shuttle', { weekday: [], sunday: [], fridayOffNos: [], updatedAt: 0 });
+  return {
+    weekday: (s && s.weekday) || [],
+    sunday: (s && s.sunday) || [],
+    fridayOffNos: (s && s.fridayOffNos) || [],
+    updatedAt: (s && s.updatedAt) || 0,
+  };
+}
 
 const ROLES = {
   student:   { level:0, label:'재학생' },
@@ -971,7 +987,7 @@ const state = {
   recruitmentPosts: [], councilPosts: [],
   allUsers: {}, roster: {}, ocrParsedClasses: [],
   ttOpts: { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B' },
-  editingPollVoteId: null, nowTimer: null,
+  editingPollVoteId: null, nowTimer: null, shuttleTimer: null,
   activeUserListTab: 'all', expandedComments: {}, captureMode: false, ttFabOpen: false,
   previewAsStudent: false,
   myPageSettingsOpen: false,
@@ -983,6 +999,7 @@ const state = {
   deptNotices: [], deptNoticesUpdatedAt: 0,
   bugReports: [],
   memos: {}, // 날짜별 개인 메모 { 'YYYY-MM-DD': '내용' }
+  shuttle: { weekday: [], sunday: [], fridayOffNos: [] },
 };
 
 /* ===== 유틸 ===== */
@@ -2018,6 +2035,18 @@ async function setNotifyPref(key, value){
     scheduleTimetableReminders();
   }
 }
+// 홈 화면에 뭘 보여줄지는 순전히 이 기기에서만 보이는 표시 설정이라, 알림 설정과 달리
+// 서버(Firestore)에 동기화할 필요가 없어 localStorage에만 저장한다.
+function getHomePrefs(){
+  return {
+    hideVotedPolls: localGet('home_hideVotedPolls', false),
+    hideTodayTimetable: localGet('home_hideTodayTimetable', false),
+    hideTodayMeal: localGet('home_hideTodayMeal', false),
+    hideUpcomingCalendar: localGet('home_hideUpcomingCalendar', false),
+    hideEmptyCouncilNotice: localGet('home_hideEmptyCouncilNotice', false),
+  };
+}
+function setHomePref(key, value){ localSet('home_'+key, value); }
 // 앱을 처음 켰을 때 아무 설명 없이 OS 권한창부터 띄우면 반사적으로 거부당하기 쉽다.
 // OS 권한창은 한 번 거부되면 앱에서 다시 띄울 수 없으므로(설정 앱에 직접 들어가야 함),
 // 먼저 앱 안에서 무엇을 보내는지 설명하고 동의한 사람만 실제 권한창으로 넘긴다.
@@ -2799,7 +2828,7 @@ async function scheduleTimetableReminders(list){
 
 async function loadAllData(){
   try{
-    const [ttData,cal,meals,notices,sugg,polls,users,cposts,recruits,roster,deptN,memos] = await Promise.all([
+    const [ttData,cal,meals,notices,sugg,polls,users,cposts,recruits,roster,deptN,memos,shuttle] = await Promise.all([
       (state.user ? loadTimetable(state.user.uid) : Promise.resolve({bySemester:{}, activeSemester:null})).catch(()=>({bySemester:{}, activeSemester:null})),
       loadCalendar().catch(()=>[]),
       loadMeals().catch(()=>({})),
@@ -2812,6 +2841,7 @@ async function loadAllData(){
       loadRoster().catch(()=>({})),
       loadDeptNotices().catch(()=>({items:[],updatedAt:0})),
       (state.user ? loadMemos(state.user.uid) : Promise.resolve({})).catch(()=>({})),
+      loadShuttle().catch(()=>({weekday:[],sunday:[],fridayOffNos:[],updatedAt:0})),
     ]);
     state.timetablesBySemester = (ttData && ttData.bySemester) || {};
     state.activeSemester = (ttData && ttData.activeSemester) || sortedSemesterKeys()[0] || null;
@@ -2824,6 +2854,7 @@ async function loadAllData(){
     state.deptNotices = deptN.items || [];
     state.deptNoticesUpdatedAt = deptN.updatedAt || 0;
     state.memos = memos || {};
+    state.shuttle = shuttle || {weekday:[],sunday:[],fridayOffNos:[]};
   }catch(e){}
 }
 
@@ -3249,6 +3280,8 @@ function renderHome(){
   
   const unvoted = activePolls.filter(p=>!isPollEnded(p) && !hasUserVoted(p));
 
+  const hp = getHomePrefs();
+
   const validRecruits = live(state.recruitmentPosts).filter(r=>{
     if(r.closed) return false;
     if(r.expireHours && r.expireHours>0 && (now() - (r.createdAt||0)) > r.expireHours*3600000) return false;
@@ -3258,11 +3291,11 @@ function renderHome(){
   return `
     <div class="hero-greet">
       <div class="hero-trace">${ICON.trace}</div>
-      <p class="greet-name">${escapeHtml(state.user.name)}님, 안녕하세요</p>
+      <p class="greet-name"><span data-action="go-my-tab" style="cursor:pointer;">${escapeHtml(state.user.name)}</span>님, 안녕하세요</p>
       <p class="greet-sub">${di>=0 ? `오늘은 ${DAYS[di]}요일, 수업 ${todays.length}개가 있어요` : '오늘은 주말이에요, 편안한 하루 보내세요'}</p>
     </div>
 
-    ${activePolls.length ? `
+    ${(activePolls.length && !(hp.hideVotedPolls && unvoted.length===0)) ? `
     <div class="section-title">진행 중인 투표 <span class="count">총 ${activePolls.filter(p=>!isPollEnded(p)).length}개</span></div>
     <div class="card" style="padding:10px 14px;">
       ${unvoted.length ? unvoted.map(p=>`
@@ -3276,6 +3309,7 @@ function renderHome(){
       : `<p style="font-size:11.5px; color:var(--teal); margin:3px 0; font-weight:600;">✓ 진행 중인 투표에 모두 참여하셨습니다.</p>`}
     </div>` : ''}
 
+    ${!hp.hideTodayTimetable ? `
     <div class="section-title">오늘의 시간표</div>
     <div class="card" style="padding:8px 14px;">
       ${todays.length ? todays.map(c=>`
@@ -3283,7 +3317,7 @@ function renderHome(){
           <div class="bar" style="background:${c.color||COLORS[0].hex}"></div>
           <div class="info"><b>${escapeHtml(c.subject)}</b><span>${minutesToLabel(c.start)}–${minutesToLabel(c.end)} · ${escapeHtml(c.room||'-')}</span></div>
         </div>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">${di>=0?'등록된 수업이 없습니다.':'주말에는 수업 정보가 표시되지 않아요.'}</p>`}
-    </div>
+    </div>` : ''}
 
     ${validRecruits.length ? `
     <div class="section-title">구인글</div>
@@ -3298,7 +3332,7 @@ function renderHome(){
         </div>`).join('')}
     </div>` : ''}
 
-    ${(()=>{
+    ${hp.hideTodayMeal ? '' : (()=>{
       const wd = new Date(studentSlot.date+'T00:00:00').getDay();
       if(wd===0 || wd===6) return '';
       if(!studentSlotText && !(staffMeal && staffMeal.lunch)) return '';
@@ -3326,6 +3360,7 @@ function renderHome(){
     </div>`;
     })()}
 
+    ${!hp.hideUpcomingCalendar ? `
     <div class="section-title">다가오는 학사일정</div>
     <div class="card" style="padding:8px 14px;">
       ${upcoming.length ? upcoming.map(ev=>`
@@ -3336,8 +3371,9 @@ function renderHome(){
           </div>
           <span style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateShort(ev.startDate)}${ev.endDate!==ev.startDate?'~'+fmtDateShort(ev.endDate):''}</span>
         </div>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">등록된 일정이 없습니다.</p>`}
-    </div>
+    </div>` : ''}
 
+    ${(recentNotices.length || !hp.hideEmptyCouncilNotice) ? `
     <div class="section-title">학생회 공지</div>
     <div class="card">
       ${recentNotices.length ? recentNotices.map(n=>`
@@ -3348,7 +3384,7 @@ function renderHome(){
           </div>
           <span style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateTime(n.createdAt || n.date)}</span>
         </div>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">등록된 공지가 없습니다.</p>`}
-    </div>
+    </div>` : ''}
   `;
 }
 
@@ -3933,8 +3969,9 @@ function renderInfo(){
       <div class="subtab ${state.infoTab==='calendar'?'active':''}" data-action="info-tab" data-tab="calendar">학사일정</div>
       <div class="subtab ${state.infoTab==='examCal'?'active':''}" data-action="info-tab" data-tab="examCal">학사 달력</div>
       <div class="subtab ${state.infoTab==='meal'?'active':''}" data-action="info-tab" data-tab="meal">학식</div>
+      <div class="subtab ${state.infoTab==='shuttle'?'active':''}" data-action="info-tab" data-tab="shuttle">셔틀버스</div>
     </div>
-    ${state.infoTab==='calendar' ? renderCalendarTab() : (state.infoTab==='examCal' ? renderExamCalTab() : renderMealTab())}`;
+    ${state.infoTab==='calendar' ? renderCalendarTab() : (state.infoTab==='examCal' ? renderExamCalTab() : (state.infoTab==='shuttle' ? renderShuttleTab() : renderMealTab()))}`;
 }
 
 const DEPT_NOTICE_URL = 'https://aisemi.korea.ac.kr/AISEMI/3600/subview.do';
@@ -4403,6 +4440,98 @@ function mealModal(date){
       <div class="field"><label>중식</label><textarea name="staff_lunch" style="min-height:56px">${escapeHtml(staff.lunch||'')}</textarea></div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">식단 저장</button></div>
     </form>`;
+}
+
+/* ===== 셔틀버스 ===== */
+// 요일마다 다른 시간표를 쓴다: 토요일은 운행 없음, 일요일은 별도 표, 평일(월~금) 중
+// 금요일만 특정 회차(NO)가 운휴한다. fridayOffNos는 서버가 안내문에서 파싱해둔 값.
+function isShuttleFridayOff(no){ return (state.shuttle.fridayOffNos||[]).includes(String(no)); }
+function shuttleRowsForDate(d){
+  const day = d.getDay(); // 0=일 ... 6=토
+  if(day===6) return { type:'none', rows: [] };
+  if(day===0) return { type:'sunday', rows: state.shuttle.sunday||[] };
+  let rows = state.shuttle.weekday||[];
+  if(day===5) rows = rows.filter(r=>!isShuttleFridayOff(r.no));
+  return { type:'weekday', rows };
+}
+function shuttleParseMinutes(str){
+  const m = String(str||'').match(/(\d{1,2}):(\d{2})/);
+  if(!m) return null;
+  return parseInt(m[1],10)*60 + parseInt(m[2],10);
+}
+// 지금부터 가장 가까운 "학교 출발" 시각을 찾는다. 오늘 남은 회차가 없으면 최대 7일 뒤까지
+// 다음 운행일을 넘겨가며 찾는다(토요일은 건너뜀, 일요일은 별도 표를 씀).
+function nextShuttleDeparture(from){
+  from = from || new Date();
+  for(let add=0; add<8; add++){
+    const d = new Date(from); d.setDate(d.getDate()+add); d.setHours(0,0,0,0);
+    const { rows } = shuttleRowsForDate(d);
+    for(const r of rows){
+      const mins = shuttleParseMinutes(r.school);
+      if(mins==null) continue;
+      const dep = new Date(d); dep.setMinutes(mins);
+      if(dep.getTime() > from.getTime()) return { dep, row: r };
+    }
+  }
+  return null;
+}
+function fmtShuttleCountdown(ms){
+  if(ms<=0) return '곧 출발';
+  const totalSec = Math.floor(ms/1000);
+  const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
+  if(h>0) return `${h}시간 ${pad(m)}분 ${pad(s)}초`;
+  return `${pad(m)}분 ${pad(s)}초`;
+}
+function shuttleCountdownCard(){
+  const next = nextShuttleDeparture();
+  if(!next) return `<div class="card" style="margin-bottom:12px; text-align:center; padding:18px;"><p style="font-size:12.5px; color:var(--text-faint);">셔틀 시간표 정보가 없습니다.</p></div>`;
+  const ms = next.dep.getTime() - Date.now();
+  const dayLabel = next.dep.toDateString()===new Date().toDateString() ? '' : `${next.dep.getMonth()+1}/${next.dep.getDate()} `;
+  return `
+    <div class="card" id="shuttle-countdown-card" style="margin-bottom:12px; text-align:center; padding:18px;">
+      <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:4px;">학교 셔틀 출발까지 남은 시간</div>
+      <div id="shuttle-countdown-val" style="font-size:24px; font-weight:800; color:var(--crimson);">${fmtShuttleCountdown(ms)}</div>
+      <div style="font-size:11px; color:var(--text-faint); margin-top:4px;">${dayLabel}${next.row.school||''} 학교 출발</div>
+    </div>`;
+}
+function setupShuttleTimer(){
+  if(state.shuttleTimer){ clearInterval(state.shuttleTimer); state.shuttleTimer=null; }
+  if(!(state.view==='info' && state.infoTab==='shuttle')) return;
+  state.shuttleTimer = setInterval(()=>{
+    const next = nextShuttleDeparture();
+    const val = document.getElementById('shuttle-countdown-val');
+    if(!next || !val){ renderMain(); return; }
+    const ms = next.dep.getTime() - Date.now();
+    if(ms<=0){ renderMain(); return; }
+    val.textContent = fmtShuttleCountdown(ms);
+  }, 1000);
+}
+function renderShuttleTab(){
+  const today = new Date();
+  const { type, rows } = shuttleRowsForDate(today);
+  const isSunday = type==='sunday';
+  return `
+    ${shuttleCountdownCard()}
+    ${type==='none' ? `<div class="empty" style="padding:14px 6px;"><p>오늘(토요일)은 학교 셔틀이 운행하지 않습니다.</p></div>` : `
+    <div class="card">
+      <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+        <b style="font-size:13px;">${isSunday ? '일요일 시간표' : '평일 시간표'}</b>
+      </div>
+      ${rows.length ? rows.map(r=>{
+        // 표에 빈 칸(그 정류장은 안 서는 회차)이 섞여 있어, 실제로 값이 있는 정류장만
+        // 화살표로 이어 붙인다 — 빈 칸까지 그대로 보여주면 "↓ →"처럼 어색하게 비어 보인다.
+        const stops = isSunday
+          ? [['학교', r.school], ['정류장', r.station]]
+          : [['학교', r.school], ['조치원역 뒤', r.jochiwon], ['오송역', r.osong]];
+        const filled = stops.filter(([,v])=>v);
+        return `
+        <div class="row-between" style="padding:7px 0; border-bottom:1px dashed var(--border); font-size:12.5px; flex-wrap:wrap; gap:4px;">
+          ${filled.map(([label,v],i)=>`${i>0?`<span style="color:var(--text-faint);">→</span>`:''}<span>${escapeHtml(label)} ${escapeHtml(v)}</span>`).join('')}
+        </div>`;
+      }).join('') : `<div class="empty" style="padding:14px 6px;"><p>시간표 정보가 없습니다.</p></div>`}
+    </div>`}
+    <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">※ 금요일은 특정 회차가 운행하지 않으며, 위 목록에 자동으로 반영되어 있어요. 방학 기간에는 별도 시간표로 운행될 수 있습니다.</p>
+    <a href="${SHUTTLE_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px; text-decoration:none;">공식 셔틀 시간표 페이지 열기 ↗</a>`;
 }
 
 /* ===== 학식 파싱 ===== */
@@ -5225,6 +5354,7 @@ function renderMypage(){
   const scale = getFontScale();
   const traffic = getTrafficStats();
   const np = getNotifyPrefs();
+  const hp = getHomePrefs();
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
   return `
     <div class="card" style="display:flex; align-items:center; gap:12px;">
@@ -5248,6 +5378,7 @@ function renderMypage(){
 
     ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
+      <p style="margin:0 0 12px; font-size:14px; font-weight:800;">환경설정</p>
       <div class="subtabs" style="margin-bottom:12px;">
         <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
         <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
@@ -5275,6 +5406,31 @@ function renderMypage(){
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         글씨뿐 아니라 버튼·여백까지 함께 커지고 작아져요.
       </p>
+
+      <p style="margin:16px 0 4px; font-size:11.5px; font-weight:700;">홈 화면 보기 설정</p>
+      <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.55;">
+        홈 화면에서 필요 없는 항목만 각각 숨길 수 있어요.
+      </p>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>내가 이미 참여한 투표는 목록에서 숨겨요</small></span></span>
+        <button type="button" class="btn ${hp.hideVotedPolls?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideVotedPolls">${hp.hideVotedPolls?'숨김':'표시'}</button>
+      </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b></span></span>
+        <button type="button" class="btn ${hp.hideTodayTimetable?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayTimetable">${hp.hideTodayTimetable?'숨김':'표시'}</button>
+      </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.bowl}<span class="notify-label-text"><b>오늘의 학식</b></span></span>
+        <button type="button" class="btn ${hp.hideTodayMeal?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayMeal">${hp.hideTodayMeal?'숨김':'표시'}</button>
+      </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>다가오는 학사일정</b></span></span>
+        <button type="button" class="btn ${hp.hideUpcomingCalendar?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideUpcomingCalendar">${hp.hideUpcomingCalendar?'숨김':'표시'}</button>
+      </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>학생회 공지</b><small>공지가 없을 때만 자동으로 숨겨요</small></span></span>
+        <button type="button" class="btn ${hp.hideEmptyCouncilNotice?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideEmptyCouncilNotice">${hp.hideEmptyCouncilNotice?'숨김':'표시'}</button>
+      </div>
       ` : ''}
 
       ${state.settingsTab==='notify' ? `
@@ -8297,11 +8453,13 @@ document.addEventListener('click', async (e)=>{
       renderMain();
       if(['home', 'info', 'council'].includes(state.view)){ await refreshShared(); renderMain(); }
       if(state.view === 'info' && state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); }
+      if(state.view === 'info' && state.infoTab === 'shuttle'){ setupShuttleTimer(); } else if(state.shuttleTimer){ clearInterval(state.shuttleTimer); state.shuttleTimer=null; }
     }
     else if(a === 'info-tab'){
       state.infoTab = el.dataset.tab; renderMain();
       if(state.infoTab === 'meal') checkWeeklyAutoMealFetch();
       if(state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); }
+      if(state.infoTab === 'shuttle'){ setupShuttleTimer(); } else if(state.shuttleTimer){ clearInterval(state.shuttleTimer); state.shuttleTimer=null; }
     }
     else if(a === 'refresh-dept-notices'){ await fetchDeptNoticesFromSource(false); }
     else if(a === 'council-tab'){ state.councilTab = el.dataset.tab; renderMain(); }
@@ -8362,6 +8520,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'go-recruitment-tab'){ state.view = 'council'; state.councilTab = 'recruitment'; renderShell(); }
     else if(a === 'go-notice-tab'){ state.view = 'council'; state.councilTab = 'notice'; renderShell(); }
+    else if(a === 'go-my-tab'){ state.view = 'mypage'; renderShell(); }
     else if(a === 'go-calendar-tab'){ state.view = 'info'; state.infoTab = 'examCal'; renderShell(); }
     else if(a === 'open-assign-role'){ openModal(assignRoleModal(el.dataset.sid, el.dataset.name, el.dataset.role)); }
     else if(a === 'pick-role'){
@@ -8398,6 +8557,12 @@ document.addEventListener('click', async (e)=>{
       const key = el.dataset.key;
       const cur = getNotifyPrefs();
       await setNotifyPref(key, !cur[key]);
+      renderMain();
+    }
+    else if(a === 'toggle-home-pref'){
+      const key = el.dataset.key;
+      const cur = getHomePrefs();
+      setHomePref(key, !cur[key]);
       renderMain();
     }
     else if(a === 'set-notify-hour'){

@@ -283,6 +283,7 @@ service cloud.firestore {
     match /shared/councilPosts   { allow read: if isSignedIn(); allow write: if isSignedIn(); }
     match /shared/deptNotices    { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/meals          { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    match /shared/shuttle        { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/fetchState     { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/notifyState    { allow read: if isSignedIn(); allow write: if isCouncil(); }
     // 여기 없는 shared/* 문서는 기본적으로 아무도 못 읽고 못 쓴다(새 문서를 만들 땐

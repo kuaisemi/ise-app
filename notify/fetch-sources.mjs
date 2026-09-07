@@ -25,6 +25,7 @@ const MEAL_SOURCE_URL = 'https://gpa.korea.ac.kr/koreaSejong/8028/subview.do';
 const DEPT_NOTICE_URL = 'https://aisemi.korea.ac.kr/AISEMI/3600/subview.do';
 const DEPT_ORIGIN = 'https://aisemi.korea.ac.kr';
 const OFFICIAL_SCHEDULE_URL = 'https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do';
+const SHUTTLE_URL = 'https://gpa.korea.ac.kr/koreaSejong/7803/subview.do';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
@@ -333,6 +334,75 @@ async function runMeals() {
   return dayCount;
 }
 
+/* ===== 셔틀버스 시간표 =====
+ * 학교 페이지 표가 rowspan(칸 병합)을 써서, 그냥 <td>를 줄 순서대로 읽으면 병합된 다음
+ * 줄에서 칸이 하나씩 밀린다. 그래서 rowspan이 남아있는 칸은 다음 줄에도 같은 값을
+ * "이어붙여" 채워주는 grid 방식으로 읽는다.
+ */
+function cellText(td) {
+  if (!td) return '';
+  return (td.textContent || '').replace(/\s+/g, ' ').trim();
+}
+function walkShuttleTable(table) {
+  const rows = Array.from(table.querySelectorAll('tr')).filter((tr) => !tr.closest('thead'));
+  const grid = [];
+  const pending = {};
+  rows.forEach((tr, rowIdx) => {
+    grid[rowIdx] = grid[rowIdx] || [];
+    let col = 0;
+    const fillPending = () => {
+      while (pending[col] && pending[col].remaining > 0) {
+        grid[rowIdx][col] = pending[col].text;
+        pending[col].remaining--;
+        col++;
+      }
+    };
+    fillPending();
+    for (const cell of Array.from(tr.children)) {
+      fillPending();
+      const text = cellText(cell);
+      const rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
+      grid[rowIdx][col] = text;
+      if (rowspan > 1) pending[col] = { text, remaining: rowspan - 1 };
+      col++;
+      fillPending();
+    }
+  });
+  return grid;
+}
+async function runShuttle() {
+  const html = await fetchHtml(SHUTTLE_URL);
+  if (!html || html.length < 500 || !/셔틀/.test(html)) {
+    throw new Error('셔틀 페이지 응답이 예상과 다름');
+  }
+  const dom = new JSDOM(html).window.document;
+  const tables = Array.from(dom.querySelectorAll('table'));
+  if (tables.length < 3) throw new Error('셔틀 시간표를 찾지 못함');
+
+  // 표 0: 평일 08:20~14:00, 표 1: 평일 14:10~21:00 — 두 개를 이어붙여 "평일" 한 목록으로.
+  const weekday = [...walkShuttleTable(tables[0]), ...walkShuttleTable(tables[1])]
+    .map((row) => ({ no: row[0] || '', school: row[1] || '', jochiwon: row[2] || '', osong: row[3] || '' }))
+    .filter((r) => r.school || r.jochiwon || r.osong);
+
+  // 표 2: "주말"이라고 캡션에 써있지만 본문 안내에 "일요일(토요일은 운행 없음)"이라고
+  // 명시돼 있어 실제로는 일요일 전용 표다. 열도 다르다(오송역·비고 없음).
+  const sunday = walkShuttleTable(tables[2])
+    .map((row) => ({ no: row[0] || '', school: row[1] || '', station: row[2] || '' }))
+    .filter((r) => r.school || r.station);
+
+  // "NO. 36, 37, 38, 39 운휴" 같은 금요일 제외 안내를 본문에서 찾아, 해당 번호를 표시해둔다
+  // (화면에는 NO를 안 보여줘도, 금요일 카운트다운 계산엔 필요).
+  const bodyText = (dom.body && dom.body.textContent) || '';
+  const fridayOffMatch = bodyText.match(/금요일은\s*NO\.?\s*([\d,\s]+)\s*운휴/);
+  const fridayOffNos = fridayOffMatch
+    ? fridayOffMatch[1].split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const data = { weekday, sunday, fridayOffNos, updatedAt: Date.now() };
+  await db.collection('shared').doc('shuttle').set(data);
+  return weekday.length + sunday.length;
+}
+
 async function main() {
   const ref = db.collection('shared').doc('fetchState');
   const snap = await ref.get();
@@ -366,6 +436,20 @@ async function main() {
         console.log(`공식 학사일정 갱신 완료 (00:10 슬롯) — 신규 ${n}건`);
       } catch (e) {
         console.warn('공식 학사일정 갱신 실패 (00:10 슬롯):', e.message);
+      }
+      newSlots.push(slot);
+    }
+  }
+
+  // 셔틀버스 시간표 — 자주 안 바뀌는 정보라 학사일정처럼 하루 한 번, 00:20에.
+  {
+    const slot = `shuttle_${today}_0020`;
+    if (!doneSlots.has(slot) && isDue(0, 20)) {
+      try {
+        const n = await runShuttle();
+        console.log(`셔틀버스 시간표 갱신 완료 (00:20 슬롯) — ${n}건`);
+      } catch (e) {
+        console.warn('셔틀버스 시간표 갱신 실패 (00:20 슬롯):', e.message);
       }
       newSlots.push(slot);
     }
