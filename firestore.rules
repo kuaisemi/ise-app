@@ -128,6 +128,25 @@ service cloud.firestore {
       allow delete: if isSignedIn() && request.auth.uid in resource.data.uids;
     }
 
+    // 두 사람만의 실시간 채팅. friendLinks와 똑같은 pairKey를 컬렉션 경로로 그대로 써서,
+    // "이 채팅방이 그 두 사람 것"인지를 별도 필드 없이 경로 자체로 증명한다.
+    function pairContains(pairId, uid) {
+      return uid in pairId.split('_');
+    }
+    match /chats/{pairId}/messages/{msgId} {
+      // 친구가 아니게 되면(삭제) 과거 채팅도 더는 못 보게 friendLinks 존재 여부를 매번 같이 본다.
+      allow read: if isSignedIn() && pairContains(pairId, request.auth.uid)
+        && exists(/databases/$(database)/documents/friendLinks/$(pairId));
+      allow create: if isSignedIn() && pairContains(pairId, request.auth.uid)
+        && exists(/databases/$(database)/documents/friendLinks/$(pairId))
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+        && request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt']);
+      // 수정·삭제는 아직 없음 — 메시지 하나 지우는 UI가 생기면 그때 본인 것만 열어준다.
+      allow update, delete: if false;
+    }
+
     // 개인 메모장 — 본인 것만 읽고 쓸 수 있다. 공용 문서(shared/*)와 달리 사용자별로
     // 문서가 나뉘어 있어서 1MiB 문서 한도도 사람당 따로 적용된다.
     match /memos/{uid} {
