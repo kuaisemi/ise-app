@@ -1785,6 +1785,7 @@ function boot(){
           trackUserPresence(state.user);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
           setupPresenceHeartbeat();
+          startRoleRealtimeListener();
           setupForegroundMessageListener();
           // 첫 실행 안내(runNotificationOnboarding)를 아직 안 본 기기에서는 여기서 권한창을 띄우지 않는다.
           // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
@@ -1943,6 +1944,24 @@ async function syncMyRole(){
     renderApp();
     toast(`직급이 ${roleLabel(fresh)}(으)로 변경되었습니다`);
   }catch(e){ console.warn('[syncMyRole] 실패', e && e.code); }
+}
+
+// syncMyRole은 3분 폴링/화면 복귀 때만 도는 방식이라 최대 3분까지 지연될 수 있었다.
+// 실시간 리스너를 붙여서 회장이 직급을 바꾸는 순간 그 사람 화면에 바로 반영되게 한다.
+// (친구 채팅과 같은 onSnapshot 방식 — 문서 하나짜리 리스너라 부담은 거의 없다)
+let myRoleUnsub = null;
+function startRoleRealtimeListener(){
+  if(myRoleUnsub || !state.user || !state.user.uid) return;
+  myRoleUnsub = onSnapshot(doc(db,'users',state.user.uid), (snap)=>{
+    if(!snap.exists() || !state.user) return;
+    const data = snap.data();
+    const fresh = ROLES[data.role] ? data.role : 'student';
+    if(fresh === state.user.role) return;
+    state.user.role = fresh;
+    localSet('user_'+state.user.uid, state.user);
+    renderApp();
+    toast(`직급이 ${roleLabel(fresh)}(으)로 변경되었습니다`);
+  }, (err)=>{ console.warn('[roleRealtime]', err && err.code); });
 }
 
 /* ===== 알림 설정 ===== */
@@ -4615,7 +4634,7 @@ function renderNoticeTab(){
           <div class="title-line">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b>${escapeHtml(n.title)}</b></div>
           <div class="meta">${fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole)} · ${fmtDateTime(n.createdAt || n.date)}</div>
           <div class="body">${escapeHtml(n.content)}</div>
-          ${n.imageUrl ? `<div style="margin-top:8px;"><img src="${escapeHtml(n.imageUrl)}" style="max-width:100%; max-height:240px; border-radius:8px; border:1px solid var(--border); display:block; margin-bottom:6px;"><a href="${escapeHtml(n.imageUrl)}" download="공지사진_${n.id}.jpg" class="btn btn-ghost btn-sm" style="width:auto; display:inline-flex; font-size:10.5px; text-decoration:none;">${ICON.download} 사진 저장</a></div>` : ''}
+          ${n.imageUrl ? `<div style="margin-top:8px;"><img src="${escapeHtml(n.imageUrl)}" style="max-width:100%; max-height:240px; border-radius:8px; border:1px solid var(--border); display:block;"></div>` : ''}
           ${renderLikeUI(n, 'notice')}
           ${council ? `
           <div style="display:flex; gap:6px; margin-top:10px;">
@@ -4876,16 +4895,39 @@ function csvField(v){
   if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
   return s;
 }
-function downloadCSV(filename, rows){
-  const csv = rows.map(r=>r.map(csvField).join(',')).join('\r\n');
-  const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' }); // BOM 포함 (엑셀 한글 깨짐 방지)
+async function downloadCSV(filename, rows){
+  const csv = rows.map(r=>r.map(csvField).join(',')).join(String.fromCharCode(13,10));
+  const content = String.fromCharCode(0xFEFF)+csv; // BOM 포함 (엑셀 한글 깨짐 방지)
+
+  // 안드로이드 앱(WebView) 안에서는 <a download> 클릭이 그냥 무시된다 — 진짜 브라우저가
+  // 아니라 다운로드 매니저 연동이 없기 때문. 네이티브에서는 Filesystem으로 기기에 실제
+  // 파일을 쓰고 Share 시트를 띄워 저장하거나 다른 앱으로 보낼 수 있게 한다.
+  if(isNativePlatformNow() && typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.Filesystem){
+    try{
+      const FS = Capacitor.Plugins.Filesystem;
+      await FS.writeFile({ path: filename, data: content, directory: 'CACHE', encoding: 'utf8' });
+      const { uri } = await FS.getUri({ path: filename, directory: 'CACHE' });
+      if(Capacitor.Plugins.Share){
+        await Capacitor.Plugins.Share.share({ title: filename, url: uri, dialogTitle: 'CSV 저장/공유' });
+      } else {
+        toast('파일을 저장했어요 (기기 저장소)');
+      }
+    }catch(e){
+      console.error('[downloadCSV] 네이티브 저장 실패', e);
+      toast('CSV 저장에 실패했습니다 (' + ((e && e.message) || '알 수 없음') + ')');
+    }
+    return;
+  }
+
+  const blob = new Blob([content], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  toast('CSV 파일을 다운로드했습니다');
 }
-function exportPollResultsCSV(pollId){
+async function exportPollResultsCSV(pollId){
   if(myLevel() < 2){ toast('국장 이상만 내보내기 가능합니다'); return; }
   const p = live(state.polls).find(x=>x.id===pollId);
   if(!p){ toast('투표를 찾을 수 없습니다'); return; }
@@ -4899,8 +4941,7 @@ function exportPollResultsCSV(pollId){
     rows.push([sid, name || (state.allUsers?.[sid]?.name||''), optLabels, ts]);
   });
   const safeName = p.question.replace(/[\\/:*?"<>|]/g,'').slice(0,30);
-  downloadCSV(`투표결과_${safeName}_${todayStr()}.csv`, rows);
-  toast('CSV 파일을 다운로드했습니다');
+  await downloadCSV(`투표결과_${safeName}_${todayStr()}.csv`, rows);
 }
 
 function renderPollTab(){
@@ -5544,8 +5585,9 @@ function friendDetailBody(){
     <div class="card" id="friend-tt-card" style="margin-bottom:12px;"><div class="empty"><p>불러오는 중…</p></div></div>
 
     <div class="section-title">채팅</div>
+    <p style="font-size:10px; color:var(--text-faint); margin:0 0 8px; line-height:1.5;">메시지는 보관되지 않고 24시간이 지나면 서버에서 자동으로 지워져요.</p>
     <div class="card" style="padding:12px;">
-      <div id="friend-chat-log" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
+      <div id="friend-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
       <div style="display:flex; gap:8px; margin-top:10px;">
         <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="2000"
           style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
@@ -5698,21 +5740,28 @@ async function loadFriendTimetableCard(uid){
   }
 }
 function renderFriendTimetableGrid(slots, semKey){
-  const minStart = 8*60, maxEnd = 21*60, totalMin = maxEnd-minStart, pxPerMin = 420/totalMin;
-  const hours = []; for(let h=8; h<=20; h+=2) hours.push(h);
+  const GRID_H = 420;
+  const minStart = 8*60, maxEnd = 21*60, totalMin = maxEnd-minStart, pxPerMin = GRID_H/totalMin;
+  const hours = []; for(let h=8; h<=20; h++) hours.push(h);
+  const hourLabels = hours.map(h => {
+    const top = (h*60 - minStart) * pxPerMin;
+    return `<div style="position:absolute; top:${top-5}px; right:4px; font-size:9px; color:var(--text-faint);">${h}</div>`;
+  }).join('');
   const cols = DAYS.map((label, day) => {
     const blocks = slots.filter(s=>Number(s.day)===day).map(s=>{
       const top = Math.max(0, (s.start-minStart)*pxPerMin);
       const height = Math.max(14, (s.end-s.start)*pxPerMin);
       const color = s.color || 'var(--crimson)';
-      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:#fff; overflow:hidden; line-height:1.25; background:${escapeHtml(color)};"><b>${escapeHtml(s.subject||'')}</b></div>`;
+      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:#fff; overflow:hidden; line-height:1.25; background:${escapeHtml(color)};"><b>${escapeHtml(s.subject||'')}</b>${s.room?`<br>${escapeHtml(s.room)}`:''}</div>`;
     }).join('');
-    return `<div style="position:relative; background:var(--surface-2); border-radius:4px; min-height:420px;">${blocks}</div>`;
+    return `<div style="position:relative; background:var(--surface-2); border-radius:4px; min-height:${GRID_H}px;">${blocks}</div>`;
   }).join('');
   return `
     <div style="font-size:10.5px; color:var(--text-faint); margin-bottom:6px;">${escapeHtml(semKey||'')}</div>
-    <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:2px; font-size:10px;">
+    <div style="display:grid; grid-template-columns:24px repeat(5,1fr); gap:2px; font-size:10px;">
+      <div></div>
       ${DAYS.map(d=>`<div style="text-align:center; color:var(--text-dim); font-size:10.5px; padding:3px 0; font-weight:700;">${d}</div>`).join('')}
+      <div style="position:relative;">${hourLabels}</div>
       ${cols}
     </div>`;
 }
@@ -7030,6 +7079,7 @@ async function handleSignup(fd){
 
 async function logout(){
   if(!await showConfirm('로그아웃 하시겠습니까?')) return;
+  if(myRoleUnsub){ myRoleUnsub(); myRoleUnsub=null; } // 다음 사람 로그인 뒤에도 내 리스너가 계속 도는 일이 없게
   state.user=null;
   state.memos={}; // 개인 메모가 다음 로그인 사용자에게 잠깐이라도 보이지 않게 비운다
   await signOut(auth).catch(()=>{});
@@ -8439,7 +8489,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'edit-poll-vote'){ state.editingPollVoteId = el.dataset.id; renderMain(); }
     else if(a === 'cancel-edit-poll-vote'){ state.editingPollVoteId = null; renderMain(); }
     else if(a === 'cancel-poll-vote'){ await cancelPollVote(el.dataset.id); }
-    else if(a === 'export-poll-csv'){ exportPollResultsCSV(el.dataset.id); }
+    else if(a === 'export-poll-csv'){ await exportPollResultsCSV(el.dataset.id); }
     else if(a === 'add-recruitment'){ openModal(recruitmentModal(null)); }
     else if(a === 'open-recruitment'){
       const r = live(state.recruitmentPosts).find(x => x.id === el.dataset.id);
