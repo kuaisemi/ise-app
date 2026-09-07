@@ -5672,7 +5672,6 @@ function friendDetailBody(){
     <div class="card" id="friend-tt-card" style="margin-bottom:12px;"><div class="empty"><p>불러오는 중…</p></div></div>
 
     <div class="section-title">채팅</div>
-    <p style="font-size:10px; color:var(--text-faint); margin:0 0 8px; line-height:1.5;">메시지는 보관되지 않고 24시간이 지나면 서버에서 자동으로 지워져요.</p>
     <div class="card" style="padding:12px;">
       <div id="friend-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
       <div style="display:flex; gap:8px; margin-top:10px;">
@@ -5845,7 +5844,7 @@ function renderFriendTimetableGrid(slots, semKey){
       const top = Math.max(0, (s.start-minStart)*pxPerMin);
       const height = Math.max(14, (s.end-s.start)*pxPerMin);
       const color = s.color || 'var(--crimson)';
-      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:#fff; overflow:hidden; line-height:1.25; background:${escapeHtml(color)};"><b>${escapeHtml(s.subject||'')}</b>${s.room?`<br>${escapeHtml(s.room)}`:''}</div>`;
+      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:#fff; overflow:hidden; line-height:1.25; white-space:normal; word-break:keep-all; overflow-wrap:break-word; background:${escapeHtml(color)};"><b>${escapeHtml(s.subject||'')}</b>${s.room?`<br>${escapeHtml(s.room)}`:''}</div>`;
     }).join('');
     return `<div style="position:relative; background:var(--surface-2); border-radius:4px; min-height:${GRID_H}px;">${blocks}</div>`;
   }).join('');
@@ -5915,7 +5914,7 @@ async function sendFriendChatMessage(){
 }
 
 async function clearFriendChat(){
-  if(!await showConfirm('내 화면에서 이 채팅을 비울까요?\n(상대방 화면에는 그대로 남고, 메시지 자체는 24시간 뒤 서버에서 자동으로 지워져요)')) return;
+  if(!await showConfirm('내 화면에서 이 채팅을 비울까요?\n(상대방 화면에는 그대로 남아요)')) return;
   const pairId = state.friendsUI.activePairId;
   const ts = now();
   try{
