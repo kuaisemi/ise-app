@@ -200,13 +200,19 @@ async function main() {
   const bugAlertTokens = []; // 개발자 · 학생회장: 버그 제보는 알림 설정과 무관하게 항상 받음
   const nightOkTokens = new Set(); // 야간(22시~7시) 알림에 동의한 토큰만
   const tokensByStudentId = new Map(); // 건의사항 답변처럼 "그 사람에게만" 보낼 때 씀
+  const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
+  const chatOkUids = new Set(); // 채팅 알림을 켜둔 사람만
+  const nameByUid = new Map();
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
     const tokens = [...new Set([...(u.fcmTokens || []), ...(u.fcmToken ? [u.fcmToken] : [])])];
+    nameByUid.set(docSnap.id, u.name || '친구');
     if (!tokens.length) return;
     const prefs = u.notifyPrefs || {};
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
+    tokensByUid.set(docSnap.id, tokens);
+    if (prefs.chat) chatOkUids.add(docSnap.id);
     for (const t of tokens) {
       tokenToUid.set(t, docSnap.id);
       if (prefs.notice) tokensBy.notice.push(t);
@@ -388,6 +394,44 @@ async function main() {
     });
     sentCount++;
   }
+
+  // 8) 친구 채팅 — 지난 실행 이후 새로 온 메시지를 받는 사람에게만 보낸다. pairId(두 uid를
+  //    사전순으로 이어붙인 값)가 곧 메시지의 부모(chats/{pairId}) 문서 id라, 거기서 상대
+  //    uid를 바로 뽑아낼 수 있다(보낸 사람 자신에게는 당연히 안 보낸다).
+  const lastChatCheck = st.lastChatCheck || Date.now() - 15 * 60 * 1000; // 처음 실행이면 최근 15분만
+  const chatRunStartedAt = Date.now();
+  const newMsgsSnap = await db.collectionGroup('messages').where('createdAt', '>', lastChatCheck).get();
+  if (!newMsgsSnap.empty) {
+    for (const d of newMsgsSnap.docs) {
+      const m = d.data();
+      const pairId = d.ref.parent.parent.id; // chats/{pairId}/messages/{msgId}
+      const uids = pairId.split('_');
+      const recipientUid = uids.find((u) => u !== m.senderUid);
+      if (!recipientUid || !chatOkUids.has(recipientUid)) continue;
+      const allTokens = tokensByUid.get(recipientUid) || [];
+      const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+      if (!tokens.length) continue;
+      const senderName = nameByUid.get(m.senderUid) || '친구';
+      const res = await messaging.sendEachForMulticast({
+        tokens,
+        notification: { title: `${senderName}님의 메시지`, body: String(m.text || '').slice(0, 80) },
+        data: { url: './index.html' },
+      });
+      res.responses.forEach((resp, idx) => {
+        if (resp.success) return;
+        const code = resp.error && resp.error.code;
+        if (
+          code === 'messaging/invalid-registration-token' ||
+          code === 'messaging/registration-token-not-registered'
+        ) {
+          invalidTokens.add(tokens[idx]);
+        }
+      });
+      sentCount++;
+    }
+    console.log(`[chatNotify] 새 메시지 ${newMsgsSnap.size}건 확인, 알림 발송 시도`);
+  }
+  nextState.lastChatCheck = chatRunStartedAt;
 
   if (!sentCount) {
     console.log('보낼 알림 없음 — 종료');

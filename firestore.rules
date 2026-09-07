@@ -205,8 +205,11 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
         && request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt']);
-      // 수정·삭제는 아직 없음 — 메시지 하나 지우는 UI가 생기면 그때 본인 것만 열어준다.
-      allow update, delete: if false;
+      // 수정은 아직 없음. 삭제는 "채팅 비우기"로 대화 전체를 지울 때 쓴다 — 1:1 공용
+      // 공간이라 어느 한쪽이 비워도 둘 다에게 지워지는 게 자연스러워 상대 메시지도 지울 수 있게 뒀다.
+      allow update: if false;
+      allow delete: if isSignedIn() && pairContains(pairId, request.auth.uid)
+        && friendsWith(pairId.split('_')[0], pairId.split('_')[1]);
     }
 
     // 개인 메모장 — 본인 것만 읽고 쓸 수 있다. 공용 문서(shared/*)와 달리 사용자별로
