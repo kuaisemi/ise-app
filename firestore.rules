@@ -94,13 +94,26 @@ service cloud.firestore {
     function pairKey(a, b) {
       return a < b ? a + '_' + b : b + '_' + a;
     }
+    // status가 'accepted'면 수락된 친구, 'pending'이면 아직 수락 대기중. 예전(수락 절차가
+    // 없던 시절)에 만들어진 문서는 status 필드가 아예 없으므로, 없으면 이미 성립된 관계로
+    // 본다(pending이 아닌 것만 걸러내면 됨) — 그래야 그때 만든 관계가 깨지지 않는다.
     function friendsWith(a, b) {
-      return exists(/databases/$(database)/documents/friendLinks/$(pairKey(a, b)));
+      let p = /databases/$(database)/documents/friendLinks/$(pairKey(a, b));
+      return exists(p) && get(p).data.get('status', 'accepted') != 'pending';
+    }
+    // 친구여도 시간표까지 자동으로 다 보이는 건 아니다 — 친구 관계 문서 안에 "내 쪽"
+    // 공개 여부(shareTimetable.{내 uid})를 따로 두고, 기본값은 켜짐(true)으로 둔다.
+    // 즉 친구가 된 순간엔 공개 상태고, 원하면 이 친구에게만 나중에 꺼둘 수 있다.
+    function sharesTimetableWith(ownerUid, viewerUid) {
+      let p = /databases/$(database)/documents/friendLinks/$(pairKey(ownerUid, viewerUid));
+      return exists(p)
+        && get(p).data.get('status', 'accepted') != 'pending'
+        && get(p).data.get('shareTimetable', {}).get(ownerUid, true) != false;
     }
 
     match /timetables/{uid} {
-      // 친구가 된 사람끼리는 서로 시간표를 볼 수 있다(시간표 공유 기능). 쓰기는 여전히 본인만.
-      allow read: if isSignedIn() && (request.auth.uid == uid || friendsWith(request.auth.uid, uid));
+      // 친구가 된 사람 중, 내가 공개를 켜둔 사람만 내 시간표를 볼 수 있다. 쓰기는 여전히 본인만.
+      allow read: if isSignedIn() && (request.auth.uid == uid || sharesTimetableWith(uid, request.auth.uid));
       allow write: if isSignedIn() && request.auth.uid == uid;
     }
 
@@ -113,18 +126,32 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['studentId', 'name']);
     }
 
-    // 친구 관계. 문서 하나가 두 사람을 모두 가리키므로(uids 배열), 만든 사람이 자기
-    // 자신을 포함시켰는지, 문서 ID가 정말 그 두 uid를 정렬해 이어붙인 값인지를 검사해서
-    // 아무나 남의 이름으로 관계를 조작해 만들 수 없게 한다.
+    // 친구 관계 — 요청 → 수락 절차가 있다. 문서 하나가 두 사람을 모두 가리키므로(uids 배열),
+    // 신청자가 자기 자신을 포함시켰는지, 문서 ID가 정말 그 두 uid를 정렬해 이어붙인 값인지를
+    // 검사해서 아무나 남의 이름으로 관계를 조작해 만들 수 없게 한다.
     match /friendLinks/{pairId} {
       allow read: if isSignedIn() && request.auth.uid in resource.data.uids;
+      // 신청: 반드시 status:'pending'으로 시작하고, 신청자 본인이 requestedBy여야 한다.
       allow create: if isSignedIn()
         && request.auth.uid in request.resource.data.uids
         && request.resource.data.uids.size() == 2
         && request.resource.data.uids[0] != request.resource.data.uids[1]
         && pairId == pairKey(request.resource.data.uids[0], request.resource.data.uids[1])
-        && request.resource.data.createdBy == request.auth.uid;
-      // 둘 중 누구든 관계를 끊을 수 있다(친구 삭제).
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'pending';
+      // 수락: 신청받은 쪽(requestedBy가 아닌 사람)만, status 필드만, pending→accepted로만.
+      allow update: if isSignedIn() && request.auth.uid in resource.data.uids && (
+        (request.auth.uid != resource.data.requestedBy
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        // 시간표 공개 범위 토글: shareTimetable 맵 안에서도 "내 쪽" 항목만 바꿀 수 있다
+        // (상대방 몫을 내가 끄거나 켤 수는 없게).
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['shareTimetable'])
+          && request.resource.data.shareTimetable.diff(resource.data.get('shareTimetable', {})).affectedKeys().hasOnly([request.auth.uid]))
+      );
+      // 삭제: 둘 중 누구든 — 대기중이면 취소/거절, 이미 친구면 친구 삭제.
       allow delete: if isSignedIn() && request.auth.uid in resource.data.uids;
     }
 
@@ -134,11 +161,12 @@ service cloud.firestore {
       return uid in pairId.split('_');
     }
     match /chats/{pairId}/messages/{msgId} {
-      // 친구가 아니게 되면(삭제) 과거 채팅도 더는 못 보게 friendLinks 존재 여부를 매번 같이 본다.
+      // 친구 요청이 아직 대기중이거나 끊어졌으면 과거 채팅도 더는 못 보게, 매 요청마다
+      // "수락된 친구 사이"인지를 함께 확인한다(친구가 아니면 애초에 pairId 두 uid를 알아도 못 봄).
       allow read: if isSignedIn() && pairContains(pairId, request.auth.uid)
-        && exists(/databases/$(database)/documents/friendLinks/$(pairId));
+        && friendsWith(pairId.split('_')[0], pairId.split('_')[1]);
       allow create: if isSignedIn() && pairContains(pairId, request.auth.uid)
-        && exists(/databases/$(database)/documents/friendLinks/$(pairId))
+        && friendsWith(pairId.split('_')[0], pairId.split('_')[1])
         && request.resource.data.senderUid == request.auth.uid
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
@@ -161,6 +189,10 @@ service cloud.firestore {
     // 버그 제보엔 제보자 실명 · 학번이 들어가는데, 목록은 학생회 제보함 화면(학생회 이상)에서만
     // 보여준다. 제보 자체(쓰기)는 누구나 할 수 있어야 해서 write는 계속 열어둔다.
     match /shared/bugReports { allow read: if isCouncil(); allow write: if isSignedIn(); }
+    // 친구 채팅 신고함. bugReports와 같은 모양 — 누구나 자기 신고를 추가할 수 있고
+    // (전체 문서를 덮어쓰는 방식이라 완전히 안전하진 않지만 버그 제보함과 같은 수준으로 맞춤),
+    // 신고함을 들여다보는 건 학생회 이상만.
+    match /shared/chatReports { allow read: if isCouncil(); allow write: if isSignedIn(); }
     // 공지는 작성/수정/삭제는 클라이언트 UI에서 학생회로만 제한하지만, 학부생도 "좋아요"를
     // 누를 때 이 문서에 같이 써야 해서 쓰기 자체는 로그인한 사람 모두에게 열어둔다.
     // (suggestions/recruitments/polls도 같은 이유로 이미 열려있음 — 이 앱은 문서 단위 권한이라

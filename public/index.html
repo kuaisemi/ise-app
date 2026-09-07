@@ -581,10 +581,17 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   deleteDoc,
   deleteField,
   arrayUnion,
-  runTransaction
+  runTransaction,
+  query,
+  where,
+  addDoc,
+  orderBy,
+  limit,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 import {
@@ -2766,6 +2773,7 @@ const ICON = {
   calendar:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>`,
   megaphone:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4a1 1 0 0 0 1 1h2l5 4V5L6 9H4a1 1 0 0 0-1 1Z"/><path d="M15 8.5c1.2 1 1.2 6 0 7M18.5 6c2.2 2.2 2.2 9.8 0 12"/></svg>`,
   chip:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/><path d="M9 3v3.5M15 3v3.5M9 17.5V21M15 17.5V21M3 9h3.5M3 15h3.5M17.5 9H21M17.5 15H21"/></svg>`,
+  person:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>`,
   plus:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
   camera:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
   trash:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
@@ -5309,6 +5317,8 @@ function renderMypage(){
 
     <div class="section-title">계정</div>
     <div class="card">
+      <div class="link-row" data-action="open-friends"><span class="link-row-label">${ICON.person} 친구 · 시간표 공유</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row danger" data-action="reset-all-timetables">모든 시간표 전체 삭제 <span class="sub">${ICON.chevR}</span></div>
@@ -5326,6 +5336,7 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
       ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-chat-report-inbox"><span class="link-row-label">${ICON.inbox} 채팅 신고함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
     </div>
@@ -5498,6 +5509,451 @@ async function clearAuditLog(){
   state.auditLog = [];
   openModal(auditLogModal());
   saveResultToast(ok, '삭제 기록을 비웠습니다');
+}
+
+/* ===== 친구 · 시간표 공유 · 실시간 채팅 =====
+ * 학번으로 친구를 신청 → 상대가 수락하면 서로 시간표를 볼 수 있다(원하면 특정 친구에게만
+ * 나중에 꺼둘 수 있음). 친구 사이에는 1:1 실시간 채팅도 된다.
+ * 500명 이하·동시 100명 이하 규모라 Firestore 무료 티어(하루 읽기 5만/쓰기 2만) 안에서
+ * onSnapshot 실시간 리스너를 그대로 써도 여유 있다고 보고 붙였다.
+ * 친구 관계는 friendLinks/{두 uid를 사전순으로 이어붙인 키} 문서 하나로 표현하고(친구
+ * 검색용 공개 명단은 studentDirectory/{uid}), 채팅은 그 같은 키를 chats/{pairId}/messages
+ * 경로로 그대로 재사용해 "이 방이 그 두 사람 것"임을 증명한다 — 자세한 권한 검증은
+ * firestore.rules 쪽에 있다.
+ */
+function friendPairKey(a, b){ return a < b ? `${a}_${b}` : `${b}_${a}`; }
+
+let friendChatUnsub = null;
+function stopFriendChatListener(){
+  if(friendChatUnsub){ friendChatUnsub(); friendChatUnsub = null; }
+}
+
+state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, data:{incoming:[], outgoing:[], friends:[]} };
+
+async function openFriendsModal(){
+  if(!state.user) return;
+  // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
+  try{ await setDoc(doc(db,'studentDirectory',state.user.uid), { studentId: state.user.studentId, name: state.user.name }); }
+  catch(e){ console.warn('[studentDirectory]', e); }
+  state.friendsUI.screen = 'list';
+  openModal(friendsModalShell());
+  await refreshFriendsData();
+}
+
+function friendsModalShell(){
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.person} 친구</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div id="friends-modal-body">${friendsModalBody()}</div>`;
+}
+function friendsModalBody(){
+  return state.friendsUI.screen === 'detail' ? friendDetailBody() : friendListBody();
+}
+function refreshFriendsModalBody(){
+  const el = document.getElementById('friends-modal-body');
+  if(!el) return;
+  el.innerHTML = friendsModalBody();
+  setupFriendsModalListeners();
+}
+
+async function refreshFriendsData(){
+  try{
+    const q = query(collection(db,'friendLinks'), where('uids','array-contains', state.user.uid));
+    const snap = await getDocs(q);
+    const incoming=[], outgoing=[], friends=[];
+    snap.docs.forEach(d=>{
+      const data = d.data();
+      const otherUid = (data.uids||[]).find(u=>u!==state.user.uid);
+      if(!otherUid) return;
+      const entry = {
+        pairId: d.id, uid: otherUid,
+        name: (data.names&&data.names[otherUid]) || '(이름 없음)',
+        studentId: (data.studentIds&&data.studentIds[otherUid]) || '',
+        shareTimetable: data.shareTimetable || {},
+      };
+      if((data.status||'accepted') === 'pending'){
+        if(data.requestedBy === state.user.uid) outgoing.push(entry); else incoming.push(entry);
+      } else friends.push(entry);
+    });
+    state.friendsUI.data = { incoming, outgoing, friends };
+  }catch(e){ console.error('[friends] 목록 조회 실패', e); }
+  refreshFriendsModalBody();
+}
+
+function friendListBody(){
+  const { incoming, outgoing, friends } = state.friendsUI.data;
+  return `
+    <div style="display:flex; gap:8px; margin-bottom:6px;">
+      <input type="text" id="friend-add-input" placeholder="학번으로 친구 추가" inputmode="numeric"
+        style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13.5px; min-width:0;">
+      <button type="button" class="btn btn-primary btn-sm" data-action="send-friend-request" style="width:auto;">추가</button>
+    </div>
+    <div id="friend-add-msg" style="font-size:11px; color:var(--text-dim); margin-bottom:12px; min-height:14px; line-height:1.5;"></div>
+
+    ${incoming.length ? `
+    <div class="section-title">받은 친구 요청 (${incoming.length})</div>
+    <div class="card" style="padding:2px 12px; margin-bottom:12px;">
+      ${incoming.map(r=>`
+        <div class="row-between" style="padding:9px 0; border-bottom:1px solid var(--border);">
+          <div><b style="font-size:13px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)}</div></div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn btn-primary btn-sm" data-action="accept-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">수락</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">거절</button>
+          </div>
+        </div>`).join('')}
+    </div>` : ''}
+
+    ${outgoing.length ? `
+    <div class="section-title">보낸 요청 (${outgoing.length})</div>
+    <div class="card" style="padding:2px 12px; margin-bottom:12px;">
+      ${outgoing.map(r=>`
+        <div class="row-between" style="padding:9px 0; border-bottom:1px solid var(--border);">
+          <div><b style="font-size:13px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)} · 응답 대기중</div></div>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">취소</button>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <div class="section-title">내 친구 (${friends.length})</div>
+    ${friends.length ? friends.map(f=>`
+      <div class="list-item" style="padding:10px 0; cursor:pointer;" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
+        <div class="row-between">
+          <div><b style="font-size:13.5px;">${escapeHtml(f.name)}</b><div class="meta">${escapeHtml(f.studentId)}</div></div>
+          <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
+        </div>
+      </div>`).join('') : `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`}
+  `;
+}
+
+function friendDetailBody(){
+  const ui = state.friendsUI;
+  const shareOn = ui.myShareOn !== false;
+  return `
+    <button type="button" class="btn btn-ghost btn-sm" data-action="friends-back" style="width:auto; margin-bottom:10px; display:flex; align-items:center; gap:4px;">${ICON.chevL} 목록으로</button>
+    <div class="card" style="padding:12px; margin-bottom:12px;">
+      <div class="row-between">
+        <b style="font-size:14px;">${escapeHtml(ui.activeName)}</b>
+        <button type="button" class="btn btn-danger btn-sm" data-action="unfriend" style="width:auto; padding:5px 10px; font-size:11px;">친구 삭제</button>
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12px; color:var(--text-dim); cursor:pointer;">
+        <input type="checkbox" id="friend-share-toggle" ${shareOn?'checked':''}>
+        이 친구에게 내 시간표 공개
+      </label>
+    </div>
+
+    <div class="section-title">시간표</div>
+    <div class="card" id="friend-tt-card" style="margin-bottom:12px;"><div class="empty"><p>불러오는 중…</p></div></div>
+
+    <div class="section-title">채팅</div>
+    <div class="card" style="padding:12px;">
+      <div id="friend-chat-log" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="2000"
+          style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
+        <button type="button" class="btn btn-primary btn-sm" id="friend-chat-send" style="width:auto;">전송</button>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; margin-top:8px; font-size:10.5px; color:var(--text-faint);">이 채팅 신고하기</button>
+    </div>
+  `;
+}
+
+function setupFriendsModalListeners(){
+  const addInput = document.getElementById('friend-add-input');
+  if(addInput) addInput.addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequest(); });
+
+  if(state.friendsUI.screen !== 'detail') return;
+
+  const shareToggle = document.getElementById('friend-share-toggle');
+  if(shareToggle) shareToggle.addEventListener('change', () => toggleShareTimetable(shareToggle.checked));
+
+  loadFriendTimetableCard(state.friendsUI.activeUid);
+  openFriendChatListener(state.friendsUI.activePairId, state.friendsUI.activeUid);
+
+  const chatInput = document.getElementById('friend-chat-input');
+  const chatSend = document.getElementById('friend-chat-send');
+  const send = () => sendFriendChatMessage();
+  if(chatSend) chatSend.onclick = send;
+  if(chatInput) chatInput.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
+}
+
+async function sendFriendRequest(){
+  const input = document.getElementById('friend-add-input');
+  const msgEl = document.getElementById('friend-add-msg');
+  const sid = (input && input.value || '').trim();
+  if(!msgEl) return;
+  msgEl.style.color = 'var(--text-dim)'; msgEl.textContent = '';
+  if(!sid){ msgEl.style.color='var(--danger)'; msgEl.textContent='학번을 입력해주세요.'; return; }
+  if(sid === state.user.studentId){ msgEl.style.color='var(--danger)'; msgEl.textContent='본인은 추가할 수 없어요.'; return; }
+
+  try{
+    const q = query(collection(db,'studentDirectory'), where('studentId','==',sid));
+    const snap = await getDocs(q);
+    if(snap.empty){
+      msgEl.style.color='var(--danger)';
+      msgEl.textContent = '해당 학번을 찾을 수 없어요 (그 사람이 앱을 한 번 더 열어야 찾아질 수 있어요).';
+      return;
+    }
+    const targetDoc = snap.docs[0];
+    const targetUid = targetDoc.id;
+    const targetData = targetDoc.data();
+    const pid = friendPairKey(state.user.uid, targetUid);
+
+    const existing = await getDoc(doc(db,'friendLinks',pid));
+    if(existing.exists()){
+      const st = existing.data().status || 'accepted';
+      msgEl.style.color='var(--danger)';
+      msgEl.textContent = st === 'pending' ? '이미 요청을 보냈거나 받았어요.' : '이미 친구예요.';
+      return;
+    }
+
+    await setDoc(doc(db,'friendLinks',pid), {
+      uids: [state.user.uid, targetUid].sort(),
+      names: { [state.user.uid]: state.user.name, [targetUid]: targetData.name },
+      studentIds: { [state.user.uid]: state.user.studentId, [targetUid]: targetData.studentId },
+      createdBy: state.user.uid,
+      requestedBy: state.user.uid,
+      status: 'pending',
+      createdAt: Date.now(),
+    });
+
+    msgEl.style.color='var(--teal)';
+    msgEl.textContent = `${targetData.name}님에게 친구 요청을 보냈어요.`;
+    if(input) input.value='';
+    await refreshFriendsData();
+  }catch(e){
+    console.error(e);
+    msgEl.style.color='var(--danger)';
+    msgEl.textContent = '실패했어요 (' + (e.code||e.message||'알 수 없음') + ')';
+  }
+}
+
+async function acceptFriendRequest(pairId){
+  try{ await updateDoc(doc(db,'friendLinks',pairId), { status:'accepted' }); }
+  catch(e){ toast('수락에 실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
+  await refreshFriendsData();
+  toast('친구가 됐어요');
+}
+async function declineFriendRequest(pairId){
+  try{ await deleteDoc(doc(db,'friendLinks',pairId)); }
+  catch(e){ toast('실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
+  await refreshFriendsData();
+}
+
+function openFriendDetail(uid, name, pairId){
+  stopFriendChatListener();
+  const rec = state.friendsUI.data.friends.find(f=>f.pairId===pairId);
+  state.friendsUI.screen = 'detail';
+  state.friendsUI.activeUid = uid;
+  state.friendsUI.activeName = name;
+  state.friendsUI.activePairId = pairId;
+  state.friendsUI.myShareOn = !rec || rec.shareTimetable[state.user.uid] !== false;
+  refreshFriendsModalBody();
+}
+function friendsBackToList(){
+  stopFriendChatListener();
+  state.friendsUI.screen = 'list';
+  refreshFriendsModalBody();
+}
+
+async function unfriend(){
+  if(!await showConfirm(`${state.friendsUI.activeName}님을 친구에서 삭제할까요?`)) return;
+  try{ await deleteDoc(doc(db,'friendLinks',state.friendsUI.activePairId)); }
+  catch(e){ toast('실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
+  friendsBackToList();
+  await refreshFriendsData();
+  toast('친구를 삭제했어요');
+}
+
+async function toggleShareTimetable(on){
+  state.friendsUI.myShareOn = on;
+  try{
+    await updateDoc(doc(db,'friendLinks',state.friendsUI.activePairId), {
+      shareTimetable: { ...(state.friendsUI.data.friends.find(f=>f.pairId===state.friendsUI.activePairId)?.shareTimetable||{}), [state.user.uid]: on },
+    });
+    toast(on ? '이 친구에게 시간표를 공개했어요' : '이 친구에게 시간표를 숨겼어요');
+  }catch(e){
+    toast('변경 실패 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+
+async function loadFriendTimetableCard(uid){
+  const card = document.getElementById('friend-tt-card');
+  if(!card) return;
+  try{
+    const snap = await getDoc(doc(db,'timetables',uid));
+    if(!snap.exists() || !snap.data().bySemester){
+      card.innerHTML = `<div class="empty"><p>아직 등록된 시간표가 없어요.</p></div>`;
+      return;
+    }
+    const d = snap.data();
+    const semKey = d.activeSemester || Object.keys(d.bySemester)[0];
+    const variants = d.bySemester[semKey];
+    const slots = (variants && variants[0] && variants[0].slots) || [];
+    if(!slots.length){
+      card.innerHTML = `<div class="empty"><p>${escapeHtml(semKey||'')} 학기에 등록된 수업이 없어요.</p></div>`;
+      return;
+    }
+    card.innerHTML = renderFriendTimetableGrid(slots, semKey);
+  }catch(e){
+    card.innerHTML = `<div class="empty"><p>이 친구가 시간표를 공개하지 않았어요.</p></div>`;
+  }
+}
+function renderFriendTimetableGrid(slots, semKey){
+  const minStart = 8*60, maxEnd = 21*60, totalMin = maxEnd-minStart, pxPerMin = 420/totalMin;
+  const hours = []; for(let h=8; h<=20; h+=2) hours.push(h);
+  const cols = DAYS.map((label, day) => {
+    const blocks = slots.filter(s=>Number(s.day)===day).map(s=>{
+      const top = Math.max(0, (s.start-minStart)*pxPerMin);
+      const height = Math.max(14, (s.end-s.start)*pxPerMin);
+      const color = s.color || 'var(--crimson)';
+      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:#fff; overflow:hidden; line-height:1.25; background:${escapeHtml(color)};"><b>${escapeHtml(s.subject||'')}</b></div>`;
+    }).join('');
+    return `<div style="position:relative; background:var(--surface-2); border-radius:4px; min-height:420px;">${blocks}</div>`;
+  }).join('');
+  return `
+    <div style="font-size:10.5px; color:var(--text-faint); margin-bottom:6px;">${escapeHtml(semKey||'')}</div>
+    <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:2px; font-size:10px;">
+      ${DAYS.map(d=>`<div style="text-align:center; color:var(--text-dim); font-size:10.5px; padding:3px 0; font-weight:700;">${d}</div>`).join('')}
+      ${cols}
+    </div>`;
+}
+
+function fmtChatTime(ts){
+  const d = new Date(ts||Date.now());
+  const h = d.getHours(), m = d.getMinutes();
+  const ampm = h < 12 ? '오전' : '오후';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${ampm} ${h12}:${String(m).padStart(2,'0')}`;
+}
+
+function openFriendChatListener(pairId, otherUid){
+  const log = document.getElementById('friend-chat-log');
+  if(!log) return;
+  log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
+  const q = query(collection(db,'chats',pairId,'messages'), orderBy('createdAt'), limit(200));
+  friendChatUnsub = onSnapshot(q, (snap) => {
+    if(state.friendsUI.activePairId !== pairId) return; // 이미 다른 친구로 넘어간 뒤 도착한 응답
+    const el = document.getElementById('friend-chat-log');
+    if(!el) return;
+    if(snap.empty){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
+    el.innerHTML = snap.docs.map(d=>{
+      const m = d.data();
+      const mine = m.senderUid === state.user.uid;
+      return `<div style="max-width:78%; padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; align-self:${mine?'flex-end':'flex-start'}; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div></div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  }, (err) => {
+    console.error('[friend-chat]', err);
+    const el = document.getElementById('friend-chat-log');
+    if(el) el.innerHTML = `<div class="empty"><p>채팅을 불러오지 못했어요.</p></div>`;
+  });
+}
+
+async function sendFriendChatMessage(){
+  const input = document.getElementById('friend-chat-input');
+  const text = (input && input.value || '').trim();
+  if(!text) return;
+  input.value = '';
+  try{
+    await addDoc(collection(db,'chats',state.friendsUI.activePairId,'messages'), {
+      senderUid: state.user.uid, text, createdAt: Date.now(),
+    });
+  }catch(e){
+    console.error(e);
+    toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+
+/* ===== 채팅 신고 ===== */
+function reportFriendChatModal(){
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">채팅 신고하기</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">
+      <b>${escapeHtml(state.friendsUI.activeName)}</b>님과의 채팅을 학생회에 신고해요. 최근 메시지 내용이 신고 내역에 함께 남아요.
+    </p>
+    <form id="report-friend-chat-form">
+      <div class="field"><label>신고 사유</label><textarea name="reason" style="min-height:100px" required placeholder="어떤 내용이 문제였는지 적어주세요"></textarea></div>
+      <div class="modal-actions"><button type="submit" class="btn btn-danger">신고 접수</button></div>
+    </form>`;
+}
+async function handleReportFriendChatSubmit(fd){
+  const reason = (fd.get('reason')||'').trim();
+  if(!reason){ toast('신고 사유를 입력해주세요'); return; }
+  const btn = document.querySelector('#report-friend-chat-form button[type=submit]');
+  if(btn) btn.disabled = true;
+  try{
+    // 신고 맥락으로 최근 메시지 몇 개를 같이 남긴다(정말 문제였는지 학생회가 판단할 수 있게).
+    let recentMessages = [];
+    try{
+      const q = query(collection(db,'chats',state.friendsUI.activePairId,'messages'), orderBy('createdAt'), limit(200));
+      const snap = await getDocs(q);
+      recentMessages = snap.docs.slice(-20).map(d=>{
+        const m = d.data();
+        return `${m.senderUid===state.user.uid?state.user.name:state.friendsUI.activeName}: ${m.text}`;
+      });
+    }catch(e){}
+
+    const report = {
+      id: uid(), createdAt: now(), status:'접수',
+      reporterId: state.user.studentId, reporterName: state.user.name,
+      targetUid: state.friendsUI.activeUid, targetName: state.friendsUI.activeName,
+      pairId: state.friendsUI.activePairId, reason,
+      recentMessages,
+    };
+    const latest = await loadShared('chatReports', {list:[]});
+    const next = [report, ...(latest.list||[])].slice(0,300);
+    const ok = await saveShared('chatReports', {list: next});
+    closeModal();
+    saveResultToast(ok, '신고가 접수됐어요. 학생회가 확인할게요.');
+  }catch(e){
+    console.error(e);
+    toast('신고 접수에 실패했어요');
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+function chatReportInboxModal(){
+  const list = [...((state.chatReports&&state.chatReports.list)||[])].sort((a,b)=>b.createdAt-a.createdAt);
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.inbox} 채팅 신고함</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div style="max-height:64vh; overflow-y:auto;">
+      ${list.length ? list.map(r=>`
+        <div class="card" style="margin-bottom:10px;">
+          <div class="row-between" style="margin-bottom:4px;">
+            <b style="font-size:12px;">${escapeHtml(r.reporterName)} → ${escapeHtml(r.targetName)}</b>
+            <span class="tag ${r.status==='해결'?'tag-blue':'tag-amber'}">${escapeHtml(r.status||'접수')}</span>
+          </div>
+          <div class="meta" style="margin-bottom:6px;">${escapeHtml(r.reporterId||'')} · ${fmtDateTime(r.createdAt)}</div>
+          <div class="body" style="margin-bottom:8px;">${escapeHtml(r.reason)}</div>
+          ${(r.recentMessages&&r.recentMessages.length) ? `
+          <div style="background:var(--surface-2); border-radius:8px; padding:8px 10px; margin-bottom:8px; font-size:11px; color:var(--text-dim); max-height:140px; overflow-y:auto; line-height:1.6;">
+            ${r.recentMessages.map(m=>escapeHtml(m)).join('<br>')}
+          </div>` : ''}
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-ghost btn-sm" data-action="toggle-chat-report-status" data-id="${r.id}">${r.status==='해결'?'접수로 되돌리기':'해결로 표시'}</button>
+            <button class="btn btn-danger btn-sm" data-action="delete-chat-report" data-id="${r.id}">삭제</button>
+          </div>
+        </div>`).join('') : `<div class="empty"><p>접수된 신고가 없습니다.</p></div>`}
+    </div>`;
+}
+async function toggleChatReportStatus(id){
+  const latest = await loadShared('chatReports', {list:[]});
+  const next = (latest.list||[]).map(r => r.id===id ? {...r, status: r.status==='해결'?'접수':'해결'} : r);
+  const ok = await saveShared('chatReports', {list: next});
+  state.chatReports = {list: next};
+  if(document.querySelector('.modal-sheet')) openModal(chatReportInboxModal());
+  saveResultToast(ok, '상태가 변경되었습니다');
+}
+async function deleteChatReport(id){
+  if(!await showConfirm('이 신고를 삭제할까요?')) return;
+  const latest = await loadShared('chatReports', {list:[]});
+  const next = (latest.list||[]).filter(r => r.id!==id);
+  const ok = await saveShared('chatReports', {list: next});
+  state.chatReports = {list: next};
+  if(document.querySelector('.modal-sheet')) openModal(chatReportInboxModal());
+  saveResultToast(ok, '삭제했습니다');
 }
 function bugReportInboxModal(){
   const list=live(state.bugReports).sort((a,b)=>b.createdAt-a.createdAt);
@@ -6108,6 +6564,7 @@ function setupModalDragToDismiss(overlay){
   handle.addEventListener('mousedown', onStart);
 }
 function closeModal(){
+  stopFriendChatListener(); // 채팅 모달을 열어둔 채 닫으면 리스너가 안 끊겨 계속 읽기가 쌓인다
   const ov=document.getElementById('modal-overlay');
   if(!ov) return;
   ov.classList.remove('open');
@@ -6513,6 +6970,7 @@ document.addEventListener('submit', async (e)=>{
     'kick-member-form': handleKickMemberSubmit,
     'roster-form': handleRosterSubmit,
     'gemini-keys-form': handleGeminiKeysSubmit,
+    'report-friend-chat-form': handleReportFriendChatSubmit,
   };
   const fn = HANDLERS[formId];
   if(!fn){ toast('알 수 없는 폼: ' + formId); return; }
@@ -7773,6 +8231,17 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
+    else if(a === 'open-friends'){ await openFriendsModal(); }
+    else if(a === 'send-friend-request'){ await sendFriendRequest(); }
+    else if(a === 'accept-friend-request'){ await acceptFriendRequest(el.dataset.pair); }
+    else if(a === 'decline-friend-request'){ await declineFriendRequest(el.dataset.pair); }
+    else if(a === 'open-friend-detail'){ openFriendDetail(el.dataset.uid, el.dataset.name, el.dataset.pair); }
+    else if(a === 'friends-back'){ friendsBackToList(); }
+    else if(a === 'unfriend'){ await unfriend(); }
+    else if(a === 'open-report-friend'){ openModal(reportFriendChatModal()); }
+    else if(a === 'open-chat-report-inbox'){ state.chatReports = await loadShared('chatReports', {list:[]}); openModal(chatReportInboxModal()); }
+    else if(a === 'toggle-chat-report-status'){ await toggleChatReportStatus(el.dataset.id); }
+    else if(a === 'delete-chat-report'){ await deleteChatReport(el.dataset.id); }
     else if(a === 'purge-tombstones'){
       if(!await showConfirm('삭제된 지 24시간 지난 게시물을 지금 완전히 지울까요?\n(어차피 서버에서 10분마다 자동으로도 정리돼요)', { danger:false, okLabel:'정리하기' })) return;
       const removed = await purgeOldTombstonesNow();
