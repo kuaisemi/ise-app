@@ -710,18 +710,20 @@ const APP = document.getElementById('app');
 const APP_VERSION = 'Beta 0.2.1';
 const PATCH_NOTES = [
   { version:'Beta 0.2.1', date:'2026-09-08', items:[
+    '친구 화면을 팝업 대신 학생사회 탭의 "소셜" 탭으로 이동, 친구 요청·수락이 화면을 나갔다 오지 않아도 실시간으로 반영되도록 변경',
+    '학생회 목록을 누르면 팝업으로 열리도록 변경, 화면 비율에 맞춰 보이는 만큼만 표시',
+    '친구 목록에 "편집" 모드 추가 — 친구별로 바로 삭제 가능',
+    '"친구 추가"를 별도 팝업으로 분리 — 학번 입력, 보낸 요청 확인(학번만 표기)을 한 곳에서',
+    '가입 중 프로필 저장이 실패하면 계정만 남아 그 학번으로 재가입이 막히던 유령 계정 문제 수정, 이미 생긴 계정도 주기적으로 자동 정리',
+    '학번으로 친구 추가 시 상대방 이름이 바로 드러나던 문제 수정 — 이제 학번으로만 안내',
+    '구인글에 "참여 여부 투표"(참여/불참) 추가 가능 — 참여자 명단은 글쓴이만 확인, 홈 화면 구인글 목록에 투표 여부 표시',
+  ]},
+  { version:'Beta 0.2.0', date:'2026-09-08', items:[
+    '재학생 전용 정식 배포 준비 — 그동안의 0.1.x 베타 테스트 내용을 정리하고 0.2.0으로 전환',
     '친구 시간표에서 수업 글씨 색을 검은색으로 설정해도 친구 화면에는 흰색으로만 보이던 문제 수정',
     '채팅 알림 설정이 "켜짐"인데도 실제로는 서버에 반영이 안 돼 알림이 안 오던 문제 수정 (기기 기본값이 로그인 때 서버와 자동으로 맞춰지도록 변경)',
     '친구 채팅 메시지 길이 제한을 2000바이트 → 1500바이트로 축소',
     '학생회 게시물 게시판을 없애고, 대신 학생회(국장 이상) 전용 단체 채팅 추가 — 학생회 목록 확인 및 바로 친구 추가, 메시지별 읽은 인원 수 표시, 메시지는 7일 뒤 자동 삭제, 알림 켜기/끄기·삭제(학생회장 전용) 지원',
-    '친구 화면을 팝업 대신 학생사회 탭의 "소셜" 탭으로 이동, 친구 요청·수락이 화면을 나갔다 오지 않아도 실시간으로 반영되도록 변경',
-    '학생회 목록을 누르면 팝업으로 열리도록 변경, 화면 비율에 맞춰 보이는 만큼만 표시',
-    '친구 목록에 "편집" 모드 추가 — 순서를 위아래로 자유롭게 바꾸고, 여러 명을 한 번에 선택해 삭제 가능',
-    '가입 중 프로필 저장이 실패하면 계정만 남아 그 학번으로 재가입이 막히던 유령 계정 문제 수정, 이미 생긴 계정도 주기적으로 자동 정리',
-    '학번으로 친구 추가 시 상대방 이름이 바로 드러나던 문제 수정 — 이제 학번으로만 안내',
-  ]},
-  { version:'Beta 0.2.0', date:'2026-09-08', items:[
-    '재학생 전용 정식 배포 준비 — 그동안의 0.1.x 베타 테스트 내용을 정리하고 0.2.0으로 전환',
   ]},
   { version:'Beta 0.1.8', date:'2026-09-08', items:[
     '친구 화면 UI 개편 — 별명 최대 8자로 제한하고 이름 옆에 작게 표시, "별명설정"·"친구삭제" 버튼을 이름과 같은 줄로 이동, "채팅 지우기"(구 채팅 비우기)·"채팅 신고" 버튼을 간단한 채팅 제목 옆으로 이동',
@@ -3454,7 +3456,10 @@ function renderHome(){
       ${validRecruits.map(r=>`
         <div class="list-item" data-action="go-recruitment-tab" style="cursor:pointer; padding:8px 0;">
           <div class="row-between" style="gap:8px;">
-            <b class="one-line" style="font-size:12px;">${escapeHtml(r.title)}</b>
+            <div style="display:flex; align-items:center; gap:5px; min-width:0;">
+              <b class="one-line" style="font-size:12px;">${escapeHtml(r.title)}</b>
+              ${r.poll && r.poll.enabled ? `<span class="tag tag-teal" style="font-size:9px; flex-shrink:0;">투표 있음</span>` : ''}
+            </div>
             <span style="color:var(--text-faint); flex-shrink:0;">${ICON.chevR}</span>
           </div>
           <div class="meta" style="margin-top:2px;">${fmtAuthorBadge(r.authorName, r.authorId, r.authorRole)} · ${fmtDateShort(r.date)}</div>
@@ -5346,6 +5351,7 @@ function renderRecruitmentTab(){
           <div class="meta">${fmtAuthorBadge(r.authorName, r.authorId, r.authorRole)} · ${fmtDateTime(r.createdAt || r.date)}${r.expireHours?` · ${r.expireHours}시간 노출`:''}</div>
           <div class="body">${escapeHtml(r.content)}</div>
           ${renderLikeUI(r, 'recruitment')}
+          ${renderRecruitmentPollUI(r)}
           ${(state.user && r.authorId===state.user.studentId) || myLevel()>=3 ? `
           <div style="display:flex; gap:6px; margin-top:10px;">
             <button class="btn btn-ghost btn-sm" data-action="open-recruitment" data-id="${r.id}">수정</button>
@@ -5353,6 +5359,48 @@ function renderRecruitmentTab(){
           </div>` : ''}
         </div>`).join('') : `<div class="empty"><p>등록된 구인글이 없습니다.</p></div>`}
     </div>`;
+}
+// 참여 여부만 묻는 단순 O/X 투표 — 투표 탭의 정식 투표와 달리 질문·선택지 없이 구인글에
+// 딸린 형태라, 별도 컬렉션 없이 구인글 자체 필드(poll)에 같이 저장한다. 누가 참여하는지는
+// 이 글을 쓴 사람만 볼 수 있다(학번 대신 이름만 — 다른 글 명단 노출과 달리 여긴 비공개 정보).
+function renderRecruitmentPollUI(r){
+  if(!r.poll || !r.poll.enabled) return '';
+  const votes = r.poll.votes || {};
+  const mine = state.user ? votes[state.user.studentId] : null;
+  const entries = Object.values(votes);
+  const yesCount = entries.filter(v=>v.choice==='yes').length;
+  const noCount = entries.filter(v=>v.choice==='no').length;
+  const isAuthor = state.user && r.authorId===state.user.studentId;
+  const yesNames = entries.filter(v=>v.choice==='yes').map(v=>escapeHtml(v.name||'익명'));
+  return `
+    <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+      <div class="row-between" style="font-size:11.5px; margin-bottom:6px;">
+        <b>참여 여부</b>
+        <span style="color:var(--text-faint);">참여 ${yesCount} · 불참 ${noCount}</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn ${mine&&mine.choice==='yes'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;" data-action="vote-recruitment-poll" data-id="${r.id}" data-choice="yes">참여</button>
+        <button type="button" class="btn ${mine&&mine.choice==='no'?'btn-primary':'btn-ghost'} btn-sm" style="flex:1;" data-action="vote-recruitment-poll" data-id="${r.id}" data-choice="no">불참</button>
+      </div>
+      ${isAuthor && yesCount>0 ? `
+        <details class="voters-accordion" style="margin-top:8px;">
+          <summary>참여자 명단 (${yesCount}명)</summary>
+          <div style="margin-top:6px;">${yesNames.map(n=>`<span class="voter-badge">${n}</span>`).join('')}</div>
+        </details>` : ''}
+    </div>`;
+}
+async function voteRecruitmentPoll(id, choice){
+  if(!state.user) return;
+  const next = await mutateSharedList('recruitments', 'list', (cur)=>{
+    const post = cur.find(r=>r && r.id===id);
+    if(!post || !post.poll || !post.poll.enabled) return null;
+    const votes = { ...(post.poll.votes||{}) };
+    votes[state.user.studentId] = { name: state.user.name, choice, time: now() };
+    return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, votes } } : r);
+  });
+  if(!next){ saveResultToast(false); return; }
+  state.recruitmentPosts = next;
+  renderMain();
 }
 
 function recruitmentModal(r){
@@ -5368,6 +5416,7 @@ function recruitmentModal(r){
       <div class="field"><label>노출 시간</label>
         ${renderSegPicker('expireHours', [[12,'12시간'],[24,'24시간 (기본)'],[48,'48시간'],[72,'72시간']], v.expireHours, true)}
       </div>
+      <div class="checkline"><input type="checkbox" name="pollEnabled" id="rec-poll-check" ${v.poll&&v.poll.enabled?'checked':''}> <label for="rec-poll-check" style="margin:0; cursor:pointer;">참여 여부 투표 추가하기 (참여/불참 버튼, 참여자 명단은 작성자만 확인)</label></div>
       ${isEdit ? `<div class="checkline"><input type="checkbox" name="closed" id="rec-closed-check" ${v.closed?'checked':''}> <label for="rec-closed-check" style="margin:0; cursor:pointer;">모집 마감 처리</label></div>` : ''}
       <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'게시하기'}</button></div>
     </form>`;
@@ -5984,26 +6033,7 @@ function teardownSocialTab(){
   stopCouncilChatListener();
 }
 
-state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, editMode:false, selected:{}, data:{incoming:[], outgoing:[], friends:[]} };
-// 친구 목록 순서는 기기에만 저장하는 개인 취향이라 서버 동기화 없이 로컬에만 둔다.
-function getFriendOrderMap(){
-  const arr = localGet('friend_order', []);
-  const map = {};
-  arr.forEach((pairId,i)=>{ map[pairId]=i; });
-  return map;
-}
-function moveFriendOrder(pairId, dir){
-  const { friends } = state.friendsUI.data;
-  const orderMap = getFriendOrderMap();
-  const sorted = [...friends].sort((a,b)=> (orderMap[a.pairId]??9999) - (orderMap[b.pairId]??9999));
-  const ids = sorted.map(f=>f.pairId);
-  const idx = ids.indexOf(pairId);
-  const swapWith = idx + dir;
-  if(idx<0 || swapWith<0 || swapWith>=ids.length) return;
-  [ids[idx], ids[swapWith]] = [ids[swapWith], ids[idx]];
-  localSet('friend_order', ids);
-  refreshFriendsModalBody();
-}
+state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, editMode:false, data:{incoming:[], outgoing:[], friends:[]} };
 state.councilChatUI = { hasUnseen:false };
 
 // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
@@ -6038,9 +6068,45 @@ function friendsModalBody(){
 }
 function refreshFriendsModalBody(){
   const el = document.getElementById('friends-modal-body');
-  if(!el) return;
-  el.innerHTML = friendsModalBody();
-  setupFriendsModalListeners();
+  if(el){ el.innerHTML = friendsModalBody(); setupFriendsModalListeners(); }
+  refreshAddFriendModalIfOpen();
+}
+// "친구 추가" 버튼이 여는 팝업은 친구 목록 화면(#friends-modal-body)과 다른 DOM이라,
+// 요청을 보내거나 취소했을 때 목록 갱신에 묻어가지 않는다 — 열려 있을 때만 따로 새로 그린다.
+function addFriendModal(){
+  const { outgoing } = state.friendsUI.data;
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.person} 친구 추가</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div style="display:flex; gap:8px; margin-bottom:6px;">
+      <input type="text" id="friend-add-input" placeholder="학번으로 친구 추가" inputmode="numeric"
+        style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13.5px; min-width:0;">
+      <button type="button" class="btn btn-primary btn-sm" data-action="send-friend-request" style="width:auto;">추가</button>
+    </div>
+    <div id="friend-add-msg" style="font-size:11px; color:var(--text-dim); margin-bottom:12px; min-height:14px; line-height:1.5;"></div>
+    <div class="section-title">보낸 요청 (${outgoing.length})</div>
+    ${outgoing.length ? `
+    <div class="card" style="padding:0 12px;">
+      ${outgoing.map(r=>`
+        <div class="list-item">
+          <div class="row-between">
+            <div><b style="font-size:13.5px;">학번 ${escapeHtml(r.studentId)}</b><div class="meta">응답 대기중</div></div>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">취소</button>
+          </div>
+        </div>`).join('')}
+    </div>` : `<div class="empty"><p>보낸 요청이 없어요.</p></div>`}
+  `;
+}
+function setupAddFriendModalListeners(){
+  const addInput = document.getElementById('friend-add-input');
+  if(addInput) addInput.addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequest(); });
+}
+function refreshAddFriendModalIfOpen(){
+  const sheet = document.querySelector('.modal-sheet');
+  if(!sheet || sheet === document.getElementById('friends-modal-body')) return;
+  if(!sheet.querySelector('#friend-add-input')) return;
+  sheet.innerHTML = addFriendModal();
+  setupAddFriendModalListeners();
 }
 
 // 실시간 리스너로 바꾼 이유: 상대가 친구 요청을 수락하거나 새로 보내도, 화면을 나갔다
@@ -6114,18 +6180,11 @@ async function refreshCouncilChatUnseen(){
 }
 
 function friendListBody(){
-  const { incoming, outgoing, friends } = state.friendsUI.data;
+  const { incoming, friends } = state.friendsUI.data;
   return `
-    <div style="display:flex; gap:8px; margin-bottom:6px;">
-      <input type="text" id="friend-add-input" placeholder="학번으로 친구 추가" inputmode="numeric"
-        style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13.5px; min-width:0;">
-      <button type="button" class="btn btn-primary btn-sm" data-action="send-friend-request" style="width:auto;">추가</button>
-    </div>
-    <div id="friend-add-msg" style="font-size:11px; color:var(--text-dim); margin-bottom:4px; min-height:14px; line-height:1.5;"></div>
-
     ${isCouncil() ? `
-    <div class="card" style="padding:0 12px; margin-bottom:12px;">
-      <div class="list-item" style="cursor:pointer;" data-action="open-council-chat">
+    <div class="card" style="padding:8px 12px; margin-bottom:12px;">
+      <div class="list-item" style="cursor:pointer; padding:8px 0;" data-action="open-council-chat">
         <div class="row-between">
           <div><b style="font-size:13.5px;">학생회 채팅</b><div class="meta">학생회 전체 단체 채팅</div></div>
           <span style="display:flex; align-items:center; gap:6px;">
@@ -6152,47 +6211,28 @@ function friendListBody(){
         </div>`).join('')}
     </div>` : ''}
 
-    ${outgoing.length ? `
-    <div class="section-title">보낸 요청 (${outgoing.length})</div>
-    <div class="card" style="padding:0 12px; margin-bottom:12px;">
-      ${outgoing.map(r=>`
-        <div class="list-item">
-          <div class="row-between">
-            <div><b style="font-size:13.5px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)} · 응답 대기중</div></div>
-            <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">취소</button>
-          </div>
-        </div>`).join('')}
-    </div>` : ''}
-
-    <div class="row-between" style="margin-bottom:2px;">
+    <div class="row-between" style="margin-bottom:8px;">
       <div class="section-title" style="margin:0;">내 친구 (${friends.length})</div>
       <div style="display:flex; gap:6px;">
-        ${state.friendsUI.editMode && Object.keys(state.friendsUI.selected||{}).length ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-selected-friends" style="width:auto; padding:4px 9px; font-size:10.5px;">선택 삭제 (${Object.keys(state.friendsUI.selected).length})</button>` : ''}
         ${friends.length ? `<button type="button" class="btn btn-ghost btn-sm" data-action="toggle-friends-edit-mode" style="width:auto; padding:4px 9px; font-size:10.5px;">${state.friendsUI.editMode ? '완료' : '편집'}</button>` : ''}
+        <button type="button" class="btn btn-primary btn-sm" data-action="open-add-friend" style="width:auto; padding:4px 9px; font-size:10.5px;">친구 추가</button>
       </div>
     </div>
     ${(()=>{
-      const orderMap = getFriendOrderMap();
-      const sorted = [...friends].sort((a,b)=> (orderMap[a.pairId]??9999) - (orderMap[b.pairId]??9999));
-      if(!sorted.length) return `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`;
+      if(!friends.length) return `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`;
       // 친구가 많아도 한 화면에 다 펼치지 않고, 기기 화면 비율에 맞춰 보이는 만큼만
       // 보여주고 나머지는 이 박스 안에서 스크롤 — 몇 명인지는 화면 크기에 따라 달라진다.
-      return `<div class="card" style="padding:0 12px; max-height:42vh; overflow-y:auto;">
-        ${sorted.map((f,i)=>{
+      return `<div class="card" style="padding:0 12px; max-height:60vh; overflow-y:auto;">
+        ${friends.map(f=>{
           const hasUnseen = state.unseenChatPairIds && state.unseenChatPairIds.has(f.pairId);
-          const selected = !!(state.friendsUI.selected||{})[f.pairId];
           if(state.friendsUI.editMode){
             return `
             <div class="list-item">
               <div class="row-between">
-                <label style="display:flex; align-items:center; gap:8px; min-width:0; cursor:pointer;">
-                  <input type="checkbox" data-action="toggle-friend-select" data-pair="${escapeHtml(f.pairId)}" ${selected?'checked':''}>
-                  <b style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(f.name)}</b>${f.nickname ? `<span class="meta">${escapeHtml(f.nickname)}</span>` : ''}
-                </label>
-                <div style="display:flex; gap:4px; flex-shrink:0;">
-                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="-1" ${i===0?'disabled':''} title="위로">▲</button>
-                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="1" ${i===sorted.length-1?'disabled':''} title="아래로">▼</button>
+                <div style="min-width:0;">
+                  <b style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}
                 </div>
+                <button type="button" class="btn btn-danger btn-sm" data-action="delete-friend-direct" data-pair="${escapeHtml(f.pairId)}" data-name="${escapeHtml(f.name)}" style="width:auto; padding:4px 9px; font-size:10.5px; flex-shrink:0;">친구 삭제</button>
               </div>
             </div>`;
           }
@@ -6625,15 +6665,11 @@ async function unfriend(){
   await refreshFriendsData();
   toast('친구를 삭제했어요');
 }
-async function deleteSelectedFriends(){
-  const pairIds = Object.keys(state.friendsUI.selected||{});
-  if(!pairIds.length) return;
-  if(!await showConfirm(`선택한 친구 ${pairIds.length}명을 삭제할까요?`)) return;
-  const results = await Promise.allSettled(pairIds.map(pid => deleteDoc(doc(db,'friendLinks',pid))));
-  const failed = results.filter(r=>r.status==='rejected').length;
-  state.friendsUI.selected = {};
-  state.friendsUI.editMode = false;
-  toast(failed ? `${pairIds.length-failed}명 삭제, ${failed}명 실패` : `${pairIds.length}명을 삭제했어요`);
+async function deleteFriendDirect(pairId, name){
+  if(!await showConfirm(`${name}님을 친구에서 삭제할까요?`)) return;
+  try{ await deleteDoc(doc(db,'friendLinks',pairId)); }
+  catch(e){ toast('실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
+  toast('친구를 삭제했어요');
 }
 
 function friendNicknameBody(){
@@ -8536,12 +8572,18 @@ async function handleRecruitmentSubmit(fd){
   const title = (fd.get('title') || '').trim();
   const content = (fd.get('content') || '').trim();
   const closed = fd.get('closed') === 'on';
+  const pollEnabled = fd.get('pollEnabled') === 'on';
   const expireHours = parseInt(fd.get('expireHours') || '24', 10);
   if(!title || !content){ toast('제목과 내용을 입력해주세요'); return; }
   const latest = await loadRecruitments();
   let next;
   if(id && latest.some(r => r.id === id)){
-    next = latest.map(r => r.id === id ? { ...r, title, content, closed, expireHours, updatedAt: now() } : r);
+    // 이미 투표에 참여한 사람이 있으면(votes), 수정 중에도 그 응답을 그대로 유지한다 —
+    // 체크박스를 껐다 켠다고 그동안 모인 응답이 날아가면 안 되므로.
+    next = latest.map(r => r.id === id ? {
+      ...r, title, content, closed, expireHours, updatedAt: now(),
+      poll: { enabled: pollEnabled, votes: (r.poll && r.poll.votes) || {} },
+    } : r);
   } else {
     next = [{
       id: uid(),
@@ -8549,6 +8591,7 @@ async function handleRecruitmentSubmit(fd){
       content,
       closed,
       expireHours,
+      poll: { enabled: pollEnabled, votes: {} },
       authorName: state.user.name,
       authorId: state.user.studentId,
       authorRole: myRole(),
@@ -9192,19 +9235,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'clear-council-chat'){ await clearCouncilChat(); }
     else if(a === 'delete-council-chat-all'){ await deleteAllCouncilChatMessages(); }
     else if(a === 'open-council-members'){ openModal(councilMembersModal()); }
+    else if(a === 'open-add-friend'){ openModal(addFriendModal()); setupAddFriendModalListeners(); }
     else if(a === 'toggle-friends-edit-mode'){
       state.friendsUI.editMode = !state.friendsUI.editMode;
-      state.friendsUI.selected = {};
       refreshFriendsModalBody();
     }
-    else if(a === 'toggle-friend-select'){
-      const pairId = el.dataset.pair;
-      if(state.friendsUI.selected[pairId]) delete state.friendsUI.selected[pairId];
-      else state.friendsUI.selected[pairId] = true;
-      refreshFriendsModalBody();
-    }
-    else if(a === 'move-friend-order'){ moveFriendOrder(el.dataset.pair, Number(el.dataset.dir)); }
-    else if(a === 'delete-selected-friends'){ await deleteSelectedFriends(); }
+    else if(a === 'delete-friend-direct'){ await deleteFriendDirect(el.dataset.pair, el.dataset.name); }
     else if(a === 'toggle-council-chat-notify'){
       const cur = getNotifyPrefs();
       await setNotifyPref('councilChat', !cur.councilChat);
@@ -9530,6 +9566,7 @@ document.addEventListener('click', async (e)=>{
       }
     }
     else if(a === 'delete-recruitment'){ await deleteRecruitment(el.dataset.id); }
+    else if(a === 'vote-recruitment-poll'){ await voteRecruitmentPoll(el.dataset.id, el.dataset.choice); }
     else if(a === 'clear-all-board'){ await clearAllBoard(el.dataset.type); }
     else if(a === 'toggle-like'){ await handleToggleLike(el.dataset.type, el.dataset.id); }
   }catch(err){
