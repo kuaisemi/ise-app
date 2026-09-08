@@ -724,6 +724,8 @@ const PATCH_NOTES = [
     '탈퇴·삭제된 계정의 친구 검색 정보가 남아 "이미 없는 학번인데 친구 추가는 되는" 유령 학번 문제 수정, 관련 친구 관계도 함께 정리',
     '친구 추가 입력창에서 예전에 입력했던 학번이 자동완성으로 뜨던 것 제거',
     '셔틀버스 오송역 목록에 출발 15분 전부터 강조 표시 추가, 18:10 학교 출발(오송역행) 항목에 안내 문구 추가',
+    '친구 목록·요청 목록 위아래 여백을 더 넓게 조정',
+    '친구 목록 편집 모드에 순서 변경(위/아래 화살표) 다시 추가 — 삭제 버튼은 왼쪽, 이름은 가운데, 화살표는 오른쪽',
   ]},
   { version:'Beta 0.2.0', date:'2026-09-08', items:[
     '재학생 전용 정식 배포 준비 — 그동안의 0.1.x 베타 테스트 내용을 정리하고 0.2.0으로 전환',
@@ -6060,6 +6062,26 @@ function teardownSocialTab(){
 }
 
 state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, editMode:false, data:{incoming:[], outgoing:[], friends:[]} };
+// 친구 목록 순서는 기기에만 저장하는 개인 취향이라 서버 동기화 없이 로컬에만 둔다.
+function getFriendOrderMap(){
+  const arr = localGet('friend_order', []);
+  const map = {};
+  arr.forEach((pairId,i)=>{ map[pairId]=i; });
+  return map;
+}
+function sortFriendsByOrder(friends){
+  const orderMap = getFriendOrderMap();
+  return [...friends].sort((a,b)=> (orderMap[a.pairId]??9999) - (orderMap[b.pairId]??9999));
+}
+function moveFriendOrder(pairId, dir){
+  const ids = sortFriendsByOrder(state.friendsUI.data.friends).map(f=>f.pairId);
+  const idx = ids.indexOf(pairId);
+  const swapWith = idx + dir;
+  if(idx<0 || swapWith<0 || swapWith>=ids.length) return;
+  [ids[idx], ids[swapWith]] = [ids[swapWith], ids[idx]];
+  localSet('friend_order', ids);
+  refreshFriendsModalBody();
+}
 state.councilChatUI = { hasUnseen:false };
 
 // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
@@ -6112,9 +6134,9 @@ function addFriendModal(){
     <div id="friend-add-msg" style="font-size:11px; color:var(--text-dim); margin-bottom:12px; min-height:14px; line-height:1.5;"></div>
     <div class="section-title">보낸 요청 (${outgoing.length})</div>
     ${outgoing.length ? `
-    <div class="card" style="padding:8px 12px;">
+    <div class="card" style="padding:14px 12px;">
       ${outgoing.map((r,i)=>`
-        <div class="list-item" style="${i>0?'margin-top:6px;':''}">
+        <div class="list-item" style="${i>0?'margin-top:14px;':''}">
           <div class="row-between">
             <div><b style="font-size:13.5px;">학번 ${escapeHtml(r.studentId)}</b><div class="meta">응답 대기중</div></div>
             <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">취소</button>
@@ -6224,9 +6246,9 @@ function friendListBody(){
 
     ${incoming.length ? `
     <div class="section-title">받은 친구 요청 (${incoming.length})</div>
-    <div class="card" style="padding:8px 12px; margin-bottom:12px;">
+    <div class="card" style="padding:14px 12px; margin-bottom:12px;">
       ${incoming.map((r,i)=>`
-        <div class="list-item" style="${i>0?'margin-top:6px;':''}">
+        <div class="list-item" style="${i>0?'margin-top:14px;':''}">
           <div class="row-between">
             <div><b style="font-size:13.5px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)}</div></div>
             <div style="display:flex; gap:6px;">
@@ -6246,19 +6268,24 @@ function friendListBody(){
     </div>
     ${(()=>{
       if(!friends.length) return `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`;
+      const sorted = sortFriendsByOrder(friends);
       // 친구가 많아도 한 화면에 다 펼치지 않고, 기기 화면 비율에 맞춰 보이는 만큼만
       // 보여주고 나머지는 이 박스 안에서 스크롤 — 몇 명인지는 화면 크기에 따라 달라진다.
-      return `<div class="card" style="padding:8px 12px; max-height:60vh; overflow-y:auto;">
-        ${friends.map((f,i)=>{
+      return `<div class="card" style="padding:14px 12px; max-height:60vh; overflow-y:auto;">
+        ${sorted.map((f,i)=>{
           const hasUnseen = state.unseenChatPairIds && state.unseenChatPairIds.has(f.pairId);
-          const sp = i>0 ? 'margin-top:6px;' : '';
+          const sp = i>0 ? 'margin-top:14px;' : '';
           if(state.friendsUI.editMode){
             return `
             <div class="list-item" style="${sp}">
               <div class="row-between">
                 <button type="button" class="btn btn-danger btn-sm" data-action="delete-friend-direct" data-pair="${escapeHtml(f.pairId)}" data-name="${escapeHtml(f.name)}" style="width:auto; padding:4px 9px; font-size:10.5px; flex-shrink:0;">친구 삭제</button>
-                <div style="min-width:0; text-align:right;">
+                <div style="min-width:0; flex:1; text-align:right; padding:0 8px;">
                   <b style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}
+                </div>
+                <div style="display:flex; gap:4px; flex-shrink:0;">
+                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="-1" ${i===0?'disabled':''} title="위로">▲</button>
+                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="1" ${i===sorted.length-1?'disabled':''} title="아래로">▼</button>
                 </div>
               </div>
             </div>`;
@@ -9270,6 +9297,7 @@ document.addEventListener('click', async (e)=>{
       refreshFriendsModalBody();
     }
     else if(a === 'delete-friend-direct'){ await deleteFriendDirect(el.dataset.pair, el.dataset.name); }
+    else if(a === 'move-friend-order'){ moveFriendOrder(el.dataset.pair, Number(el.dataset.dir)); }
     else if(a === 'toggle-council-chat-notify'){
       const cur = getNotifyPrefs();
       await setNotifyPref('councilChat', !cur.councilChat);
