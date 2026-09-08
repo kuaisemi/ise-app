@@ -308,6 +308,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-list-add-input{flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--text); font-family:var(--font-display);}
 
 .tt-card-container{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;}
+/* 68vh는 JS(fitTimetableGrid)가 실제 화면 크기를 재서 딱 맞는 값으로 바로 덮어쓰기 전까지만
+   쓰는 기본값이다 — 폰마다 화면 비율이 달라서 고정값 하나로는 어떤 기종에서도 "딱 맞게 꽉
+   채우기"가 안 되기 때문에, 렌더링 직후 실측해서 --tt-row-h와 이 max-height를 함께 정한다. */
 .tt-wrap{overflow-x:auto; max-height:68vh; overscroll-behavior:contain; background:radial-gradient(ellipse at top, var(--grid-a) 0%, var(--grid-b) 100%);}
 .tt-grid{display:grid; grid-template-columns:20px repeat(5, minmax(24px, 1fr)); min-width:320px; position:relative; --tt-row-h:13px;}
 .tt-head{height:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; color:var(--text-dim); border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(var(--grid-b-rgb),0.95); backdrop-filter:blur(8px); z-index:4;}
@@ -705,11 +708,11 @@ const APP_VERSION = 'Beta 0.1.4';
 const PATCH_NOTES = [
   { version:'Beta 0.1.4', date:'2026-09-08', items:[
     '식단표에 조식·중식·석식(교직원 중식 포함) 운영 시간을 라벨 옆에 작게 표시',
-    '시간표 화면 세로 여백을 두 차례 더 줄여 스크롤 없이 하루 시간표가 한눈에 더 잘 들어오도록 개선 (글씨 크기는 그대로)',
-    '셔틀버스 전체 시간표를 팝업 대신 "더보기"로 화면 안에서 바로 펼쳐보도록 변경, 카운트다운이 가리키는 바로 다음 출발 시각을 목록에서 빨갛게 강조, 오송역 탑승 안내 문구 추가',
+    '시간표 화면을 기기 화면 크기에 맞춰 실측해서 스크롤 없이 꽉 차게 표시 (화면이 클수록 칸도 더 크게)',
+    '셔틀버스 전체 시간표를 접었다 펴는 방식 대신 처음부터 화면에 바로 표시, 카운트다운이 가리키는 바로 다음 출발 시각을 목록에서 빨갛게 강조, 오송역·학교(18:10) 출발과 조치원역 경유 안내 문구 추가',
     '이 친구에게 내 시간표 공개 버튼을 눌러도 화면 표시가 안 바뀌던 문제 수정',
     '셔틀버스 시간표에서 같은 시각에 버스 2대가 뜨는 회차가 목록에 중복 표시되던 문제 수정',
-    'MY탭 "홈 화면 보기 설정" 버튼이 "표시" 상태일 때 강조 색으로 보이도록 수정 (헷갈리지 않게)',
+    'MY탭 "홈 화면 보기 설정"을 표시/숨김 두 버튼으로 분리 — 누른 버튼이 곧 그 상태가 되도록 변경',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -1039,7 +1042,6 @@ const state = {
   bugReports: [],
   memos: {}, // 날짜별 개인 메모 { 'YYYY-MM-DD': '내용' }
   shuttle: { weekday: [], sunday: [], fridayOffNos: [] },
-  shuttleFullOpen: false,
 };
 
 /* ===== 유틸 ===== */
@@ -1863,6 +1865,7 @@ function boot(){
           trackUserPresence(state.user);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
           setupPresenceHeartbeat();
+          setupTimetableResizeListener();
           startRoleRealtimeListener();
           if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
           refreshChatUnseenBadge().then(refreshBellDot);
@@ -2087,6 +2090,16 @@ function getHomePrefs(){
   };
 }
 function setHomePref(key, value){ localSet('home_'+key, value); }
+// 켜짐/꺼짐처럼 "지금 상태"를 보여주는 토글 버튼 하나는, 표시/숨김처럼 둘 다 동사로 읽히는
+// 라벨에서는 "이 버튼을 누르면 뭐가 될까"로 헷갈린다는 피드백을 받아, 버튼 자체가 곧 그
+// 동작을 뜻하는 두 개짜리 선택형(표시 버튼=표시로 전환, 숨김 버튼=숨김으로 전환)으로 바꿨다.
+function homePrefToggleHtml(key, hidden){
+  return `
+    <div style="display:flex; gap:4px;">
+      <button type="button" class="btn ${!hidden?'btn-primary':'btn-ghost'} btn-sm" data-action="set-home-pref" data-key="${key}" data-val="0" style="width:auto; padding:4px 10px; font-size:11px;">표시</button>
+      <button type="button" class="btn ${hidden?'btn-primary':'btn-ghost'} btn-sm" data-action="set-home-pref" data-key="${key}" data-val="1" style="width:auto; padding:4px 10px; font-size:11px;">숨김</button>
+    </div>`;
+}
 // 앱을 처음 켰을 때 아무 설명 없이 OS 권한창부터 띄우면 반사적으로 거부당하기 쉽다.
 // OS 권한창은 한 번 거부되면 앱에서 다시 띄울 수 없으므로(설정 앱에 직접 들어가야 함),
 // 먼저 앱 안에서 무엇을 보내는지 설명하고 동의한 사람만 실제 권한창으로 넘긴다.
@@ -3257,10 +3270,11 @@ function renderMain(){
   else if(state.view==='info') html=renderInfo();
   else if(state.view==='council') html=renderCouncil();
   else if(state.view==='mypage') html=renderMypage();
-  el.innerHTML = html + (state.view==='mypage' ? '' : versionFooter());
+  el.innerHTML = html + ((state.view==='mypage' || state.view==='timetable') ? '' : versionFooter());
   setupNowTimer();
   setupWidgetOpacitySlider();
   setupWidgetFontScaleSlider();
+  if(state.view==='timetable') requestAnimationFrame(fitTimetableGrid);
 }
 
 // 위젯 투명도 슬라이더는 화면을 다시 그릴 때마다 새로 만들어지므로 여기서 매번 연결한다.
@@ -3286,6 +3300,18 @@ function setupNowTimer(){
   state.nowTimer = setInterval(()=>{
     if(state.view==='timetable' || state.view==='home') renderMain();
   }, 60000);
+}
+
+// 화면 회전·폴더블 펼침 등으로 실제 화면 크기가 바뀌면 시간표 칸 높이도 다시 맞춘다.
+let timetableResizeBound = false;
+function setupTimetableResizeListener(){
+  if(timetableResizeBound) return;
+  timetableResizeBound = true;
+  let t = null;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(t);
+    t = setTimeout(fitTimetableGrid, 150);
+  });
 }
 
 /* ===== 홈 ===== */
@@ -3469,6 +3495,37 @@ function deviceRatioScale(min=0.85, max=1.4){
   const ratio = (typeof window!=='undefined' && window.innerWidth) ? window.innerHeight/window.innerWidth : 1.9;
   return Math.max(min, Math.min(max, ratio/1.9));
 }
+// deviceRatioScale()은 "화면 비율"만 보고 어림잡은 값이라, 기기마다 실제로 얼마나 꽉 차는지는
+// 조금씩 어긋난다. 렌더링 직후 실제 화면에서 남는 공간을 재서 --tt-row-h를 다시 맞춰
+// 스크롤 없이 딱 맞게 채운다(화면이 클수록 칸도 더 커진다).
+function fitTimetableGrid(){
+  if(state.view!=='timetable') return;
+  const wrap = document.querySelector('.tt-wrap');
+  const grid = document.querySelector('.tt-grid');
+  const nav = document.querySelector('.bottomnav');
+  if(!wrap || !grid || !nav) return;
+  const rows = parseInt(grid.dataset.rows||'0', 10);
+  if(!rows) return;
+  const wrapTop = wrap.getBoundingClientRect().top;
+  const navTop = nav.getBoundingClientRect().top;
+  const bottomMargin = 12;
+  const available = navTop - wrapTop - bottomMargin;
+  if(available <= 60) return; // 화면이 너무 작아 계산이 이상해지면 기본값(CSS 68vh)을 그대로 둔다
+  const headerPx = 24;
+  const rowPx = Math.max(8, (available - headerPx) / rows);
+  grid.style.setProperty('--tt-row-h', rowPx+'px');
+  wrap.style.maxHeight = available+'px';
+  // 칸 높이가 바뀌었으니 "지금" 표시하는 빨간 줄 위치도 새 칸 높이에 맞춰 다시 계산한다.
+  const nowLine = grid.querySelector('.tt-now-line');
+  if(nowLine){
+    const t = new Date();
+    const minsNow = t.getHours()*60 + t.getMinutes();
+    if(minsNow>=TIME_START){
+      const top = headerPx + ((minsNow-TIME_START)/TIMETABLE_GRID_STEP)*rowPx;
+      nowLine.style.top = top+'px';
+    }
+  }
+}
 function renderTimetable(isCapture=false){
   const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
   const visibleEnd = Math.min(TIME_END, Math.max(TIMETABLE_VISIBLE_END, Math.ceil(latestEnd/60)*60));
@@ -3562,7 +3619,7 @@ function renderTimetable(isCapture=false){
     ` : `
       <div class="tt-card-container">
         <div class="tt-wrap">
-          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(TIMETABLE_ROW_PX*deviceRatioScale())}px;">
+          <div class="tt-grid" data-rows="${rows}" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(TIMETABLE_ROW_PX*deviceRatioScale())}px;">
             <div class="tt-head" style="grid-column:1"></div>
             ${heads}${timeLabels}${cells}${blocks}${nowLine}
           </div>
@@ -4556,6 +4613,21 @@ function shuttleCountdownCard(point, label){
       <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${dayLabel}${pad(next.dep.getHours())}:${pad(next.dep.getMinutes())} 출발</div>
     </div>`;
 }
+// 오송역 방면 회차는 표에서 두 가지 형태로 섞여 있다 — ①오송역 칸에 시각이 바로 적힌
+// 회차(오송역에서 출발)와 ②학교 칸에 시각이 있고 조치원역·오송역 칸엔 "경유"/"도착"이라는
+// 글자만 있는 회차(학교에서 출발해 오송역까지 가는 연장 노선). 시각만 나열하면 어디서
+// 타는 버스인지 구분이 안 가서, 출발지 이름표를 붙인 칩으로 따로 보여준다.
+function shuttleOsongEntries(weekdayRows){
+  const entries = [];
+  weekdayRows.forEach(r=>{
+    if(r.osong && /\d{1,2}:\d{2}/.test(r.osong)){
+      entries.push({ time: r.osong.match(/\d{1,2}:\d{2}/)[0], label:'오송역 발' });
+    } else if(r.osong && !/\d{1,2}:\d{2}/.test(r.osong) && r.school && /\d{1,2}:\d{2}/.test(r.school)){
+      entries.push({ time: r.school.match(/\d{1,2}:\d{2}/)[0], label:'학교 발' });
+    }
+  });
+  return entries;
+}
 // 카운트다운이 가리키는 바로 그 다음 출발 시각을, 아래 전체 목록에서도 같은 시각을 찾아
 // 빨갛게 강조해준다 — 일요일로 넘어간 경우엔 일요일 목록 쪽이 강조되도록 요일까지 맞춰본다.
 function shuttleNextHighlights(){
@@ -4589,14 +4661,10 @@ function renderShuttleTab(){
       <div style="flex:1;">${shuttleCountdownCard('school', '학교')}</div>
       <div style="flex:1;">${shuttleCountdownCard('mid', '조치원역')}</div>
     </div>`}
-    <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-shuttle-full" style="width:100%; display:flex; align-items:center; justify-content:center; gap:5px;">
-      ${state.shuttleFullOpen ? '접기' : '전체 시간표 보기'}
-      <span style="display:flex; transition:transform .15s; transform:rotate(${state.shuttleFullOpen ? '180deg' : '0deg'});">${ICON.chevDown}</span>
-    </button>
-    ${state.shuttleFullOpen ? shuttleFullListHtml() : ''}
+    ${shuttleFullListHtml()}
     <a href="${SHUTTLE_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px; text-decoration:none;">공식 셔틀 시간표 페이지 열기 ↗</a>`;
 }
-// 지점별로 시간만 쭉 나열하면 한눈에 보기 편하지만, 다 펼치면 길어서 "더보기"로 접어둔다.
+// 지점별로 시간만 쭉 나열해서 한눈에 보이게 한다.
 // highlight로 넘어온 시각과 같은 칸은 카운트다운이 가리키는 바로 다음 출발이라는 뜻으로 빨갛게 강조.
 function shuttleTimeListHtml(list, highlight){
   if(!list.length) return `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">정보가 없습니다.</p>`;
@@ -4618,9 +4686,11 @@ function shuttleFullListHtml(){
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'school'), hi.school && !hi.school.isSunday ? hi.school.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--amber);">평일 · 조치원역 뒤 출발</p>
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'jochiwon'), hi.mid && !hi.mid.isSunday ? hi.mid.time : null)}
-      <p style="font-size:12px; font-weight:700; margin:14px 0 4px;">평일 · 오송역 관련 시간</p>
-      ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'osong'))}
-      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">※ 오송역 방면은 학술정보원 앞 6번 출구에서 탑승해요. 18:10 학교 출발 버스는 조치원역을 18:20에 경유해서 갑니다.</p>
+      <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--purple);">평일 · 오송역 방면</p>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        ${shuttleOsongEntries(weekdayRows).map(x=>`<span class="tag tag-dim" style="font-family:var(--font-mono);">${escapeHtml(x.time)} ${escapeHtml(x.label)}</span>`).join('') || `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">정보가 없습니다.</p>`}
+      </div>
+      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">※ 08:30 오송역 발은 오송역 6번 출구에서 타고 조치원역을 경유해요. 18:10 학교 발은 학술정보원 앞에서 타고 조치원역을 18:20에 경유해서 오송역까지 가요.</p>
       ${wdFriExcluded.length ? `<p style="font-size:10.5px; color:var(--text-faint); margin:8px 0 0; line-height:1.6;">※ 금요일 운행 제외: ${wdFriExcluded.map(r=>escapeHtml(r.school||r.jochiwon||r.osong||('NO.'+r.no))).join(', ')}</p>` : ''}
       <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
       <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">일요일 · 학교 출발</p>
@@ -5510,23 +5580,23 @@ function renderMypage(){
       </p>
       <div class="notify-row">
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>내가 이미 참여한 투표는 목록에서 숨겨요</small></span></span>
-        <button type="button" class="btn ${hp.hideVotedPolls?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideVotedPolls">${hp.hideVotedPolls?'숨김':'표시'}</button>
+        ${homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls)}
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b></span></span>
-        <button type="button" class="btn ${hp.hideTodayTimetable?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayTimetable">${hp.hideTodayTimetable?'숨김':'표시'}</button>
+        ${homePrefToggleHtml('hideTodayTimetable', hp.hideTodayTimetable)}
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.bowl}<span class="notify-label-text"><b>오늘의 학식</b></span></span>
-        <button type="button" class="btn ${hp.hideTodayMeal?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayMeal">${hp.hideTodayMeal?'숨김':'표시'}</button>
+        ${homePrefToggleHtml('hideTodayMeal', hp.hideTodayMeal)}
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>다가오는 학사일정</b></span></span>
-        <button type="button" class="btn ${hp.hideUpcomingCalendar?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideUpcomingCalendar">${hp.hideUpcomingCalendar?'숨김':'표시'}</button>
+        ${homePrefToggleHtml('hideUpcomingCalendar', hp.hideUpcomingCalendar)}
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.doc}<span class="notify-label-text"><b>구인글</b></span></span>
-        <button type="button" class="btn ${hp.hideRecruits?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideRecruits">${hp.hideRecruits?'숨김':'표시'}</button>
+        ${homePrefToggleHtml('hideRecruits', hp.hideRecruits)}
       </div>
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         학생회 공지는 등록된 공지가 있을 때만 자동으로 나타나요.
@@ -8726,7 +8796,6 @@ document.addEventListener('click', async (e)=>{
       const sheet = document.querySelector('.modal-sheet');
       if(sheet) sheet.innerHTML = notifFeedModal();
     }
-    else if(a === 'toggle-shuttle-full'){ state.shuttleFullOpen = !state.shuttleFullOpen; renderMain(); }
     else if(a === 'clear-all-notifs'){
       clearAllNotifications();
       const sheet = document.querySelector('.modal-sheet');
@@ -8744,10 +8813,8 @@ document.addEventListener('click', async (e)=>{
       await setNotifyPref(key, !cur[key]);
       renderMain();
     }
-    else if(a === 'toggle-home-pref'){
-      const key = el.dataset.key;
-      const cur = getHomePrefs();
-      setHomePref(key, !cur[key]);
+    else if(a === 'set-home-pref'){
+      setHomePref(el.dataset.key, el.dataset.val === '1');
       renderMain();
     }
     else if(a === 'set-notify-hour'){
