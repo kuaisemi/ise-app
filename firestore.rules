@@ -179,7 +179,7 @@ service cloud.firestore {
         (request.auth.uid != resource.data.requestedBy
           && resource.data.status == 'pending'
           && request.resource.data.status == 'accepted'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt']))
         // 시간표 공개 범위 토글: shareTimetable 맵 안에서도 "내 쪽" 항목만 바꿀 수 있다
         // (상대방 몫을 내가 끄거나 켤 수는 없게).
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['shareTimetable'])
@@ -278,7 +278,9 @@ service cloud.firestore {
     // 탈퇴 대기열. 클라이언트 SDK는 남의 Firebase Auth 계정을 지울 수 없어서(본인 것이거나
     // Admin SDK여야 한다), 회장이 탈퇴시킨 uid를 여기에 쌓아두고 서버(GitHub Actions)가
     // 대신 지운다. 지우기 전까지 그 계정은 로그인해도 명단·프로필이 없어 막힌다.
-    match /shared/pendingAuthDeletes { allow read, write: if isPresident(); }
+    // 회장이 탈퇴시킬 때뿐 아니라, 국장 이상이 가입 신청을 거절할 때도 그 계정을
+    // 여기에 큐잉해서 로그인 계정만 남는 유령 계정이 되지 않게 한다.
+    match /shared/pendingAuthDeletes { allow read, write: if isDirectorPlus(); }
     // 사진 인식(Gemini) API 키. 예전에는 빌드할 때 키를 index.html에 끼워 넣었는데, 이 앱은
     // 웹뷰를 그대로 감싼 구조라 index.html이 배포 사이트 소스에도 APK 안에도 텍스트 그대로
     // 들어간다. "페이지 소스 보기" 한 번이면 키가 나왔고, 실제로 구글에 탐지돼 반복해서

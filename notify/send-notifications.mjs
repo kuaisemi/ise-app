@@ -13,6 +13,7 @@
 //   7) 건의사항 답변     → 감지 즉시 (작성자 본인 전용)
 //   8) 친구 채팅         → 감지 즉시 (채팅 알림을 켠 수신자 전용)
 //   8.5) 학생회 단체 채팅 → 감지 즉시 (학생회 채팅 알림을 켠 학생회 구성원 전용)
+//   8.7) 친구 요청 도착 / 친구 수락 → 감지 즉시 (알림 설정과 무관하게 항상)
 //
 // 필요한 비밀값: 저장소 Settings → Secrets and variables → Actions에
 //   FIREBASE_SERVICE_ACCOUNT = Firebase 콘솔에서 발급한 서비스 계정 JSON 전체 내용
@@ -128,8 +129,9 @@ async function purgePendingAuthDeletes() {
 // 되돌리도록 고쳤지만(2026-09-08), 그 전에 이미 생긴 것과 향후 놓치는 경우를 대비해
 // 여기서도 주기적으로 훑어서 프로필 없는 계정을 지운다.
 // 가입 진행 중(계정 생성 → 프로필 저장 사이, 명단 대조 대기 5초 포함)인 계정을 실수로
-// 지우지 않도록 생성된 지 10분이 지난 것만 대상으로 한다.
-const GHOST_ACCOUNT_GRACE_MS = 10 * 60 * 1000;
+// 지우지 않을 정도의 여유만 두고, 크론(10분 간격)이 도는 대로 바로바로 정리되게
+// 짧게 잡는다.
+const GHOST_ACCOUNT_GRACE_MS = 2 * 60 * 1000;
 async function purgeGhostAuthAccounts() {
   const usersSnap = await db.collection('users').get();
   const profiledUids = new Set(usersSnap.docs.map((d) => d.id));
@@ -519,6 +521,71 @@ async function main() {
     console.log(`[chatNotify] 새 메시지 ${newMsgsSnap.size}건 확인, 알림 발송 시도`);
   }
   nextState.lastChatCheck = chatRunStartedAt;
+
+  // 8.7) 친구 요청 도착 / 친구가 됨 — 개인적인 일회성 알림이라 알림 설정(chat 등)과
+  //      무관하게 항상 보낸다(건의사항 답변 알림과 같은 취급).
+  const lastFriendLinkCheck = st.lastFriendLinkCheck || Date.now() - 15 * 60 * 1000;
+  const friendLinkRunStartedAt = Date.now();
+  const newRequestsSnap = await db
+    .collection('friendLinks')
+    .where('createdAt', '>', lastFriendLinkCheck)
+    .get();
+  for (const d of newRequestsSnap.docs) {
+    const f = d.data();
+    if (f.status !== 'pending' || !f.requestedBy) continue;
+    const recipientUid = (f.uids || []).find((u) => u !== f.requestedBy);
+    if (!recipientUid) continue;
+    const allTokens = tokensByUid.get(recipientUid) || [];
+    const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+    if (!tokens.length) continue;
+    const senderName = nameByUid.get(f.requestedBy) || '누군가';
+    const res = await messaging.sendEachForMulticast({
+      tokens,
+      notification: { title: '새 친구 요청이 왔어요', body: `${senderName}님이 친구 요청을 보냈어요` },
+      data: { url: './index.html' },
+    });
+    res.responses.forEach((resp, idx) => {
+      if (resp.success) return;
+      const code = resp.error && resp.error.code;
+      if (
+        code === 'messaging/invalid-registration-token' ||
+        code === 'messaging/registration-token-not-registered'
+      ) {
+        invalidTokens.add(tokens[idx]);
+      }
+    });
+    sentCount++;
+  }
+  const acceptedSnap = await db
+    .collection('friendLinks')
+    .where('acceptedAt', '>', lastFriendLinkCheck)
+    .get();
+  for (const d of acceptedSnap.docs) {
+    const f = d.data();
+    if (f.status !== 'accepted' || !f.requestedBy) continue;
+    const allTokens = tokensByUid.get(f.requestedBy) || [];
+    const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+    if (!tokens.length) continue;
+    const otherUid = (f.uids || []).find((u) => u !== f.requestedBy);
+    const otherName = nameByUid.get(otherUid) || '상대방';
+    const res = await messaging.sendEachForMulticast({
+      tokens,
+      notification: { title: '친구가 됐어요', body: `${otherName}님과 친구가 됐어요` },
+      data: { url: './index.html' },
+    });
+    res.responses.forEach((resp, idx) => {
+      if (resp.success) return;
+      const code = resp.error && resp.error.code;
+      if (
+        code === 'messaging/invalid-registration-token' ||
+        code === 'messaging/registration-token-not-registered'
+      ) {
+        invalidTokens.add(tokens[idx]);
+      }
+    });
+    sentCount++;
+  }
+  nextState.lastFriendLinkCheck = friendLinkRunStartedAt;
 
   // 8.5) 학생회 단체 채팅 — 방이 하나뿐이라 pairId 없이 컬렉션 전체를 그대로 훑는다.
   //      보낸 사람 본인 제외, 학생회 채팅 알림을 켠 학생회 구성원에게만 보낸다.
