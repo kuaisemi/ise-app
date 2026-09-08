@@ -8,6 +8,10 @@
 //   3) 진행 중인 투표    → 매일 20:00 KST 한 번
 //   4) 투표 마감 30분 전 → 투표당 한 번
 //   5) 식단             → 조식 07:00 / 중식 10:30 / 석식 16:30 KST
+//   6) 새 버그 제보      → 감지 즉시 (개발자·학생회장 전용)
+//   6.5) 새 건의사항     → 감지 즉시 (학생회 전용)
+//   7) 건의사항 답변     → 감지 즉시 (작성자 본인 전용)
+//   8) 친구 채팅         → 감지 즉시 (채팅 알림을 켠 수신자 전용)
 //
 // 필요한 비밀값: 저장소 Settings → Secrets and variables → Actions에
 //   FIREBASE_SERVICE_ACCOUNT = Firebase 콘솔에서 발급한 서비스 계정 JSON 전체 내용
@@ -191,6 +195,7 @@ async function main() {
   const sentMealKeys = new Set(st.sentMealKeys || []);
   const notifiedBugReport = new Set(st.notifiedBugReportIds || []);
   const notifiedSuggestionAnswer = new Set(st.notifiedSuggestionAnswerIds || []);
+  const notifiedSuggestionNew = new Set(st.notifiedSuggestionNewIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
   // 카테고리별 수신 대상 토큰 수집.
@@ -198,6 +203,7 @@ async function main() {
   // fcmToken(단일 필드)은 구버전 클라이언트 호환용.
   const tokensBy = { notice: [], poll: [], meal: [] };
   const bugAlertTokens = []; // 개발자 · 학생회장: 버그 제보는 알림 설정과 무관하게 항상 받음
+  const councilAlertTokens = []; // 학생회(국장 이상): 새 건의사항은 알림 설정과 무관하게 항상 받음
   const nightOkTokens = new Set(); // 야간(22시~7시) 알림에 동의한 토큰만
   const tokensByStudentId = new Map(); // 건의사항 답변처럼 "그 사람에게만" 보낼 때 씀
   const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
@@ -220,6 +226,7 @@ async function main() {
       if (prefs.meal) tokensBy.meal.push(t);
       if (prefs.night) nightOkTokens.add(t);
       if (u.role === 'developer' || u.role === 'president') bugAlertTokens.push(t);
+      if (u.role && u.role !== 'student') councilAlertTokens.push(t);
     }
   });
 
@@ -362,6 +369,35 @@ async function main() {
     }
   }
 
+  // 6.5) 새 건의사항 — 학생회(국장 이상)에게는 알림 설정과 무관하게 항상 즉시 알림.
+  const newSuggestions = suggestions.filter((s) => !notifiedSuggestionNew.has(s.id));
+  if (newSuggestions.length && councilAlertTokens.length) {
+    for (const s of newSuggestions) {
+      console.log('새 건의사항 알림:', s.title || s.content);
+      for (let i = 0; i < councilAlertTokens.length; i += CHUNK) {
+        const batch = councilAlertTokens.slice(i, i + CHUNK);
+        const res = await messaging.sendEachForMulticast({
+          tokens: batch,
+          notification: { title: '새 건의사항이 올라왔어요', body: `제목: ${s.title || s.content}` },
+          data: { url: './index.html' },
+        });
+        res.responses.forEach((resp, idx) => {
+          if (resp.success) return;
+          const code = resp.error && resp.error.code;
+          if (
+            code === 'messaging/invalid-registration-token' ||
+            code === 'messaging/registration-token-not-registered'
+          ) {
+            invalidTokens.add(batch[idx]);
+          } else {
+            console.warn('발송 실패:', code, resp.error && resp.error.message);
+          }
+        });
+      }
+      sentCount++;
+    }
+  }
+
   // 7) 건의사항에 답변이 달리면 그 글을 쓴 학생에게만 보낸다 (게시판 전체 알림이 아니라
   //    개인 알림이라, 다른 사람의 "공지" 알림 설정과는 무관하게 본인 토큰이 있으면 보낸다).
   const newAnswers = suggestions.filter(
@@ -446,6 +482,7 @@ async function main() {
       sentMealKeys: [...sentMealKeys, ...newMealKeys].slice(-30),
       notifiedBugReportIds: [...notifiedBugReport, ...newBugReports.map((r) => r.id)].slice(-KEEP_IDS),
       notifiedSuggestionAnswerIds: [...notifiedSuggestionAnswer, ...newAnswers.map((s) => s.id)].slice(-KEEP_IDS),
+      notifiedSuggestionNewIds: [...notifiedSuggestionNew, ...newSuggestions.map((s) => s.id)].slice(-KEEP_IDS),
       updatedAt: Date.now(),
       ...nextState,
     },
