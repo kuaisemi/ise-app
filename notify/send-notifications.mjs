@@ -264,12 +264,13 @@ async function purgeOldCouncilChatMessages() {
 }
 
 async function main() {
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, stateSnap, usersSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
     db.collection('shared').doc('bugReports').get(),
     db.collection('shared').doc('suggestions').get(),
+    db.collection('shared').doc('recruitments').get(),
     db.collection('shared').doc('notifyState').get(),
     db.collection('users').get(),
   ]);
@@ -280,6 +281,7 @@ async function main() {
   const mealsByDate = (mealsSnap.exists ? mealsSnap.data().byDate : {}) || {};
   const bugReports = live(bugReportsSnap.exists ? bugReportsSnap.data().list : []);
   const suggestions = live(suggestionsSnap.exists ? suggestionsSnap.data().list : []);
+  const recruitments = live(recruitmentsSnap.exists ? recruitmentsSnap.data().list : []);
   const st = stateSnap.exists ? stateSnap.data() : {};
 
   const notifiedNotice = new Set(st.notifiedNoticeIds || []);
@@ -289,16 +291,18 @@ async function main() {
   const notifiedBugReport = new Set(st.notifiedBugReportIds || []);
   const notifiedSuggestionAnswer = new Set(st.notifiedSuggestionAnswerIds || []);
   const notifiedSuggestionNew = new Set(st.notifiedSuggestionNewIds || []);
+  const notifiedRecruitment = new Set(st.notifiedRecruitmentIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
   // 카테고리별 수신 대상 토큰 수집.
   // 한 사람이 폰 앱 + PC 브라우저를 같이 쓸 수 있어 토큰은 배열(fcmTokens)로 관리한다.
   // fcmToken(단일 필드)은 구버전 클라이언트 호환용.
-  const tokensBy = { notice: [], poll: [], meal: [] };
+  const tokensBy = { notice: [], poll: [], meal: [], recruit: [] };
   const bugAlertTokens = []; // 개발자 · 학생회장: 버그 제보는 알림 설정과 무관하게 항상 받음
   const councilAlertTokens = []; // 학생회(국장 이상): 새 건의사항은 알림 설정과 무관하게 항상 받음
   const nightOkTokens = new Set(); // 야간(22시~7시) 알림에 동의한 토큰만
   const tokensByStudentId = new Map(); // 건의사항 답변처럼 "그 사람에게만" 보낼 때 씀
+  const pollTokensByStudentId = new Map(); // 투표 알림(prefs.poll 켠 사람)을 학번별로 묶어둔 것 — 그 투표에 아직 투표 안 한 사람만 골라 보낼 때 씀
   const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
   const chatOkUids = new Set(); // 채팅 알림을 켜둔 사람만
   const councilChatOkUids = new Set(); // 학생회 채팅 알림을 켜둔 학생회 구성원만
@@ -311,6 +315,7 @@ async function main() {
     if (!tokens.length) return;
     const prefs = u.notifyPrefs || {};
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
+    if (u.studentId && prefs.poll) pollTokensByStudentId.set(u.studentId, tokens);
     tokensByUid.set(docSnap.id, tokens);
     if (prefs.chat) chatOkUids.add(docSnap.id);
     if (prefs.councilChat && u.role && u.role !== 'student') councilChatOkUids.add(docSnap.id);
@@ -319,6 +324,7 @@ async function main() {
       if (prefs.notice) tokensBy.notice.push(t);
       if (prefs.poll) tokensBy.poll.push(t);
       if (prefs.meal) tokensBy.meal.push(t);
+      if (prefs.recruit) tokensBy.recruit.push(t);
       if (prefs.night) nightOkTokens.add(t);
       if (u.role === 'developer' || u.role === 'president') bugAlertTokens.push(t);
       if (u.role && u.role !== 'student') councilAlertTokens.push(t);
@@ -328,12 +334,22 @@ async function main() {
   const invalidTokens = new Set();
   let sentCount = 0;
 
-  async function send(category, title, body) {
-    let tokens = tokensBy[category];
+  // 투표 하나를 두고 아직 투표하지 않은 사람(그중에서도 투표 알림을 켜둔 사람)의 토큰만 골라낸다.
+  // p.votes는 { 학번: 선택값 } 형태라 Object.keys가 곧 "이미 투표한 학번" 목록이다.
+  function nonVoterPollTokens(p) {
+    const voted = new Set(Object.keys(p.votes || {}));
+    const tokens = [];
+    for (const [sid, toks] of pollTokensByStudentId) {
+      if (!voted.has(sid)) tokens.push(...toks);
+    }
+    return tokens;
+  }
+
+  async function sendToTokens(tokens, title, body, quietLabel) {
     if (isQuietHour()) {
       tokens = tokens.filter((t) => nightOkTokens.has(t));
       if (!tokens.length) {
-        console.log(`(야간 시간대 — ${category} 알림에 동의한 사람이 없어 발송 생략)`);
+        console.log(`(야간 시간대 — ${quietLabel || title} 알림에 동의한 사람이 없어 발송 생략)`);
         return;
       }
     }
@@ -361,6 +377,10 @@ async function main() {
     sentCount++;
   }
 
+  async function send(category, title, body) {
+    return sendToTokens(tokensBy[category], title, body, category);
+  }
+
   const nextState = {};
 
   // 1) 새 공지 — 작성자가 "알림 발송"을 켠 공지만 보낸다(기본 꺼짐).
@@ -386,20 +406,33 @@ async function main() {
     await send('poll', '새 투표가 시작됐어요', `제목: ${p.question}`);
   }
 
-  // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만.
+  // 2.5) 새 구인글 — 학생 누구나 쓸 수 있는 글이라 공지·투표처럼 작성자가 켜는 스위치는 없다.
+  //      대신 받는 쪽 알림 설정(prefs.recruit)이 기본 꺼짐이라 원하는 사람만 받는다.
+  const newRecruitments = recruitments.filter((r) => !notifiedRecruitment.has(r.id));
+  for (const r of newRecruitments) {
+    console.log('새 구인글 알림:', r.title);
+    await send('recruit', '새 구인글이 올라왔어요', `제목: ${r.title}`);
+  }
+
+  // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만, 그 투표에 아직 참여 안 한 사람에게만 보낸다.
+  //    투표마다 안 한 사람이 다를 수 있어서 한 번에 묶어 보내지 않고 투표별로 따로 보낸다.
   //    알림 발송을 끈 투표는 리마인더 대상에서도 빠진다.
   const today = kstDateStr();
   const activePolls = polls.filter((p) => isPollActive(p) && p.notifyPush);
   if (activePolls.length && lastPollReminderDate !== today && isDue(20, 0)) {
-    const head = activePolls[0].question;
-    const body =
-      activePolls.length > 1 ? `${head} 외 ${activePolls.length - 1}건` : `제목: ${head}`;
-    console.log('진행 중 투표 리마인더:', body);
-    await send('poll', '아직 참여하지 않은 투표가 있어요', body);
+    for (const p of activePolls) {
+      const tokens = nonVoterPollTokens(p);
+      if (!tokens.length) {
+        console.log('진행 중 투표 리마인더(이미 전원 참여, 건너뜀):', p.question);
+        continue;
+      }
+      console.log(`진행 중 투표 리마인더 (미참여자 ${tokens.length}명):`, p.question);
+      await sendToTokens(tokens, '아직 참여하지 않은 투표가 있어요', `제목: ${p.question}`, 'poll');
+    }
     nextState.lastPollReminderDate = today;
   }
 
-  // 4) 투표 마감 30분 전 (투표당 한 번)
+  // 4) 투표 마감 30분 전 (투표당 한 번) — 이미 참여한 사람은 종료 임박 알림을 받을 필요가 없다.
   const endingSoon = activePolls.filter((p) => {
     if (warnedPollEnd.has(p.id)) return false;
     const end = pollEndsAt(p);
@@ -408,8 +441,13 @@ async function main() {
     return minutesLeft > 0 && minutesLeft <= 30;
   });
   for (const p of endingSoon) {
-    console.log('투표 마감 임박 알림:', p.question);
-    await send('poll', '곧 마감되는 투표가 있어요', `제목: ${p.question} (30분 후 마감)`);
+    const tokens = nonVoterPollTokens(p);
+    if (!tokens.length) {
+      console.log('투표 마감 임박(이미 전원 참여, 알림 생략):', p.question);
+      continue;
+    }
+    console.log(`투표 마감 임박 알림 (미참여자 ${tokens.length}명):`, p.question);
+    await sendToTokens(tokens, '곧 마감되는 투표가 있어요', `제목: ${p.question} (30분 후 마감)`, 'poll');
   }
 
   // 5) 식단 — 조식 07:00 / 중식 10:30 / 석식 16:30 KST
@@ -679,6 +717,7 @@ async function main() {
     {
       notifiedNoticeIds: [...notifiedNotice, ...newNotices.map((n) => n.id)].slice(-KEEP_IDS),
       notifiedPollIds: [...notifiedPoll, ...newPolls.map((p) => p.id)].slice(-KEEP_IDS),
+      notifiedRecruitmentIds: [...notifiedRecruitment, ...newRecruitments.map((r) => r.id)].slice(-KEEP_IDS),
       warnedPollEndIds: [...warnedPollEnd, ...endingSoon.map((p) => p.id)].slice(-KEEP_IDS),
       sentMealKeys: [...sentMealKeys, ...newMealKeys].slice(-30),
       notifiedBugReportIds: [...notifiedBugReport, ...newBugReports.map((r) => r.id)].slice(-KEEP_IDS),
