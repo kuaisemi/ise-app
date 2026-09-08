@@ -701,14 +701,15 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.1.5';
+const APP_VERSION = 'Beta 0.1.4';
 const PATCH_NOTES = [
-  { version:'Beta 0.1.5', date:'2026-09-08', items:[
-    '시간표 화면 세로 여백을 줄여 스크롤 없이 하루 시간표가 한눈에 더 잘 들어오도록 개선 (글씨 크기는 그대로)',
-    '셔틀버스 전체 시간표를 팝업 대신 "더보기"로 화면 안에서 바로 펼쳐보도록 변경, 카운트다운이 가리키는 바로 다음 출발 시각을 목록에서 빨갛게 강조',
-  ]},
   { version:'Beta 0.1.4', date:'2026-09-08', items:[
     '식단표에 조식·중식·석식(교직원 중식 포함) 운영 시간을 라벨 옆에 작게 표시',
+    '시간표 화면 세로 여백을 두 차례 더 줄여 스크롤 없이 하루 시간표가 한눈에 더 잘 들어오도록 개선 (글씨 크기는 그대로)',
+    '셔틀버스 전체 시간표를 팝업 대신 "더보기"로 화면 안에서 바로 펼쳐보도록 변경, 카운트다운이 가리키는 바로 다음 출발 시각을 목록에서 빨갛게 강조, 오송역 탑승 안내 문구 추가',
+    '이 친구에게 내 시간표 공개 버튼을 눌러도 화면 표시가 안 바뀌던 문제 수정',
+    '셔틀버스 시간표에서 같은 시각에 버스 2대가 뜨는 회차가 목록에 중복 표시되던 문제 수정',
+    'MY탭 "홈 화면 보기 설정" 버튼이 "표시" 상태일 때 강조 색으로 보이도록 수정 (헷갈리지 않게)',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -840,11 +841,11 @@ const TIME_START = 540;
 const TIME_END   = 1320;
 const TIMETABLE_VISIBLE_END = 1080;
 const TIMETABLE_GRID_STEP = 15;
-// 한눈에 보려고 스크롤을 계속 내려야 한다는 피드백을 받아 15→12로 줄였다 —
+// 한눈에 보려고 스크롤을 계속 내려야 한다는 피드백을 받아 15→12→10으로 줄였다 —
 // 글자 크기(.tt-block 안 폰트)는 그대로 두고 칸 높이(여백)만 줄여서, 글씨는 안 작아지고
 // 화면에 더 많은 시간대가 한 번에 들어오게 한다. .tt-grid의 --tt-row-h와 항상 같아야
 // 한다(다르면 현재시각 빨간 줄 위치가 어긋난다).
-const TIMETABLE_ROW_PX = 12;
+const TIMETABLE_ROW_PX = 10;
 
 /* ===== 학기(시간표 탭) 관련 헬퍼 ===== */
 const SEASON_ORDER = { '봄':0, '여름':1, '가을':2, '겨울':3 };
@@ -4503,7 +4504,16 @@ function shuttleParseMinutes(str){
 // 각각 독립적으로 출발하는 시각이다 — 그래서 화살표로 잇지 않고 지점별로 따로 목록·카운트다운을 만든다.
 // 일요일 표의 "역뒤" 칸도 같은 조치원역 정류장이라 동일하게 다룬다.
 function shuttlePointList(rows, field){
-  return rows.map(r=>({ no:r.no, time:r[field] })).filter(x=>x.time && /\d{1,2}:\d{2}/.test(x.time));
+  const items = rows.map(r=>({ no:r.no, time:r[field] })).filter(x=>x.time && /\d{1,2}:\d{2}/.test(x.time));
+  // "08:45(2대 운행)"처럼 같은 시각에 버스가 2대 뜨는 회차는 표에 줄이 두 개로 나뉘어 있어서
+  // 목록에 똑같은 칸이 두 번 찍힌다 — 표시용 목록에서는 하나로 합친다(카운트다운은 원본 행을
+  // 그대로 쓰기 때문에 여기서 합쳐도 다음 출발 계산에는 영향이 없다).
+  const seen = new Set();
+  return items.filter(x=>{
+    if(seen.has(x.time)) return false;
+    seen.add(x.time);
+    return true;
+  });
 }
 // 지금부터 가장 가까운 출발 시각을 찾는다. point는 'school'(학교) 또는 'mid'(조치원역/역뒤).
 // 오늘 남은 회차가 없으면 최대 7일 뒤까지 다음 운행일을 넘겨가며 찾는다.
@@ -4570,12 +4580,6 @@ function setupShuttleTimer(){
     if(needsRerender) renderMain();
   }, 1000);
 }
-function shuttleFridayBannerText(){
-  const nos = (state.shuttle.fridayOffNos||[]).join(', ');
-  const isFriToday = new Date().getDay()===5;
-  if(isFriToday) return `오늘은 금요일이라 일부 회차(NO ${nos})가 운행하지 않아요. 아래 시간과 카운트다운에 이미 반영되어 있어요.`;
-  return `금요일에는 일부 회차(NO ${nos})가 운행하지 않으며, 해당 요일에는 자동으로 반영돼요.`;
-}
 function renderShuttleTab(){
   const today = new Date();
   const { type } = shuttleRowsForDate(today);
@@ -4585,10 +4589,6 @@ function renderShuttleTab(){
       <div style="flex:1;">${shuttleCountdownCard('school', '학교')}</div>
       <div style="flex:1;">${shuttleCountdownCard('mid', '조치원역')}</div>
     </div>`}
-    <div class="card" style="background:var(--surface-2); margin-bottom:12px;">
-      <p style="font-size:10.5px; color:var(--text-dim); margin:0; line-height:1.6;">${shuttleFridayBannerText()}</p>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">일요일은 별도 시간표로 운행하고, 토요일은 운행하지 않아요. 방학 기간에는 다른 시간표가 적용될 수 있어요.</p>
-    </div>
     <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-shuttle-full" style="width:100%; display:flex; align-items:center; justify-content:center; gap:5px;">
       ${state.shuttleFullOpen ? '접기' : '전체 시간표 보기'}
       <span style="display:flex; transition:transform .15s; transform:rotate(${state.shuttleFullOpen ? '180deg' : '0deg'});">${ICON.chevDown}</span>
@@ -4620,6 +4620,7 @@ function shuttleFullListHtml(){
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'jochiwon'), hi.mid && !hi.mid.isSunday ? hi.mid.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px;">평일 · 오송역 관련 시간</p>
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'osong'))}
+      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">※ 오송역 방면은 학술정보원 앞 6번 출구에서 탑승해요. 18:10 학교 출발 버스는 조치원역을 18:20에 경유해서 갑니다.</p>
       ${wdFriExcluded.length ? `<p style="font-size:10.5px; color:var(--text-faint); margin:8px 0 0; line-height:1.6;">※ 금요일 운행 제외: ${wdFriExcluded.map(r=>escapeHtml(r.school||r.jochiwon||r.osong||('NO.'+r.no))).join(', ')}</p>` : ''}
       <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
       <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">일요일 · 학교 출발</p>
@@ -5509,23 +5510,23 @@ function renderMypage(){
       </p>
       <div class="notify-row">
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>내가 이미 참여한 투표는 목록에서 숨겨요</small></span></span>
-        <button type="button" class="btn ${hp.hideVotedPolls?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideVotedPolls">${hp.hideVotedPolls?'숨김':'표시'}</button>
+        <button type="button" class="btn ${hp.hideVotedPolls?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideVotedPolls">${hp.hideVotedPolls?'숨김':'표시'}</button>
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b></span></span>
-        <button type="button" class="btn ${hp.hideTodayTimetable?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayTimetable">${hp.hideTodayTimetable?'숨김':'표시'}</button>
+        <button type="button" class="btn ${hp.hideTodayTimetable?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayTimetable">${hp.hideTodayTimetable?'숨김':'표시'}</button>
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.bowl}<span class="notify-label-text"><b>오늘의 학식</b></span></span>
-        <button type="button" class="btn ${hp.hideTodayMeal?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayMeal">${hp.hideTodayMeal?'숨김':'표시'}</button>
+        <button type="button" class="btn ${hp.hideTodayMeal?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideTodayMeal">${hp.hideTodayMeal?'숨김':'표시'}</button>
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>다가오는 학사일정</b></span></span>
-        <button type="button" class="btn ${hp.hideUpcomingCalendar?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideUpcomingCalendar">${hp.hideUpcomingCalendar?'숨김':'표시'}</button>
+        <button type="button" class="btn ${hp.hideUpcomingCalendar?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideUpcomingCalendar">${hp.hideUpcomingCalendar?'숨김':'표시'}</button>
       </div>
       <div class="notify-row">
         <span class="notify-label">${ICON.doc}<span class="notify-label-text"><b>구인글</b></span></span>
-        <button type="button" class="btn ${hp.hideRecruits?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideRecruits">${hp.hideRecruits?'숨김':'표시'}</button>
+        <button type="button" class="btn ${hp.hideRecruits?'btn-ghost':'btn-primary'} btn-sm notify-toggle" data-action="toggle-home-pref" data-key="hideRecruits">${hp.hideRecruits?'숨김':'표시'}</button>
       </div>
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         학생회 공지는 등록된 공지가 있을 때만 자동으로 나타나요.
@@ -5991,7 +5992,21 @@ function setupFriendsModalListeners(){
   if(state.friendsUI.screen !== 'detail') return;
 
   const shareToggle = document.getElementById('friend-share-toggle');
-  if(shareToggle) shareToggle.addEventListener('click', () => toggleShareTimetable(shareToggle.dataset.on !== '1'));
+  // 버튼 클릭은 되는데(=이벤트는 붙음) 화면 표시가 안 바뀌던 버그: 서버에는 저장됐지만
+  // 버튼 자신의 data-on·글자·색을 다시 그려주는 코드가 없어서 눌러도 "켜짐"에 그대로
+  // 멈춰 있는 것처럼 보였다 — 성공하면 버튼 자신을 직접 갱신한다.
+  if(shareToggle) shareToggle.addEventListener('click', async () => {
+    const newOn = shareToggle.dataset.on !== '1';
+    shareToggle.disabled = true;
+    const ok = await toggleShareTimetable(newOn);
+    shareToggle.disabled = false;
+    if(ok){
+      shareToggle.dataset.on = newOn ? '1' : '0';
+      shareToggle.textContent = newOn ? '켜짐' : '꺼짐';
+      shareToggle.classList.toggle('btn-primary', newOn);
+      shareToggle.classList.toggle('btn-ghost', !newOn);
+    }
+  });
 
   if(!state.friendsUI.ttCollapsed) loadFriendTimetableCard(state.friendsUI.activeUid);
   // 접었다 펴기·별명 저장 후 복귀처럼 detail 화면을 유지한 채 다시 그릴 때도 이 함수가
@@ -6129,14 +6144,18 @@ async function handleNicknameSubmit(fd){
 }
 
 async function toggleShareTimetable(on){
-  state.friendsUI.myShareOn = on;
+  const rec = state.friendsUI.data.friends.find(f=>f.pairId===state.friendsUI.activePairId);
   try{
     await updateDoc(doc(db,'friendLinks',state.friendsUI.activePairId), {
-      shareTimetable: { ...(state.friendsUI.data.friends.find(f=>f.pairId===state.friendsUI.activePairId)?.shareTimetable||{}), [state.user.uid]: on },
+      shareTimetable: { ...(rec?.shareTimetable||{}), [state.user.uid]: on },
     });
+    state.friendsUI.myShareOn = on;
+    if(rec) rec.shareTimetable = { ...(rec.shareTimetable||{}), [state.user.uid]: on };
     toast(on ? '이 친구에게 시간표를 공개했어요' : '이 친구에게 시간표를 숨겼어요');
+    return true;
   }catch(e){
     toast('변경 실패 (' + (e.code||'알 수 없음') + ')');
+    return false;
   }
 }
 
