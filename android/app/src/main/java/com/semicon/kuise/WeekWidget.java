@@ -188,6 +188,12 @@ public class WeekWidget extends BaseWidget {
                     }
                     chip.setInt(R.id.chip_bg, "setColorFilter",
                         TimetableWidget.parseColor(c.optString("color", ""), theme.accent));
+                    // 앱 화면과 마찬가지로, 배경색 위 글씨 색도 검정/흰색을 골라 쓸 수 있다 —
+                    // 예전엔 여기서 XML에 박아둔 흰색만 나가서 검정을 골라도 그대로 흰색이었다.
+                    int textColor = TimetableWidget.parseColor(c.optString("textColor", ""), 0xFFFFFFFF);
+                    chip.setTextColor(R.id.chip_subject, textColor);
+                    chip.setTextColor(R.id.chip_time, withAlpha(textColor, 0xDD));
+                    chip.setTextColor(R.id.chip_room, withAlpha(textColor, 0xBB));
                     if (canSize) {
                         chip.setViewLayoutHeight(R.id.chip_root, blockDp, TypedValue.COMPLEX_UNIT_DIP);
                     }
@@ -197,5 +203,10 @@ public class WeekWidget extends BaseWidget {
             }
             views.addView(R.id.week_cols, col);
         }
+    }
+
+    /** textColor의 RGB는 그대로 두고 알파값만 바꾼다 (시간·강의실 줄을 과목명보다 옅게). */
+    private static int withAlpha(int color, int alpha) {
+        return (alpha << 24) | (color & 0x00FFFFFF);
     }
 }

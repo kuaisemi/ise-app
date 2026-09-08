@@ -716,6 +716,7 @@ const PATCH_NOTES = [
     '셔틀버스 오송역 목록에 출발 15분 전부터 강조 표시 추가, 18:10 학교 출발(오송역행) 항목에 안내 문구 추가',
     '친구 목록·요청 목록 박스의 위아래 여백을 넓힘 (목록 안 항목 사이 간격은 그대로)',
     '친구 목록 편집 모드 — 삭제 버튼은 왼쪽, 이름은 가운데, 순서 변경(위/아래) 화살표는 오른쪽으로 정리',
+    '주간 시간표 위젯에서 수업 글씨 색을 검은색으로 설정해도 항상 흰색으로만 보이던 문제 수정',
   ]},
   { version:'Beta 0.2.1', date:'2026-09-08', items:[
     '친구 화면을 팝업 대신 학생사회 탭의 "소셜" 탭으로 이동, 친구 요청·수락이 화면을 나갔다 오지 않아도 실시간으로 반영되도록 변경',
@@ -2695,6 +2696,7 @@ async function pushWidgetData(){
         subject: c.subject || '',
         room: c.room || '',
         color: c.color || COLORS[0].hex,
+        textColor: c.textColor || '#FFFFFF',
         start: c.start, end: c.end,
         startLabel: minutesToLabel(c.start),
         endLabel: minutesToLabel(c.end),
