@@ -701,8 +701,12 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.1.4';
+const APP_VERSION = 'Beta 0.1.5';
 const PATCH_NOTES = [
+  { version:'Beta 0.1.5', date:'2026-09-08', items:[
+    '시간표 화면 세로 여백을 줄여 스크롤 없이 하루 시간표가 한눈에 더 잘 들어오도록 개선 (글씨 크기는 그대로)',
+    '셔틀버스 전체 시간표를 팝업 대신 "더보기"로 화면 안에서 바로 펼쳐보도록 변경, 카운트다운이 가리키는 바로 다음 출발 시각을 목록에서 빨갛게 강조',
+  ]},
   { version:'Beta 0.1.4', date:'2026-09-08', items:[
     '식단표에 조식·중식·석식(교직원 중식 포함) 운영 시간을 라벨 옆에 작게 표시',
   ]},
@@ -836,7 +840,11 @@ const TIME_START = 540;
 const TIME_END   = 1320;
 const TIMETABLE_VISIBLE_END = 1080;
 const TIMETABLE_GRID_STEP = 15;
-const TIMETABLE_ROW_PX = 15; // .tt-grid의 --tt-row-h와 동일하게 유지 (현재시각 선 위치 계산용)
+// 한눈에 보려고 스크롤을 계속 내려야 한다는 피드백을 받아 15→12로 줄였다 —
+// 글자 크기(.tt-block 안 폰트)는 그대로 두고 칸 높이(여백)만 줄여서, 글씨는 안 작아지고
+// 화면에 더 많은 시간대가 한 번에 들어오게 한다. .tt-grid의 --tt-row-h와 항상 같아야
+// 한다(다르면 현재시각 빨간 줄 위치가 어긋난다).
+const TIMETABLE_ROW_PX = 12;
 
 /* ===== 학기(시간표 탭) 관련 헬퍼 ===== */
 const SEASON_ORDER = { '봄':0, '여름':1, '가을':2, '겨울':3 };
@@ -1030,6 +1038,7 @@ const state = {
   bugReports: [],
   memos: {}, // 날짜별 개인 메모 { 'YYYY-MM-DD': '내용' }
   shuttle: { weekday: [], sunday: [], fridayOffNos: [] },
+  shuttleFullOpen: false,
 };
 
 /* ===== 유틸 ===== */
@@ -3552,7 +3561,7 @@ function renderTimetable(isCapture=false){
     ` : `
       <div class="tt-card-container">
         <div class="tt-wrap">
-          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(15*deviceRatioScale())}px;">
+          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(TIMETABLE_ROW_PX*deviceRatioScale())}px;">
             <div class="tt-head" style="grid-column:1"></div>
             ${heads}${timeLabels}${cells}${blocks}${nowLine}
           </div>
@@ -4525,17 +4534,25 @@ function shuttleCountdownCard(point, label){
   const next = nextShuttleDeparture(point);
   if(!next) return `
     <div class="card" style="text-align:center; padding:16px 10px;">
-      <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${label} 출발까지</div>
+      <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${label}에서 출발까지</div>
       <p style="font-size:12px; color:var(--text-faint); margin:6px 0 0;">정보 없음</p>
     </div>`;
   const ms = next.dep.getTime() - Date.now();
   const dayLabel = next.dep.toDateString()===new Date().toDateString() ? '' : `${next.dep.getMonth()+1}/${next.dep.getDate()} `;
   return `
     <div class="card" style="text-align:center; padding:16px 10px;">
-      <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${label} 출발까지</div>
+      <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${label}에서 출발까지</div>
       <div class="shuttle-countdown-val" data-point="${point}" style="font-size:19px; font-weight:800; color:var(--crimson);">${fmtShuttleCountdown(ms)}</div>
       <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${dayLabel}${pad(next.dep.getHours())}:${pad(next.dep.getMinutes())} 출발</div>
     </div>`;
+}
+// 카운트다운이 가리키는 바로 그 다음 출발 시각을, 아래 전체 목록에서도 같은 시각을 찾아
+// 빨갛게 강조해준다 — 일요일로 넘어간 경우엔 일요일 목록 쪽이 강조되도록 요일까지 맞춰본다.
+function shuttleNextHighlights(){
+  const school = nextShuttleDeparture('school');
+  const mid = nextShuttleDeparture('mid');
+  const fmt = (n) => n ? { time: `${pad(n.dep.getHours())}:${pad(n.dep.getMinutes())}`, isSunday: n.dep.getDay()===0 } : null;
+  return { school: fmt(school), mid: fmt(mid) };
 }
 function setupShuttleTimer(){
   if(state.shuttleTimer){ clearInterval(state.shuttleTimer); state.shuttleTimer=null; }
@@ -4572,36 +4589,43 @@ function renderShuttleTab(){
       <p style="font-size:10.5px; color:var(--text-dim); margin:0; line-height:1.6;">${shuttleFridayBannerText()}</p>
       <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">일요일은 별도 시간표로 운행하고, 토요일은 운행하지 않아요. 방학 기간에는 다른 시간표가 적용될 수 있어요.</p>
     </div>
-    <button type="button" class="btn btn-ghost btn-sm" data-action="open-shuttle-full" style="width:100%;">전체 시간표 보기</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-shuttle-full" style="width:100%; display:flex; align-items:center; justify-content:center; gap:5px;">
+      ${state.shuttleFullOpen ? '접기' : '전체 시간표 보기'}
+      <span style="display:flex; transition:transform .15s; transform:rotate(${state.shuttleFullOpen ? '180deg' : '0deg'});">${ICON.chevDown}</span>
+    </button>
+    ${state.shuttleFullOpen ? shuttleFullListHtml() : ''}
     <a href="${SHUTTLE_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px; text-decoration:none;">공식 셔틀 시간표 페이지 열기 ↗</a>`;
 }
-// 지점별로 시간만 쭉 나열하면 한눈에 보기 편하지만, 한 화면에 다 넣기엔 길어서 팝업(모달)로 뺐다.
-function shuttleTimeListHtml(list){
+// 지점별로 시간만 쭉 나열하면 한눈에 보기 편하지만, 다 펼치면 길어서 "더보기"로 접어둔다.
+// highlight로 넘어온 시각과 같은 칸은 카운트다운이 가리키는 바로 다음 출발이라는 뜻으로 빨갛게 강조.
+function shuttleTimeListHtml(list, highlight){
   if(!list.length) return `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">정보가 없습니다.</p>`;
   return `<div style="display:flex; flex-wrap:wrap; gap:6px;">
-    ${list.map(x=>`<span class="tag tag-dim" style="font-family:var(--font-mono);">${escapeHtml(x.time)}</span>`).join('')}
+    ${list.map(x=>{
+      const isNext = highlight && x.time===highlight;
+      return `<span class="tag ${isNext?'':'tag-dim'}" style="font-family:var(--font-mono); ${isNext?'background:var(--crimson); color:#fff; font-weight:800;':''}">${escapeHtml(x.time)}</span>`;
+    }).join('')}
   </div>`;
 }
-function shuttleFullModal(){
+function shuttleFullListHtml(){
   const weekdayRows = state.shuttle.weekday||[];
   const sundayRows = state.shuttle.sunday||[];
   const wdFriExcluded = weekdayRows.filter(r=>isShuttleFridayOff(r.no));
+  const hi = shuttleNextHighlights();
   return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">셔틀버스 전체 시간표</span><button data-action="close-modal">${ICON.close}</button></div>
-    <div style="max-height:70vh; overflow-y:auto;">
-      <p style="font-size:12px; font-weight:700; margin:10px 0 4px; color:var(--teal);">평일 · 학교 출발</p>
-      ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'school'))}
+    <div class="card" style="margin-top:8px;">
+      <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">평일 · 학교 출발</p>
+      ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'school'), hi.school && !hi.school.isSunday ? hi.school.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--amber);">평일 · 조치원역 뒤 출발</p>
-      ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'jochiwon'))}
+      ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'jochiwon'), hi.mid && !hi.mid.isSunday ? hi.mid.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px;">평일 · 오송역 관련 시간</p>
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'osong'))}
       ${wdFriExcluded.length ? `<p style="font-size:10.5px; color:var(--text-faint); margin:8px 0 0; line-height:1.6;">※ 금요일 운행 제외: ${wdFriExcluded.map(r=>escapeHtml(r.school||r.jochiwon||r.osong||('NO.'+r.no))).join(', ')}</p>` : ''}
       <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
       <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">일요일 · 학교 출발</p>
-      ${shuttleTimeListHtml(shuttlePointList(sundayRows,'school'))}
+      ${shuttleTimeListHtml(shuttlePointList(sundayRows,'school'), hi.school && hi.school.isSunday ? hi.school.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--amber);">일요일 · 조치원역 뒤 출발</p>
-      ${shuttleTimeListHtml(shuttlePointList(sundayRows,'station'))}
+      ${shuttleTimeListHtml(shuttlePointList(sundayRows,'station'), hi.mid && hi.mid.isSunday ? hi.mid.time : null)}
       <p style="font-size:10.5px; color:var(--text-faint); margin:14px 2px 0; line-height:1.6;">토요일은 운행하지 않아요. 방학 기간에는 다른 시간표가 적용될 수 있습니다.</p>
     </div>`;
 }
@@ -8683,7 +8707,7 @@ document.addEventListener('click', async (e)=>{
       const sheet = document.querySelector('.modal-sheet');
       if(sheet) sheet.innerHTML = notifFeedModal();
     }
-    else if(a === 'open-shuttle-full'){ openModal(shuttleFullModal()); }
+    else if(a === 'toggle-shuttle-full'){ state.shuttleFullOpen = !state.shuttleFullOpen; renderMain(); }
     else if(a === 'clear-all-notifs'){
       clearAllNotifications();
       const sheet = document.querySelector('.modal-sheet');
