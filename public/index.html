@@ -728,6 +728,8 @@ const PATCH_NOTES = [
     '"시간표 크기"를 80% 이하로 줄이면 글자가 잘리거나 깨질 수 있다는 경고 문구 추가',
     '친구 화면 UI 개편 — 별명 최대 8자로 제한하고 이름 옆에 작게 표시, "별명설정"·"친구삭제" 버튼을 이름과 같은 줄로 이동, "채팅 지우기"(구 채팅 비우기)·"채팅 신고" 버튼을 간단한 채팅 제목 옆으로 이동',
     '친구 시간표 공개 토글을 "시간표 접기/펼치기" 옆으로 옮기고, 접기 버튼을 상자 대신 글자+화살표(v) 모양으로 정리',
+    '안드로이드 설치 안내를 홈 화면 추가(PWA)부터 권하고, 알림·위젯까지 쓰려면 안쪽에서 APK 설치도 가능하다고 안내하도록 변경',
+    '회원가입 시 "학생회 승인 후 가입 완료" 대기 시간을 10초 → 5초로 단축',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -3131,15 +3133,16 @@ function apkPopupBodyHtml(platform, step){
         </div>`;
   }
   return `
-        <p class="apk-popup-title">ISE 앱, 다운로드 할까요?</p>
-        <p class="apk-popup-desc">홈 화면에 설치하면 이런 게 더 좋아요</p>
+        <p class="apk-popup-title">ISE 앱, 홈 화면에 추가할까요?</p>
+        <p class="apk-popup-desc">지금 브라우저 메뉴(⋮)에서 <b>홈 화면에 추가</b>만 해도 앱처럼 바로 쓸 수 있어요</p>
         <ul class="apk-popup-benefits">
           <li>${ICON.bell}<span>공지 · 투표 · 답변 알림을 실시간으로 받아요</span></li>
           <li>${ICON.grid}<span>홈 화면 위젯으로 시간표 · 학식을 바로 봐요</span></li>
           <li>${ICON.chipMini}<span>브라우저보다 실행이 더 빨라요</span></li>
         </ul>
+        <p class="apk-popup-desc" style="margin-top:-6px; margin-bottom:16px;">알림 · 위젯까지 다 쓰려면 안쪽에서 <b>APK로 설치</b>도 할 수 있어요.</p>
         <div class="apk-popup-actions">
-          <button type="button" class="btn btn-primary" data-action="apk-popup-goto-confirm">다운로드</button>
+          <button type="button" class="btn btn-primary" data-action="apk-popup-goto-confirm">APK로 설치하기</button>
           <button type="button" class="btn btn-ghost" data-action="apk-popup-dismiss">나중에</button>
           <button type="button" class="apk-popup-never" data-action="apk-popup-dismiss-forever">다신 보지 않기</button>
         </div>`;
@@ -7843,8 +7846,8 @@ async function handleSignup(fd){
     // 그래서 결과를 알기 전, 확인 자체를 이 대기 시간 동안 하는 것처럼 보여준다 — 맞아서
     // 바로 되든 안 맞아서 문의로 가든 항상 똑같이 이 화면부터 거친다.
     if(state.signupRole!=='council'){
-      if(btn) btn.textContent = '학생회 승인 후 가입이 완료됩니다 (약 10초 소요)…';
-      await new Promise(resolve=>setTimeout(resolve, 10000));
+      if(btn) btn.textContent = '학생회 승인 후 가입이 완료됩니다 (약 5초 소요)…';
+      await new Promise(resolve=>setTimeout(resolve, 5000));
     }
 
     const rosterCheck = await loadRosterStrict();
