@@ -216,7 +216,7 @@ service cloud.firestore {
         && friendsWith(pairId.split('_')[0], pairId.split('_')[1])
         && request.resource.data.senderUid == request.auth.uid
         && request.resource.data.text is string
-        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1500
         && request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt']);
       // 수정·삭제는 없음 — "채팅 비우기"는 실제로 메시지를 지우지 않고 friendLinks의
       // clearedAt(내 쪽 기준 시각)만 바꾼다. 진짜 삭제는 24시간 자동 정리가 담당한다.

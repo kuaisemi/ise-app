@@ -711,7 +711,7 @@ const PATCH_NOTES = [
   { version:'Beta 0.2.1', date:'2026-09-08', items:[
     '친구 시간표에서 수업 글씨 색을 검은색으로 설정해도 친구 화면에는 흰색으로만 보이던 문제 수정',
     '채팅 알림 설정이 "켜짐"인데도 실제로는 서버에 반영이 안 돼 알림이 안 오던 문제 수정 (기기 기본값이 로그인 때 서버와 자동으로 맞춰지도록 변경)',
-    '친구 채팅 메시지 길이 제한을 2000바이트 → 1000바이트로 축소',
+    '친구 채팅 메시지 길이 제한을 2000바이트 → 1500바이트로 축소',
     '학생회 게시물 게시판을 없애고, 대신 친구 목록 위에 학생회(국장 이상) 전용 단체 채팅 추가 — 학생회 목록 확인, 메시지별 읽은 인원 수 표시, 메시지는 7일 뒤 자동 삭제, 알림 켜기/끄기 별도 설정',
   ]},
   { version:'Beta 0.2.0', date:'2026-09-08', items:[
@@ -5977,7 +5977,7 @@ function stopFriendChatListener(){
 }
 
 state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, data:{incoming:[], outgoing:[], friends:[]} };
-state.councilChatUI = { reads:{}, hasUnseen:false, membersOpen:false };
+state.councilChatUI = { hasUnseen:false };
 
 // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
 // 친구 화면을 열 때만 하면 "상대가 그 화면을 먼저 열어봐야만" 검색되는 이상한 제약이 생기므로,
@@ -6155,12 +6155,13 @@ function friendDetailBody(){
         </button>
       </div>
     </div>
-    ${ttCollapsed ? '' : `<div class="card tt-card-container" id="friend-tt-card" style="margin-bottom:14px;"><div class="empty"><p>불러오는 중…</p></div></div>`}
+    ${ttCollapsed ? `<div style="margin-bottom:10px;"></div>` : `<div class="card tt-card-container" id="friend-tt-card" style="margin-bottom:14px;"><div class="empty"><p>불러오는 중…</p></div></div>`}
 
     <div class="row-between" style="margin-bottom:6px;">
       <div class="section-title" style="margin:0; display:flex; align-items:baseline; gap:6px;">
         <span style="font-family:'Segoe Script','Brush Script MT',cursive; font-size:15px; font-weight:400;">간단한 채팅</span>
         <span style="font-size:9.5px; color:var(--text-faint); font-weight:600;">beta</span>
+        <span style="font-size:9.5px; color:var(--text-faint); font-weight:400;">24시간 뒤 채팅 내용이 사라져요</span>
       </div>
       <div style="display:flex; gap:6px;">
         <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; padding:3px 8px; font-size:10px;">채팅 신고</button>
@@ -6170,7 +6171,7 @@ function friendDetailBody(){
     <div class="card" style="padding:12px;">
       <div id="friend-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
       <div style="display:flex; gap:8px; margin-top:10px;">
-        <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="1000"
+        <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="1500"
           style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
         <button type="button" class="btn btn-primary btn-sm" id="friend-chat-send" style="width:auto;">전송</button>
       </div>
@@ -6206,7 +6207,7 @@ function setupFriendsModalListeners(){
     shareToggle.disabled = false;
     if(ok){
       shareToggle.dataset.on = newOn ? '1' : '0';
-      shareToggle.textContent = newOn ? '켜짐' : '꺼짐';
+      shareToggle.textContent = newOn ? '공개 켜짐' : '공개 꺼짐';
       shareToggle.classList.toggle('btn-primary', newOn);
       shareToggle.classList.toggle('btn-ghost', !newOn);
     }
@@ -6320,8 +6321,10 @@ let councilChatUnsub = null;
 function stopCouncilChatListener(){
   if(councilChatUnsub){ councilChatUnsub(); councilChatUnsub = null; }
 }
+// 개발자 계정은 실제 학생회 소속이 아니라 앱 관리용으로 발급된 권한이라, 학생회
+// 목록·읽음 인원 수 계산 어디에도 포함하지 않는다(채팅방 접근 권한과는 별개).
 function councilMemberList(){
-  return Object.values(state.allUsers||{}).filter(u=>u.role && u.role!=='student');
+  return Object.values(state.allUsers||{}).filter(u=>u.role && u.role!=='student' && u.role!=='developer');
 }
 async function openCouncilChat(){
   stopFriendChatListener();
@@ -6329,37 +6332,57 @@ async function openCouncilChat(){
   localSet('councilchat_seen', now());
   state.councilChatUI.hasUnseen = false;
   try{
-    await setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid]: now() }, { merge:true });
+    // 점 표기 경로로 써야 같은 문서 안 다른 사람 키·내 clearedAt을 안 건드리고
+    // lastReadAt만 갱신된다 (필드 전체를 덮어쓰면 merge:true여도 clearedAt이 날아감).
+    await setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: now() }, { merge:true });
   }catch(e){}
   refreshFriendsModalBody();
 }
+function councilFriendStatus(uid){
+  if(uid === state.user.uid) return 'me';
+  const { friends, outgoing, incoming } = state.friendsUI.data;
+  if(friends.some(f=>f.uid===uid)) return 'friend';
+  if(outgoing.some(f=>f.uid===uid)) return 'outgoing';
+  if(incoming.some(f=>f.uid===uid)) return 'incoming';
+  return 'none';
+}
 function councilChatBody(){
   const members = councilMemberList().sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+  const np = getNotifyPrefs();
   return `
     <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
       <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
       <b style="font-size:15px; flex:1;">학생회 채팅</b>
+      <button type="button" class="btn ${np.councilChat?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-council-chat-notify" style="width:auto; padding:3px 8px; font-size:10px; flex-shrink:0;">채팅 알림 ${np.councilChat?'켜짐':'꺼짐'}</button>
     </div>
 
-    <div class="row-between" style="margin-bottom:6px;">
-      <div class="section-title" style="margin:0;">학생회 목록 (${members.length})</div>
-      <button type="button" data-action="toggle-council-members" style="background:none; border:none; display:flex; align-items:center; gap:3px; color:var(--text-dim); font-size:10.5px; cursor:pointer; padding:2px;">
-        ${state.councilChatUI.membersOpen ? '접기' : '펼치기'}
-        <span style="display:flex; transition:transform .15s; transform:rotate(${state.councilChatUI.membersOpen ? '180deg' : '0deg'});">${ICON.chevDown}</span>
-      </button>
-    </div>
-    ${state.councilChatUI.membersOpen ? `
-    <div class="card" style="padding:0 12px; margin-bottom:14px;">
-      ${members.map(m=>`
+    <div class="section-title">학생회 목록 (${members.length})</div>
+    <div class="card" style="padding:0 12px; margin-bottom:14px; max-height:52px; overflow-y:auto;">
+      ${members.map(m=>{
+        const st = councilFriendStatus(m.uid);
+        const statusHtml = st==='me' ? `<span style="font-size:10.5px; color:var(--text-faint);">나</span>`
+          : st==='friend' ? `<span class="tag tag-dim" style="font-size:9.5px;">친구</span>`
+          : st==='outgoing' ? `<span style="font-size:10.5px; color:var(--text-faint);">요청됨</span>`
+          : st==='incoming' ? `<span style="font-size:10.5px; color:var(--text-faint);">요청 받음</span>`
+          : `<button type="button" class="btn btn-ghost btn-sm" data-action="add-friend-from-council" data-uid="${escapeHtml(m.uid)}" data-sid="${escapeHtml(m.studentId)}" data-name="${escapeHtml(m.name)}" style="width:auto; padding:3px 8px; font-size:10px;">친구 추가</button>`;
+        return `
         <div class="list-item">
           <div class="row-between">
-            <b style="font-size:13px;">${escapeHtml(m.name)}</b>
-            <span class="tag tag-crimson">${publicRoleLabel(m.role)}</span>
+            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+              <b style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(m.name)}</b>
+              <span class="tag tag-crimson" style="flex-shrink:0;">${publicRoleLabel(m.role)}</span>
+            </div>
+            ${statusHtml}
           </div>
-        </div>`).join('')}
-    </div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
 
-    <div class="section-title">채팅</div>
+    <div class="row-between" style="margin-bottom:2px;">
+      <div class="section-title" style="margin:0;">채팅</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="clear-council-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
+    </div>
+    <p style="font-size:10px; color:var(--text-faint); margin:0 2px 8px;">7일 뒤 채팅이 삭제돼요.</p>
     <div class="card" style="padding:12px;">
       <div id="council-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
       <div style="display:flex; gap:8px; margin-top:10px;">
@@ -6369,6 +6392,41 @@ function councilChatBody(){
       </div>
     </div>
   `;
+}
+async function sendFriendRequestFromCouncil(targetUid, targetSid, targetName){
+  if(targetUid === state.user.uid) return;
+  try{
+    const pid = friendPairKey(state.user.uid, targetUid);
+    const existing = await getDoc(doc(db,'friendLinks',pid));
+    if(existing.exists()){
+      toast('이미 친구이거나 요청이 오간 사이예요');
+      return;
+    }
+    await setDoc(doc(db,'friendLinks',pid), {
+      uids: [state.user.uid, targetUid].sort(),
+      names: { [state.user.uid]: state.user.name, [targetUid]: targetName },
+      studentIds: { [state.user.uid]: state.user.studentId, [targetUid]: targetSid },
+      createdBy: state.user.uid,
+      requestedBy: state.user.uid,
+      status: 'pending',
+      createdAt: Date.now(),
+    });
+    toast(`${targetName}님에게 친구 요청을 보냈어요`);
+    await refreshFriendsData();
+    if(state.friendsUI.screen === 'councilChat') refreshFriendsModalBody();
+  }catch(e){
+    toast('실패했어요 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+async function clearCouncilChat(){
+  if(!await showConfirm('내 화면에서 학생회 채팅을 지울까요?\n(다른 사람 화면에는 그대로 남아요)')) return;
+  const ts = now();
+  try{
+    await setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: ts, [state.user.uid+'.clearedAt']: ts }, { merge:true });
+  }catch(e){ toast('실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
+  const el = document.getElementById('council-chat-log');
+  if(el) el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`;
+  toast('채팅을 지웠어요');
 }
 function openCouncilChatListener(){
   const log = document.getElementById('council-chat-log');
@@ -6385,11 +6443,16 @@ function openCouncilChatListener(){
     }catch(e){}
     const el = document.getElementById('council-chat-log');
     if(!el) return;
-    if(snap.empty){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = snap.docs.map(d=>{
+    // "채팅 지우기"는 메시지를 실제로 지우지 않고 내 쪽 기준 시각(clearedAt)만 남긴다 —
+    // 다른 사람에게는 그대로 보이고, 나만 이 시각 이전 메시지를 걸러서 안 본다.
+    const myReadInfo = reads[state.user.uid] || {};
+    const myClearedAt = myReadInfo.clearedAt || 0;
+    const docs = snap.docs.filter(d => (d.data().createdAt||0) > myClearedAt);
+    if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
+    el.innerHTML = docs.map(d=>{
       const m = d.data();
       const mine = m.senderUid === state.user.uid;
-      const readCount = Object.entries(reads).filter(([uid,ts])=>uid!==m.senderUid && (ts||0) >= (m.createdAt||0)).length;
+      const readCount = Object.entries(reads).filter(([uid,info])=>uid!==m.senderUid && ((info&&info.lastReadAt)||0) >= (m.createdAt||0)).length;
       const readTag = mine ? `<div style="font-size:9px; opacity:.6; margin-top:2px;">${readCount}/${Math.max(0,totalMembers-1)}명 읽음</div>` : '';
       return `<div style="max-width:78%; align-self:${mine?'flex-end':'flex-start'};">
         ${mine ? '' : `<div style="font-size:9.5px; color:var(--text-faint); margin:0 2px 2px;">${escapeHtml(m.senderName||'')}${m.senderRole?` · ${escapeHtml(publicRoleLabel(m.senderRole))}`:''}</div>`}
@@ -6399,7 +6462,7 @@ function openCouncilChatListener(){
     }).join('');
     el.scrollTop = el.scrollHeight;
     // 내가 채팅방을 열어본 채로 새 메시지가 도착한 경우도 "읽음"으로 계속 갱신한다.
-    setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid]: now() }, { merge:true }).catch(()=>{});
+    setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }).catch(()=>{});
   }, (err) => {
     console.error('[council-chat]', err);
     const el = document.getElementById('council-chat-log');
@@ -6545,7 +6608,7 @@ function renderFriendTimetableGrid(slots, semKey){
 }
 
 function utf8ByteLength(s){ return new TextEncoder().encode(s||'').length; }
-const FRIEND_CHAT_MAX_BYTES = 1000;
+const FRIEND_CHAT_MAX_BYTES = 1500;
 const COUNCIL_CHAT_MAX_BYTES = 2000;
 
 function fmtChatTime(ts){
@@ -8986,7 +9049,13 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'decline-friend-request'){ await declineFriendRequest(el.dataset.pair); }
     else if(a === 'open-friend-detail'){ openFriendDetail(el.dataset.uid, el.dataset.name, el.dataset.pair); }
     else if(a === 'open-council-chat'){ await openCouncilChat(); }
-    else if(a === 'toggle-council-members'){ state.councilChatUI.membersOpen = !state.councilChatUI.membersOpen; refreshFriendsModalBody(); }
+    else if(a === 'add-friend-from-council'){ await sendFriendRequestFromCouncil(el.dataset.uid, el.dataset.sid, el.dataset.name); }
+    else if(a === 'clear-council-chat'){ await clearCouncilChat(); }
+    else if(a === 'toggle-council-chat-notify'){
+      const cur = getNotifyPrefs();
+      await setNotifyPref('councilChat', !cur.councilChat);
+      if(state.friendsUI.screen === 'councilChat') refreshFriendsModalBody();
+    }
     else if(a === 'friends-back'){ friendsBackToList(); }
     else if(a === 'friends-back-to-detail'){ state.friendsUI.screen = 'detail'; refreshFriendsModalBody(); }
     else if(a === 'set-friend-nickname'){ state.friendsUI.screen = 'nickname'; refreshFriendsModalBody(); }
