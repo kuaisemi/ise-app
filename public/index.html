@@ -724,7 +724,7 @@ const PATCH_NOTES = [
     '시간표 화면에 여유 공간이 있을 때(수업이 20시 전에 끝나는 날)만 하단에 버전 표시를 다시 보여주도록 변경',
     '시간표 화면이 폰 화면 비율에 따라 살짝씩 스크롤되던 문제 수정 (버전 표시 자리를 미리 확보 + 오차 보정 로직 추가)',
     '시간표 화면 표시 설정의 켜기/끄기 버튼 디자인을 앱 전체와 통일, "시간표 크기" 조절 슬라이더 추가 (화면 꽉 채움이 100%, 그 안에서만 줄이기 가능해 스크롤은 계속 생기지 않음)',
-    '주소창이 있는 일반 브라우저 탭에서만 시간표가 스크롤되던 문제 수정 (주소창이 접히기 전 화면 높이로 계산되던 것을, 화면이 정착한 뒤 한 번 더 다시 계산하도록 변경)',
+    '주소창이 있는 일반 브라우저 탭에서만 시간표가 스크롤되던 문제 근본 수정 — 고정 하단바 위치 대신 실제 보이는 화면 높이(visualViewport)를 기준으로 계산하도록 변경',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -3531,14 +3531,22 @@ function fitTimetableGrid(){
   const nav = document.querySelector('.bottomnav');
   if(!wrap || !grid || !nav) return;
   const wrapTop = wrap.getBoundingClientRect().top;
-  const navTop = nav.getBoundingClientRect().top;
+  // 일반 브라우저 탭에서는 주소창이 떠 있을 때 position:fixed 요소(bottomnav)가 실제
+  // "지금 보이는 화면"이 아니라 주소창까지 합친 더 큰 레이아웃 뷰포트 기준으로 위치를
+  // 잡는다 — 그래서 bottomnav의 getBoundingClientRect().top을 기준으로 삼으면, 주소창이
+  // 보이는 동안은 실제보다 여유 공간이 있는 것처럼 잘못 계산돼서 화면 밖으로 넘친다.
+  // PWA·APK는 주소창이 아예 없어서 이 차이가 안 생긴다. window.visualViewport.height는
+  // "지금 실제로 보이는" 화면 높이를 정확히 알려주므로 그걸 기준으로 쓰고, bottomnav는
+  // 자기 자신의 높이(위치가 아니라 크기)만 가져다 쓴다 — 크기는 이 문제와 무관하게 항상 정확하다.
+  const viewportH = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  const navHeight = nav.getBoundingClientRect().height;
   const bottomMargin = 12;
   // 시간표 화면 여백이 넉넉해서 버전 표시("ISE · Beta…")가 tt-wrap 아래에 같이 떠 있을 때,
   // 그 표시가 차지할 자리(위쪽 여백 28px 포함)를 미리 빼두지 않으면 grid 높이를 계산할 때는
   // 자리가 있다고 봤다가 실제로는 그 아래로 밀려나면서 페이지 전체가 스크롤되는 원인이 된다.
   const footerEl = document.querySelector('#main-content > .app-version');
   const footerReserve = footerEl ? Math.ceil(footerEl.getBoundingClientRect().height) + 30 : 0;
-  const available = navTop - wrapTop - bottomMargin - footerReserve;
+  const available = viewportH - navHeight - wrapTop - bottomMargin - footerReserve;
   if(available <= 60) return; // 화면이 너무 작아 계산이 이상해지면 기본값(CSS 68vh)을 그대로 둔다
   const headerPx = 24;
   // 칸 높이는 "9시~21시" 기준(48칸)으로 계산한 값이 최대치다 — 수업이 21시 전에 끝나는
@@ -3567,10 +3575,12 @@ function fitTimetableGrid(){
     }
   }
   // 안전장치: 계산이 기기별 안전영역(노치·제스처바 등)이나 반올림 오차로 조금 어긋나서
-  // 그래도 페이지 전체가 스크롤되면, 넘친 만큼 한 번 더 줄여서 다시 맞춘다.
+  // 그래도 페이지 전체가 스크롤되면, 넘친 만큼 한 번 더 줄여서 다시 맞춘다. "지금 보이는
+  // 화면"과 비교해야 하므로 여기서도 visualViewport 기준으로 넘친 양을 잰다.
   requestAnimationFrame(()=>{
     if(state.view!=='timetable') return;
-    const overflow = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const curViewportH = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    const overflow = document.documentElement.scrollHeight - curViewportH;
     if(overflow > 1){
       const fixedRowPx = Math.max(8, rowPx - (overflow / effectiveRows) - 0.5);
       grid.style.setProperty('--tt-row-h', fixedRowPx+'px');
