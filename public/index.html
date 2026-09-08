@@ -724,7 +724,6 @@ const PATCH_NOTES = [
     '시간표 화면에 여유 공간이 있을 때(수업이 20시 전에 끝나는 날)만 하단에 버전 표시를 다시 보여주도록 변경',
     '시간표 화면이 폰 화면 비율에 따라 살짝씩 스크롤되던 문제 수정 (버전 표시 자리를 미리 확보 + 오차 보정 로직 추가)',
     '시간표 화면 표시 설정의 켜기/끄기 버튼 디자인을 앱 전체와 통일, "시간표 크기" 조절 슬라이더 추가 (화면 꽉 채움이 100%, 그 안에서만 줄이기 가능해 스크롤은 계속 생기지 않음)',
-    '시간표 최대 크기를 고정 기준(21시) 대신 그 폰에서 오늘 시간표가 실제로 다 들어가는 진짜 최대 크기로 변경 — 수업이 일찍 끝나는 날은 칸이 그만큼 더 크게 나옴',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -3532,12 +3531,13 @@ function fitTimetableGrid(){
   const available = navTop - wrapTop - bottomMargin - footerReserve;
   if(available <= 60) return; // 화면이 너무 작아 계산이 이상해지면 기본값(CSS 68vh)을 그대로 둔다
   const headerPx = 24;
-  // 칸 높이의 "제일 큰 값"은 그 폰 화면에서 오늘 시간표(9시~오늘의 마지막 수업, 최소 18시)를
-  // 스크롤 없이 다 채울 수 있는 진짜 최대치다 — 21시 같은 고정 기준으로 상한을 두지 않고,
-  // 실제로 남는 공간을 전부 쓴다. 그래서 수업이 짧게 끝나는 날은 칸이 더 크게, 늦게까지
-  // 있는 날은 자동으로 더 촘촘하게 나온다(항상 화면을 꽉 채우되 절대 넘치지 않음).
+  // 칸 높이는 "9시~21시" 기준(48칸)으로 계산한 값이 최대치다 — 수업이 21시 전에 끝나는
+  // 날은 이 크기 그대로 쓰고(그래서 아래로 빈 공간이 남을 수 있다), 21시를 넘는 수업이
+  // 있어서 칸이 48개보다 더 필요해지면 그만큼 칸을 더 촘촘하게(작게) 줄여서 스크롤 없이
+  // 다 들어오게 한다 — 잘라내지 않고 압축한다.
   const baselineRows = Math.ceil((21*60 - TIME_START) / TIMETABLE_GRID_STEP);
-  const effectiveRows = parseInt(grid.dataset.rows||'0', 10) || baselineRows;
+  const actualRows = parseInt(grid.dataset.rows||'0', 10) || baselineRows;
+  const effectiveRows = Math.max(baselineRows, actualRows);
   const maxSafeRowPx = Math.max(8, (available - headerPx) / effectiveRows);
   // "시간표 크기" 설정(화면 표시 설정)은 이 화면-꽉-채움 크기를 100%로 보고, 그보다
   // 작게(0.6~1.0배)만 줄일 수 있게 한다 — 100%가 이미 스크롤 없이 들어가는 최대치라,
