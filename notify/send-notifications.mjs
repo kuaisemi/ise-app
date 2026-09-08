@@ -123,6 +123,37 @@ async function purgePendingAuthDeletes() {
   console.log(`[authPurge] ${removed}건 삭제, ${remaining.length}건 남음`);
 }
 
+// 가입 중 프로필(users/{uid}) 저장이 실패하면(네트워크 끊김 등) 로그인 계정만 남아
+// 그 학번으로 다시는 가입할 수 없는 유령 계정이 된다. 클라이언트가 실패 시 즉시
+// 되돌리도록 고쳤지만(2026-09-08), 그 전에 이미 생긴 것과 향후 놓치는 경우를 대비해
+// 여기서도 주기적으로 훑어서 프로필 없는 계정을 지운다.
+// 가입 진행 중(계정 생성 → 프로필 저장 사이, 명단 대조 대기 5초 포함)인 계정을 실수로
+// 지우지 않도록 생성된 지 10분이 지난 것만 대상으로 한다.
+const GHOST_ACCOUNT_GRACE_MS = 10 * 60 * 1000;
+async function purgeGhostAuthAccounts() {
+  const usersSnap = await db.collection('users').get();
+  const profiledUids = new Set(usersSnap.docs.map((d) => d.id));
+  let removed = 0;
+  let pageToken;
+  do {
+    const page = await getAuth().listUsers(1000, pageToken);
+    for (const u of page.users) {
+      if (profiledUids.has(u.uid)) continue;
+      const createdAt = new Date(u.metadata.creationTime).getTime();
+      if (Date.now() - createdAt < GHOST_ACCOUNT_GRACE_MS) continue;
+      try {
+        await getAuth().deleteUser(u.uid);
+        removed++;
+        console.log('[ghostPurge] 삭제', u.uid, u.email || '');
+      } catch (e) {
+        console.warn('[ghostPurge] 실패', u.uid, (e && e.code) || e);
+      }
+    }
+    pageToken = page.pageToken;
+  } while (pageToken);
+  if (removed) console.log(`[ghostPurge] 프로필 없는 계정 ${removed}건 삭제`);
+}
+
 async function purgeOldTombstones() {
   const cutoff = Date.now() - TOMBSTONE_TTL_MS;
   for (const { name, field } of TOMBSTONE_DOCS) {
@@ -552,6 +583,7 @@ async function main() {
 
   await purgeOldTombstones();
   await purgePendingAuthDeletes();
+  await purgeGhostAuthAccounts();
   await purgeOldChatMessages();
   await purgeOldCouncilChatMessages();
 

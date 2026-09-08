@@ -715,6 +715,10 @@ const PATCH_NOTES = [
     '친구 채팅 메시지 길이 제한을 2000바이트 → 1500바이트로 축소',
     '학생회 게시물 게시판을 없애고, 대신 학생회(국장 이상) 전용 단체 채팅 추가 — 학생회 목록 확인 및 바로 친구 추가, 메시지별 읽은 인원 수 표시, 메시지는 7일 뒤 자동 삭제, 알림 켜기/끄기·삭제(학생회장 전용) 지원',
     '친구 화면을 팝업 대신 학생사회 탭의 "소셜" 탭으로 이동, 친구 요청·수락이 화면을 나갔다 오지 않아도 실시간으로 반영되도록 변경',
+    '학생회 목록을 누르면 팝업으로 열리도록 변경, 화면 비율에 맞춰 보이는 만큼만 표시',
+    '친구 목록에 "편집" 모드 추가 — 순서를 위아래로 자유롭게 바꾸고, 여러 명을 한 번에 선택해 삭제 가능',
+    '가입 중 프로필 저장이 실패하면 계정만 남아 그 학번으로 재가입이 막히던 유령 계정 문제 수정, 이미 생긴 계정도 주기적으로 자동 정리',
+    '학번으로 친구 추가 시 상대방 이름이 바로 드러나던 문제 수정 — 이제 학번으로만 안내',
   ]},
   { version:'Beta 0.2.0', date:'2026-09-08', items:[
     '재학생 전용 정식 배포 준비 — 그동안의 0.1.x 베타 테스트 내용을 정리하고 0.2.0으로 전환',
@@ -5980,7 +5984,26 @@ function teardownSocialTab(){
   stopCouncilChatListener();
 }
 
-state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, data:{incoming:[], outgoing:[], friends:[]} };
+state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, editMode:false, selected:{}, data:{incoming:[], outgoing:[], friends:[]} };
+// 친구 목록 순서는 기기에만 저장하는 개인 취향이라 서버 동기화 없이 로컬에만 둔다.
+function getFriendOrderMap(){
+  const arr = localGet('friend_order', []);
+  const map = {};
+  arr.forEach((pairId,i)=>{ map[pairId]=i; });
+  return map;
+}
+function moveFriendOrder(pairId, dir){
+  const { friends } = state.friendsUI.data;
+  const orderMap = getFriendOrderMap();
+  const sorted = [...friends].sort((a,b)=> (orderMap[a.pairId]??9999) - (orderMap[b.pairId]??9999));
+  const ids = sorted.map(f=>f.pairId);
+  const idx = ids.indexOf(pairId);
+  const swapWith = idx + dir;
+  if(idx<0 || swapWith<0 || swapWith>=ids.length) return;
+  [ids[idx], ids[swapWith]] = [ids[swapWith], ids[idx]];
+  localSet('friend_order', ids);
+  refreshFriendsModalBody();
+}
 state.councilChatUI = { hasUnseen:false };
 
 // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
@@ -6098,17 +6121,18 @@ function friendListBody(){
         style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13.5px; min-width:0;">
       <button type="button" class="btn btn-primary btn-sm" data-action="send-friend-request" style="width:auto;">추가</button>
     </div>
-    <div id="friend-add-msg" style="font-size:11px; color:var(--text-dim); margin-bottom:12px; min-height:14px; line-height:1.5;"></div>
+    <div id="friend-add-msg" style="font-size:11px; color:var(--text-dim); margin-bottom:4px; min-height:14px; line-height:1.5;"></div>
 
     ${isCouncil() ? `
-    <div class="section-title">학생회</div>
-    <div class="list-item" style="cursor:pointer; margin-bottom:12px;" data-action="open-council-chat">
-      <div class="row-between">
-        <div><b style="font-size:13.5px;">학생회 채팅</b><div class="meta">학생회 이상 전체 단체 채팅</div></div>
-        <span style="display:flex; align-items:center; gap:6px;">
-          ${state.councilChatUI.hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
-          <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
-        </span>
+    <div class="card" style="padding:0 12px; margin-bottom:12px;">
+      <div class="list-item" style="cursor:pointer;" data-action="open-council-chat">
+        <div class="row-between">
+          <div><b style="font-size:13.5px;">학생회 채팅</b><div class="meta">학생회 전체 단체 채팅</div></div>
+          <span style="display:flex; align-items:center; gap:6px;">
+            ${state.councilChatUI.hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
+            <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
+          </span>
+        </div>
       </div>
     </div>
     ` : ''}
@@ -6140,20 +6164,51 @@ function friendListBody(){
         </div>`).join('')}
     </div>` : ''}
 
-    <div class="section-title">내 친구 (${friends.length})</div>
-    ${friends.length ? friends.map(f=>{
-      const hasUnseen = state.unseenChatPairIds && state.unseenChatPairIds.has(f.pairId);
-      return `
-      <div class="list-item" style="cursor:pointer;" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
-        <div class="row-between">
-          <div><b style="font-size:13.5px;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}</div>
-          <span style="display:flex; align-items:center; gap:6px;">
-            ${hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
-            <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
-          </span>
-        </div>
+    <div class="row-between" style="margin-bottom:2px;">
+      <div class="section-title" style="margin:0;">내 친구 (${friends.length})</div>
+      <div style="display:flex; gap:6px;">
+        ${state.friendsUI.editMode && Object.keys(state.friendsUI.selected||{}).length ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-selected-friends" style="width:auto; padding:4px 9px; font-size:10.5px;">선택 삭제 (${Object.keys(state.friendsUI.selected).length})</button>` : ''}
+        ${friends.length ? `<button type="button" class="btn btn-ghost btn-sm" data-action="toggle-friends-edit-mode" style="width:auto; padding:4px 9px; font-size:10.5px;">${state.friendsUI.editMode ? '완료' : '편집'}</button>` : ''}
+      </div>
+    </div>
+    ${(()=>{
+      const orderMap = getFriendOrderMap();
+      const sorted = [...friends].sort((a,b)=> (orderMap[a.pairId]??9999) - (orderMap[b.pairId]??9999));
+      if(!sorted.length) return `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`;
+      // 친구가 많아도 한 화면에 다 펼치지 않고, 기기 화면 비율에 맞춰 보이는 만큼만
+      // 보여주고 나머지는 이 박스 안에서 스크롤 — 몇 명인지는 화면 크기에 따라 달라진다.
+      return `<div class="card" style="padding:0 12px; max-height:42vh; overflow-y:auto;">
+        ${sorted.map((f,i)=>{
+          const hasUnseen = state.unseenChatPairIds && state.unseenChatPairIds.has(f.pairId);
+          const selected = !!(state.friendsUI.selected||{})[f.pairId];
+          if(state.friendsUI.editMode){
+            return `
+            <div class="list-item">
+              <div class="row-between">
+                <label style="display:flex; align-items:center; gap:8px; min-width:0; cursor:pointer;">
+                  <input type="checkbox" data-action="toggle-friend-select" data-pair="${escapeHtml(f.pairId)}" ${selected?'checked':''}>
+                  <b style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(f.name)}</b>${f.nickname ? `<span class="meta">${escapeHtml(f.nickname)}</span>` : ''}
+                </label>
+                <div style="display:flex; gap:4px; flex-shrink:0;">
+                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="-1" ${i===0?'disabled':''} title="위로">▲</button>
+                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="1" ${i===sorted.length-1?'disabled':''} title="아래로">▼</button>
+                </div>
+              </div>
+            </div>`;
+          }
+          return `
+          <div class="list-item" style="cursor:pointer;" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
+            <div class="row-between">
+              <div><b style="font-size:13.5px;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}</div>
+              <span style="display:flex; align-items:center; gap:6px;">
+                ${hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
+                <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
+              </span>
+            </div>
+          </div>`;
+        }).join('')}
       </div>`;
-    }).join('') : `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`}
+    })()}
   `;
 }
 
@@ -6292,7 +6347,7 @@ async function sendFriendRequest(){
     });
 
     msgEl.style.color='var(--teal)';
-    msgEl.textContent = `${targetData.name}님에게 친구 요청을 보냈어요.`;
+    msgEl.textContent = `학번 ${sid}에게 요청을 보냈어요.`;
     if(input) input.value='';
     await refreshFriendsData();
   }catch(e){
@@ -6371,6 +6426,34 @@ function councilFriendStatus(uid){
   if(incoming.some(f=>f.uid===uid)) return 'incoming';
   return 'none';
 }
+function councilMemberRowHtml(m){
+  const st = councilFriendStatus(m.uid);
+  const statusHtml = st==='me' ? `<span style="font-size:10.5px; color:var(--text-faint);">나</span>`
+    : st==='friend' ? `<span class="tag tag-dim" style="font-size:9.5px;">친구</span>`
+    : st==='outgoing' ? `<span style="font-size:10.5px; color:var(--text-faint);">요청됨</span>`
+    : st==='incoming' ? `<span style="font-size:10.5px; color:var(--text-faint);">요청 받음</span>`
+    : `<button type="button" class="btn btn-ghost btn-sm" data-action="add-friend-from-council" data-uid="${escapeHtml(m.uid)}" data-sid="${escapeHtml(m.studentId)}" data-name="${escapeHtml(m.name)}" style="width:auto; padding:3px 8px; font-size:10px;">친구 추가</button>`;
+  return `
+  <div class="list-item">
+    <div class="row-between">
+      <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+        <b style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(m.name)}</b>
+        <span class="tag tag-crimson" style="flex-shrink:0;">${publicRoleLabel(m.role)}</span>
+      </div>
+      ${statusHtml}
+    </div>
+  </div>`;
+}
+// 몇 명이 보일지는 고정 개수 대신 기기 화면 비율(vh)에 맞추고, 넘치는 만큼만 스크롤한다.
+function councilMembersModal(){
+  const members = councilMemberList().sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.person} 학생회 목록 (${members.length})</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div style="max-height:60vh; overflow-y:auto;">
+      ${members.length ? members.map(councilMemberRowHtml).join('') : `<div class="empty"><p>학생회 구성원이 없습니다.</p></div>`}
+    </div>`;
+}
 function councilChatBody(){
   const members = councilMemberList().sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
   const np = getNotifyPrefs();
@@ -6381,26 +6464,10 @@ function councilChatBody(){
       <button type="button" class="btn ${np.councilChat?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-council-chat-notify" style="width:auto; padding:3px 8px; font-size:10px; flex-shrink:0;">채팅 알림 ${np.councilChat?'켜짐':'꺼짐'}</button>
     </div>
 
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-      <div class="section-title" style="margin:0; flex-shrink:0;">학생회 목록 (${members.length})</div>
-      <div class="card" style="flex:0 1 50%; max-width:50%; padding:0 8px; max-height:34px; overflow-y:auto;">
-        ${members.map(m=>{
-          const st = councilFriendStatus(m.uid);
-          const statusHtml = st==='me' ? `<span style="font-size:10px; color:var(--text-faint);">나</span>`
-            : st==='friend' ? `<span class="tag tag-dim" style="font-size:9px;">친구</span>`
-            : st==='outgoing' ? `<span style="font-size:10px; color:var(--text-faint);">요청됨</span>`
-            : st==='incoming' ? `<span style="font-size:10px; color:var(--text-faint);">요청 받음</span>`
-            : `<button type="button" class="btn btn-ghost btn-sm" data-action="add-friend-from-council" data-uid="${escapeHtml(m.uid)}" data-sid="${escapeHtml(m.studentId)}" data-name="${escapeHtml(m.name)}" style="width:auto; padding:2px 6px; font-size:9px;">친구 추가</button>`;
-          return `
-          <div class="row-between" style="padding:5px 0; min-width:0;">
-            <div style="display:flex; align-items:center; gap:5px; min-width:0;">
-              <b style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(m.name)}</b>
-              <span class="tag tag-crimson" style="flex-shrink:0; font-size:9px;">${publicRoleLabel(m.role)}</span>
-            </div>
-            ${statusHtml}
-          </div>`;
-        }).join('')}
-      </div>
+    <div style="text-align:right; margin-bottom:14px;">
+      <button type="button" data-action="open-council-members" style="background:none; border:none; display:inline-flex; align-items:center; gap:3px; color:var(--text-dim); font-size:12px; cursor:pointer; padding:4px;">
+        학생회 목록 (${members.length}) <span style="display:flex;">${ICON.chevR}</span>
+      </button>
     </div>
 
     <div class="row-between" style="margin-bottom:2px;">
@@ -6557,6 +6624,16 @@ async function unfriend(){
   friendsBackToList();
   await refreshFriendsData();
   toast('친구를 삭제했어요');
+}
+async function deleteSelectedFriends(){
+  const pairIds = Object.keys(state.friendsUI.selected||{});
+  if(!pairIds.length) return;
+  if(!await showConfirm(`선택한 친구 ${pairIds.length}명을 삭제할까요?`)) return;
+  const results = await Promise.allSettled(pairIds.map(pid => deleteDoc(doc(db,'friendLinks',pid))));
+  const failed = results.filter(r=>r.status==='rejected').length;
+  state.friendsUI.selected = {};
+  state.friendsUI.editMode = false;
+  toast(failed ? `${pairIds.length-failed}명 삭제, ${failed}명 실패` : `${pairIds.length}명을 삭제했어요`);
 }
 
 function friendNicknameBody(){
@@ -8066,7 +8143,13 @@ async function handleSignup(fd){
       }
     }else{
       const ok=await createUserDoc(cred.user.uid, { studentId, name, role:'student', createdAt: now() });
-      if(!ok) toast('프로필 저장에 실패했습니다.');
+      if(!ok){
+        // 프로필 저장이 실패하면 로그인 계정만 남아 이 학번으로 재가입이 막히는 유령
+        // 계정이 된다 — 학생회 가입 실패 때처럼 여기서도 즉시 되돌린다.
+        await deleteUser(cred.user).catch(()=>{});
+        showAuthError('프로필 저장에 실패했습니다. 다시 시도해주세요.');
+        return;
+      }
     }
   }catch(err){
     if(cred){ await deleteUser(cred.user).catch(()=>{}); }
@@ -8967,7 +9050,10 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'refresh-dept-notices'){ await fetchDeptNoticesFromSource(false); }
     else if(a === 'council-tab'){
-      state.councilTab = el.dataset.tab; renderMain();
+      state.councilTab = el.dataset.tab;
+      // 소셜 탭은 다른 화면(친구 상세 등)을 보고 있어도 탭 버튼을 다시 누르면 목록으로 리셋.
+      if(state.councilTab === 'social') state.friendsUI.screen = 'list';
+      renderMain();
       if(state.councilTab === 'social'){ await refreshFriendsData(); setupFriendsModalListeners(); }
       else { teardownSocialTab(); }
     }
@@ -9105,6 +9191,20 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'add-friend-from-council'){ await sendFriendRequestFromCouncil(el.dataset.uid, el.dataset.sid, el.dataset.name); }
     else if(a === 'clear-council-chat'){ await clearCouncilChat(); }
     else if(a === 'delete-council-chat-all'){ await deleteAllCouncilChatMessages(); }
+    else if(a === 'open-council-members'){ openModal(councilMembersModal()); }
+    else if(a === 'toggle-friends-edit-mode'){
+      state.friendsUI.editMode = !state.friendsUI.editMode;
+      state.friendsUI.selected = {};
+      refreshFriendsModalBody();
+    }
+    else if(a === 'toggle-friend-select'){
+      const pairId = el.dataset.pair;
+      if(state.friendsUI.selected[pairId]) delete state.friendsUI.selected[pairId];
+      else state.friendsUI.selected[pairId] = true;
+      refreshFriendsModalBody();
+    }
+    else if(a === 'move-friend-order'){ moveFriendOrder(el.dataset.pair, Number(el.dataset.dir)); }
+    else if(a === 'delete-selected-friends'){ await deleteSelectedFriends(); }
     else if(a === 'toggle-council-chat-notify'){
       const cur = getNotifyPrefs();
       await setNotifyPref('councilChat', !cur.councilChat);
