@@ -706,8 +706,14 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.2.0';
+const APP_VERSION = 'Beta 0.2.1';
 const PATCH_NOTES = [
+  { version:'Beta 0.2.1', date:'2026-09-08', items:[
+    '친구 시간표에서 수업 글씨 색을 검은색으로 설정해도 친구 화면에는 흰색으로만 보이던 문제 수정',
+    '채팅 알림 설정이 "켜짐"인데도 실제로는 서버에 반영이 안 돼 알림이 안 오던 문제 수정 (기기 기본값이 로그인 때 서버와 자동으로 맞춰지도록 변경)',
+    '친구 채팅 메시지 길이 제한을 2000바이트 → 1000바이트로 축소',
+    '학생회 게시물 게시판을 없애고, 대신 친구 목록 위에 학생회(국장 이상) 전용 단체 채팅 추가 — 학생회 목록 확인, 메시지별 읽은 인원 수 표시, 메시지는 7일 뒤 자동 삭제, 알림 켜기/끄기 별도 설정',
+  ]},
   { version:'Beta 0.2.0', date:'2026-09-08', items:[
     '재학생 전용 정식 배포 준비 — 그동안의 0.1.x 베타 테스트 내용을 정리하고 0.2.0으로 전환',
   ]},
@@ -1054,11 +1060,11 @@ const state = {
   showAcademicEvents: true,
   timetable: [], calendar: [], meals: {},
   notices: [], suggestions: [], polls: [],
-  recruitmentPosts: [], councilPosts: [],
+  recruitmentPosts: [],
   allUsers: {}, roster: {}, ocrParsedClasses: [],
   ttOpts: { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B' },
   editingPollVoteId: null, nowTimer: null, shuttleTimer: null,
-  activeUserListTab: 'all', expandedComments: {}, captureMode: false, ttFabOpen: false,
+  activeUserListTab: 'all', captureMode: false, ttFabOpen: false,
   previewAsStudent: false,
   myPageSettingsOpen: false,
   settingsTab: 'display',
@@ -1535,7 +1541,6 @@ const TOMBSTONE_DOCS = [
   { name:'polls', field:'list', stateKey:'polls' },
   { name:'suggestions', field:'list', stateKey:'suggestions' },
   { name:'recruitments', field:'list', stateKey:'recruitmentPosts' },
-  { name:'councilPosts', field:'list', stateKey:'councilPosts' },
   { name:'bugReports', field:'list', stateKey:'bugReports' },
   { name:'calendarEvents', field:'events', stateKey:'calendar' },
 ];
@@ -1655,8 +1660,6 @@ async function loadPolls(){ return (await loadShared('polls',{list:[]})).list ||
 async function savePolls(a){ return await saveShared('polls',{list:a}); }
 async function loadRecruitments(){ return (await loadShared('recruitments',{list:[]})).list || []; }
 async function saveRecruitments(a){ return await saveShared('recruitments',{list:a}); }
-async function loadCouncilPosts(){ return (await loadShared('councilPosts',{list:[]})).list || []; }
-async function saveCouncilPosts(a){ return await saveShared('councilPosts',{list:a}); }
 // 전체 가입자 목록은 users 컬렉션을 직접 조회해서 만든다.
 //
 // 예전에는 shared/usersList 문서 하나를 캐시로 두고, 로그인할 때마다 "읽어서 → 자기 자신을
@@ -1901,7 +1904,8 @@ function boot(){
           // 첫 실행 안내(runNotificationOnboarding)를 아직 안 본 기기에서는 여기서 권한창을 띄우지 않는다.
           // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
           const np = getNotifyPrefs();
-          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.meal)) ensurePushToken();
+          syncNotifyPrefsToServer(np);
+          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.meal || np.chat || np.councilChat)) ensurePushToken();
           scheduleTimetableReminders();
           pushWidgetData();
           setupWidgetDeepLink();
@@ -2089,13 +2093,14 @@ function getNotifyPrefs(){
     meal: localGet('notif_meal', false),
     night: localGet('notif_night', false),
     chat: localGet('notif_chat', true),
+    councilChat: localGet('notif_councilChat', true),
     timetable: localGet('notif_timetable', false),
     timetableHour: localGet('notif_timetableHour', 8),
   };
 }
 // 서버(GitHub Actions)가 "누구에게 보낼지" 알아야 하는 항목만 Firestore에도 저장한다.
 // 시간표 알림은 기기 로컬 알림이라 서버가 알 필요 없음.
-const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'meal', 'night', 'chat'];
+const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'meal', 'night', 'chat', 'councilChat'];
 async function setNotifyPref(key, value){
   localSet('notif_'+key, value);
   if(SERVER_NOTIFY_KEYS.includes(key) && state.user){
@@ -2105,6 +2110,16 @@ async function setNotifyPref(key, value){
   if(key==='timetable' || key==='timetableHour'){
     scheduleTimetableReminders();
   }
+}
+// getNotifyPrefs()의 기본값(예: chat:true)은 토글을 한 번도 안 건드린 기기에서는 localStorage에만
+// 있고 Firestore(서버가 발송 대상을 판단하는 곳)에는 올라간 적이 없다 — 그래서 "설정은 켜짐인데
+// 실제로는 알림이 안 오는" 문제가 생긴다. 로그인할 때마다 현재 로컬 설정을 그대로 merge해서
+// 서버 쪽 값이 항상 로컬 표시와 일치하도록 맞춘다.
+async function syncNotifyPrefsToServer(np){
+  if(!state.user) return;
+  const prefs = {};
+  SERVER_NOTIFY_KEYS.forEach(k => { prefs[k] = !!np[k]; });
+  try{ await setDoc(doc(db,'users',state.user.uid), { notifyPrefs: prefs }, { merge:true }); }catch(e){}
 }
 // 홈 화면에 뭘 보여줄지는 순전히 이 기기에서만 보이는 표시 설정이라, 알림 설정과 달리
 // 서버(Firestore)에 동기화할 필요가 없어 localStorage에만 저장한다.
@@ -2909,7 +2924,7 @@ async function scheduleTimetableReminders(list){
 
 async function loadAllData(){
   try{
-    const [ttData,cal,meals,notices,sugg,polls,users,cposts,recruits,roster,deptN,memos,shuttle] = await Promise.all([
+    const [ttData,cal,meals,notices,sugg,polls,users,recruits,roster,deptN,memos,shuttle] = await Promise.all([
       (state.user ? loadTimetable(state.user.uid) : Promise.resolve({bySemester:{}, activeSemester:null})).catch(()=>({bySemester:{}, activeSemester:null})),
       loadCalendar().catch(()=>[]),
       loadMeals().catch(()=>({})),
@@ -2917,7 +2932,6 @@ async function loadAllData(){
       loadSuggestions().catch(()=>[]),
       loadPolls().catch(()=>[]),
       loadAllUsersList().catch(()=>({})),
-      loadCouncilPosts().catch(()=>[]),
       loadRecruitments().catch(()=>[]),
       loadRoster().catch(()=>({})),
       loadDeptNotices().catch(()=>({items:[],updatedAt:0})),
@@ -2930,7 +2944,7 @@ async function loadAllData(){
     syncActiveTimetable();
     state.calendar=cal||[]; state.meals=meals||{};
     state.notices=notices||[]; state.suggestions=sugg||[]; state.polls=polls||[];
-    state.allUsers=users||{}; state.councilPosts=cposts||[]; state.recruitmentPosts=recruits||[];
+    state.allUsers=users||{}; state.recruitmentPosts=recruits||[];
     state.roster=roster||{};
     state.deptNotices = deptN.items || [];
     state.deptNoticesUpdatedAt = deptN.updatedAt || 0;
@@ -2941,13 +2955,13 @@ async function loadAllData(){
 
 async function refreshShared(){
   try{
-    const [cal,meals,notices,sugg,polls,cposts,recruits,users] = await Promise.all([
+    const [cal,meals,notices,sugg,polls,recruits,users] = await Promise.all([
       loadCalendar(), loadMeals(), loadNotices(), loadSuggestions(),
-      loadPolls(), loadCouncilPosts(), loadRecruitments(), loadAllUsersList()
+      loadPolls(), loadRecruitments(), loadAllUsersList()
     ]);
     state.calendar=cal; state.meals=meals; state.notices=notices;
     state.suggestions=sugg; state.polls=polls;
-    state.councilPosts=cposts; state.recruitmentPosts=recruits;
+    state.recruitmentPosts=recruits;
     state.allUsers=users;
     pushWidgetData(); // 식단·학사일정이 갱신됐을 수 있으므로 위젯도 같이 최신화
   }catch(e){}
@@ -5160,7 +5174,6 @@ function renderLikeUI(item, itemType){
 /* ===== 학생사회 ===== */
 function renderCouncil(){
   const tabs = [['notice','공지사항'],['suggestion','건의합니다'],['poll','투표'],['recruitment','구인글']];
-  if(isCouncil()) tabs.push(['councilBoard','학생회']);
   const valid = tabs.some(([k])=>k===state.councilTab);
   if(!valid) state.councilTab='notice';
   const labels = tabs.map(([k,l])=>`<div class="subtab ${state.councilTab===k?'active':''}" data-action="council-tab" data-tab="${k}">${l}</div>`).join('');
@@ -5169,7 +5182,6 @@ function renderCouncil(){
   else if(state.councilTab==='suggestion') body=renderSuggestionTab();
   else if(state.councilTab==='poll') body=renderPollTab();
   else if(state.councilTab==='recruitment') body=renderRecruitmentTab();
-  else if(state.councilTab==='councilBoard') body=renderCouncilBoardTab();
   return `<div class="subtabs">${labels}</div>${body}`;
 }
 
@@ -5354,96 +5366,6 @@ function recruitmentModal(r){
     </form>`;
 }
 
-function renderCouncilBoardTab(){
-  const canClearAll = myLevel() >= 2;
-  const list = live(state.councilPosts).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
-  const mySid = state.user ? state.user.studentId : '';
-
-  return `
-    <div style="display:flex; gap:6px; margin-bottom:12px;">
-      <button class="btn btn-primary btn-sm" data-action="add-council-post" style="flex:1;">${ICON.plus} 학생회 게시글 작성</button>
-      ${canClearAll ? `<button class="btn btn-danger btn-sm" data-action="clear-all-board" data-type="councilPost" style="width:auto;">전체 삭제</button>` : ''}
-    </div>
-    <div class="card">
-      ${list.length ? list.map(p=>{
-        const rawComments = Array.isArray(p.comments)?p.comments:[];
-        const maxLikes = Math.max(0, ...rawComments.map(c=>Object.keys(c.likes||{}).length));
-        const sortedComments = [...rawComments].sort((a,b)=>{
-          const la = Object.keys(a.likes||{}).length;
-          const lb = Object.keys(b.likes||{}).length;
-          if(la >= 5 && la === maxLikes && lb < la) return -1;
-          if(lb >= 5 && lb === maxLikes && la < lb) return 1;
-          return Number(a.createdAt||0) - Number(b.createdAt||0);
-        });
-
-        const isExpanded = !!state.expandedComments[p.id];
-        const displayComments = (rawComments.length > 2 && !isExpanded) ? sortedComments.slice(0,2) : sortedComments;
-        const editable = canModify(p);
-
-        return `
-        <div class="list-item">
-          <div class="row-between" style="gap:8px; margin-bottom:2px;">
-            <b class="post-title one-line">${escapeHtml(p.title)}</b>
-            <span class="tag tag-crimson">${publicRoleLabel(p.authorRole||'council')}</span>
-          </div>
-          <div class="meta">${fmtAuthorBadge(p.authorName, p.authorId, p.authorRole)} · ${fmtDateTime(p.createdAt || p.date)}</div>
-          <div class="body">${escapeHtml(p.content)}</div>
-          ${renderLikeUI(p, 'councilPost')}
-          <div style="margin-top:12px; font-size:11px; font-weight:800; color:var(--teal);">댓글 ${rawComments.length}</div>
-          ${displayComments.map(c=>{
-            const cLikes = c.likes || {};
-            const cCount = Object.keys(cLikes).length;
-            const cHasLiked = !!cLikes[mySid];
-            const isBest = cCount >= 5 && cCount === maxLikes;
-            const canDelComment = (state.user && c.authorId === state.user.studentId) || myLevel() >= 2;
-            return `
-            <div class="comment-box ${isBest?'best-comment':''}">
-              <div class="row-between">
-                <div>
-                  <b>${fmtAuthorBadge(c.authorName, c.authorId, c.authorRole)}</b>
-                  ${isBest ? `<span class="tag tag-amber" style="font-size:9px; padding:1px 5px; margin-left:4px;">BEST</span>` : ''}
-                  <span style="font-size:9.5px; color:var(--text-faint); margin-left:5px;">· ${fmtDateTime(c.createdAt || c.date)}</span>
-                </div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <button type="button" class="btn-comment-like ${cHasLiked?'active':''}" data-action="toggle-comment-like" data-post-id="${p.id}" data-comment-id="${c.id}">
-                    ${ICON.thumbUp} <span>${cCount}</span>
-                  </button>
-                  ${canDelComment ? `
-                  <button type="button" class="btn-del-comment" data-action="delete-council-comment" data-post-id="${p.id}" data-comment-id="${c.id}" title="댓글 삭제">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
-                  </button>` : ''}
-                </div>
-              </div>
-              <div class="c-body">${escapeHtml(c.content)}</div>
-            </div>`;
-          }).join('')}
-          ${rawComments.length > 2 ? `
-            <button type="button" class="btn-more-comments" data-action="toggle-more-comments" data-post-id="${p.id}">
-              ${isExpanded ? '댓글 접기 ▴' : `댓글 ${rawComments.length - 2}개 더보기 ▾`}
-            </button>
-          ` : ''}
-          <form class="comment-form council-comment-form" data-post-id="${p.id}">
-            <input name="content" placeholder="댓글 작성..." required autocomplete="off">
-            <button class="btn btn-primary btn-sm" type="submit" style="width:auto;">등록</button>
-          </form>
-          ${editable ? `<div style="display:flex; gap:6px; margin-top:8px;">
-            <button class="btn btn-danger btn-sm" data-action="delete-council-post" data-id="${p.id}">삭제</button>
-          </div>` : `<div style="font-size:10.5px; color:var(--text-faint); margin-top:8px;">상위 직급 게시글은 삭제할 수 없습니다.</div>`}
-        </div>`;
-      }).join('') : `<div class="empty"><p>학생회 게시글이 없습니다.</p></div>`}
-    </div>`;
-}
-
-function councilPostModal(){
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title">학생회 게시글 작성<button data-action="close-modal">${ICON.close}</button></div>
-    <form id="council-post-form">
-      <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" required placeholder="게시글 제목"></div>
-      <div class="field"><label>내용</label><textarea name="content" style="min-height:120px" required placeholder="학생회 구성원에게 공유할 내용"></textarea></div>
-      <div class="modal-actions"><button type="submit" class="btn btn-primary">게시하기</button></div>
-    </form>`;
-}
 
 /* ===== 투표 ===== */
 function csvField(v){
@@ -5783,6 +5705,12 @@ function renderMypage(){
         <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>채팅 알림</b><small>친구가 메시지를 보낼 때 · 실시간으로 바로 오진 않아요</small></span></span>
         <button type="button" class="btn ${np.chat?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="chat">${np.chat?'켜짐':'꺼짐'}</button>
       </div>
+      ${isCouncil() ? `
+      <div class="notify-row">
+        <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>학생회 채팅 알림</b><small>학생회 채팅방에 새 메시지가 올 때 · 실시간으로 바로 오진 않아요</small></span></span>
+        <button type="button" class="btn ${np.councilChat?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="councilChat">${np.councilChat?'켜짐':'꺼짐'}</button>
+      </div>
+      ` : ''}
       <div class="notify-row">
         <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
         <button type="button" class="btn ${np.night?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="night">${np.night?'켜짐':'꺼짐'}</button>
@@ -6049,6 +5977,7 @@ function stopFriendChatListener(){
 }
 
 state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, data:{incoming:[], outgoing:[], friends:[]} };
+state.councilChatUI = { reads:{}, hasUnseen:false, membersOpen:false };
 
 // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
 // 친구 화면을 열 때만 하면 "상대가 그 화면을 먼저 열어봐야만" 검색되는 이상한 제약이 생기므로,
@@ -6075,6 +6004,7 @@ function friendsModalShell(){
 function friendsModalBody(){
   if(state.friendsUI.screen === 'detail') return friendDetailBody();
   if(state.friendsUI.screen === 'nickname') return friendNicknameBody();
+  if(state.friendsUI.screen === 'councilChat') return councilChatBody();
   return friendListBody();
 }
 function refreshFriendsModalBody(){
@@ -6116,14 +6046,41 @@ async function refreshFriendsData(){
     state.friendsUI.data = { incoming, outgoing, friends };
     state.unseenChatPairIds = unseenPairIds;
     state.hasUnseenChat = unseenPairIds.size > 0;
+    if(isCouncil()) await refreshCouncilChatUnseen();
     refreshBellDot();
   }catch(e){ console.error('[friends] 목록 조회 실패', e); }
   refreshFriendsModalBody();
 }
 
+// 학생회 채팅방을 열어보지 않아도 "새 메시지 있음" 점을 보여주기 위해, 친구 목록을
+// 새로고침할 때마다 최근 메시지 한 건만 가볍게 확인한다(전체를 구독하지 않음).
+async function refreshCouncilChatUnseen(){
+  try{
+    const q = query(collection(db,'councilChatMessages'), orderBy('createdAt','desc'), limit(1));
+    const snap = await getDocs(q);
+    if(snap.empty){ state.councilChatUI.hasUnseen = false; return; }
+    const last = snap.docs[0].data();
+    const seenAt = localGet('councilchat_seen', 0);
+    state.councilChatUI.hasUnseen = last.senderUid !== state.user.uid && (last.createdAt||0) > seenAt;
+  }catch(e){ /* 학생회 아니면 규칙상 애초에 못 읽음 — 조용히 무시 */ }
+}
+
 function friendListBody(){
   const { incoming, outgoing, friends } = state.friendsUI.data;
   return `
+    ${isCouncil() ? `
+    <div class="section-title">학생회</div>
+    <div class="list-item" style="cursor:pointer; margin-bottom:12px;" data-action="open-council-chat">
+      <div class="row-between">
+        <div><b style="font-size:13.5px;">학생회 채팅</b><div class="meta">학생회 이상 전체 단체 채팅</div></div>
+        <span style="display:flex; align-items:center; gap:6px;">
+          ${state.councilChatUI.hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
+          <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
+        </span>
+      </div>
+    </div>
+    ` : ''}
+
     <div style="display:flex; gap:8px; margin-bottom:6px;">
       <input type="text" id="friend-add-input" placeholder="학번으로 친구 추가" inputmode="numeric"
         style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13.5px; min-width:0;">
@@ -6213,7 +6170,7 @@ function friendDetailBody(){
     <div class="card" style="padding:12px;">
       <div id="friend-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
       <div style="display:flex; gap:8px; margin-top:10px;">
-        <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="2000"
+        <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="1000"
           style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
         <button type="button" class="btn btn-primary btn-sm" id="friend-chat-send" style="width:auto;">전송</button>
       </div>
@@ -6224,6 +6181,17 @@ function friendDetailBody(){
 function setupFriendsModalListeners(){
   const addInput = document.getElementById('friend-add-input');
   if(addInput) addInput.addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequest(); });
+
+  if(state.friendsUI.screen === 'councilChat'){
+    stopCouncilChatListener();
+    openCouncilChatListener();
+    const ccInput = document.getElementById('council-chat-input');
+    const ccSend = document.getElementById('council-chat-send');
+    const send = () => sendCouncilChatMessage();
+    if(ccSend) ccSend.onclick = send;
+    if(ccInput) ccInput.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
+    return;
+  }
 
   if(state.friendsUI.screen !== 'detail') return;
 
@@ -6337,8 +6305,139 @@ function openFriendDetail(uid, name, pairId){
 }
 function friendsBackToList(){
   stopFriendChatListener();
+  stopCouncilChatListener();
   state.friendsUI.screen = 'list';
   refreshFriendsModalBody();
+}
+
+/* ===== 학생회(국장 이상) 단체 채팅 =====
+ * 방이 하나뿐이라 pairId 없이 top-level councilChatMessages 컬렉션 하나를 그대로 쓴다.
+ * "몇 명이 읽었는지"는 shared/councilChatReads에 사람마다 마지막으로 이 화면을 열어본
+ * 시각을 남겨두고, 메시지 시각보다 나중에 연 사람 수를 세어서 계산한다.
+ * 메시지는 7일 뒤 notify/send-notifications.mjs가 자동으로 지운다.
+ */
+let councilChatUnsub = null;
+function stopCouncilChatListener(){
+  if(councilChatUnsub){ councilChatUnsub(); councilChatUnsub = null; }
+}
+function councilMemberList(){
+  return Object.values(state.allUsers||{}).filter(u=>u.role && u.role!=='student');
+}
+async function openCouncilChat(){
+  stopFriendChatListener();
+  state.friendsUI.screen = 'councilChat';
+  localSet('councilchat_seen', now());
+  state.councilChatUI.hasUnseen = false;
+  try{
+    await setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid]: now() }, { merge:true });
+  }catch(e){}
+  refreshFriendsModalBody();
+}
+function councilChatBody(){
+  const members = councilMemberList().sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+  return `
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+      <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
+      <b style="font-size:15px; flex:1;">학생회 채팅</b>
+    </div>
+
+    <div class="row-between" style="margin-bottom:6px;">
+      <div class="section-title" style="margin:0;">학생회 목록 (${members.length})</div>
+      <button type="button" data-action="toggle-council-members" style="background:none; border:none; display:flex; align-items:center; gap:3px; color:var(--text-dim); font-size:10.5px; cursor:pointer; padding:2px;">
+        ${state.councilChatUI.membersOpen ? '접기' : '펼치기'}
+        <span style="display:flex; transition:transform .15s; transform:rotate(${state.councilChatUI.membersOpen ? '180deg' : '0deg'});">${ICON.chevDown}</span>
+      </button>
+    </div>
+    ${state.councilChatUI.membersOpen ? `
+    <div class="card" style="padding:0 12px; margin-bottom:14px;">
+      ${members.map(m=>`
+        <div class="list-item">
+          <div class="row-between">
+            <b style="font-size:13px;">${escapeHtml(m.name)}</b>
+            <span class="tag tag-crimson">${publicRoleLabel(m.role)}</span>
+          </div>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <div class="section-title">채팅</div>
+    <div class="card" style="padding:12px;">
+      <div id="council-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="text" id="council-chat-input" placeholder="메시지 입력…" maxlength="2000"
+          style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
+        <button type="button" class="btn btn-primary btn-sm" id="council-chat-send" style="width:auto;">전송</button>
+      </div>
+    </div>
+  `;
+}
+function openCouncilChatListener(){
+  const log = document.getElementById('council-chat-log');
+  if(!log) return;
+  log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
+  const totalMembers = councilMemberList().length;
+  const q = query(collection(db,'councilChatMessages'), orderBy('createdAt'), limit(200));
+  councilChatUnsub = onSnapshot(q, async (snap) => {
+    if(state.friendsUI.screen !== 'councilChat') return;
+    let reads = {};
+    try{
+      const rSnap = await getDoc(doc(db,'shared','councilChatReads'));
+      reads = rSnap.exists() ? rSnap.data() : {};
+    }catch(e){}
+    const el = document.getElementById('council-chat-log');
+    if(!el) return;
+    if(snap.empty){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
+    el.innerHTML = snap.docs.map(d=>{
+      const m = d.data();
+      const mine = m.senderUid === state.user.uid;
+      const readCount = Object.entries(reads).filter(([uid,ts])=>uid!==m.senderUid && (ts||0) >= (m.createdAt||0)).length;
+      const readTag = mine ? `<div style="font-size:9px; opacity:.6; margin-top:2px;">${readCount}/${Math.max(0,totalMembers-1)}명 읽음</div>` : '';
+      return `<div style="max-width:78%; align-self:${mine?'flex-end':'flex-start'};">
+        ${mine ? '' : `<div style="font-size:9.5px; color:var(--text-faint); margin:0 2px 2px;">${escapeHtml(m.senderName||'')}${m.senderRole?` · ${escapeHtml(publicRoleLabel(m.senderRole))}`:''}</div>`}
+        <div style="padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div></div>
+        ${readTag}
+      </div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+    // 내가 채팅방을 열어본 채로 새 메시지가 도착한 경우도 "읽음"으로 계속 갱신한다.
+    setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid]: now() }, { merge:true }).catch(()=>{});
+  }, (err) => {
+    console.error('[council-chat]', err);
+    const el = document.getElementById('council-chat-log');
+    if(el) el.innerHTML = `<div class="empty"><p>채팅을 불러오지 못했어요.</p></div>`;
+  });
+}
+const councilChatRateState = { sendTimes: [], blockedUntil: 0 };
+function councilChatRateLimited(){
+  const t = Date.now();
+  if(councilChatRateState.blockedUntil && t < councilChatRateState.blockedUntil){
+    toast('메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.');
+    return true;
+  }
+  councilChatRateState.sendTimes = councilChatRateState.sendTimes.filter(x => t - x < 10000);
+  councilChatRateState.sendTimes.push(t);
+  if(councilChatRateState.sendTimes.length > 7){
+    councilChatRateState.blockedUntil = t + 3000;
+    councilChatRateState.sendTimes = [];
+    toast('메시지를 너무 빠르게 보내고 있어요. 3초만 기다려주세요.');
+    return true;
+  }
+  return false;
+}
+async function sendCouncilChatMessage(){
+  const input = document.getElementById('council-chat-input');
+  const text = (input && input.value || '').trim();
+  if(!text) return;
+  if(utf8ByteLength(text) > COUNCIL_CHAT_MAX_BYTES){ toast(`메시지가 너무 길어요 (최대 ${COUNCIL_CHAT_MAX_BYTES}바이트)`); return; }
+  if(councilChatRateLimited()) return;
+  input.value = '';
+  try{
+    await addDoc(collection(db,'councilChatMessages'), {
+      senderUid: state.user.uid, senderName: state.user.name, senderRole: myRole(), text, createdAt: Date.now(),
+    });
+  }catch(e){
+    console.error(e);
+    toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
+  }
 }
 
 async function unfriend(){
@@ -6430,7 +6529,8 @@ function renderFriendTimetableGrid(slots, semKey){
       const top = Math.max(0, (s.start-minStart)*pxPerMin);
       const height = Math.max(14, (s.end-s.start)*pxPerMin);
       const color = s.color || 'var(--crimson)';
-      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:#fff; overflow:hidden; line-height:1.25; white-space:normal; word-break:keep-all; overflow-wrap:break-word; background:${escapeHtml(color)};"><b>${escapeHtml(s.subject||'')}</b>${s.room?`<br>${escapeHtml(s.room)}`:''}</div>`;
+      const textColor = s.textColor || '#FFFFFF';
+      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:${textColor}; overflow:hidden; line-height:1.25; white-space:normal; word-break:keep-all; overflow-wrap:break-word; background:${escapeHtml(color)};"><b style="text-shadow:${textColor==='#000000'?'none':'0 1px 2px rgba(0,0,0,0.5)'}">${escapeHtml(s.subject||'')}</b>${s.room?`<br>${escapeHtml(s.room)}`:''}</div>`;
     }).join('');
     return `<div style="position:relative; background:var(--surface-2); border-radius:4px; min-height:${GRID_H}px;">${blocks}</div>`;
   }).join('');
@@ -6443,6 +6543,10 @@ function renderFriendTimetableGrid(slots, semKey){
       ${cols}
     </div>`;
 }
+
+function utf8ByteLength(s){ return new TextEncoder().encode(s||'').length; }
+const FRIEND_CHAT_MAX_BYTES = 1000;
+const COUNCIL_CHAT_MAX_BYTES = 2000;
 
 function fmtChatTime(ts){
   const d = new Date(ts||Date.now());
@@ -6502,6 +6606,7 @@ async function sendFriendChatMessage(){
   const input = document.getElementById('friend-chat-input');
   const text = (input && input.value || '').trim();
   if(!text) return;
+  if(utf8ByteLength(text) > FRIEND_CHAT_MAX_BYTES){ toast(`메시지가 너무 길어요 (최대 ${FRIEND_CHAT_MAX_BYTES}바이트)`); return; }
   if(friendChatRateLimited()) return;
   input.value = '';
   try{
@@ -6963,15 +7068,8 @@ function collectUserPosts(sid){
   push(state.notices, '공지', it=>it.title);
   push(state.suggestions, '건의사항', it=>it.title || it.content);
   push(state.recruitmentPosts, '구인글', it=>it.title);
-  push(state.councilPosts, '학생회 게시글', it=>it.title);
   push(state.polls, '투표', it=>it.question);
   push(state.calendar, '학사일정', it=>it.title);
-  (state.councilPosts||[]).forEach(p=>{
-    (Array.isArray(p.comments)?p.comments:[]).forEach(c=>{
-      if(!c || c.authorId !== sid || c.deleted) return;
-      out.push({ type:'학생회 댓글', title:String(c.content||'').slice(0,80), ts:c.createdAt||0 });
-    });
-  });
   return out.sort((a,b)=>(b.ts||0)-(a.ts||0));
 }
 
@@ -7365,7 +7463,6 @@ async function handleToggleLike(type, id){
   let docName = '';
 
   if(type==='notice'){ list = await loadNotices(); docName = 'notices'; }
-  else if(type==='councilPost'){ list = await loadCouncilPosts(); docName = 'councilPosts'; }
   else if(type==='recruitment'){ list = await loadRecruitments(); docName = 'recruitments'; }
   else if(type==='suggestion'){ list = await loadSuggestions(); docName = 'suggestions'; }
   if(!docName) return;
@@ -7385,32 +7482,9 @@ async function handleToggleLike(type, id){
   if(!next){ saveResultToast(false); return; }
 
   if(type==='notice') state.notices = next;
-  else if(type==='councilPost') state.councilPosts = next;
   else if(type==='recruitment') state.recruitmentPosts = next;
   else if(type==='suggestion') state.suggestions = next;
 
-  renderMain();
-}
-
-async function handleToggleCommentLike(postId, commentId){
-  if(!state.user){ toast('로그인이 필요합니다'); return; }
-  const sid = state.user.studentId;
-  const uName = state.user.name;
-
-  const next = await mutateSharedList('councilPosts', 'list', (cur)=>{
-    const post = cur.find(p=>p && p.id===postId);
-    if(!post) return null;
-    const comments = (post.comments||[]).map(c=>{
-      if(c.id!==commentId) return c;
-      const likes = { ...(c.likes||{}) };
-      if(likes[sid]) delete likes[sid];
-      else likes[sid] = { name: uName, studentId: sid, time: now() };
-      return { ...c, likes };
-    });
-    return cur.map(p=>p.id===postId ? { ...p, comments, updatedAt: now() } : p);
-  });
-  if(!next){ saveResultToast(false); return; }
-  state.councilPosts = next;
   renderMain();
 }
 
@@ -7682,12 +7756,6 @@ document.addEventListener('submit', async (e)=>{
   const form = e.target;
   e.preventDefault();
 
-  if(form.classList && form.classList.contains('council-comment-form')){
-    try{ await handleCouncilComment(form); }
-    catch(err){ toast('댓글 등록 실패'); }
-    return;
-  }
-
   const formId = form.getAttribute('id');
   if(!formId){
     toast('폼을 인식하지 못했습니다');
@@ -7708,7 +7776,6 @@ document.addEventListener('submit', async (e)=>{
     'poll-form': handlePollSubmit,
     'poll-vote-form': handlePollVoteSubmit,
     'recruitment-form': handleRecruitmentSubmit,
-    'council-post-form': handleCouncilPostSubmit,
     'council-verify-form': handleCouncilVerify,
     'change-password-form': handleChangePasswordSubmit,
     'delete-account-form': handleDeleteAccountSubmit,
@@ -8321,94 +8388,6 @@ async function deleteRecruitment(id){
 }
 
 /* ===== 학생회 게시판 ===== */
-async function handleCouncilPostSubmit(fd){
-  if(!isCouncil()) return;
-  const title = (fd.get('title') || '').trim();
-  const content = (fd.get('content') || '').trim();
-  if(!title || !content){ toast('제목과 내용을 입력해주세요'); return; }
-  const latest = await loadCouncilPosts();
-  const next = [{
-    id: uid(),
-    title,
-    content,
-    authorName: state.user.name,
-    authorId: state.user.studentId,
-    authorRole: myRole(),
-    date: todayStr(),
-    createdAt: now(),
-    updatedAt: now(),
-    comments: [],
-    likes: {}
-  }, ...latest];
-  const ok = await saveCouncilPosts(next);
-  state.councilPosts = next;
-  closeModal();
-  renderMain();
-  saveResultToast(ok, '게시글이 등록되었습니다');
-}
-
-async function handleCouncilComment(form){
-  if(!isCouncil()) return;
-  const content = (new FormData(form).get('content') || '').trim();
-  if(!content) return;
-  const postId = form.dataset.postId;
-  // 같은 글에 두 사람이 동시에 댓글을 달아도 한쪽이 사라지지 않도록 트랜잭션으로 추가한다.
-  const next = await mutateSharedList('councilPosts', 'list', (cur)=>{
-    const post = cur.find(p => p && p.id === postId);
-    if(!post) return null;
-    return cur.map(p => p.id === postId ? {
-      ...p,
-      comments: [...(p.comments || []), {
-        id: uid(),
-        authorName: state.user.name,
-        authorId: state.user.studentId,
-        authorRole: myRole(),
-        content,
-        date: todayStr(),
-        createdAt: now(),
-        likes: {}
-      }],
-      updatedAt: now()
-    } : p);
-  });
-  if(!next){ saveResultToast(false); return; }
-  state.councilPosts = next;
-  renderMain();
-}
-
-async function deleteCouncilPost(id){
-  const latest = await loadCouncilPosts();
-  const target = latest.find(p => p.id === id);
-  if(!target || !canModify(target)) return;
-  if(!await showConfirm('이 게시글을 삭제할까요?')) return;
-  const next = latest.map(p => p.id === id ? { ...p, deleted: true, updatedAt: now() } : p);
-  const ok = await saveCouncilPosts(next);
-  state.councilPosts = next;
-  renderMain();
-  saveResultToast(ok, '게시글이 삭제되었습니다');
-  logAudit('삭제', '학생회 게시글', target.title);
-}
-
-async function deleteCouncilComment(postId, commentId){
-  const list = await loadCouncilPosts();
-  const post = list.find(p => p.id === postId);
-  if(!post) return;
-  const target = (post.comments || []).find(c => c.id === commentId);
-  if(!target) return;
-  
-  const isMine = state.user && target.authorId === state.user.studentId;
-  if(!isMine && myLevel() < 2) return;
-  if(!await showConfirm('이 댓글을 삭제할까요?')) return;
-
-  const comments = (post.comments || []).filter(c => c.id !== commentId);
-  const next = list.map(p => p.id === postId ? { ...p, comments, updatedAt: now() } : p);
-  await saveCouncilPosts(next);
-  state.councilPosts = next;
-  renderMain();
-  saveResultToast(true, '댓글이 삭제되었습니다');
-  logAudit('삭제', '학생회 게시글 댓글', target.content);
-}
-
 /* ===== 투표 ===== */
 async function handlePollSubmit(fd){
   const question = (fd.get('question') || '').trim();
@@ -8700,7 +8679,7 @@ async function handleGeminiKeysSubmit(fd){
 /* ===== 게시판 전체 삭제 (상위 직급 글 보호 & 종료된 투표만 삭제) ===== */
 async function clearAllBoard(type){
   if(myLevel() < 2) return;
-  const nameMap = { notice: '공지사항', suggestion: '건의사항', recruitment: '구인글', councilPost: '학생회 게시글', poll: '종료된 투표' };
+  const nameMap = { notice: '공지사항', suggestion: '건의사항', recruitment: '구인글', poll: '종료된 투표' };
   if(!await showConfirm(`[확인] 삭제 가능한 모든 ${nameMap[type]}을(를) 삭제하시겠습니까?\n(상위 직급이 작성한 글은 유지됩니다)`)) return;
 
   let beforeCount = 0;
@@ -8726,13 +8705,6 @@ async function clearAllBoard(type){
     remaining = list.map(item => (!item.deleted && roleLevel(item.authorRole || 'student') > myLevel()) ? item : { ...item, deleted: true, updatedAt: now() });
     await saveRecruitments(remaining);
     state.recruitmentPosts = remaining;
-  }
-  else if(type === 'councilPost'){
-    const list = await loadCouncilPosts();
-    beforeCount = live(list).length;
-    remaining = list.map(item => (!item.deleted && roleLevel(item.authorRole || 'council') > myLevel()) ? item : { ...item, deleted: true, updatedAt: now() });
-    await saveCouncilPosts(remaining);
-    state.councilPosts = remaining;
   }
   else if(type === 'poll'){
     const list = await loadPolls();
@@ -8831,7 +8803,7 @@ document.addEventListener('click', async (e)=>{
   if(!el) return;
   const a = el.dataset.action;
 
-  const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','delete-event','edit-meal','add-council-post','delete-council-post','add-council-event','delete-all-calendar','ocr-calendar'];
+  const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','delete-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
   const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail'];
   if(councilOnly.includes(a) && !isCouncil()){ toast('학생회 권한이 필요한 기능입니다'); return; }
@@ -9013,6 +8985,8 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'accept-friend-request'){ await acceptFriendRequest(el.dataset.pair); }
     else if(a === 'decline-friend-request'){ await declineFriendRequest(el.dataset.pair); }
     else if(a === 'open-friend-detail'){ openFriendDetail(el.dataset.uid, el.dataset.name, el.dataset.pair); }
+    else if(a === 'open-council-chat'){ await openCouncilChat(); }
+    else if(a === 'toggle-council-members'){ state.councilChatUI.membersOpen = !state.councilChatUI.membersOpen; refreshFriendsModalBody(); }
     else if(a === 'friends-back'){ friendsBackToList(); }
     else if(a === 'friends-back-to-detail'){ state.friendsUI.screen = 'detail'; refreshFriendsModalBody(); }
     else if(a === 'set-friend-nickname'){ state.friendsUI.screen = 'nickname'; refreshFriendsModalBody(); }
@@ -9333,16 +9307,8 @@ document.addEventListener('click', async (e)=>{
       }
     }
     else if(a === 'delete-recruitment'){ await deleteRecruitment(el.dataset.id); }
-    else if(a === 'add-council-post'){ openModal(councilPostModal()); }
-    else if(a === 'delete-council-post'){ await deleteCouncilPost(el.dataset.id); }
-    else if(a === 'delete-council-comment'){ await deleteCouncilComment(el.dataset.postId, el.dataset.commentId); }
     else if(a === 'clear-all-board'){ await clearAllBoard(el.dataset.type); }
     else if(a === 'toggle-like'){ await handleToggleLike(el.dataset.type, el.dataset.id); }
-    else if(a === 'toggle-comment-like'){ await handleToggleCommentLike(el.dataset.postId, el.dataset.commentId); }
-    else if(a === 'toggle-more-comments'){
-      state.expandedComments[el.dataset.postId] = !state.expandedComments[el.dataset.postId];
-      renderMain();
-    }
   }catch(err){
     console.error(err);
   }

@@ -12,6 +12,7 @@
 //   6.5) 새 건의사항     → 감지 즉시 (학생회 전용)
 //   7) 건의사항 답변     → 감지 즉시 (작성자 본인 전용)
 //   8) 친구 채팅         → 감지 즉시 (채팅 알림을 켠 수신자 전용)
+//   8.5) 학생회 단체 채팅 → 감지 즉시 (학생회 채팅 알림을 켠 학생회 구성원 전용)
 //
 // 필요한 비밀값: 저장소 Settings → Secrets and variables → Actions에
 //   FIREBASE_SERVICE_ACCOUNT = Firebase 콘솔에서 발급한 서비스 계정 JSON 전체 내용
@@ -170,6 +171,23 @@ async function purgeOldChatMessages() {
   console.log(`[chatPurge] 24시간 지난 메시지 ${docs.length}건 삭제`);
 }
 
+// 학생회 채팅은 친구 채팅(24시간)보다 길게, 7일치를 보관한 뒤 지운다 — 방이 하나뿐이라
+// collectionGroup이 아니라 컬렉션을 바로 조회한다.
+const COUNCIL_CHAT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+async function purgeOldCouncilChatMessages() {
+  const cutoff = Date.now() - COUNCIL_CHAT_TTL_MS;
+  const snap = await db.collection('councilChatMessages').where('createdAt', '<', cutoff).get();
+  if (snap.empty) return;
+  const batchSize = 400;
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += batchSize) {
+    const batch = db.batch();
+    docs.slice(i, i + batchSize).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  console.log(`[councilChatPurge] 7일 지난 메시지 ${docs.length}건 삭제`);
+}
+
 async function main() {
   const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, stateSnap, usersSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
@@ -208,6 +226,7 @@ async function main() {
   const tokensByStudentId = new Map(); // 건의사항 답변처럼 "그 사람에게만" 보낼 때 씀
   const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
   const chatOkUids = new Set(); // 채팅 알림을 켜둔 사람만
+  const councilChatOkUids = new Set(); // 학생회 채팅 알림을 켜둔 학생회 구성원만
   const nameByUid = new Map();
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
@@ -219,6 +238,7 @@ async function main() {
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
     tokensByUid.set(docSnap.id, tokens);
     if (prefs.chat) chatOkUids.add(docSnap.id);
+    if (prefs.councilChat && u.role && u.role !== 'student') councilChatOkUids.add(docSnap.id);
     for (const t of tokens) {
       tokenToUid.set(t, docSnap.id);
       if (prefs.notice) tokensBy.notice.push(t);
@@ -469,6 +489,47 @@ async function main() {
   }
   nextState.lastChatCheck = chatRunStartedAt;
 
+  // 8.5) 학생회 단체 채팅 — 방이 하나뿐이라 pairId 없이 컬렉션 전체를 그대로 훑는다.
+  //      보낸 사람 본인 제외, 학생회 채팅 알림을 켠 학생회 구성원에게만 보낸다.
+  const lastCouncilChatCheck = st.lastCouncilChatCheck || Date.now() - 15 * 60 * 1000;
+  const councilChatRunStartedAt = Date.now();
+  const newCouncilMsgsSnap = await db
+    .collection('councilChatMessages')
+    .where('createdAt', '>', lastCouncilChatCheck)
+    .get();
+  if (!newCouncilMsgsSnap.empty) {
+    for (const d of newCouncilMsgsSnap.docs) {
+      const m = d.data();
+      for (const recipientUid of councilChatOkUids) {
+        if (recipientUid === m.senderUid) continue;
+        const allTokens = tokensByUid.get(recipientUid) || [];
+        const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+        if (!tokens.length) continue;
+        const res = await messaging.sendEachForMulticast({
+          tokens,
+          notification: {
+            title: `${m.senderName || '학생회'}님의 학생회 채팅`,
+            body: String(m.text || '').slice(0, 80),
+          },
+          data: { url: './index.html' },
+        });
+        res.responses.forEach((resp, idx) => {
+          if (resp.success) return;
+          const code = resp.error && resp.error.code;
+          if (
+            code === 'messaging/invalid-registration-token' ||
+            code === 'messaging/registration-token-not-registered'
+          ) {
+            invalidTokens.add(tokens[idx]);
+          }
+        });
+        sentCount++;
+      }
+    }
+    console.log(`[councilChatNotify] 새 메시지 ${newCouncilMsgsSnap.size}건 확인, 알림 발송 시도`);
+  }
+  nextState.lastCouncilChatCheck = councilChatRunStartedAt;
+
   if (!sentCount) {
     console.log('보낼 알림 없음 — 종료');
   }
@@ -492,6 +553,7 @@ async function main() {
   await purgeOldTombstones();
   await purgePendingAuthDeletes();
   await purgeOldChatMessages();
+  await purgeOldCouncilChatMessages();
 
   // 만료/무효 토큰 정리 — 배열에서 해당 토큰만 빼고, 단일 필드는 그 토큰일 때만 지운다.
   if (invalidTokens.size) {

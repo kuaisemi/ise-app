@@ -216,11 +216,31 @@ service cloud.firestore {
         && friendsWith(pairId.split('_')[0], pairId.split('_')[1])
         && request.resource.data.senderUid == request.auth.uid
         && request.resource.data.text is string
-        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
         && request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt']);
       // 수정·삭제는 없음 — "채팅 비우기"는 실제로 메시지를 지우지 않고 friendLinks의
       // clearedAt(내 쪽 기준 시각)만 바꾼다. 진짜 삭제는 24시간 자동 정리가 담당한다.
       allow update, delete: if false;
+    }
+
+    // 학생회(국장 이상 전체) 단체 채팅방 — 1:1 친구 채팅과 달리 방이 하나뿐이라 최상위
+    // 컬렉션에 바로 둔다. 7일 지난 메시지는 notify/send-notifications.mjs가 자동 삭제한다.
+    match /councilChatMessages/{msgId} {
+      allow read: if isCouncil();
+      allow create: if isCouncil()
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+        && request.resource.data.keys().hasOnly(['senderUid', 'senderName', 'senderRole', 'text', 'createdAt']);
+      allow update, delete: if false;
+    }
+    // 학생회 채팅을 "몇 명이 읽었는지" 계산하기 위한 사람별 마지막 열람 시각.
+    // 본인 키만 쓸 수 있다 — 남의 열람 시각을 조작해 읽음 표시를 속일 수 없게.
+    match /shared/councilChatReads {
+      allow read: if isCouncil();
+      allow create: if isCouncil() && request.resource.data.keys().hasOnly([request.auth.uid]);
+      allow update: if isCouncil()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([request.auth.uid]);
     }
 
     // 개인 메모장 — 본인 것만 읽고 쓸 수 있다. 공용 문서(shared/*)와 달리 사용자별로
@@ -284,7 +304,6 @@ service cloud.firestore {
     // 하나 때문에 로그인한 학생이면 전부 읽을 수 있었다. 명단 보호가 사실상 없던 셈이라
     // 와일드카드를 없애고 공개해도 되는 문서만 하나씩 나열한다.
     match /shared/calendarEvents { allow read: if isSignedIn(); allow write: if isCouncil(); }
-    match /shared/councilPosts   { allow read: if isSignedIn(); allow write: if isSignedIn(); }
     match /shared/deptNotices    { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/meals          { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/shuttle        { allow read: if isSignedIn(); allow write: if isCouncil(); }
