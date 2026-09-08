@@ -721,6 +721,7 @@ const PATCH_NOTES = [
     '셔틀버스 시간 목록 정렬을 글씨 크기 변화에도 자연스럽게 대응하도록 개선',
     '셔틀버스 카운트다운이 지점별 실제 첫차 1시간 전부터 정확히 시작하도록 수정 (막차 이후엔 운행 종료로 표시)',
     '셔틀버스 "2대 운행" 표시가 말풍선을 두 줄로 늘리지 않도록 글자 크기 조정, "오송역 방면" 제목을 "오송역"으로 축약',
+    '시간표 화면에 여유 공간이 있을 때(수업이 20시 전에 끝나는 날)만 하단에 버전 표시를 다시 보여주도록 변경',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -3278,7 +3279,12 @@ function renderMain(){
   else if(state.view==='info') html=renderInfo();
   else if(state.view==='council') html=renderCouncil();
   else if(state.view==='mypage') html=renderMypage();
-  el.innerHTML = html + ((state.view==='mypage' || state.view==='timetable') ? '' : versionFooter());
+  // 시간표 탭은 21시 기준으로 칸 높이를 잡기 때문에(fitTimetableGrid), 수업이 20시
+  // 전에 끝나는 날은 그 아래로 빈 공간이 남아 거기에 버전 푸터를 넣을 자리가 있다.
+  // 20~21시 사이거나 그 이상이면 여백이 거의 없어서 넣으면 넘칠 수 있으니 뺀다.
+  const showTtFooter = state.view==='timetable' && timetableVisibleEnd() <= 20*60;
+  const skipFooter = state.view==='mypage' || (state.view==='timetable' && !showTtFooter);
+  el.innerHTML = html + (skipFooter ? '' : versionFooter());
   setupNowTimer();
   setupWidgetOpacitySlider();
   setupWidgetFontScaleSlider();
@@ -3539,6 +3545,12 @@ function fitTimetableGrid(){
       nowLine.style.top = top+'px';
     }
   }
+}
+// 오늘 시간표가 실제로 몇 시까지 표시되는지 — renderTimetable()과 똑같은 계산을
+// 여기서도 써서(버전 푸터를 보여줄지 말지 결정하는 데 씀), 로직이 어긋나지 않게 한다.
+function timetableVisibleEnd(){
+  const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
+  return Math.min(TIME_END, Math.max(TIMETABLE_VISIBLE_END, Math.ceil(latestEnd/60)*60));
 }
 function renderTimetable(isCapture=false){
   const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
