@@ -722,6 +722,8 @@ const PATCH_NOTES = [
     '셔틀버스 카운트다운이 지점별 실제 첫차 1시간 전부터 정확히 시작하도록 수정 (막차 이후엔 운행 종료로 표시)',
     '셔틀버스 "2대 운행" 표시가 말풍선을 두 줄로 늘리지 않도록 글자 크기 조정, "오송역 방면" 제목을 "오송역"으로 축약',
     '시간표 화면에 여유 공간이 있을 때(수업이 20시 전에 끝나는 날)만 하단에 버전 표시를 다시 보여주도록 변경',
+    '시간표 화면이 폰 화면 비율에 따라 살짝씩 스크롤되던 문제 수정 (버전 표시 자리를 미리 확보 + 오차 보정 로직 추가)',
+    '시간표 화면 표시 설정의 켜기/끄기 버튼 디자인을 앱 전체와 통일, "시간표 크기" 조절 슬라이더 추가 (화면 꽉 채움이 100%, 그 안에서만 줄이기 가능해 스크롤은 계속 생기지 않음)',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -3521,7 +3523,12 @@ function fitTimetableGrid(){
   const wrapTop = wrap.getBoundingClientRect().top;
   const navTop = nav.getBoundingClientRect().top;
   const bottomMargin = 12;
-  const available = navTop - wrapTop - bottomMargin;
+  // 시간표 화면 여백이 넉넉해서 버전 표시("ISE · Beta…")가 tt-wrap 아래에 같이 떠 있을 때,
+  // 그 표시가 차지할 자리(위쪽 여백 28px 포함)를 미리 빼두지 않으면 grid 높이를 계산할 때는
+  // 자리가 있다고 봤다가 실제로는 그 아래로 밀려나면서 페이지 전체가 스크롤되는 원인이 된다.
+  const footerEl = document.querySelector('#main-content > .app-version');
+  const footerReserve = footerEl ? Math.ceil(footerEl.getBoundingClientRect().height) + 30 : 0;
+  const available = navTop - wrapTop - bottomMargin - footerReserve;
   if(available <= 60) return; // 화면이 너무 작아 계산이 이상해지면 기본값(CSS 68vh)을 그대로 둔다
   const headerPx = 24;
   // 칸 높이는 "9시~21시" 기준(48칸)으로 계산한 값이 최대치다 — 수업이 21시 전에 끝나는
@@ -3532,7 +3539,12 @@ function fitTimetableGrid(){
   const baselineRows = Math.ceil((21*60 - TIME_START) / TIMETABLE_GRID_STEP);
   const actualRows = parseInt(grid.dataset.rows||'0', 10) || baselineRows;
   const effectiveRows = Math.max(baselineRows, actualRows);
-  const rowPx = Math.max(8, (available - headerPx) / effectiveRows);
+  const maxSafeRowPx = Math.max(8, (available - headerPx) / effectiveRows);
+  // "시간표 크기" 설정(화면 표시 설정)은 이 화면-꽉-채움 크기를 100%로 보고, 그보다
+  // 작게(0.6~1.0배)만 줄일 수 있게 한다 — 100%가 이미 스크롤 없이 들어가는 최대치라,
+  // 더 키우는 건 허용하지 않는다(스크롤 금지 원칙을 항상 지키기 위해).
+  const userScale = Math.max(0.6, Math.min(1, (state.ttOpts && state.ttOpts.rowScale) || 1));
+  const rowPx = Math.max(8, maxSafeRowPx * userScale);
   grid.style.setProperty('--tt-row-h', rowPx+'px');
   wrap.style.maxHeight = available+'px';
   // 칸 높이가 바뀌었으니 "지금" 표시하는 빨간 줄 위치도 새 칸 높이에 맞춰 다시 계산한다.
@@ -3545,6 +3557,17 @@ function fitTimetableGrid(){
       nowLine.style.top = top+'px';
     }
   }
+  // 안전장치: 계산이 기기별 안전영역(노치·제스처바 등)이나 반올림 오차로 조금 어긋나서
+  // 그래도 페이지 전체가 스크롤되면, 넘친 만큼 한 번 더 줄여서 다시 맞춘다.
+  requestAnimationFrame(()=>{
+    if(state.view!=='timetable') return;
+    const overflow = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    if(overflow > 1){
+      const fixedRowPx = Math.max(8, rowPx - (overflow / effectiveRows) - 0.5);
+      grid.style.setProperty('--tt-row-h', fixedRowPx+'px');
+      wrap.style.maxHeight = Math.max(60, available - overflow - 4) + 'px';
+    }
+  });
 }
 // 오늘 시간표가 실제로 몇 시까지 표시되는지 — renderTimetable()과 똑같은 계산을
 // 여기서도 써서(버전 푸터를 보여줄지 말지 결정하는 데 씀), 로직이 어긋나지 않게 한다.
@@ -3691,6 +3714,7 @@ function ttOptionsModal(){
   const colors = ['#FF6B6B', '#3ED6B5', '#5B9DFF', '#FFB454', '#B98CFF', '#FFFFFF'];
   const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘 요일 강조'], ['currentTime', '현재 시간 표시선']];
   const fontScale = o.fontScale || 1;
+  const rowScale = o.rowScale || 1;
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">화면 표시 설정<button data-action="close-modal">${ICON.close}</button></div>
@@ -3702,11 +3726,19 @@ function ttOptionsModal(){
         </div>
         <input type="range" id="tt-font-scale-slider" min="0.7" max="1.6" step="0.05" value="${fontScale}" style="width:100%;">
       </div>
+      <div style="margin-bottom:16px;">
+        <div class="row-between" style="margin-bottom:8px;">
+          <span style="color:var(--text); font-size:11.5px; font-weight:600;">시간표 크기</span>
+          <span id="tt-row-scale-label" style="font-family:var(--font-mono); font-size:11.5px; color:var(--teal);">${Math.round(rowScale*100)}%</span>
+        </div>
+        <input type="range" id="tt-row-scale-slider" min="0.6" max="1" step="0.05" value="${rowScale}" style="width:100%;">
+        <p style="font-size:10px; color:var(--text-faint); margin:4px 2px 0; line-height:1.5;">화면에 꽉 차게 나오는 크기가 100%예요. 스크롤 없이 보이는 한도 안에서만 줄일 수 있어요.</p>
+      </div>
       ${opts.map(([key, label]) => `
-        <label class="checkline" style="justify-content:space-between; margin-bottom:12px;">
-          <span style="color:var(--text);">${label}</span>
-          <input type="checkbox" class="tt-opt-pending" data-opt="${key}" ${o[key] ? 'checked' : ''}>
-        </label>`).join('')}
+        <div class="row-between" style="margin-bottom:12px;">
+          <span style="color:var(--text); font-size:11.5px;">${label}</span>
+          <button type="button" class="btn ${o[key]?'btn-primary':'btn-ghost'} btn-sm tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" style="width:auto; padding:4px 14px; font-size:11px;">${o[key]?'켜짐':'꺼짐'}</button>
+        </div>`).join('')}
       <div id="tt-now-color-section" style="margin-top:6px; padding-top:12px; border-top:1px solid var(--border); ${o.currentTime ? '' : 'opacity:.4; pointer-events:none;'}">
         <div style="font-size:11.5px; font-weight:700; margin-bottom:8px; color:var(--text-dim);">현재 시간 표시선 색상</div>
         <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
@@ -3726,11 +3758,16 @@ function setupTtOptionsModalListeners(){
   const panel = document.getElementById('tt-opts-panel');
   if(!panel) return;
   const colorSection = document.getElementById('tt-now-color-section');
-  panel.querySelectorAll('.tt-opt-pending').forEach(cb=>{
-    cb.onchange = ()=>{
-      if(cb.dataset.opt==='currentTime' && colorSection){
-        colorSection.style.opacity = cb.checked ? '1' : '.4';
-        colorSection.style.pointerEvents = cb.checked ? 'auto' : 'none';
+  panel.querySelectorAll('.tt-opt-pending').forEach(btn=>{
+    btn.onclick = ()=>{
+      const next = btn.dataset.checked !== '1';
+      btn.dataset.checked = next ? '1' : '0';
+      btn.textContent = next ? '켜짐' : '꺼짐';
+      btn.classList.toggle('btn-primary', next);
+      btn.classList.toggle('btn-ghost', !next);
+      if(btn.dataset.opt==='currentTime' && colorSection){
+        colorSection.style.opacity = next ? '1' : '.4';
+        colorSection.style.pointerEvents = next ? 'auto' : 'none';
       }
     };
   });
@@ -3748,14 +3785,21 @@ function setupTtOptionsModalListeners(){
   if(fontSlider && fontLabel){
     fontSlider.oninput = ()=>{ fontLabel.textContent = Math.round(parseFloat(fontSlider.value)*100)+'%'; };
   }
+  const rowSlider = document.getElementById('tt-row-scale-slider');
+  const rowLabel = document.getElementById('tt-row-scale-label');
+  if(rowSlider && rowLabel){
+    rowSlider.oninput = ()=>{ rowLabel.textContent = Math.round(parseFloat(rowSlider.value)*100)+'%'; };
+  }
 }
 function applyTtOptions(){
   const panel = document.getElementById('tt-opts-panel');
   if(!panel) return;
   const next = { ...state.ttOpts };
-  panel.querySelectorAll('.tt-opt-pending').forEach(cb=>{ next[cb.dataset.opt] = cb.checked; });
+  panel.querySelectorAll('.tt-opt-pending').forEach(btn=>{ next[btn.dataset.opt] = btn.dataset.checked === '1'; });
   const swatchWrap = document.getElementById('tt-now-color-swatches');
   if(swatchWrap) next.currentTimeColor = swatchWrap.dataset.selected || next.currentTimeColor;
+  const rowSlider = document.getElementById('tt-row-scale-slider');
+  if(rowSlider) next.rowScale = parseFloat(rowSlider.value) || 1;
   const fontSlider = document.getElementById('tt-font-scale-slider');
   if(fontSlider) next.fontScale = parseFloat(fontSlider.value) || 1;
   state.ttOpts = next;
