@@ -726,6 +726,7 @@ const PATCH_NOTES = [
     '시간표 화면 표시 설정의 켜기/끄기 버튼 디자인을 앱 전체와 통일, "시간표 크기" 조절 슬라이더 추가 (화면 꽉 채움이 100%, 그 안에서만 줄이기 가능해 스크롤은 계속 생기지 않음)',
     '주소창이 있는 일반 브라우저 탭에서만 시간표가 스크롤되던 문제 근본 수정 — 고정 하단바 위치 대신 실제 보이는 화면 높이(visualViewport)를 기준으로 계산하도록 변경',
     '"시간표 크기"를 80% 이하로 줄이면 글자가 잘리거나 깨질 수 있다는 경고 문구 추가',
+    '친구 화면 UI 개편 — 별명 최대 8자로 제한하고 이름 옆에 작게 표시, "별명설정"·"친구삭제" 버튼을 이름과 같은 줄로 이동, "채팅 지우기"(구 채팅 비우기)·"채팅 신고" 버튼을 간단한 채팅 제목 옆으로 이동',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -6163,11 +6164,13 @@ function friendDetailBody(){
   const ui = state.friendsUI;
   const shareOn = ui.myShareOn !== false;
   const ttCollapsed = !!ui.ttCollapsed;
-  const displayName = ui.activeNickname ? `${escapeHtml(ui.activeName)}(${escapeHtml(ui.activeNickname)})` : escapeHtml(ui.activeName);
+  const nicknameHtml = ui.activeNickname ? `<span style="font-size:11px; font-weight:400; color:var(--text-dim);">(${escapeHtml(ui.activeNickname)})</span>` : '';
   return `
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
       <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
-      <b style="font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${displayName}</b>
+      <b style="font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(ui.activeName)} ${nicknameHtml}</b>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="set-friend-nickname" style="width:auto; padding:3px 8px; font-size:10px; flex-shrink:0;">별명설정</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="unfriend" style="width:auto; padding:3px 8px; font-size:10px; color:var(--danger); flex-shrink:0;">친구삭제</button>
     </div>
 
     <div class="row-between" style="margin-bottom:6px;">
@@ -6176,27 +6179,27 @@ function friendDetailBody(){
     </div>
     ${ttCollapsed ? '' : `<div class="card tt-card-container" id="friend-tt-card" style="margin-bottom:10px;"><div class="empty"><p>불러오는 중…</p></div></div>`}
 
-    <div class="notify-row" style="margin-bottom:12px;">
+    <div class="notify-row" style="margin-bottom:14px;">
       <span class="notify-label"><span class="notify-label-text"><b>이 친구에게 내 시간표 공개</b></span></span>
       <button type="button" class="btn ${shareOn?'btn-primary':'btn-ghost'} btn-sm notify-toggle" id="friend-share-toggle" data-on="${shareOn?'1':'0'}">${shareOn?'켜짐':'꺼짐'}</button>
     </div>
 
-    <div style="display:flex; gap:8px; margin-bottom:14px;">
-      <button type="button" class="btn btn-ghost btn-sm" data-action="set-friend-nickname" style="flex:1;">별명 설정하기</button>
-      <button type="button" class="btn btn-danger btn-sm" data-action="unfriend" style="flex:1;">친구 삭제</button>
+    <div class="row-between" style="margin-bottom:6px;">
+      <div class="section-title" style="margin:0; display:flex; align-items:baseline; gap:6px;">
+        <span style="font-family:'Segoe Script','Brush Script MT',cursive; font-size:15px; font-weight:400;">간단한 채팅</span>
+        <span style="font-size:9.5px; color:var(--text-faint); font-weight:600;">beta</span>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; padding:3px 8px; font-size:10px;">채팅 신고</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="clear-friend-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
+      </div>
     </div>
-
-    <div class="section-title" style="display:flex; align-items:baseline; gap:6px;"><span style="font-family:'Segoe Script','Brush Script MT',cursive; font-size:15px; font-weight:400;">간단한 채팅</span><span style="font-size:9.5px; color:var(--text-faint); font-weight:600;">beta</span></div>
     <div class="card" style="padding:12px;">
       <div id="friend-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
       <div style="display:flex; gap:8px; margin-top:10px;">
         <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="2000"
           style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
         <button type="button" class="btn btn-primary btn-sm" id="friend-chat-send" style="width:auto;">전송</button>
-      </div>
-      <div style="display:flex; gap:10px; margin-top:8px;">
-        <button type="button" class="btn btn-ghost btn-sm" data-action="clear-friend-chat" style="width:auto; font-size:10.5px; color:var(--text-faint);">채팅 비우기</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; font-size:10.5px; color:var(--text-faint);">이 채팅 신고하기</button>
       </div>
     </div>
   `;
@@ -6336,15 +6339,15 @@ function friendNicknameBody(){
   return `
     <button type="button" class="btn-settings-mini" data-action="friends-back-to-detail" title="뒤로" style="margin-bottom:10px;">${ICON.chevL}</button>
     <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">
-      <b>${escapeHtml(state.friendsUI.activeName)}</b>님을 부를 별명이에요. 나에게만 보이고, 비워두면 별명이 사라져요.
+      <b>${escapeHtml(state.friendsUI.activeName)}</b>님을 부를 별명이에요(최대 8자). 나에게만 보이고, 비워두면 별명이 사라져요.
     </p>
     <form id="nickname-form">
-      <div class="field"><label>별명</label><input type="text" name="nickname" maxlength="20" value="${escapeHtml(cur)}" placeholder="별명을 입력해주세요"></div>
+      <div class="field"><label>별명</label><input type="text" name="nickname" maxlength="8" value="${escapeHtml(cur)}" placeholder="별명을 입력해주세요"></div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">저장</button></div>
     </form>`;
 }
 async function handleNicknameSubmit(fd){
-  const trimmed = String(fd.get('nickname')||'').trim().slice(0, 20);
+  const trimmed = String(fd.get('nickname')||'').trim().slice(0, 8);
   try{
     await updateDoc(doc(db,'friendLinks',state.friendsUI.activePairId), {
       ['nicknames.'+state.user.uid]: trimmed,
@@ -6501,7 +6504,7 @@ async function sendFriendChatMessage(){
 }
 
 async function clearFriendChat(){
-  if(!await showConfirm('내 화면에서 이 채팅을 비울까요?\n(상대방 화면에는 그대로 남아요)')) return;
+  if(!await showConfirm('내 화면에서 이 채팅을 지울까요?\n(상대방 화면에는 그대로 남아요)')) return;
   const pairId = state.friendsUI.activePairId;
   const ts = now();
   try{
@@ -6511,10 +6514,10 @@ async function clearFriendChat(){
     if(rec) rec.clearedAt = { ...(rec.clearedAt||{}), [state.user.uid]: ts };
     const el = document.getElementById('friend-chat-log');
     if(el) el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`;
-    toast('채팅을 비웠어요');
+    toast('채팅을 지웠어요');
   }catch(e){
     console.error('[clearFriendChat]', e);
-    toast('비우기에 실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')');
+    toast('지우기에 실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')');
   }
 }
 
