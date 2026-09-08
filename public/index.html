@@ -707,11 +707,19 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.2.1';
+const APP_VERSION = 'Beta 0.2.2';
 const PATCH_NOTES = [
+  { version:'Beta 0.2.2', date:'2026-09-08', items:[
+    { text:'학생회 채팅: "학생회 목록"을 상단 제목 줄로, 채팅 알림 켜기/끄기를 "채팅 지우기" 왼쪽으로 이동', admin:true },
+    '탈퇴·삭제된 계정의 친구 검색 정보가 남아 "이미 없는 학번인데 친구 추가는 되는" 유령 학번 문제 수정, 관련 친구 관계도 함께 정리',
+    '친구 추가 입력창에서 예전에 입력했던 학번이 자동완성으로 뜨던 것 제거',
+    '셔틀버스 오송역 목록에 출발 15분 전부터 강조 표시 추가, 18:10 학교 출발(오송역행) 항목에 안내 문구 추가',
+    '친구 목록·요청 목록 박스의 위아래 여백을 넓힘 (목록 안 항목 사이 간격은 그대로)',
+    '친구 목록 편집 모드 — 삭제 버튼은 왼쪽, 이름은 가운데, 순서 변경(위/아래) 화살표는 오른쪽으로 정리',
+  ]},
   { version:'Beta 0.2.1', date:'2026-09-08', items:[
     '친구 화면을 팝업 대신 학생사회 탭의 "소셜" 탭으로 이동, 친구 요청·수락이 화면을 나갔다 오지 않아도 실시간으로 반영되도록 변경',
-    '학생회 목록을 누르면 팝업으로 열리도록 변경, 화면 비율에 맞춰 보이는 만큼만 표시',
+    { text:'학생회 목록을 누르면 팝업으로 열리도록 변경, 화면 비율에 맞춰 보이는 만큼만 표시', admin:true },
     '친구 목록에 "편집" 모드 추가 — 친구별로 바로 삭제 가능',
     '"친구 추가"를 별도 팝업으로 분리 — 학번 입력, 보낸 요청 확인(학번만 표기)을 한 곳에서',
     '가입 중 프로필 저장이 실패하면 계정만 남아 그 학번으로 재가입이 막히던 유령 계정 문제 수정, 이미 생긴 계정도 주기적으로 자동 정리',
@@ -719,13 +727,6 @@ const PATCH_NOTES = [
     '구인글에 "참여 여부 투표"(참여/불참) 추가 가능 — 참여자 명단은 글쓴이만 확인, 홈 화면 구인글 목록에 투표 여부 표시',
     '가입 신청 거절 시에도 로그인 계정이 정리되도록 수정, 유령 계정 자동 정리 유예 시간 단축(10분 → 2분)',
     '친구 요청이 오거나 요청이 수락돼 친구가 됐을 때 알림 발송 추가',
-    '친구 목록·요청 목록에 항목이 여럿일 때 위아래 여백 추가, 편집 모드의 "친구 삭제" 버튼을 왼쪽으로 이동',
-    '학생회 채팅: "학생회 목록"을 상단 제목 줄로, 채팅 알림 켜기/끄기를 "채팅 지우기" 왼쪽으로 이동',
-    '탈퇴·삭제된 계정의 친구 검색 정보가 남아 "이미 없는 학번인데 친구 추가는 되는" 유령 학번 문제 수정, 관련 친구 관계도 함께 정리',
-    '친구 추가 입력창에서 예전에 입력했던 학번이 자동완성으로 뜨던 것 제거',
-    '셔틀버스 오송역 목록에 출발 15분 전부터 강조 표시 추가, 18:10 학교 출발(오송역행) 항목에 안내 문구 추가',
-    '친구 목록·요청 목록 위아래 여백을 더 넓게 조정',
-    '친구 목록 편집 모드에 순서 변경(위/아래 화살표) 다시 추가 — 삭제 버튼은 왼쪽, 이름은 가운데, 화살표는 오른쪽',
   ]},
   { version:'Beta 0.2.0', date:'2026-09-08', items:[
     '재학생 전용 정식 배포 준비 — 그동안의 0.1.x 베타 테스트 내용을 정리하고 0.2.0으로 전환',
@@ -6135,8 +6136,8 @@ function addFriendModal(){
     <div class="section-title">보낸 요청 (${outgoing.length})</div>
     ${outgoing.length ? `
     <div class="card" style="padding:14px 12px;">
-      ${outgoing.map((r,i)=>`
-        <div class="list-item" style="${i>0?'margin-top:14px;':''}">
+      ${outgoing.map((r)=>`
+        <div class="list-item">
           <div class="row-between">
             <div><b style="font-size:13.5px;">학번 ${escapeHtml(r.studentId)}</b><div class="meta">응답 대기중</div></div>
             <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">취소</button>
@@ -6247,8 +6248,8 @@ function friendListBody(){
     ${incoming.length ? `
     <div class="section-title">받은 친구 요청 (${incoming.length})</div>
     <div class="card" style="padding:14px 12px; margin-bottom:12px;">
-      ${incoming.map((r,i)=>`
-        <div class="list-item" style="${i>0?'margin-top:14px;':''}">
+      ${incoming.map((r)=>`
+        <div class="list-item">
           <div class="row-between">
             <div><b style="font-size:13.5px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)}</div></div>
             <div style="display:flex; gap:6px;">
@@ -6274,7 +6275,7 @@ function friendListBody(){
       return `<div class="card" style="padding:14px 12px; max-height:60vh; overflow-y:auto;">
         ${sorted.map((f,i)=>{
           const hasUnseen = state.unseenChatPairIds && state.unseenChatPairIds.has(f.pairId);
-          const sp = i>0 ? 'margin-top:14px;' : '';
+          const sp = '';
           if(state.friendsUI.editMode){
             return `
             <div class="list-item" style="${sp}">
