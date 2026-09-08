@@ -4621,9 +4621,9 @@ function shuttleOsongEntries(weekdayRows){
   const entries = [];
   weekdayRows.forEach(r=>{
     if(r.osong && /\d{1,2}:\d{2}/.test(r.osong)){
-      entries.push({ time: r.osong.match(/\d{1,2}:\d{2}/)[0], label:'오송역 발' });
+      entries.push({ time: r.osong.match(/\d{1,2}:\d{2}/)[0], label:'오송역 출발' });
     } else if(r.osong && !/\d{1,2}:\d{2}/.test(r.osong) && r.school && /\d{1,2}:\d{2}/.test(r.school)){
-      entries.push({ time: r.school.match(/\d{1,2}:\d{2}/)[0], label:'학교 발' });
+      entries.push({ time: r.school.match(/\d{1,2}:\d{2}/)[0], label:'학교 출발' });
     }
   });
   return entries;
@@ -4690,7 +4690,7 @@ function shuttleFullListHtml(){
       <div style="display:flex; flex-wrap:wrap; gap:6px;">
         ${shuttleOsongEntries(weekdayRows).map(x=>`<span class="tag tag-dim" style="font-family:var(--font-mono);">${escapeHtml(x.time)} ${escapeHtml(x.label)}</span>`).join('') || `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">정보가 없습니다.</p>`}
       </div>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">※ 08:30 오송역 발은 오송역 6번 출구에서 타고 조치원역을 경유해요. 18:10 학교 발은 학술정보원 앞에서 타고 조치원역을 18:20에 경유해서 오송역까지 가요.</p>
+      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">※ 08:30 오송역 출발은 오송역 6번 출구에서 타고 조치원역을 경유해요. 18:10 학교 출발은 학술정보원 앞에서 타고 조치원역을 18:20에 경유해서 오송역까지 가요.</p>
       ${wdFriExcluded.length ? `<p style="font-size:10.5px; color:var(--text-faint); margin:8px 0 0; line-height:1.6;">※ 금요일 운행 제외: ${wdFriExcluded.map(r=>escapeHtml(r.school||r.jochiwon||r.osong||('NO.'+r.no))).join(', ')}</p>` : ''}
       <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
       <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">일요일 · 학교 출발</p>
