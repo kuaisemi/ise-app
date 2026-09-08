@@ -721,6 +721,9 @@ const PATCH_NOTES = [
     '친구 요청이 오거나 요청이 수락돼 친구가 됐을 때 알림 발송 추가',
     '친구 목록·요청 목록에 항목이 여럿일 때 위아래 여백 추가, 편집 모드의 "친구 삭제" 버튼을 왼쪽으로 이동',
     '학생회 채팅: "학생회 목록"을 상단 제목 줄로, 채팅 알림 켜기/끄기를 "채팅 지우기" 왼쪽으로 이동',
+    '탈퇴·삭제된 계정의 친구 검색 정보가 남아 "이미 없는 학번인데 친구 추가는 되는" 유령 학번 문제 수정, 관련 친구 관계도 함께 정리',
+    '친구 추가 입력창에서 예전에 입력했던 학번이 자동완성으로 뜨던 것 제거',
+    '셔틀버스 오송역 목록에 출발 15분 전부터 강조 표시 추가, 18:10 학교 출발(오송역행) 항목에 안내 문구 추가',
   ]},
   { version:'Beta 0.2.0', date:'2026-09-08', items:[
     '재학생 전용 정식 배포 준비 — 그동안의 0.1.x 베타 테스트 내용을 정리하고 0.2.0으로 전환',
@@ -4812,6 +4815,18 @@ function shuttleOsongEntries(weekdayRows){
   });
   return entries;
 }
+// 오송역 목록은 학교·조치원역처럼 항상 "다음 회차"를 강조하면 출발이 몇 시간 남았어도
+// 빨갛게 보여서 눈에 안 띄는 표시가 된다 — 그래서 출발 15분 전부터만 빨갛게 강조한다.
+function shuttleOsongDueSoonTime(entries){
+  const nowD = new Date();
+  for(const e of entries){
+    const [h,m] = e.time.split(':').map(Number);
+    const dep = new Date(nowD); dep.setHours(h,m,0,0);
+    const diffMin = (dep.getTime()-nowD.getTime())/60000;
+    if(diffMin>=0 && diffMin<=15) return e.time;
+  }
+  return null;
+}
 // 카운트다운이 가리키는 바로 그 다음 출발 시각을, 아래 전체 목록에서도 같은 시각을 찾아
 // 빨갛게 강조해준다 — 일요일로 넘어간 경우엔 일요일 목록 쪽이 강조되도록 요일까지 맞춰본다.
 function shuttleNextHighlights(){
@@ -4880,7 +4895,14 @@ function shuttleFullListHtml(){
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'jochiwon'), hi.mid && !hi.mid.isSunday ? hi.mid.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--purple);">평일 · 오송역</p>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(8em, 1fr)); align-items:start; gap:6px;">
-        ${shuttleOsongEntries(weekdayRows).map(x=>`<span class="tag tag-dim" style="font-family:var(--font-mono); text-align:center; white-space:normal; line-height:1.3;">${escapeHtml(x.time)} ${escapeHtml(x.label)}</span>`).join('') || `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">정보가 없습니다.</p>`}
+        ${(()=>{
+          const osongEntries = shuttleOsongEntries(weekdayRows);
+          const dueSoon = shuttleOsongDueSoonTime(osongEntries);
+          return osongEntries.map(x=>{
+            const soon = dueSoon && x.time===dueSoon;
+            return `<span class="tag ${soon?'':'tag-dim'}" style="font-family:var(--font-mono); text-align:center; white-space:normal; line-height:1.3; ${soon?'background:var(--crimson); color:#fff; font-weight:800;':''}">${escapeHtml(x.time)} ${escapeHtml(x.label)}${x.label==='학교 출발'?`<br><span style="font-size:9px; font-weight:400; opacity:.85;">오송역행 ${escapeHtml(x.time)} 출발</span>`:''}</span>`;
+          }).join('') || `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">정보가 없습니다.</p>`;
+        })()}
       </div>
       <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">※ 08:30 오송역 출발은 오송역 6번 출구에서 타고 조치원역을 경유해요. 18:10 학교 출발은 학술정보원 앞에서 타고 조치원역을 18:20에 경유해서 오송역까지 가요.</p>
       ${wdFriExcluded.length ? `<p style="font-size:10.5px; color:var(--text-faint); margin:8px 0 0; line-height:1.6;">※ 금요일 운행 제외: ${wdFriExcluded.map(r=>escapeHtml(r.school||r.jochiwon||r.osong||('NO.'+r.no))).join(', ')}</p>` : ''}
@@ -6083,14 +6105,14 @@ function addFriendModal(){
     <div class="modal-handle"></div>
     <div class="modal-title"><span class="modal-title-text">${ICON.person} 친구 추가</span><button data-action="close-modal">${ICON.close}</button></div>
     <div style="display:flex; gap:8px; margin-bottom:6px;">
-      <input type="text" id="friend-add-input" placeholder="학번으로 친구 추가" inputmode="numeric"
+      <input type="text" id="friend-add-input" placeholder="학번으로 친구 추가" inputmode="numeric" autocomplete="off"
         style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13.5px; min-width:0;">
       <button type="button" class="btn btn-primary btn-sm" data-action="send-friend-request" style="width:auto;">추가</button>
     </div>
     <div id="friend-add-msg" style="font-size:11px; color:var(--text-dim); margin-bottom:12px; min-height:14px; line-height:1.5;"></div>
     <div class="section-title">보낸 요청 (${outgoing.length})</div>
     ${outgoing.length ? `
-    <div class="card" style="padding:0 12px;">
+    <div class="card" style="padding:8px 12px;">
       ${outgoing.map((r,i)=>`
         <div class="list-item" style="${i>0?'margin-top:6px;':''}">
           <div class="row-between">
@@ -6202,7 +6224,7 @@ function friendListBody(){
 
     ${incoming.length ? `
     <div class="section-title">받은 친구 요청 (${incoming.length})</div>
-    <div class="card" style="padding:0 12px; margin-bottom:12px;">
+    <div class="card" style="padding:8px 12px; margin-bottom:12px;">
       ${incoming.map((r,i)=>`
         <div class="list-item" style="${i>0?'margin-top:6px;':''}">
           <div class="row-between">
@@ -6226,7 +6248,7 @@ function friendListBody(){
       if(!friends.length) return `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`;
       // 친구가 많아도 한 화면에 다 펼치지 않고, 기기 화면 비율에 맞춰 보이는 만큼만
       // 보여주고 나머지는 이 박스 안에서 스크롤 — 몇 명인지는 화면 크기에 따라 달라진다.
-      return `<div class="card" style="padding:0 12px; max-height:60vh; overflow-y:auto;">
+      return `<div class="card" style="padding:8px 12px; max-height:60vh; overflow-y:auto;">
         ${friends.map((f,i)=>{
           const hasUnseen = state.unseenChatPairIds && state.unseenChatPairIds.has(f.pairId);
           const sp = i>0 ? 'margin-top:6px;' : '';

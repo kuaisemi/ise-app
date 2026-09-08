@@ -132,28 +132,70 @@ async function purgePendingAuthDeletes() {
 // 지우지 않을 정도의 여유만 두고, 크론(10분 간격)이 도는 대로 바로바로 정리되게
 // 짧게 잡는다.
 const GHOST_ACCOUNT_GRACE_MS = 2 * 60 * 1000;
-async function purgeGhostAuthAccounts() {
-  const usersSnap = await db.collection('users').get();
-  const profiledUids = new Set(usersSnap.docs.map((d) => d.id));
-  let removed = 0;
+async function listAllAuthUsers() {
+  const all = [];
   let pageToken;
   do {
     const page = await getAuth().listUsers(1000, pageToken);
-    for (const u of page.users) {
-      if (profiledUids.has(u.uid)) continue;
-      const createdAt = new Date(u.metadata.creationTime).getTime();
-      if (Date.now() - createdAt < GHOST_ACCOUNT_GRACE_MS) continue;
-      try {
-        await getAuth().deleteUser(u.uid);
-        removed++;
-        console.log('[ghostPurge] 삭제', u.uid, u.email || '');
-      } catch (e) {
-        console.warn('[ghostPurge] 실패', u.uid, (e && e.code) || e);
-      }
-    }
+    all.push(...page.users);
     pageToken = page.pageToken;
   } while (pageToken);
+  return all;
+}
+async function purgeGhostAuthAccounts(authUsers) {
+  const usersSnap = await db.collection('users').get();
+  const profiledUids = new Set(usersSnap.docs.map((d) => d.id));
+  let removed = 0;
+  for (const u of authUsers) {
+    if (profiledUids.has(u.uid)) continue;
+    const createdAt = new Date(u.metadata.creationTime).getTime();
+    if (Date.now() - createdAt < GHOST_ACCOUNT_GRACE_MS) continue;
+    try {
+      await getAuth().deleteUser(u.uid);
+      removed++;
+      console.log('[ghostPurge] 삭제', u.uid, u.email || '');
+    } catch (e) {
+      console.warn('[ghostPurge] 실패', u.uid, (e && e.code) || e);
+    }
+  }
   if (removed) console.log(`[ghostPurge] 프로필 없는 계정 ${removed}건 삭제`);
+}
+
+// 예전에 계정이 지워졌는데(직접 탈퇴, 관리자 탈퇴, 유령 계정 정리 등) 그 uid로 만들어둔
+// studentDirectory(친구 검색용 공개 명단) 항목이 같이 안 지워지고 남는 경우가 있었다 —
+// 로그인 계정은 없는데 "친구 추가"에서는 검색되는 유령 학번이 되는 원인. 학과 명단
+// (roster/shared)은 절대 건드리지 않고, studentDirectory와 그걸 참조하는 friendLinks만
+// 로그인 계정 존재 여부로 대조해서 정리한다.
+async function purgeOrphanedDirectoryAndFriendLinks(authUsers) {
+  const authUids = new Set(authUsers.map((u) => u.uid));
+  const dirSnap = await db.collection('studentDirectory').get();
+  let dirRemoved = 0;
+  for (const d of dirSnap.docs) {
+    if (authUids.has(d.id)) continue;
+    try {
+      await d.ref.delete();
+      dirRemoved++;
+      console.log('[dirPurge] 삭제', d.id, (d.data() && d.data().studentId) || '');
+    } catch (e) {
+      console.warn('[dirPurge] 실패', d.id, (e && e.code) || e);
+    }
+  }
+  if (dirRemoved) console.log(`[dirPurge] 로그인 계정 없는 학번 검색 정보 ${dirRemoved}건 삭제`);
+
+  const linksSnap = await db.collection('friendLinks').get();
+  let linksRemoved = 0;
+  for (const d of linksSnap.docs) {
+    const uids = d.data().uids || [];
+    if (uids.length && uids.every((u) => authUids.has(u))) continue;
+    try {
+      await d.ref.delete();
+      linksRemoved++;
+      console.log('[friendLinkPurge] 삭제', d.id);
+    } catch (e) {
+      console.warn('[friendLinkPurge] 실패', d.id, (e && e.code) || e);
+    }
+  }
+  if (linksRemoved) console.log(`[friendLinkPurge] 유령 계정 관련 친구 관계 ${linksRemoved}건 삭제`);
 }
 
 async function purgeOldTombstones() {
@@ -650,7 +692,9 @@ async function main() {
 
   await purgeOldTombstones();
   await purgePendingAuthDeletes();
-  await purgeGhostAuthAccounts();
+  const authUsers = await listAllAuthUsers();
+  await purgeGhostAuthAccounts(authUsers);
+  await purgeOrphanedDirectoryAndFriendLinks(authUsers);
   await purgeOldChatMessages();
   await purgeOldCouncilChatMessages();
 
