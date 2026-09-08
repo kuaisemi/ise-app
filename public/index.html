@@ -719,6 +719,8 @@ const PATCH_NOTES = [
     '셔틀버스: 시간 목록을 표처럼 반듯하게 정렬, 07:30 이전엔 "운행 전", 21:00 이후엔 "운행 종료", 토요일엔 "운행하지 않아요"로 표시',
     '시간표 칸 높이 기준을 21시로 조정 — 21시 전에 끝나는 날은 그 크기 그대로(짧은 날은 아래 여백 허용), 21시 넘는 수업이 있으면 잘라내지 않고 칸을 더 촘촘하게 줄여서 다 보이게',
     '셔틀버스 시간 목록 정렬을 글씨 크기 변화에도 자연스럽게 대응하도록 개선',
+    '셔틀버스 카운트다운이 지점별 실제 첫차 1시간 전부터 정확히 시작하도록 수정 (막차 이후엔 운행 종료로 표시)',
+    '셔틀버스 "2대 운행" 표시가 말풍선을 두 줄로 늘리지 않도록 글자 크기 조정, "오송역 방면" 제목을 "오송역"으로 축약',
   ]},
   { version:'Beta 0.1.3', date:'2026-09-08', items:[
     '셔틀버스 탭 개편 — 학교·조치원역 출발을 각각 따로 카운트다운하고, 금요일 운휴 안내를 화면에 바로 표시, 전체 시간표는 팝업으로 분리',
@@ -4609,52 +4611,63 @@ function fmtShuttleCountdown(ms){
   if(h>0) return `${h}시간 ${pad(m)}분 ${pad(s)}초`;
   return `${pad(m)}분 ${pad(s)}초`;
 }
-// 실제로 운행하는 시간대가 아닐 땐 다음날치까지 끌어다 카운트다운을 돌리는 대신,
-// "지금은 운행 시간이 아니다"를 그대로 보여준다 — 토요일은 아예 안 다니고, 07:30 전엔
-// 아직 시작 전이고, 21:00이 지나면 그날 운행은 끝난 걸로 본다(막차가 대체로 20~21시대).
-function shuttleServiceState(){
+// 오늘 그 지점(학교/조치원역)의 첫차 시각을 찾는다. 토요일처럼 아예 운행이 없는 날은 null.
+function shuttleFirstDepartureToday(point){
+  const d = new Date(); d.setHours(0,0,0,0);
+  const { type, rows } = shuttleRowsForDate(d);
+  if(type==='none') return null;
+  const field = point==='school' ? 'school' : (type==='sunday' ? 'station' : 'jochiwon');
+  let earliest = null;
+  for(const r of rows){
+    const mins = shuttleParseMinutes(r[field]);
+    if(mins==null) continue;
+    if(earliest==null || mins<earliest) earliest = mins;
+  }
+  if(earliest==null) return null;
+  const dep = new Date(d); dep.setMinutes(earliest);
+  return dep;
+}
+// 첫차 1시간 전부터는 카운트다운이 이미 돌고 있어야 한다("7시 30분부터 카운트다운
+// 시작"이 아니라, 첫차가 8시 30분이면 그 1시간 전인 7시 30분부터 그 8시 30분을 향해
+// 세는 것). 그 전엔 몇 시부터 시작하는지만 알려주고, 막차가 지났으면(다음 차가 내일
+// 것으로 넘어가면) 오늘은 끝난 걸로 본다.
+function shuttlePointState(point){
   const now = new Date();
-  const day = now.getDay();
-  const mins = now.getHours()*60 + now.getMinutes();
-  if(day===6) return 'saturday';
-  if(mins < 7*60+30) return 'before';
-  if(mins >= 21*60) return 'after';
-  return 'live';
+  const first = shuttleFirstDepartureToday(point);
+  if(!first) return { kind:'none' };
+  if(now.getTime() < first.getTime() - 3600000) return { kind:'before', first };
+  const next = nextShuttleDeparture(point, now);
+  if(!next || next.dep.toDateString() !== now.toDateString()) return { kind:'after' };
+  return { kind:'live', next };
 }
 function shuttleCountdownCard(point, label){
   const labelHtml = `<b style="color:var(--teal);">${label}</b>에서 출발까지`;
-  const svc = shuttleServiceState();
-  if(svc==='saturday') return `
+  const st = shuttlePointState(point);
+  if(st.kind==='none') return `
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div style="font-size:19px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);">--:--</div>
-      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">토요일에는 운행하지 않아요</div>
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">오늘은 운행하지 않아요</div>
     </div>`;
-  if(svc==='before') return `
+  if(st.kind==='before') return `
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div style="font-size:19px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);">--:--</div>
-      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">07:30부터 운행을 시작해요</div>
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${pad(st.first.getHours())}:${pad(st.first.getMinutes())}부터 운행을 시작해요</div>
     </div>`;
-  if(svc==='after') return `
+  if(st.kind==='after') return `
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div style="font-size:19px; font-weight:800; color:var(--text-faint);">운행 종료</div>
       <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">오늘 운행이 모두 끝났어요</div>
     </div>`;
-  const next = nextShuttleDeparture(point);
-  if(!next) return `
-    <div class="card" style="text-align:center; padding:11px 10px;">
-      <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
-      <p style="font-size:12px; color:var(--text-faint); margin:6px 0 0;">정보 없음</p>
-    </div>`;
+  const next = st.next;
   const ms = next.dep.getTime() - Date.now();
-  const dayLabel = next.dep.toDateString()===new Date().toDateString() ? '' : `${next.dep.getMonth()+1}/${next.dep.getDate()} `;
   return `
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div class="shuttle-countdown-val" data-point="${point}" style="font-size:19px; font-weight:800; color:var(--crimson);">${fmtShuttleCountdown(ms)}</div>
-      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${dayLabel}${pad(next.dep.getHours())}:${pad(next.dep.getMinutes())} 출발</div>
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${pad(next.dep.getHours())}:${pad(next.dep.getMinutes())} 출발</div>
     </div>`;
 }
 // 오송역 방면 회차는 표에서 두 가지 형태로 섞여 있다 — ①오송역 칸에 시각이 바로 적힌
@@ -4683,11 +4696,11 @@ function shuttleNextHighlights(){
 function setupShuttleTimer(){
   if(state.shuttleTimer){ clearInterval(state.shuttleTimer); state.shuttleTimer=null; }
   if(!(state.view==='info' && state.infoTab==='shuttle')) return;
-  let lastSvc = shuttleServiceState();
+  let lastSvc = shuttlePointState('school').kind + shuttlePointState('mid').kind;
   state.shuttleTimer = setInterval(()=>{
-    // 운행 전/운행 종료/토요일 같은 "상태"가 바뀌는 순간(07:30·21:00·자정 등)에는
+    // 운행 전/운행 종료/운행 없음 같은 "상태"가 바뀌는 순간(첫차 1시간 전·막차 이후·자정 등)에는
     // 카운트다운 숫자만 고쳐서는 안 되고 카드 전체를 다시 그려야 한다.
-    const svc = shuttleServiceState();
+    const svc = shuttlePointState('school').kind + shuttlePointState('mid').kind;
     if(svc !== lastSvc){ lastSvc = svc; renderMain(); return; }
     let needsRerender = false;
     document.querySelectorAll('.shuttle-countdown-val').forEach(el=>{
@@ -4719,7 +4732,11 @@ function shuttleTimeListHtml(list, highlight){
   return `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(4.4em, 1fr)); align-items:start; gap:6px;">
     ${list.map(x=>{
       const isNext = highlight && x.time===highlight;
-      return `<span class="tag ${isNext?'':'tag-dim'}" style="font-family:var(--font-mono); text-align:center; white-space:normal; line-height:1.3; ${isNext?'background:var(--crimson); color:#fff; font-weight:800;':''}">${escapeHtml(x.time)}</span>`;
+      // "08:45(2대 운행)"처럼 괄호가 붙은 회차는 글자가 길어서 두 줄로 줄바꿈되면 그 칸만
+      // 유독 커 보인다 — 줄바꿈 대신 "운행"은 빼고 글자만 살짝 줄여서 한 줄에 맞춘다.
+      const short = x.time.replace(/\s*운행/, '').trim();
+      const isLong = short.length > 5;
+      return `<span class="tag ${isNext?'':'tag-dim'}" style="font-family:var(--font-mono); text-align:center; white-space:nowrap; ${isLong?'font-size:8px;':''} ${isNext?'background:var(--crimson); color:#fff; font-weight:800;':''}">${escapeHtml(short)}</span>`;
     }).join('')}
   </div>`;
 }
@@ -4734,7 +4751,7 @@ function shuttleFullListHtml(){
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'school'), hi.school && !hi.school.isSunday ? hi.school.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--amber);">평일 · 조치원역 뒤 출발</p>
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'jochiwon'), hi.mid && !hi.mid.isSunday ? hi.mid.time : null)}
-      <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--purple);">평일 · 오송역 방면</p>
+      <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--purple);">평일 · 오송역</p>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(8em, 1fr)); align-items:start; gap:6px;">
         ${shuttleOsongEntries(weekdayRows).map(x=>`<span class="tag tag-dim" style="font-family:var(--font-mono); text-align:center; white-space:normal; line-height:1.3;">${escapeHtml(x.time)} ${escapeHtml(x.label)}</span>`).join('') || `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">정보가 없습니다.</p>`}
       </div>
