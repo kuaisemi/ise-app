@@ -717,6 +717,7 @@ const PATCH_NOTES = [
     '친구 목록·요청 목록 박스의 위아래 여백을 넓힘 (목록 안 항목 사이 간격은 그대로)',
     '친구 목록 편집 모드 — 삭제 버튼은 왼쪽, 이름은 가운데, 순서 변경(위/아래) 화살표는 오른쪽으로 정리',
     '주간 시간표 위젯에서 수업 글씨 색을 검은색으로 설정해도 항상 흰색으로만 보이던 문제 수정',
+    '시간표(앱 화면·친구 시간표) 수업 글씨의 그림자 효과 제거',
   ]},
   { version:'Beta 0.2.1', date:'2026-09-08', items:[
     '친구 화면을 팝업 대신 학생사회 탭의 "소셜" 탭으로 이동, 친구 요청·수락이 화면을 나갔다 오지 않아도 실시간으로 반영되도록 변경',
@@ -3679,7 +3680,7 @@ function renderTimetable(isCapture=false){
     const actionAttr = isCapture ? '' : `data-action="edit-class" data-id="${c.id}"`;
     blocks += `<div class="tt-block" ${actionAttr}
       style="grid-column:${c.day+2}; grid-row:${startRow} / ${endRow}; background:${c.color||COLORS[0].hex}; color:${textColor};">
-      ${o.subject ? `<b style="color:${textColor}; text-shadow:${textColor==='#000000'?'none':'0 1px 2px rgba(0,0,0,0.5)'}">${escapeHtml(c.subject)}</b>` : ''}
+      ${o.subject ? `<b style="color:${textColor};">${escapeHtml(c.subject)}</b>` : ''}
       ${o.time ? `<span class="time-tag" style="color:${textColor}">${minutesToLabel(start)}–${minutesToLabel(end)}</span>` : ''}
       ${o.professor && c.professor ? `<span class="prof-tag" style="color:${textColor}">${escapeHtml(c.professor)}</span>` : ''}
       ${o.room && c.room ? `<span class="room-tag" style="color:${textColor}">${formatRoomForBlock(c.room)}</span>` : ''}
@@ -6807,7 +6808,7 @@ function renderFriendTimetableGrid(slots, semKey){
       const height = Math.max(14, (s.end-s.start)*pxPerMin);
       const color = s.color || 'var(--crimson)';
       const textColor = s.textColor || '#FFFFFF';
-      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:${textColor}; overflow:hidden; line-height:1.25; white-space:normal; word-break:keep-all; overflow-wrap:break-word; background:${escapeHtml(color)};"><b style="text-shadow:${textColor==='#000000'?'none':'0 1px 2px rgba(0,0,0,0.5)'}">${escapeHtml(s.subject||'')}</b>${s.room?`<br>${escapeHtml(s.room)}`:''}</div>`;
+      return `<div style="position:absolute; left:2px; right:2px; top:${top}px; height:${height}px; border-radius:5px; padding:2px 4px; font-size:9px; color:${textColor}; overflow:hidden; line-height:1.25; white-space:normal; word-break:keep-all; overflow-wrap:break-word; background:${escapeHtml(color)};"><b>${escapeHtml(s.subject||'')}</b>${s.room?`<br>${escapeHtml(s.room)}`:''}</div>`;
     }).join('');
     return `<div style="position:relative; background:var(--surface-2); border-radius:4px; min-height:${GRID_H}px;">${blocks}</div>`;
   }).join('');
