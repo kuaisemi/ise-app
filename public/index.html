@@ -7296,6 +7296,10 @@ async function sendFriendChatMessage(){
   if(utf8ByteLength(text) > FRIEND_CHAT_MAX_BYTES){ toast(`메시지가 너무 길어요 (최대 ${FRIEND_CHAT_MAX_BYTES}바이트)`); return; }
   if(friendChatRateLimited()) return;
   input.value = '';
+  // 전송 버튼을 누르면 포커스가 버튼으로 넘어가면서 키보드가 닫히고, 그 순간 화면(모달 시트)
+  // 높이가 다시 커지면서 스크롤이 맨 위로 튀어 보이는 문제가 있었다. 입력창에 포커스를
+  // 그대로 유지해서 키보드가 안 닫히게 한다 (연속으로 메시지 보낼 때도 자연스러움).
+  input.focus();
   try{
     await addDoc(collection(db,'chats',state.friendsUI.activePairId,'messages'), {
       senderUid: state.user.uid, text, createdAt: Date.now(),
