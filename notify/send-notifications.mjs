@@ -1,4 +1,4 @@
-// GitHub Actions 크론(10분 간격)으로 실행되는 무료 알림 발송 스크립트.
+// GitHub Actions 크론(5분 간격)으로 실행되는 무료 알림 발송 스크립트.
 // Firebase Cloud Functions(=Blaze 요금제 필요) 없이도 푸시 알림을 보내기 위한 대안 —
 // 신뢰할 수 있는 실행 환경에서 서비스 계정 키로 Firestore를 읽고 firebase-admin으로 직접 발송한다.
 //
@@ -138,7 +138,7 @@ async function purgePendingAuthDeletes() {
 // 되돌리도록 고쳤지만(2026-09-08), 그 전에 이미 생긴 것과 향후 놓치는 경우를 대비해
 // 여기서도 주기적으로 훑어서 프로필 없는 계정을 지운다.
 // 가입 진행 중(계정 생성 → 프로필 저장 사이, 명단 대조 대기 5초 포함)인 계정을 실수로
-// 지우지 않을 정도의 여유만 두고, 크론(10분 간격)이 도는 대로 바로바로 정리되게
+// 지우지 않을 정도의 여유만 두고, 크론(5분 간격)이 도는 대로 바로바로 정리되게
 // 짧게 잡는다.
 const GHOST_ACCOUNT_GRACE_MS = 2 * 60 * 1000;
 async function listAllAuthUsers() {

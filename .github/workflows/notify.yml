@@ -3,7 +3,7 @@ name: Send push notifications
 on:
   schedule:
     # GitHub Actions 크론은 정확히 5분 간격을 보장하지 않고 몇 분 밀릴 수 있음(실시간 아님, 근접 실시간)
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
 jobs:
