@@ -178,8 +178,10 @@ public class WeekWidget extends BaseWidget {
                     }
 
                     // 강의실은 한 줄이 더 들어갈 만큼 칸이 높을 때만 덧붙인다.
+                    // 강의실 직접입력에 줄바꿈이 들어가 두 줄이 될 수 있으니 그만큼 더 높아야 보여준다.
+                    float roomLineMinDp = room.contains("\n") ? ROOM_LINE_MIN_DP * 1.7f : ROOM_LINE_MIN_DP;
                     if (showRoom && !room.isEmpty()
-                        && (!canSize || blockDp >= ROOM_LINE_MIN_DP * theme.fontScale)) {
+                        && (!canSize || blockDp >= roomLineMinDp * theme.fontScale)) {
                         chip.setViewVisibility(R.id.chip_room, View.VISIBLE);
                         chip.setTextViewText(R.id.chip_room, room);
                         theme.size(chip, R.id.chip_room, 8f);

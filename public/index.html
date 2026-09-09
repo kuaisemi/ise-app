@@ -346,7 +346,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 @keyframes tt-fab-pop{from{opacity:0; transform:translateY(8px) scale(.9);}to{opacity:1; transform:translateY(0) scale(1);}}
 
 .bottomnav{position:fixed; left:0; right:0; bottom:0; z-index:20; max-width:480px; margin:0 auto; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); border-top:1px solid var(--border); display:flex; padding:8px 6px calc(8px + var(--safe-bottom));}
-.navbtn{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; background:none; border:none; cursor:pointer; color:var(--text-faint);}
+.navbtn{position:relative; flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; background:none; border:none; cursor:pointer; color:var(--text-faint);}
 .navbtn.active{color:var(--teal);}
 /* iOS는 홈 인디케이터 때문에 safe-area-inset-bottom이 34px쯤 잡혀서, 같은 CSS인데도
    안드로이드보다 탭 아이콘이 위로 떠 보인다. 아래 여백만 조금 줄여 살짝 내리고
@@ -428,6 +428,18 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .switch .slider::before{content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .15s; box-shadow:0 1px 3px rgba(0,0,0,0.3);}
 .switch input:checked + .slider{background:var(--crimson);}
 .switch input:checked + .slider::before{transform:translateX(18px);}
+
+/* 투표 화면의 선택지 체크박스/라디오 — 브라우저 기본 모양 대신 앱 톤에 맞춘 커스텀 모양 */
+.poll-check{position:relative; display:inline-flex; width:19px; height:19px; flex-shrink:0;}
+.poll-check input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer;}
+.poll-check .box{position:absolute; inset:0; border:2px solid var(--border-light); background:var(--surface-2); transition:background .12s, border-color .12s;}
+.poll-check input[type=checkbox] ~ .box{border-radius:5px;}
+.poll-check input[type=radio] ~ .box{border-radius:50%;}
+.poll-check .box::after{content:''; position:absolute; opacity:0; transition:opacity .1s;}
+.poll-check input[type=checkbox]:checked ~ .box{background:var(--crimson); border-color:var(--crimson);}
+.poll-check input[type=checkbox]:checked ~ .box::after{opacity:1; left:6px; top:2px; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);}
+.poll-check input[type=radio]:checked ~ .box{border-color:var(--crimson);}
+.poll-check input[type=radio]:checked ~ .box::after{opacity:1; left:50%; top:50%; width:9px; height:9px; margin:-4.5px 0 0 -4.5px; border-radius:50%; background:var(--crimson);}
 
 /* 새 버전 알림 막대. 하단 탭 바로 위에 뜬다. */
 .update-bar{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(76px + var(--safe-bottom)); z-index:40; width:min(456px, calc(100% - 24px)); display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; background:var(--crimson); color:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(0,0,0,.4); font-size:12.5px; font-weight:700;}
@@ -592,7 +604,8 @@ details.likers-accordion > div, details.voters-accordion > div{
 </style>
 </head>
 <body>
-<div id="app"><div class="boot"><svg class="chip-spin" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><p>불러오는 중…</p></div></div>
+<div id="app"><div class="boot"><svg class="chip-spin" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><p>불러오는 중…</p><p id="boot-hint" style="opacity:0; transition:opacity .4s;">네트워크 상태에 따라 조금 걸릴 수 있어요</p></div></div>
+<script>setTimeout(function(){ var el=document.getElementById('boot-hint'); if(el) el.style.opacity='1'; }, 2500);</script>
 
 <div class="statusbar-bg"></div>
 
@@ -612,7 +625,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 
 import {
-  getFirestore,
+  initializeFirestore,
   collection,
   getDocs,
   doc,
@@ -651,7 +664,13 @@ const firebaseConfig = {
 
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
-const db = getFirestore(fbApp);
+// 학교 캠퍼스 와이파이 등 스트리밍(HTTP/2)을 막거나 지연시키는 네트워크에서는 Firestore의
+// 기본 WebChannel 연결이 롱폴링으로 넘어가기까지 몇 초씩 걸려 초기 로딩이 느려 보인다.
+// 자동으로 필요할 때만 롱폴링으로 전환하도록 켜서 그 지연을 줄인다.
+const db = initializeFirestore(fbApp, {
+  experimentalAutoDetectLongPolling: true,
+  useFetchStreams: false,
+});
 const STUDENT_EMAIL_DOMAIN = '@ise.local';
 const LEGACY_STUDENT_EMAIL_DOMAIN = '@ies.local'; // 개명 이전 기존 계정 호환용
 
@@ -726,8 +745,20 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.2.3';
+const APP_VERSION = 'Beta 0.2.4';
+// android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v159 등)와
+// 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
+const ANDROID_VERSION_CODE = 159;
 const PATCH_NOTES = [
+  { version:'Beta 0.2.4', date:'2026-09-09', items:[
+    '셔틀버스 홈 화면 카운트다운이 멈춰 있던 문제 수정 — 이제 홈 화면에서도 계속 흘러감',
+    '시간표 "강의실 직접입력"에 넣은 줄바꿈이 시간표 화면·위젯(오늘의 시간표·다음 수업·주간 시간표)에 그대로 보이도록 수정',
+    '식단표 홈 화면 미리보기의 중식에서 "plus" 코너 메뉴는 뺌 (조식·석식·학사정보 탭 전체 메뉴는 그대로)',
+    'MY탭 "개발자에게"에 "업데이트 확인" 추가 — 새 버전 있으면 MY탭 아이콘과 이 항목에 점(•) 표시, 눌러서 바로 다운로드 가능',
+    '알림 목록에서 항목을 눌러 다른 화면으로 이동하면 알림 팝업이 자동으로 닫히도록 수정',
+    '투표 화면 체크박스·라디오 버튼 디자인 개선',
+    { text:'버그 제보함을 학생회장·개발자에게만 보이도록 변경', admin:true },
+  ]},
   { version:'Beta 0.2.3', date:'2026-09-09', items:[
     '셔틀버스 시간표: 한 줄에 5칸 고정, 글자를 키우고 알약 높이는 더 얇게 정리',
     '홈 화면 셔틀버스 카드: 학교·조치원역 두 줄의 위아래 여백을 서로 맞춤',
@@ -1331,6 +1362,11 @@ function formatMealText(raw){
 }
 // 식단 서브카테고리(한식/일품/분식/plus 등)를 대괄호 텍스트 대신 색상 배지로 보여줘서
 // 여러 카테고리가 한 끼에 섞여 있어도 한눈에 구분되도록 함
+// 홈 화면 미리보기의 중식만 "[plus]" 코너 메뉴를 뺀다 (조식·석식과 학사정보 탭 전체 메뉴는 그대로 보여줌).
+function stripPlusMealLines(raw){
+  if(!raw) return raw;
+  return String(raw).split(/\r?\n/).filter(line => !/^\s*\[[^\]]*plus[^\]]*\]/i.test(line)).join('\n');
+}
 function mealCatClass(cat){
   if(/한식/.test(cat)) return 'meal-cat-teal';
   if(/일품/.test(cat)) return 'meal-cat-blue';
@@ -1354,6 +1390,7 @@ function formatMealHtml(raw){
 function formatRoomForBlock(roomStr){
   if(!roomStr) return '';
   const str=String(roomStr).trim();
+  if(str.includes('\n')) return str.split('\n').map(line=>escapeHtml(line.trim())).join('<br>');
   const m=str.match(/^([가-힣A-Za-z0-9]+관)\s*(.*)$/);
   if(m && m[2]) return `${escapeHtml(m[1])}<br>${escapeHtml(m[2])}`;
   return escapeHtml(str);
@@ -1898,17 +1935,22 @@ function boot(){
           // 첫 조회가 일시적으로 실패하는 경우가 있는데, 이걸 "진짜로 프로필이 없는 신규가입자"와
           // 구분하지 못하면 기존 회원의 role/이름을 기본값으로 덮어써버리는 심각한 버그가 생긴다.
           // → 한 번 더 재시도해서 "진짜 없음"과 "일시적 조회 실패"를 구분한다.
-          let udoc = await fetchUserDoc(fbUser.uid);
+          // usersList(전체 가입자 목록)는 udoc 조회 결과와 무관하게 필요하므로, 왕복을 하나
+          // 줄이려고 fetchUserDoc과 동시에 요청한다 (예전엔 fetchUserDoc이 끝난 뒤에야 순서대로
+          // 요청해서, 로그인할 때마다 매번 왕복 하나만큼 초기 로딩이 더 걸렸다).
+          let [udoc, usersList] = await Promise.all([
+            fetchUserDoc(fbUser.uid),
+            loadAllUsersList().catch(()=>({})),
+          ]);
           if(!udoc){
             await new Promise(r=>setTimeout(r, 700));
             udoc = await fetchUserDoc(fbUser.uid);
           }
 
           const sid = (udoc && udoc.studentId) || (fbUser.email||'').split('@')[0];
-          // usersList(전체 가입자 목록)는 어디까지나 관리자 화면용 캐시일 뿐, 진짜 원본은
-          // users/{uid} 문서(udoc)다. 캐시가 뭔가 다르다고 원본을 되받아쓰기하면 안 되므로
-          // udoc이 있을 땐 절대 손대지 않고, udoc을 못 찾았을 때의 "복구용 힌트"로만 쓴다.
-          const usersList = await loadAllUsersList().catch(()=>({}));
+          // usersList는 어디까지나 관리자 화면용 캐시일 뿐, 진짜 원본은 users/{uid} 문서(udoc)다.
+          // 캐시가 뭔가 다르다고 원본을 되받아쓰기하면 안 되므로 udoc이 있을 땐 절대 손대지 않고,
+          // udoc을 못 찾았을 때의 "복구용 힌트"로만 쓴다.
           let currentRole = (udoc && udoc.role) || (usersList[sid] && usersList[sid].role) || 'student';
 
           if(!udoc){
@@ -1945,7 +1987,7 @@ function boot(){
             name: udoc.name || '재학생',
             role: ROLES[currentRole] ? currentRole : 'student'
           };
-          await loadAllData();
+          await loadAllData(usersList);
           trackUserPresence(state.user);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
           setupPresenceHeartbeat();
@@ -2872,6 +2914,7 @@ async function refreshAdminBadgeCounts(){
 // 모든 사용자용 "안 읽은 채팅 있음" 표시. friendLinks에 남겨둔 마지막 메시지 시각·보낸
 // 사람만 보고 판단한다(메시지 내용을 따로 또 안 읽어도 됨) — 그 친구 화면을 마지막으로
 // 연 시각(로컬에 저장)보다 상대가 보낸 마지막 메시지가 더 최근이면 "안 읽음"으로 본다.
+state.latestAndroidVersionCode = null; // 네이티브 APK 업데이트 확인 결과 (아직 확인 전이면 null)
 state.hasUnseenChat = false;
 state.unseenChatPairIds = new Set(); // 친구 목록에서 "이 사람한테 새 채팅 왔음" 점 표시용
 async function refreshChatUnseenBadge(){
@@ -2907,7 +2950,7 @@ function getNotificationFeed(){
   const b = state.adminBadge || {};
   const nowTs = now();
   if(isDirectorPlus() && b.signupInquiries>0) items.push({ id:'admin_signup_'+b.signupInquiries, ts:nowTs, icon:ICON.person, title:'가입 승인 대기', body:`${b.signupInquiries}건 확인이 필요해요`, action:'open-signup-inquiries' });
-  if(isCouncil() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
+  if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
   if(isCouncil() && b.chatReports>0) items.push({ id:'admin_chat_'+b.chatReports, ts:nowTs-2, icon:ICON.inbox, title:'채팅 신고', body:`처리 안 된 신고 ${b.chatReports}건`, action:'open-chat-report-inbox' });
   if(state.hasUnseenChat) items.push({ id:'chat_unseen', ts:nowTs-3, icon:ICON.person, title:'새로운 채팅 알림이 있습니다', body:'눌러서 친구 목록에서 확인해보세요', action:'open-friends' });
   live(state.notices).forEach(n=>{
@@ -2945,6 +2988,27 @@ function hasUnseenNotifications(){
 }
 function markNotificationsSeen(){
   localSet('notif_feed_seen_at', now());
+}
+// 깃허브 릴리즈 태그(v158 형태)에서 숫자만 뽑아 android/app/build.gradle의 versionCode와 비교한다.
+// 앱을 켤 때 자동으로는 돌지 않는다 — 예전엔 켤 때마다 조용히 확인했는데, 그 네트워크 요청이
+// 로그인·초기 데이터 로딩과 겹쳐 시작이 느려져 보이는 문제가 있었다. 그래서 새 버전이 나오면
+// 공지(알림)로 먼저 안내하고, 사용자가 "업데이트 확인"을 직접 눌렀을 때만 서버에 물어본다.
+async function checkNativeAppUpdate(){
+  if(!isNativeApp) return;
+  try{
+    const res = await fetch('https://api.github.com/repos/kuaisemi/ise-app/releases/latest', {
+      headers:{ 'Accept':'application/vnd.github+json' },
+      signal: AbortSignal.timeout(8000), // 네트워크가 느리거나 안 되면 무한정 기다리지 않고 8초에서 포기
+    });
+    if(res.ok){
+      const j = await res.json();
+      const m = String(j.tag_name||'').match(/(\d+)/);
+      if(m) state.latestAndroidVersionCode = parseInt(m[1], 10);
+    }
+  }catch(e){ /* 오프라인·타임아웃이면 그냥 넘어간다 */ }
+}
+function hasNativeUpdateAvailable(){
+  return isNativeApp && !!state.latestAndroidVersionCode && state.latestAndroidVersionCode > ANDROID_VERSION_CODE;
 }
 function notifFeedModal(){
   const feed = getNotificationFeed();
@@ -3004,7 +3068,10 @@ async function scheduleTimetableReminders(list){
   }catch(e){ console.warn('[tt-reminder]', e); }
 }
 
-async function loadAllData(){
+// preloadedUsers: 로그인 직후 role 판별용으로 이미 users 컬렉션 전체를 한 번 받아온 게 있으면
+// 그걸 그대로 쓰고, 여기서 또 통째로 다시 받아오지 않는다 (전체 가입자 목록은 꽤 무거운 조회라
+// 로그인할 때마다 두 번 받아오면 그만큼 초기 로딩이 느려진다).
+async function loadAllData(preloadedUsers){
   try{
     const [ttData,cal,meals,notices,sugg,polls,users,recruits,roster,deptN,memos,shuttle] = await Promise.all([
       (state.user ? loadTimetable(state.user.uid) : Promise.resolve({bySemester:{}, activeSemester:null})).catch(()=>({bySemester:{}, activeSemester:null})),
@@ -3013,7 +3080,7 @@ async function loadAllData(){
       loadNotices().catch(()=>[]),
       loadSuggestions().catch(()=>[]),
       loadPolls().catch(()=>[]),
-      loadAllUsersList().catch(()=>({})),
+      preloadedUsers ? Promise.resolve(preloadedUsers) : loadAllUsersList().catch(()=>({})),
       loadRecruitments().catch(()=>[]),
       loadRoster().catch(()=>({})),
       loadDeptNotices().catch(()=>({items:[],updatedAt:0})),
@@ -3539,7 +3606,7 @@ function renderHome(){
       ${studentSlotText ? `
         <div class="meal-block">
           <div class="m-label" style="color:var(--teal)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}${mealHoursSpan('student_'+studentSlot.key)}</div>
-          <div class="m-text" style="font-size:11.5px">${formatMealHtml(studentSlotText)}</div>
+          <div class="m-text" style="font-size:11.5px">${formatMealHtml(studentSlot.key==='lunch' ? stripPlusMealLines(studentSlotText) : studentSlotText)}</div>
         </div>` : `
         <div class="meal-block">
           <div class="m-label" style="color:var(--text-faint)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}${mealHoursSpan('student_'+studentSlot.key)}</div>
@@ -3548,7 +3615,7 @@ function renderHome(){
       ${staffMeal && staffMeal.lunch ? `
         <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
           <div class="m-label" style="color:var(--amber)">${ICON.tie} 미래관 교직원식당 중식${mealHoursSpan('staff_lunch')}</div>
-          <div class="m-text" style="font-size:11.5px">${formatMealHtml(staffMeal.lunch)}</div>
+          <div class="m-text" style="font-size:11.5px">${formatMealHtml(stripPlusMealLines(staffMeal.lunch))}</div>
         </div>` : `
         <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
           <div class="m-label" style="color:var(--text-faint)">${ICON.tie} 미래관 교직원식당</div>
@@ -5748,8 +5815,8 @@ function renderPollItem(p){
       <form id="poll-vote-form">
         <input type="hidden" name="pollId" value="${p.id}">
         ${p.options.map((opt,i)=>`
-          <label style="display:flex; align-items:center; gap:7px; padding:6px 0; font-size:11.5px; cursor:pointer;">
-            <input type="${inputType}" name="opt" value="${i}" ${pre.includes(i)?'checked':''} style="width:15px; height:15px; flex-shrink:0;">
+          <label style="display:flex; align-items:center; gap:9px; padding:7px 0; font-size:11.5px; cursor:pointer;">
+            <span class="poll-check"><input type="${inputType}" name="opt" value="${i}" ${pre.includes(i)?'checked':''}><span class="box"></span></span>
             ${escapeHtml(opt)}
           </label>`).join('')}
         <div class="row-between" style="font-size:10.5px; color:var(--text-faint); margin:4px 0 8px;">
@@ -6010,19 +6077,24 @@ function renderMypage(){
         <span>오늘 방문자 <b>${traffic.todayVisitors}</b>명</span>
         <span>현재 접속 <b>${traffic.onlineNow}</b>명</span>
       </div>
-      <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
-      ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-chat-report-inbox"><span class="link-row-label">${ICON.flag} 채팅 신고함</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
+      ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isCouncil() ? `
+      <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
+      <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>
+      ${isPresident() ? `<div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div><div class="divider" style="margin:2px 0;"></div>` : ''}
+      <div class="link-row" data-action="open-chat-report-inbox"><span class="link-row-label">${ICON.flag} 채팅 신고함</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ` : ''}
     </div>
     ${isNativeApp ? `
     <div class="card" style="margin-top:4px; padding:8px 12px;">
       <p style="font-size:11px; color:var(--text-faint); line-height:1.5; margin:0;">
-        안드로이드 앱(APK)은 자동으로 업데이트되지 않아서, 친구와 화면·기능이 조금 다를 수 있어요.<br>사이트에 접속해서 다시 다운로드하면 최신 버전으로 업데이트돼요.
+        안드로이드 앱(APK)은 자동으로 업데이트되지 않아서, 친구와 화면·기능이 조금 다를 수 있어요.<br>사이트에 접속해서 다시 다운로드하거나, 위 "업데이트 확인"을 눌러도 새 버전을 받을 수 있어요.
       </p>
     </div>` : ''}
     ${isPresident() ? `<p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">공지·투표·건의·구인글·학생회 게시글·버그 제보·학사일정 중 삭제된 지 24시간 지난 항목을 완전히 지워요. 이 정리는 서버에서 10분마다 자동으로도 돌아가요.</p>` : ''}
@@ -6035,6 +6107,20 @@ function renderMypage(){
     </p>`;
 }
 
+function updateCheckModal(loading){
+  const latest = state.latestAndroidVersionCode;
+  const hasUpdate = hasNativeUpdateAvailable();
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.download} 업데이트 확인</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:12px; color:var(--text-dim); line-height:1.6; margin:0 0 14px;">
+      ${loading ? `서버에서 최신 버전 정보를 불러오고 있어요...`
+        : hasUpdate
+        ? `새 버전이 있어요. 지금 설치된 버전(${escapeHtml(APP_VERSION)})보다 최신 버전이 나왔어요.`
+        : (latest ? `이미 최신 버전(${escapeHtml(APP_VERSION)})을 쓰고 있어요.` : `버전 확인에 실패했어요. 인터넷 연결을 확인해주세요.`)}
+    </p>
+    ${(!loading && hasUpdate) ? `<a href="${APK_DOWNLOAD_URL}" class="btn btn-primary" style="text-decoration:none; display:block; text-align:center;">${ICON.download} 새 버전 다운로드</a>` : ''}`;
+}
 function bugReportModal(){
   return `
     <div class="modal-handle"></div>
@@ -9343,7 +9429,6 @@ document.addEventListener('click', async (e)=>{
       renderMain();
       if(['home', 'info', 'council'].includes(state.view)){ await refreshShared(); renderMain(); }
       if(state.view === 'info' && state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); }
-      if(state.view === 'info' && state.infoTab === 'shuttle'){ setupShuttleTimer(); } else if(state.shuttleTimer){ clearInterval(state.shuttleTimer); state.shuttleTimer=null; }
       if(state.view === 'council' && state.councilTab === 'social'){ await refreshFriendsData(); setupFriendsModalListeners(); }
       else { teardownSocialTab(); }
     }
@@ -9351,7 +9436,6 @@ document.addEventListener('click', async (e)=>{
       state.infoTab = el.dataset.tab; renderMain();
       if(state.infoTab === 'meal') checkWeeklyAutoMealFetch();
       if(state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); }
-      if(state.infoTab === 'shuttle'){ setupShuttleTimer(); } else if(state.shuttleTimer){ clearInterval(state.shuttleTimer); state.shuttleTimer=null; }
     }
     else if(a === 'refresh-dept-notices'){ await fetchDeptNoticesFromSource(false); }
     else if(a === 'council-tab'){
@@ -9497,7 +9581,12 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
-    else if(a === 'open-friends'){ await openSocialTab(); }
+    else if(a === 'open-friends'){ closeModal(); await openSocialTab(); }
+    else if(a === 'open-update-check'){
+      openModal(updateCheckModal(true));
+      await checkNativeAppUpdate();
+      openModal(updateCheckModal());
+    }
     else if(a === 'send-friend-request'){ await sendFriendRequest(); }
     else if(a === 'accept-friend-request'){ await acceptFriendRequest(el.dataset.pair); }
     else if(a === 'decline-friend-request'){ await declineFriendRequest(el.dataset.pair); }

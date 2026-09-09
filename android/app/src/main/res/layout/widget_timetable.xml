@@ -78,7 +78,7 @@
                 <TextView android:id="@+id/subject_0" android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:maxLines="1" android:ellipsize="end" android:text="반도체공학개론" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
                 <TextView android:id="@+id/meta_0" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:text="09:00-10:30 · 공학관 401" android:textColor="#CCFFFFFF" android:textSize="11sp" />
+                    android:maxLines="2" android:ellipsize="end" android:layout_marginTop="1dp" android:text="09:00-10:30 · 공학관 401" android:textColor="#CCFFFFFF" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout android:id="@+id/row_1"
@@ -91,7 +91,7 @@
                 <TextView android:id="@+id/subject_1" android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:maxLines="1" android:ellipsize="end" android:text="전자회로실험" android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold" />
                 <TextView android:id="@+id/meta_1" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:text="13:00-15:30 · 공학관 512" android:textColor="#CCFFFFFF" android:textSize="11sp" />
+                    android:maxLines="2" android:ellipsize="end" android:layout_marginTop="1dp" android:text="13:00-15:30 · 공학관 512" android:textColor="#CCFFFFFF" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout android:id="@+id/row_2"
@@ -104,7 +104,7 @@
                 <TextView android:id="@+id/subject_2" android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
                 <TextView android:id="@+id/meta_2" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+                    android:maxLines="2" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout android:id="@+id/row_3"
@@ -117,7 +117,7 @@
                 <TextView android:id="@+id/subject_3" android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
                 <TextView android:id="@+id/meta_3" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+                    android:maxLines="2" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout android:id="@+id/row_4"
@@ -130,7 +130,7 @@
                 <TextView android:id="@+id/subject_4" android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textStyle="bold" />
                 <TextView android:id="@+id/meta_4" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
+                    android:maxLines="2" android:ellipsize="end" android:layout_marginTop="1dp" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
 
