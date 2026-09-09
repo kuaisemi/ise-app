@@ -5735,6 +5735,14 @@ function renderRecruitmentPollUI(r){
           <summary>참여자 명단 (${yesCount}명)</summary>
           <div style="margin-top:6px;">${yesNames.map(n=>`<span class="voter-badge">${n}</span>`).join('')}</div>
         </details>` : ''}
+      ${isAuthor ? `
+        <div style="margin-top:8px; display:flex; gap:6px;">
+          <input type="text" class="rec-org-msg-input" data-id="${r.id}" placeholder="참석자에게 보낼 메시지 (예: 3시까지 와주세요)" value="${escapeHtml(r.poll.orgMessage||'')}" maxlength="200" style="flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-size:11px; color:var(--text); font-family:var(--font-display);">
+          <button type="button" class="btn btn-primary btn-sm" style="width:auto;" data-action="save-recruitment-org-message" data-id="${r.id}">보내기</button>
+        </div>` : (mine && mine.choice==='yes' && r.poll.orgMessage ? `
+        <div style="margin-top:8px; padding:8px 10px; background:var(--surface-2); border-radius:8px; font-size:11.5px; line-height:1.5;">
+          <b style="color:var(--teal);">${ICON.megaphone} 구인자 메시지</b><br>${escapeHtml(r.poll.orgMessage)}
+        </div>` : '')}
     </div>`;
 }
 async function voteRecruitmentPoll(id, choice){
@@ -5743,12 +5751,29 @@ async function voteRecruitmentPoll(id, choice){
     const post = cur.find(r=>r && r.id===id);
     if(!post || !post.poll || !post.poll.enabled) return null;
     const votes = { ...(post.poll.votes||{}) };
-    votes[state.user.studentId] = { name: state.user.name, choice, time: now() };
+    const mine = votes[state.user.studentId];
+    // 이미 고른 것과 같은 걸 다시 누르면 취소(투표 안 한 상태로).
+    if(mine && mine.choice===choice) delete votes[state.user.studentId];
+    else votes[state.user.studentId] = { name: state.user.name, choice, time: now() };
     return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, votes } } : r);
   });
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
+}
+// 구인자가 "참여" 누른 사람들에게만 보이는 짧은 안내(예: 몇 시까지 와주세요)를 남긴다.
+// 별도 채팅이 아니라 구인글 자체에 붙는 한 줄 메시지라, 수정하면 그냥 덮어쓴다.
+async function saveRecruitmentOrgMessage(id, msg){
+  if(!state.user) return;
+  const next = await mutateSharedList('recruitments', 'list', (cur)=>{
+    const post = cur.find(r=>r && r.id===id);
+    if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
+    return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessage: msg } } : r);
+  });
+  if(!next){ saveResultToast(false); return; }
+  state.recruitmentPosts = next;
+  renderMain();
+  toast(msg ? '참석자에게 메시지를 보냈어요' : '메시지를 지웠어요');
 }
 
 function recruitmentModal(r){
@@ -6734,7 +6759,7 @@ function friendDetailBody(){
       <div style="display:flex; gap:6px;">
         <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; padding:3px 8px; font-size:10px;">채팅 신고</button>
         <button type="button" class="btn btn-ghost btn-sm" data-action="clear-friend-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
-        <button type="button" class="btn ${chatMuted?'btn-primary':'btn-ghost'} btn-sm notify-toggle" id="friend-mute-toggle" data-on="${chatMuted?'1':'0'}" style="width:auto; padding:3px 8px; font-size:10px;" title="이 친구 채팅 알림만 끄기">알림 ${chatMuted?'꺼짐':'켜짐'}</button>
+        <button type="button" class="btn ${chatMuted?'btn-ghost':'btn-primary'} btn-sm notify-toggle" id="friend-mute-toggle" data-on="${chatMuted?'0':'1'}" style="width:auto; padding:3px 8px; font-size:10px;" title="이 친구 채팅 알림만 끄기">알림 ${chatMuted?'꺼짐':'켜짐'}</button>
       </div>
     </div>
     <div class="card" style="padding:12px;">
@@ -6785,15 +6810,17 @@ function setupFriendsModalListeners(){
 
   const muteToggle = document.getElementById('friend-mute-toggle');
   if(muteToggle) muteToggle.addEventListener('click', async () => {
-    const newOn = muteToggle.dataset.on !== '1';
+    // data-on은 "알림이 켜져 있는지"를 나타낸다 (뮤트 여부의 반대) — 다른 알림 토글들과
+    // 색 규칙을 맞추기 위해서다 (켜짐=강조색, 꺼짐=흐린색).
+    const newNotifyOn = muteToggle.dataset.on !== '1';
     muteToggle.disabled = true;
-    const ok = await toggleChatMute(newOn);
+    const ok = await toggleChatMute(!newNotifyOn);
     muteToggle.disabled = false;
     if(ok){
-      muteToggle.dataset.on = newOn ? '1' : '0';
-      muteToggle.textContent = newOn ? '알림 꺼짐' : '알림 켜짐';
-      muteToggle.classList.toggle('btn-primary', newOn);
-      muteToggle.classList.toggle('btn-ghost', !newOn);
+      muteToggle.dataset.on = newNotifyOn ? '1' : '0';
+      muteToggle.textContent = newNotifyOn ? '알림 켜짐' : '알림 꺼짐';
+      muteToggle.classList.toggle('btn-primary', newNotifyOn);
+      muteToggle.classList.toggle('btn-ghost', !newNotifyOn);
     }
   });
 
@@ -10154,6 +10181,11 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'delete-recruitment'){ await deleteRecruitment(el.dataset.id); }
     else if(a === 'vote-recruitment-poll'){ await voteRecruitmentPoll(el.dataset.id, el.dataset.choice); }
+    else if(a === 'save-recruitment-org-message'){
+      const id = el.dataset.id;
+      const input = document.querySelector(`.rec-org-msg-input[data-id="${id}"]`);
+      await saveRecruitmentOrgMessage(id, (input && input.value || '').trim());
+    }
     else if(a === 'clear-all-board'){ await clearAllBoard(el.dataset.type); }
     else if(a === 'toggle-like'){ await handleToggleLike(el.dataset.type, el.dataset.id); }
   }catch(err){

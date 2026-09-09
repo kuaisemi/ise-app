@@ -286,7 +286,15 @@ async function main() {
   ]);
   // pairId -> { uid: true } — 그 사람이 이 채팅만 콕 집어 알림을 꺼둔 경우.
   const mutedByPair = new Map();
-  friendLinksSnap.forEach((d) => { if (d.data().mutedBy) mutedByPair.set(d.id, d.data().mutedBy); });
+  // pairId -> { uid: ts } — 그 사람이 이 채팅을 마지막으로 읽어본 시각. 크론이 도는 사이에
+  // 앱을 직접 열어서 이미 읽었으면(메시지 시각보다 이 값이 더 최근이면) 굳이 푸시를 또 보낼
+  // 필요가 없다.
+  const lastSeenByPair = new Map();
+  friendLinksSnap.forEach((d) => {
+    const data = d.data();
+    if (data.mutedBy) mutedByPair.set(d.id, data.mutedBy);
+    if (data.lastSeenAt) lastSeenByPair.set(d.id, data.lastSeenAt);
+  });
 
   // 앱은 삭제를 tombstone(deleted:true)으로 처리하므로 반드시 걸러내야 한다.
   const notices = live(noticesSnap.exists ? noticesSnap.data().list : []);
@@ -630,6 +638,8 @@ async function main() {
       if (!recipientUid || !chatOkUids.has(recipientUid)) continue;
       const muted = mutedByPair.get(pairId);
       if (muted && muted[recipientUid]) continue; // 이 친구 채팅만 콕 집어 꺼둔 경우
+      const seenAt = lastSeenByPair.get(pairId);
+      if (seenAt && seenAt[recipientUid] && seenAt[recipientUid] >= (m.createdAt || 0)) continue; // 크론 돌기 전에 이미 앱에서 읽음
       if (!byRecipient.has(recipientUid)) byRecipient.set(recipientUid, []);
       byRecipient.get(recipientUid).push({ senderUid: m.senderUid, text: m.text, pairId });
     }
