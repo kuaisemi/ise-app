@@ -2563,7 +2563,7 @@ function clearWidgetPrimaryTimetable(){
 // 앱 화면에서 지금 들여다보고 있는(활성) 학기와는 다를 수 있다 — 예전 학기 시간표를
 // 잠깐 열어봐도 이 값은 안 바뀐다. 학기가 바뀌는 시점(1/25, 5/1, 7/25, 11/1)이 지나면
 // 자동으로 다음 학기로 넘어간다.
-function currentSemesterKey(){
+function currentRevealedSemesterKey(){
   const revealed = sortedSemesterKeys().filter(k=>isSemesterRevealed(k) && semesterVariants(k).length);
   return revealed[0] || sortedSemesterKeys()[0] || null;
 }
@@ -2584,14 +2584,14 @@ function widgetTimetableSlots(){
     const v = variants[p.idx];
     if(v) return v.slots;
   }
-  const key = currentSemesterKey();
+  const key = currentRevealedSemesterKey();
   const variants = key ? semesterVariants(key) : [];
   return (variants[0] && variants[0].slots) || [];
 }
 function widgetSemesterLabel(){
   const p = getWidgetPrimaryTimetable();
   if(p && state.timetablesBySemester[p.sem]) return semesterLabel(p.sem);
-  const key = currentSemesterKey();
+  const key = currentRevealedSemesterKey();
   return key ? semesterLabel(key) : '';
 }
 
