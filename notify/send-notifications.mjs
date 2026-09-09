@@ -379,12 +379,16 @@ async function main() {
       }
     }
     if (!tokens.length) return;
+    // quietLabel은 대부분 카테고리 이름과 같아서(poll/meal/notice/recruit) 그대로 재사용한다 —
+    // 앱이 이 값을 보고 알림을 눌렀을 때 어느 화면으로 바로 이동할지 정한다.
+    const data = { url: './index.html' };
+    if (quietLabel) data.category = quietLabel;
     for (let i = 0; i < tokens.length; i += CHUNK) {
       const batch = tokens.slice(i, i + CHUNK);
       const res = await messaging.sendEachForMulticast({
         tokens: batch,
         notification: { title, body },
-        data: { url: './index.html' },
+        data,
       });
       res.responses.forEach((r, idx) => {
         if (r.success) return;
@@ -623,7 +627,7 @@ async function main() {
       const res = await messaging.sendEachForMulticast({
         tokens,
         notification: { title: `${senderName}님의 메시지`, body: String(m.text || '').slice(0, 80) },
-        data: { url: './index.html' },
+        data: { url: './index.html', category: 'chat', pairId },
       });
       res.responses.forEach((resp, idx) => {
         if (resp.success) return;

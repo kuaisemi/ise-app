@@ -745,11 +745,23 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.2.4';
-// android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v159 등)와
+const APP_VERSION = 'Beta 0.2.5';
+// android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 159;
+const ANDROID_VERSION_CODE = 160;
 const PATCH_NOTES = [
+  { version:'Beta 0.2.5', date:'2026-09-09', items:[
+    '탈퇴(본인·강제 모두)할 때 친구 검색용 정보도 같이 지워서, 탈퇴한 학번으로 계속 친구 추가가 되던 문제 수정',
+    '학식 알림을 진리관/미래관, 조식/중식/석식별로 따로 설정할 수 있도록 세분화 — 미래관(교직원식당) 알림도 이번에 처음 추가됨',
+    '알림 목록의 읽음·지움 상태를 서버에도 저장 — 앱을 지우고 새로 깔거나 기기를 바꿔도 이미 확인한 알림이 다시 뜨지 않음',
+    '알림 설정 화면에서 "학식" 더보기를 오늘의 시간표 아래로 옮기고 세부 항목 정리',
+    '간단한 채팅 제목 글씨가 PC 브라우저에서 궁서체로 보이던 문제 수정',
+    '간단한 채팅에 날짜 바뀜 구분선 추가, 같은 사람이 같은 분에 연달아 보낸 메시지는 시간 표시를 하나로 정리, 알림이 실시간이 아니라는 안내 문구 추가',
+    '알림(공지·투표·학식·메시지)을 눌러서 앱에 들어가면 해당 화면으로 바로 이동하도록 수정',
+    '다음 수업 위젯에서 "159분 남음"처럼 분 단위로만 표시되던 걸 "2시간 39분 남음"으로 수정',
+    '투표 결과 막대그래프가 라이트 모드에서 흰색·회색이라 잘 안 보이던 문제 수정',
+    '홈 화면 "오늘의 학식"이 21시~새벽 3시엔 "운영 종료"로 안내하도록 변경 (진리관은 새벽 3시부터 조식, 미래관은 아침 7시부터 중식 표시). 식단 알림 발송 시각은 그대로',
+  ]},
   { version:'Beta 0.2.4', date:'2026-09-09', items:[
     '셔틀버스 홈 화면 카운트다운이 멈춰 있던 문제 수정 — 이제 홈 화면에서도 계속 흘러감',
     '시간표 "강의실 직접입력"에 넣은 줄바꿈이 시간표 화면·위젯(오늘의 시간표·다음 수업·주간 시간표)에 그대로 보이도록 수정',
@@ -1173,12 +1185,17 @@ function dateStrOf(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d
 function homeStudentMealSlot(){
   const now = new Date();
   const mins = now.getHours()*60 + now.getMinutes();
-  if(mins >= 9*60 && mins < 14*60) return { key:'lunch', label:'중식', icon:ICON.sun, date: todayStr() };
-  if(mins >= 14*60 && mins < 21*60) return { key:'dinner', label:'석식', icon:ICON.moon, date: todayStr() };
-  let date;
-  if(mins >= 21*60){ const d=new Date(now); d.setDate(d.getDate()+1); date=dateStrOf(d); }
-  else date = todayStr();
-  return { key:'breakfast', label:'조식', icon:ICON.sunrise, date };
+  if(mins >= 3*60 && mins < 9*60) return { key:'breakfast', label:'조식', icon:ICON.sunrise, date: todayStr(), closed:false };
+  if(mins >= 9*60 && mins < 14*60) return { key:'lunch', label:'중식', icon:ICON.sun, date: todayStr(), closed:false };
+  if(mins >= 14*60 && mins < 21*60) return { key:'dinner', label:'석식', icon:ICON.moon, date: todayStr(), closed:false };
+  // 21시~새벽 3시: 금일 식당 운영 시간이 끝난 뒤라 다음 조식이 뜨기 전까지는 "운영 종료"로 안내한다.
+  return { key:null, label:'', icon:null, date: todayStr(), closed:true };
+}
+// 미래관(교직원식당)은 중식만 운영하므로 진리관과는 별도로 표시 시간대를 둔다 — 아침 7시부터
+// 미리 보여주고, 밤 9시~새벽 6시 59분은 "운영 종료"로 안내한다.
+function homeStaffMealSlot(){
+  const mins = new Date().getHours()*60 + new Date().getMinutes();
+  return { closed: !(mins >= 7*60 && mins < 21*60) };
 }
 function addDays(str, delta){ const d=new Date(str+'T00:00:00'); d.setDate(d.getDate()+delta); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 // 학식은 평일에만 운영하므로, 하루씩 넘기다 토·일에 걸리면 계속 밀어서 평일에만 멈춘다.
@@ -2012,6 +2029,8 @@ function boot(){
           checkAutoDeptNoticeFetch();
         }catch(err){ console.error('부팅 오류', err); }
         renderApp();
+        // 로그인 전에 알림을 눌러서 들어온 경우, 이제 화면이 있으니 미뤄둔 이동을 처리한다.
+        if(state.pendingNotifRoute){ const r=state.pendingNotifRoute; state.pendingNotifRoute=null; routeNotificationTap(r.category, r.data); }
         toast(`${state.user.name}님 환영합니다`);
         // 화면이 그려진 뒤에 안내를 띄운다(부팅 중 흰 화면 위에 뜨는 것 방지)
         setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
@@ -2367,6 +2386,20 @@ async function registerWebPushToken(){
   }catch(e){ console.warn('[push-token:web]', e); return false; }
 }
 
+// 알림(푸시·기기 로컬 알림)을 눌렀을 때 종류별로 바로 이동할 화면. 로그인 전에 눌려서
+// 들어온 경우엔 state.user가 아직 없어 라우팅할 화면 자체가 없으므로, 로그인이 끝난
+// 뒤(boot()의 renderApp() 직후)에 적용하도록 잠깐 담아둔다.
+state.pendingNotifRoute = null;
+function routeNotificationTap(category, data){
+  if(!state.user){ state.pendingNotifRoute = { category, data }; return; }
+  if(category==='notice'){ state.view='council'; state.councilTab='notice'; renderShell(); }
+  else if(category==='poll'){ state.view='council'; state.councilTab='poll'; renderShell(); }
+  else if(category==='recruit'){ state.view='council'; state.councilTab='recruitment'; renderShell(); }
+  else if(category==='meal'){ state.view='info'; state.infoTab='meal'; renderShell(); }
+  else if(category==='timetable'){ state.view='timetable'; renderShell(); }
+  else if(category==='chat'){ openFriendChatByPairId(data && data.pairId); }
+  else if(category==='friend'){ openSocialTab(); }
+}
 let nativePushListenersBound = false;
 function registerNativePushToken(){
   const PN = (typeof Capacitor !== 'undefined' && Capacitor.Plugins) ? Capacitor.Plugins.PushNotifications : null;
@@ -2387,6 +2420,12 @@ function registerNativePushToken(){
           const title = (n && n.title) || '알림';
           const body = (n && n.body) || '';
           toast(`${title}${body ? ' — ' + body : ''}`);
+        });
+        // 백그라운드·종료 상태에서 시스템 알림을 눌러서 들어왔을 때, 알림 종류에 맞는
+        // 화면으로 바로 이동한다 (메시지→그 채팅방, 공지→공지, 투표→투표, 식단→학식탭).
+        PN.addListener('pushNotificationActionPerformed', (action)=>{
+          const data = (action && action.notification && action.notification.data) || {};
+          routeNotificationTap(data.category, data);
         });
       }
       await PN.register();
@@ -2929,6 +2968,7 @@ async function refreshAdminBadgeCounts(){
 state.latestAndroidVersionCode = null; // 네이티브 APK 업데이트 확인 결과 (아직 확인 전이면 null)
 state.hasUnseenChat = false;
 state.unseenChatPairIds = new Set(); // 친구 목록에서 "이 사람한테 새 채팅 왔음" 점 표시용
+state.unseenChatDetails = []; // 알림 목록에 "OO님의 메시지"로 각각 띄우기 위한 정보 (pairId·보낸사람 이름·시각)
 async function refreshChatUnseenBadge(){
   if(!state.user) return;
   try{
@@ -2936,14 +2976,20 @@ async function refreshChatUnseenBadge(){
     const snap = await getDocs(q);
     let unseen = false;
     const pairIds = new Set();
+    const details = [];
     snap.forEach(d=>{
       const data = d.data();
       if(!data.lastMessageAt || data.lastMessageBy === state.user.uid) return;
       const seenAt = localGet('chat_seen_'+d.id, 0);
-      if(data.lastMessageAt > seenAt){ unseen = true; pairIds.add(d.id); }
+      if(data.lastMessageAt > seenAt){
+        unseen = true; pairIds.add(d.id);
+        const senderName = (data.names && data.names[data.lastMessageBy]) || '친구';
+        details.push({ pairId:d.id, senderUid:data.lastMessageBy, senderName, ts:data.lastMessageAt });
+      }
     });
     state.hasUnseenChat = unseen;
     state.unseenChatPairIds = pairIds;
+    state.unseenChatDetails = details;
   }catch(e){ console.warn('[chatUnseen]', e); }
 }
 function getDismissedNotifIds(){ return localGet('notif_feed_dismissed', []); }
@@ -2982,7 +3028,9 @@ function getNotificationFeed(){
   if(isDirectorPlus() && b.signupInquiries>0) items.push({ id:'admin_signup_'+b.signupInquiries, ts:nowTs, icon:ICON.person, title:'가입 승인 대기', body:`${b.signupInquiries}건 확인이 필요해요`, action:'open-signup-inquiries' });
   if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
   if(isCouncil() && b.chatReports>0) items.push({ id:'admin_chat_'+b.chatReports, ts:nowTs-2, icon:ICON.inbox, title:'채팅 신고', body:`처리 안 된 신고 ${b.chatReports}건`, action:'open-chat-report-inbox' });
-  if(state.hasUnseenChat) items.push({ id:'chat_unseen', ts:nowTs-3, icon:ICON.person, title:'새로운 채팅 알림이 있습니다', body:'눌러서 친구 목록에서 확인해보세요', action:'open-friends' });
+  (state.unseenChatDetails||[]).forEach(cd=>{
+    items.push({ id:'chat_unseen_'+cd.pairId, ts:cd.ts||nowTs-3, icon:ICON.person, title:`${cd.senderName}님의 메시지`, body:'눌러서 대화를 확인해보세요', action:'open-friend-chat', pairId:cd.pairId });
+  });
   live(state.notices).forEach(n=>{
     const ts = n.createdAt || (n.date ? new Date(n.date+'T00:00:00').getTime() : 0);
     const id = 'notice_'+n.id;
@@ -3054,7 +3102,7 @@ function notifFeedModal(){
       ${feed.length ? feed.map(it=>`
         <div class="list-item" style="padding-right:0;">
           <div class="row-between" style="gap:8px; align-items:flex-start;">
-            <div style="min-width:0; flex:1; cursor:pointer;" data-action="${it.action}">
+            <div style="min-width:0; flex:1; cursor:pointer;" data-action="${it.action}"${it.pairId?` data-pair-id="${escapeHtml(it.pairId)}"`:''}>
               <div class="title-line">${it.icon}<b>${escapeHtml(it.title)}</b></div>
               <div class="meta" style="margin-top:2px; color:var(--text-dim); font-family:var(--font-display);">${escapeHtml(it.body)}</div>
               <div class="meta" style="margin-top:2px;">${fmtDateTime(it.ts)}</div>
@@ -3069,10 +3117,16 @@ function notifFeedModal(){
 // 요일마다 그날의 수업 목록으로 내용을 채워 월~금 5개를 매주 반복 예약하고,
 // 시간표나 설정이 바뀔 때마다 통째로 취소 후 다시 예약해서 항상 최신 내용을 유지한다.
 const TT_REMINDER_IDS = [901, 902, 903, 904, 905];
+let nativeLocalNotifListenerBound = false;
 async function scheduleTimetableReminders(list){
   if(typeof Capacitor === 'undefined' || !Capacitor.isNativePlatform || !Capacitor.isNativePlatform()) return;
   const LN = Capacitor.Plugins && Capacitor.Plugins.LocalNotifications;
   if(!LN) return;
+  if(!nativeLocalNotifListenerBound){
+    nativeLocalNotifListenerBound = true;
+    // "오늘의 시간표" 알림(기기 로컬 알림)을 눌렀을 때 시간표 화면으로 바로 이동한다.
+    LN.addListener('localNotificationActionPerformed', ()=>{ routeNotificationTap('timetable'); });
+  }
   const source = list || state.timetable || [];
   try{
     await LN.cancel({ notifications: TT_REMINDER_IDS.map(id=>({id})) });
@@ -3562,10 +3616,8 @@ function setupTimetableResizeListener(){
 function renderHome(){
   const di = todayDayIndex();
   const todays = di>=0 ? state.timetable.filter(c=>c.day===di).sort((a,b)=>a.start-b.start) : [];
-  // 진리관은 홈 화면에서만 시간대별로 조식/중식/석식을 자동으로 바꿔 보여준다.
-  // 21시 이후엔 "내일 날짜"를 보게 되는데, 미래관(중식만 운영)을 계속 오늘 날짜로 고정해두면
-  // 진리관은 이미 내일(주말 등)을 보고 있는데 미래관만 지나간 오늘 메뉴를 붙들고 있어 화면이 어긋나 보인다.
-  // 그래서 미래관도 같은 기준 날짜(studentSlot.date)를 보게 해 21시를 기점으로 함께 넘어가게 한다.
+  // 진리관은 홈 화면에서만 시간대별로 조식/중식/석식을 자동으로 바꿔 보여주고, 21시~새벽 3시는
+  // "운영 종료"로 안내한다(미래관도 별도 시간대로 같은 방식). 둘 다 항상 오늘 날짜 메뉴를 본다.
   const studentSlot = homeStudentMealSlot();
   const studentMeal = (state.meals[studentSlot.date] || {}).student || null;
   const studentSlotText = studentMeal ? studentMeal[studentSlot.key] : '';
@@ -3630,11 +3682,17 @@ function renderHome(){
     meal: hp.hideTodayMeal ? '' : (()=>{
       const wd = new Date(studentSlot.date+'T00:00:00').getDay();
       if(wd===0 || wd===6) return '';
-      if(!studentSlotText && !(staffMeal && staffMeal.lunch)) return '';
+      const staffSlot = homeStaffMealSlot();
+      const staffLunchText = (staffMeal && staffMeal.lunch) || '';
+      if(studentSlot.closed && staffSlot.closed) return '';
       return `
     <div class="section-title">오늘의 학식</div>
     <div class="card" data-action="go-meal-tab" style="cursor:pointer;">
-      ${studentSlotText ? `
+      ${studentSlot.closed ? `
+        <div class="meal-block">
+          <div class="m-label" style="color:var(--text-faint)">${ICON.capHat} 진리관 학생식당</div>
+          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">금일의 식당 운영 시간이 종료됐어요.</div>
+        </div>` : studentSlotText ? `
         <div class="meal-block">
           <div class="m-label" style="color:var(--teal)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}${mealHoursSpan('student_'+studentSlot.key)}</div>
           <div class="m-text" style="font-size:11.5px">${formatMealHtml(studentSlot.key==='lunch' ? stripPlusMealLines(studentSlotText) : studentSlotText)}</div>
@@ -3643,10 +3701,14 @@ function renderHome(){
           <div class="m-label" style="color:var(--text-faint)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}${mealHoursSpan('student_'+studentSlot.key)}</div>
           <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">정보가 없습니다.</div>
         </div>`}
-      ${staffMeal && staffMeal.lunch ? `
+      ${staffSlot.closed ? `
+        <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+          <div class="m-label" style="color:var(--text-faint)">${ICON.tie} 미래관 교직원식당</div>
+          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">금일의 식당 운영 시간이 종료됐어요.</div>
+        </div>` : staffLunchText ? `
         <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
           <div class="m-label" style="color:var(--amber)">${ICON.tie} 미래관 교직원식당 중식${mealHoursSpan('staff_lunch')}</div>
-          <div class="m-text" style="font-size:11.5px">${formatMealHtml(stripPlusMealLines(staffMeal.lunch))}</div>
+          <div class="m-text" style="font-size:11.5px">${formatMealHtml(stripPlusMealLines(staffLunchText))}</div>
         </div>` : `
         <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
           <div class="m-label" style="color:var(--text-faint)">${ICON.tie} 미래관 교직원식당</div>
@@ -5812,7 +5874,7 @@ function renderPollItem(p){
             <span style="color:var(--text-faint)">${count}표 · ${pct}%</span>
           </div>
           <div style="height:7px; background:var(--surface-2); border-radius:4px; overflow:hidden;">
-            <div style="height:100%; width:${pct}%; background:${mine?'var(--teal)':'var(--surface-3)'};"></div>
+            <div style="height:100%; width:${pct}%; background:${mine?'var(--teal)':'var(--text-dim)'};"></div>
           </div>
           ${(isDirectorOrHigher && count>0) ? `
             <details class="voters-accordion">
@@ -6037,6 +6099,29 @@ function renderMypage(){
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>투표</b><small>시작 · 마감 30분 전 · 저녁 8시</small></span></span>
         <button type="button" class="btn ${np.poll?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="poll">${np.poll?'켜짐':'꺼짐'}</button>
       </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.doc}<span class="notify-label-text"><b>구인글</b><small>새 구인글이 올라올 때</small></span></span>
+        <button type="button" class="btn ${np.recruit?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="recruit">${np.recruit?'켜짐':'꺼짐'}</button>
+      </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>채팅 알림</b><small>친구가 메시지를 보낼 때 · 실시간으로 바로 오진 않아요</small></span></span>
+        <button type="button" class="btn ${np.chat?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="chat">${np.chat?'켜짐':'꺼짐'}</button>
+      </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
+        <button type="button" class="btn ${np.night?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="night">${np.night?'켜짐':'꺼짐'}</button>
+      </div>
+      <div class="notify-row">
+        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${isNativeApp ? `평일 아침 ${np.timetableHour}시에 그날 수업 안내` : '앱(APK)에서만 사용할 수 있어요'}</small></span></span>
+        <button type="button" class="btn ${np.timetable?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="timetable" ${isNativeApp?'':'disabled'}>${np.timetable?'켜짐':'꺼짐'}</button>
+      </div>
+      ${np.timetable && isNativeApp ? `
+      <div class="notify-subrow">
+        <span style="flex-shrink:0;">알림 시각</span>
+        <div style="display:flex; gap:5px; flex-shrink:0;">
+          ${[7,8,9].map(h=>`<button type="button" class="btn ${np.timetableHour===h?'btn-primary':'btn-ghost'} btn-sm" data-action="set-notify-hour" data-hour="${h}" style="width:auto; padding:4px 11px; font-size:11.5px;">${h}시</button>`).join('')}
+        </div>
+      </div>` : ''}
       <div class="notify-row" style="cursor:pointer;" data-action="toggle-meal-notify-expand">
         <span class="notify-label">${ICON.bowl}<span class="notify-label-text"><b>학식</b><small>지점·끼니별로 따로 설정</small></span></span>
         <span class="sub" style="display:flex; align-items:center; gap:3px; color:var(--text-faint); font-size:11.5px;">${state.mealNotifyExpanded?'접기':'더보기'} ${ICON.chevR}</span>
@@ -6064,29 +6149,6 @@ function renderMypage(){
       </div>
       <p style="font-size:10px; color:var(--text-faint); margin:2px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
       ` : ''}
-      <div class="notify-row">
-        <span class="notify-label">${ICON.doc}<span class="notify-label-text"><b>구인글</b><small>새 구인글이 올라올 때</small></span></span>
-        <button type="button" class="btn ${np.recruit?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="recruit">${np.recruit?'켜짐':'꺼짐'}</button>
-      </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>채팅 알림</b><small>친구가 메시지를 보낼 때 · 실시간으로 바로 오진 않아요</small></span></span>
-        <button type="button" class="btn ${np.chat?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="chat">${np.chat?'켜짐':'꺼짐'}</button>
-      </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
-        <button type="button" class="btn ${np.night?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="night">${np.night?'켜짐':'꺼짐'}</button>
-      </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${isNativeApp ? `평일 아침 ${np.timetableHour}시에 그날 수업 안내` : '앱(APK)에서만 사용할 수 있어요'}</small></span></span>
-        <button type="button" class="btn ${np.timetable?'btn-primary':'btn-ghost'} btn-sm notify-toggle" data-action="toggle-notify" data-key="timetable" ${isNativeApp?'':'disabled'}>${np.timetable?'켜짐':'꺼짐'}</button>
-      </div>
-      ${np.timetable && isNativeApp ? `
-      <div class="notify-subrow">
-        <span>알림 시각</span>
-        <div style="display:flex; gap:5px;">
-          ${[7,8,9].map(h=>`<button type="button" class="btn ${np.timetableHour===h?'btn-primary':'btn-ghost'} btn-sm" data-action="set-notify-hour" data-hour="${h}" style="width:auto; padding:4px 11px; font-size:11.5px;">${h}시</button>`).join('')}
-        </div>
-      </div>` : ''}
       <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">
         ${isNativeApp ? '공지 · 투표 · 학식 알림은 앱을 꺼둬도 도착해요.' : '브라우저에서는 공지 · 투표 · 학식 알림을 받을 수 있어요.'}
       </p>
@@ -6634,7 +6696,7 @@ function friendDetailBody(){
 
     <div class="row-between" style="margin-bottom:6px;">
       <div class="section-title" style="margin:0; display:flex; align-items:baseline; gap:6px;">
-        <span style="font-family:'Segoe Script','Brush Script MT',cursive; font-size:15px; font-weight:400;">간단한 채팅</span>
+        <span style="font-size:13.5px; font-weight:800; font-style:italic;">간단한 채팅</span>
         <span style="font-size:9.5px; color:var(--text-faint); font-weight:600;">beta</span>
         <span style="font-size:9.5px; color:var(--text-faint); font-weight:400;">24시간 뒤 채팅 내용이 사라져요</span>
       </div>
@@ -6651,6 +6713,7 @@ function friendDetailBody(){
         <button type="button" class="btn btn-primary btn-sm" id="friend-chat-send" style="width:auto;">전송</button>
       </div>
     </div>
+    <p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">채팅 알림은 실시간이 아니라 10분마다 한 번씩 모아서 보내져요.</p>
   `;
 }
 
@@ -6764,6 +6827,19 @@ async function declineFriendRequest(pairId){
   await refreshFriendsData();
 }
 
+// 알림(인앱 목록·푸시 둘 다)에서 "OO님의 메시지"를 눌렀을 때 바로 그 친구와의 채팅으로
+// 들어간다. 소셜 탭이 아예 안 열려 있는 상태(예: 알림 눌러서 막 들어온 경우)에서도 동작하도록
+// 먼저 소셜 탭을 열어 친구 목록을 받아온 뒤 그 안에서 이 pairId를 찾는다.
+async function openFriendChatByPairId(pairId){
+  if(!state.user || !pairId) return;
+  const otherUid = pairId.split('_').find(u=>u!==state.user.uid);
+  if(!otherUid) return;
+  await openSocialTab();
+  const rec = (state.friendsUI.data.friends||[]).find(f=>f.pairId===pairId);
+  const name = (rec && (rec.nickname||rec.name)) || '친구';
+  openFriendDetail(otherUid, name, pairId);
+  setupFriendsModalListeners();
+}
 function openFriendDetail(uid, name, pairId){
   stopFriendChatListener();
   const rec = state.friendsUI.data.friends.find(f=>f.pairId===pairId);
@@ -7130,6 +7206,16 @@ function fmtChatTime(ts){
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${ampm} ${h12}:${String(m).padStart(2,'0')}`;
 }
+function fmtChatDateDivider(ts){
+  const d = new Date(ts||Date.now());
+  const wd = ['일','월','화','수','목','금','토'][d.getDay()];
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${wd})`;
+}
+function sameMinute(ts1, ts2){
+  const a = new Date(ts1||0), b = new Date(ts2||0);
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate()
+    && a.getHours()===b.getHours() && a.getMinutes()===b.getMinutes();
+}
 
 function openFriendChatListener(pairId, otherUid){
   const log = document.getElementById('friend-chat-log');
@@ -7145,10 +7231,18 @@ function openFriendChatListener(pairId, otherUid){
     const myClearedAt = state.friendsUI.myClearedAt || 0;
     const docs = snap.docs.filter(d => (d.data().createdAt||0) > myClearedAt);
     if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = docs.map(d=>{
+    el.innerHTML = docs.map((d,i)=>{
       const m = d.data();
       const mine = m.senderUid === state.user.uid;
-      return `<div style="max-width:78%; padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; align-self:${mine?'flex-end':'flex-start'}; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div></div>`;
+      // 날짜가 바뀌는 지점마다 가운데 구분선을 넣는다 (카카오톡처럼).
+      const prev = i>0 ? docs[i-1].data() : null;
+      const showDateDivider = !prev || new Date(m.createdAt||0).toDateString() !== new Date(prev.createdAt||0).toDateString();
+      const dividerHtml = showDateDivider ? `<div style="text-align:center; margin:10px 0 4px; font-size:10.5px; color:var(--text-faint);">${fmtChatDateDivider(m.createdAt)}</div>` : '';
+      // 같은 사람이 같은 분(分)에 연달아 보낸 메시지는 마지막 것에만 시간을 보여준다.
+      const next = i<docs.length-1 ? docs[i+1].data() : null;
+      const groupedWithNext = next && next.senderUid===m.senderUid && sameMinute(m.createdAt, next.createdAt);
+      const timeHtml = groupedWithNext ? '' : `<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div>`;
+      return `${dividerHtml}<div style="max-width:78%; padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; align-self:${mine?'flex-end':'flex-start'}; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}${timeHtml}</div>`;
     }).join('');
     el.scrollTop = el.scrollHeight;
   }, (err) => {
@@ -9640,6 +9734,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
     else if(a === 'open-friends'){ closeModal(); await openSocialTab(); }
+    else if(a === 'open-friend-chat'){ closeModal(); await openFriendChatByPairId(el.dataset.pairId); }
     else if(a === 'open-update-check'){
       openModal(updateCheckModal(true));
       await checkNativeAppUpdate();

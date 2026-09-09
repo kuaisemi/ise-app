@@ -81,7 +81,10 @@ public class NextClassWidget extends BaseWidget {
 
         if (current != null) {
             int leftMin = current.optInt("end", 0) - minutesNow;
-            views.setTextViewText(R.id.next_label, "수업 중 · " + leftMin + "분 남음");
+            String left = leftMin >= 60
+                ? (leftMin / 60) + "시간 " + (leftMin % 60) + "분 남음"
+                : leftMin + "분 남음";
+            views.setTextViewText(R.id.next_label, "수업 중 · " + left);
         } else {
             int untilMin = target.optInt("start", 0) - minutesNow;
             String until = untilMin >= 60
