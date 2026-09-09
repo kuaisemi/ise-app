@@ -5785,7 +5785,7 @@ function renderRecruitmentOrgBoard(r, isAuthor){
             ${isAuthor ? `
             <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
               <button type="button" class="btn ${m.notify?'btn-ghost':'btn-primary'} btn-sm" ${m.notify?'disabled':''} data-action="notify-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="${m.notify?'이미 공지했어요':'참여자에게 공지하기'}" style="width:auto; padding:3px 8px; font-size:10px;">공지</button>
-              <button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="삭제">${ICON.close}</button>
+              <button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="삭제" style="padding:6px; margin:-4px -6px -4px -4px; transform:scale(0.7);">${ICON.close}</button>
             </div>` : ''}
           </div>
         </div>`).join('')}
