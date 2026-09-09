@@ -5819,6 +5819,7 @@ async function voteRecruitmentPoll(id, choice){
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
+  refreshRecruitmentModal(id);
 }
 // 구인자가 "참여" 누른 사람들에게 남기는 공지. 하나를 계속 덮어쓰지 않고 게시판처럼
 // 쌓이도록 배열에 추가한다 — 나중에 바뀐 안내(장소 변경 등)도 지난 공지와 함께 남는다.
@@ -5835,6 +5836,7 @@ async function saveRecruitmentOrgMessage(id, msg){
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
+  refreshRecruitmentModal(id);
   toast('참여자 공지에 남겼어요');
 }
 async function deleteRecruitmentOrgMessage(id, msgId){
@@ -5848,6 +5850,7 @@ async function deleteRecruitmentOrgMessage(id, msgId){
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
+  refreshRecruitmentModal(id);
 }
 // "공지하기"를 누른 메시지만 서버(5분 크론)가 참여자에게 푸시로 보낸다. 한 번 보낸 메시지는
 // notify:true로 표시돼 버튼이 "이미 보냈어요"로 바뀌고 다시 누를 수 없다(되돌릴 수 없는
@@ -5863,7 +5866,16 @@ async function notifyRecruitmentOrgMessage(id, msgId){
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
+  refreshRecruitmentModal(id);
   toast('참여자에게 공지 알림을 보냈어요 (몇 분 안에 도착해요)');
+}
+// 구인글 모달이 열려있는 동안 투표/공지 등을 눌러도 모달은 별도 DOM(modal-root)이라
+// renderMain()만으로는 안 바뀐다 — 최신 상태로 모달을 다시 그려서 버튼 비활성화 등이
+// 바로 반영되게 한다.
+function refreshRecruitmentModal(id){
+  if(!document.querySelector('.modal-sheet')) return;
+  const updated = live(state.recruitmentPosts).find(x => x.id === id);
+  if(updated) openModal(recruitmentModal(updated));
 }
 
 function recruitmentModal(r){
@@ -10278,7 +10290,11 @@ document.addEventListener('click', async (e)=>{
       await saveRecruitmentOrgMessage(id, (input && input.value || '').trim());
     }
     else if(a === 'delete-recruitment-org-message'){ await deleteRecruitmentOrgMessage(el.dataset.id, el.dataset.msgId); }
-    else if(a === 'notify-recruitment-org-message'){ await notifyRecruitmentOrgMessage(el.dataset.id, el.dataset.msgId); }
+    else if(a === 'notify-recruitment-org-message'){
+      if(el.disabled) return;
+      el.disabled = true;
+      await notifyRecruitmentOrgMessage(el.dataset.id, el.dataset.msgId);
+    }
     else if(a === 'clear-all-board'){ await clearAllBoard(el.dataset.type); }
     else if(a === 'toggle-like'){ await handleToggleLike(el.dataset.type, el.dataset.id); }
   }catch(err){
