@@ -3040,7 +3040,11 @@ function getNotificationFeed(){
   if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
   if(isCouncil() && b.chatReports>0) items.push({ id:'admin_chat_'+b.chatReports, ts:nowTs-2, icon:ICON.inbox, title:'채팅 신고', body:`처리 안 된 신고 ${b.chatReports}건`, action:'open-chat-report-inbox' });
   (state.unseenChatDetails||[]).forEach(cd=>{
-    items.push({ id:'chat_unseen_'+cd.pairId, ts:cd.ts||nowTs-3, icon:ICON.person, title:`${cd.senderName}님의 메시지`, body:cd.preview||'눌러서 대화를 확인해보세요', action:'open-friend-chat', pairId:cd.pairId });
+    // id에 시각(ts)까지 넣어야, 이 메시지를 지운 뒤 그 친구가 새 메시지를 또 보내면(= ts가
+    // 바뀌면) 새 알림으로 다시 뜬다. pairId만 쓰면 한 번 지운 뒤로 그 친구 알림이 영영 안 떴다.
+    const id = 'chat_unseen_'+cd.pairId+'_'+(cd.ts||0);
+    if(dismissed.has(id)) return;
+    items.push({ id, ts:cd.ts||nowTs-3, icon:ICON.person, title:`${cd.senderName}님의 메시지`, body:cd.preview||'눌러서 대화를 확인해보세요', action:'open-friend-chat', pairId:cd.pairId });
   });
   live(state.notices).forEach(n=>{
     const ts = n.createdAt || (n.date ? new Date(n.date+'T00:00:00').getTime() : 0);
