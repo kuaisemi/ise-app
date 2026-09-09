@@ -6570,7 +6570,11 @@ async function applyFriendLinksSnapshot(snap){
   state.hasUnseenChat = unseenPairIds.size > 0;
   if(isCouncil()) await refreshCouncilChatUnseen();
   refreshBellDot();
-  refreshFriendsModalBody();
+  // 채팅 상세 화면(friendDetailBody)에 있을 때는 이 리스너가 매번(메시지 주고받을 때마다
+  // lastMessageAt이 바뀌므로) 전체를 다시 그리지 않게 한다 — 그렇지 않으면 입력창·키보드가
+  // 매번 초기화되고 스크롤이 맨 위로 튀었다. 채팅 로그 자체는 openFriendChatListener가
+  // 따로 실시간으로 갱신하므로 여기서 다시 그릴 필요가 없다.
+  if(state.friendsUI.screen !== 'detail') refreshFriendsModalBody();
 }
 function startFriendLinksListener(){
   stopFriendLinksListener();
