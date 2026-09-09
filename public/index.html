@@ -138,6 +138,12 @@ a{color:inherit;}
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238B93A3' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 12px center;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
+/* 시간표 글씨크기·위젯 투명도 등에 쓰는 슬라이더 — 기본 브라우저 모양 대신 앱 톤에 맞춘 트랙·손잡이. */
+input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:20px; background:transparent; cursor:pointer; margin:0;}
+input[type=range]::-webkit-slider-runnable-track{height:5px; border-radius:999px; background:var(--surface-3);}
+input[type=range]::-moz-range-track{height:5px; border-radius:999px; background:var(--surface-3);}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:18px; height:18px; margin-top:-6.5px; border-radius:50%; background:var(--crimson); border:2.5px solid var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.35);}
+input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--crimson); border:2.5px solid var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.35);}
 /* iOS는 비밀번호 가림문자를 안드로이드보다 작고 촘촘하게 그려서 몇 자를 쳤는지 세기 어렵다.
    자간만 아주 살짝 벌린다. 자간은 placeholder에도 걸리므로 거기서만 원래대로 되돌린다.
    더 벌리려면 0.12em을 키우면 된다. */
@@ -2702,6 +2708,10 @@ function colorPickerModal(id, hex, title){
 
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
+  const WIDGET_TYPE_ICONS = {
+    timetable: ICON.grid, nextClass: ICON.bell, week: ICON.clipboard, meal: ICON.bowl,
+    schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendar, date: ICON.sunrise,
+  };
   return `
     <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
       홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요.
@@ -2716,10 +2726,17 @@ function renderWidgetSettingsTab(){
 
     <div class="field" style="margin-bottom:10px;">
       <label>꾸밀 위젯 고르기</label>
-      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">
-        ${WIDGET_TYPES.map(([key,label])=>`
-          <button type="button" class="btn ${state.widgetFontScaleTarget===key?'btn-primary':'btn-ghost'} btn-sm"
-            style="width:auto; padding:5px 11px; font-size:11px;" data-action="pick-widget-font-target" data-key="${key}">${label}</button>`).join('')}
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:4px;">
+        ${WIDGET_TYPES.map(([key,label])=>{
+          const active = state.widgetFontScaleTarget===key;
+          return `
+          <button type="button" data-action="pick-widget-font-target" data-key="${key}"
+            style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 4px; border-radius:var(--radius-sm); cursor:pointer; text-align:center;
+              border:1px solid ${active?'var(--teal)':'var(--border)'}; background:${active?'var(--teal-glow-3)':'var(--surface-2)'}; color:${active?'var(--teal)':'var(--text-dim)'};">
+            <span style="display:flex;">${WIDGET_TYPE_ICONS[key]||ICON.chip}</span>
+            <span style="font-size:9.5px; font-weight:${active?'700':'500'}; line-height:1.25;">${label}</span>
+          </button>`;
+        }).join('')}
       </div>
     </div>
 
@@ -5744,14 +5761,19 @@ function renderRecruitmentPollUI(r){
 function renderRecruitmentOrgBoard(r, isAuthor){
   const msgs = r.poll.orgMessages || [];
   const list = msgs.length ? `
-    <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;">
-      ${msgs.map((m,i)=>({m,i})).reverse().map(({m,i})=>`
-        <div class="row-between" style="padding:8px 10px; background:var(--surface-2); border-radius:8px; align-items:flex-start; gap:6px;">
-          <div style="min-width:0; flex:1; font-size:11.5px; line-height:1.5;">
-            <div style="color:var(--text-faint); font-size:9.5px; margin-bottom:2px;">${fmtDateTime(m.time)}</div>
-            ${escapeHtml(m.text)}
+    <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;">
+      ${msgs.slice().reverse().map(m=>`
+        <div style="padding:8px 10px; background:var(--surface-2); border-radius:8px;">
+          <div class="row-between" style="align-items:flex-start; gap:6px;">
+            <div style="min-width:0; flex:1; font-size:11.5px; line-height:1.5;">
+              <div style="color:var(--text-faint); font-size:9.5px; margin-bottom:2px;">${fmtDateTime(m.time)}</div>
+              ${escapeHtml(m.text)}
+            </div>
+            ${isAuthor ? `<button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="삭제" style="flex-shrink:0;">${ICON.close}</button>` : ''}
           </div>
-          ${isAuthor ? `<button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-idx="${i}" title="삭제" style="flex-shrink:0;">${ICON.close}</button>` : ''}
+          ${isAuthor ? `
+          <button type="button" class="btn ${m.notify?'btn-ghost':'btn-primary'} btn-sm" ${m.notify?'disabled':''} data-action="notify-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" style="width:auto; margin-top:6px; padding:3px 9px; font-size:10px;">${m.notify?'이미 보냈어요':'이 메시지 공지하기'}</button>
+          ` : ''}
         </div>`).join('')}
     </div>` : `<p style="margin:8px 2px 0; font-size:10.5px; color:var(--text-faint);">${isAuthor?'참여자에게 남긴 공지가 아직 없어요.':'아직 구인자가 남긴 공지가 없어요.'}</p>`;
   return `
@@ -5786,30 +5808,48 @@ async function voteRecruitmentPoll(id, choice){
 }
 // 구인자가 "참여" 누른 사람들에게 남기는 공지. 하나를 계속 덮어쓰지 않고 게시판처럼
 // 쌓이도록 배열에 추가한다 — 나중에 바뀐 안내(장소 변경 등)도 지난 공지와 함께 남는다.
+// 남기기만 해서는 푸시가 안 나가고, 그 메시지를 "공지하기"로 따로 눌러야만 발송된다
+// (그냥 메모만 남기고 싶을 때도 있어서, 남기는 것과 알리는 것을 분리했다).
 async function saveRecruitmentOrgMessage(id, msg){
   if(!state.user || !msg) return;
   const next = await mutateSharedList('recruitments', 'list', (cur)=>{
     const post = cur.find(r=>r && r.id===id);
     if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
-    const orgMessages = [...(post.poll.orgMessages||[]), { text: msg, time: now() }].slice(-50);
+    const orgMessages = [...(post.poll.orgMessages||[]), { id: uid(), text: msg, time: now(), notify: false }].slice(-50);
     return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessages } } : r);
   });
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
-  toast('참여자에게 공지를 남겼어요');
+  toast('참여자 공지에 남겼어요');
 }
-async function deleteRecruitmentOrgMessage(id, idx){
+async function deleteRecruitmentOrgMessage(id, msgId){
   if(!state.user) return;
   const next = await mutateSharedList('recruitments', 'list', (cur)=>{
     const post = cur.find(r=>r && r.id===id);
     if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
-    const orgMessages = (post.poll.orgMessages||[]).filter((_,i)=>i!==Number(idx));
+    const orgMessages = (post.poll.orgMessages||[]).filter(m=>m.id!==msgId);
     return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessages } } : r);
   });
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
+}
+// "공지하기"를 누른 메시지만 서버(5분 크론)가 참여자에게 푸시로 보낸다. 한 번 보낸 메시지는
+// notify:true로 표시돼 버튼이 "이미 보냈어요"로 바뀌고 다시 누를 수 없다(되돌릴 수 없는
+// 발송이라 토글이 아니라 한 방향으로만 바뀜).
+async function notifyRecruitmentOrgMessage(id, msgId){
+  if(!state.user) return;
+  const next = await mutateSharedList('recruitments', 'list', (cur)=>{
+    const post = cur.find(r=>r && r.id===id);
+    if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
+    const orgMessages = (post.poll.orgMessages||[]).map(m=>m.id===msgId ? { ...m, notify:true } : m);
+    return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessages } } : r);
+  });
+  if(!next){ saveResultToast(false); return; }
+  state.recruitmentPosts = next;
+  renderMain();
+  toast('참여자에게 공지 알림을 보냈어요 (몇 분 안에 도착해요)');
 }
 
 function recruitmentModal(r){
@@ -10223,7 +10263,8 @@ document.addEventListener('click', async (e)=>{
       const input = document.querySelector(`.rec-org-msg-input[data-id="${id}"]`);
       await saveRecruitmentOrgMessage(id, (input && input.value || '').trim());
     }
-    else if(a === 'delete-recruitment-org-message'){ await deleteRecruitmentOrgMessage(el.dataset.id, el.dataset.idx); }
+    else if(a === 'delete-recruitment-org-message'){ await deleteRecruitmentOrgMessage(el.dataset.id, el.dataset.msgId); }
+    else if(a === 'notify-recruitment-org-message'){ await notifyRecruitmentOrgMessage(el.dataset.id, el.dataset.msgId); }
     else if(a === 'clear-all-board'){ await clearAllBoard(el.dataset.type); }
     else if(a === 'toggle-like'){ await handleToggleLike(el.dataset.type, el.dataset.id); }
   }catch(err){

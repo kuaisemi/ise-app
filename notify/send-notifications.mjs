@@ -313,6 +313,7 @@ async function main() {
   const notifiedSuggestionAnswer = new Set(st.notifiedSuggestionAnswerIds || []);
   const notifiedSuggestionNew = new Set(st.notifiedSuggestionNewIds || []);
   const notifiedRecruitment = new Set(st.notifiedRecruitmentIds || []);
+  const notifiedOrgMsg = new Set(st.notifiedOrgMsgIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
   // 카테고리별 수신 대상 토큰 수집.
@@ -455,43 +456,47 @@ async function main() {
     await send('recruit', '새 구인글이 올라왔어요', `제목: ${r.title}`);
   }
 
-  // 2.7) 구인글 참여자 공지 — 구인자가 poll.orgMessages에 새 공지를 남기면 "참여" 누른
-  //      사람에게만 보낸다. 개인 일정 안내라 알림 설정(prefs.recruit)과 무관하게 항상 보낸다.
-  const lastOrgMsgCheck = st.lastOrgMsgCheck || Date.now() - 24 * 60 * 60 * 1000;
-  const orgMsgRunStartedAt = Date.now();
+  // 2.7) 구인글 참여자 공지 — poll.orgMessages에 남긴다고 바로 보내는 게 아니라, 구인자가
+  //      그 메시지를 "공지하기"로 따로 표시(notify:true)한 것만 "참여" 누른 사람에게 보낸다.
+  //      한 번 보낸 메시지는 다시 안 보내야 하므로(같은 메시지를 계속 다시 보내면 안 됨)
+  //      시간 커서 대신 메시지 id를 기억해서(notifiedOrgMsgIds) 중복 발송을 막는다.
+  const newOrgMsgSentIds = [];
   for (const r of recruitments) {
     if (!r.poll || !Array.isArray(r.poll.orgMessages)) continue;
-    const newOrgMsgs = r.poll.orgMessages.filter((m) => (m.time || 0) > lastOrgMsgCheck);
-    if (!newOrgMsgs.length) continue;
+    const toSend = r.poll.orgMessages.filter((m) => m.notify && m.id && !notifiedOrgMsg.has(`${r.id}_${m.id}`));
+    if (!toSend.length) continue;
     const votes = r.poll.votes || {};
     const yesStudentIds = Object.keys(votes).filter((sid) => votes[sid].choice === 'yes' && sid !== r.authorId);
-    if (!yesStudentIds.length) continue;
-    const title = `${r.title} 참여자 공지`;
-    const body = newOrgMsgs.length === 1 ? String(newOrgMsgs[0].text || '').slice(0, 80) : `새 공지 ${newOrgMsgs.length}개가 있어요`;
-    for (const sid of yesStudentIds) {
-      const allTokens = tokensByStudentId.get(sid) || [];
-      const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-      if (!tokens.length) continue;
-      const res = await messaging.sendEachForMulticast({
-        tokens,
-        notification: { title, body },
-        data: { url: './index.html', category: 'recruit' },
-      });
-      res.responses.forEach((resp, idx) => {
-        if (resp.success) return;
-        const code = resp.error && resp.error.code;
-        if (
-          code === 'messaging/invalid-registration-token' ||
-          code === 'messaging/registration-token-not-registered'
-        ) {
-          invalidTokens.add(tokens[idx]);
+    for (const m of toSend) {
+      const title = `${r.title} 참여자 공지`;
+      const body = String(m.text || '').slice(0, 80);
+      if (yesStudentIds.length) {
+        for (const sid of yesStudentIds) {
+          const allTokens = tokensByStudentId.get(sid) || [];
+          const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+          if (!tokens.length) continue;
+          const res = await messaging.sendEachForMulticast({
+            tokens,
+            notification: { title, body },
+            data: { url: './index.html', category: 'recruit' },
+          });
+          res.responses.forEach((resp, idx) => {
+            if (resp.success) return;
+            const code = resp.error && resp.error.code;
+            if (
+              code === 'messaging/invalid-registration-token' ||
+              code === 'messaging/registration-token-not-registered'
+            ) {
+              invalidTokens.add(tokens[idx]);
+            }
+          });
+          sentCount++;
         }
-      });
-      sentCount++;
+        console.log(`[recruitOrgNotify] "${r.title}" 공지 발송, 참여자 ${yesStudentIds.length}명에게 시도`);
+      }
+      newOrgMsgSentIds.push(`${r.id}_${m.id}`);
     }
-    console.log(`[recruitOrgNotify] "${r.title}" 새 공지 ${newOrgMsgs.length}건, 참여자 ${yesStudentIds.length}명에게 발송 시도`);
   }
-  nextState.lastOrgMsgCheck = orgMsgRunStartedAt;
 
   // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만, 그 투표에 아직 참여 안 한 사람에게만 보낸다.
   //    투표마다 안 한 사람이 다를 수 있어서 한 번에 묶어 보내지 않고 투표별로 따로 보낸다.
@@ -828,6 +833,7 @@ async function main() {
       notifiedNoticeIds: [...notifiedNotice, ...newNotices.map((n) => n.id)].slice(-KEEP_IDS),
       notifiedPollIds: [...notifiedPoll, ...newPolls.map((p) => p.id)].slice(-KEEP_IDS),
       notifiedRecruitmentIds: [...notifiedRecruitment, ...newRecruitments.map((r) => r.id)].slice(-KEEP_IDS),
+      notifiedOrgMsgIds: [...notifiedOrgMsg, ...newOrgMsgSentIds].slice(-KEEP_IDS),
       warnedPollEndIds: [...warnedPollEnd, ...endingSoon.map((p) => p.id)].slice(-KEEP_IDS),
       sentMealKeys: [...sentMealKeys, ...newMealKeys].slice(-30),
       notifiedBugReportIds: [...notifiedBugReport, ...newBugReports.map((r) => r.id)].slice(-KEEP_IDS),
