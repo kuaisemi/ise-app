@@ -5782,11 +5782,12 @@ function renderRecruitmentOrgBoard(r, isAuthor){
               <div style="color:var(--text-faint); font-size:9.5px; margin-bottom:2px;">${fmtDateTime(m.time)}</div>
               ${escapeHtml(m.text)}
             </div>
-            ${isAuthor ? `<button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="삭제" style="flex-shrink:0;">${ICON.close}</button>` : ''}
+            ${isAuthor ? `
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+              <button type="button" class="btn ${m.notify?'btn-ghost':'btn-primary'} btn-sm" ${m.notify?'disabled':''} data-action="notify-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="${m.notify?'이미 공지했어요':'참여자에게 공지하기'}" style="width:auto; padding:3px 8px; font-size:10px;">공지</button>
+              <button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="삭제">${ICON.close}</button>
+            </div>` : ''}
           </div>
-          ${isAuthor ? `
-          <button type="button" class="btn ${m.notify?'btn-ghost':'btn-primary'} btn-sm" ${m.notify?'disabled':''} data-action="notify-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" style="width:auto; margin-top:6px; padding:3px 9px; font-size:10px;">${m.notify?'이미 보냈어요':'이 메시지 공지하기'}</button>
-          ` : ''}
         </div>`).join('')}
     </div>` : `<p style="margin:8px 2px 0; font-size:10.5px; color:var(--text-faint);">${isAuthor?'참여자에게 남긴 공지가 아직 없어요.':'아직 구인자가 남긴 공지가 없어요.'}</p>`;
   return `
