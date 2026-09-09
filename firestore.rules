@@ -193,6 +193,9 @@ service cloud.firestore {
         // 있으면 다른 기기·플랫폼에서 로그인했을 때 이미 읽은 메시지도 계속 "안 읽음"으로 보인다.
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeenAt'])
           && request.resource.data.lastSeenAt.diff(resource.data.get('lastSeenAt', {})).affectedKeys().hasOnly([request.auth.uid]))
+        // 이 친구 채팅 알림 끄기: 내 쪽 키만 바꿀 수 있다 (상대방의 알림 설정을 내가 건드릴 수는 없음).
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mutedBy'])
+          && request.resource.data.mutedBy.diff(resource.data.get('mutedBy', {})).affectedKeys().hasOnly([request.auth.uid]))
         // 별명: 나만 보는 표시용 텍스트라, shareTimetable·clearedAt과 같은 방식으로
         // 내 쪽 키만 바꿀 수 있게 한다 (상대방의 별명 값을 내가 건드릴 수는 없음).
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nicknames'])

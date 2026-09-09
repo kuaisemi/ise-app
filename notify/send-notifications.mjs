@@ -273,7 +273,7 @@ async function purgeOldCouncilChatMessages() {
 }
 
 async function main() {
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap, friendLinksSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
@@ -282,7 +282,11 @@ async function main() {
     db.collection('shared').doc('recruitments').get(),
     db.collection('shared').doc('notifyState').get(),
     db.collection('users').get(),
+    db.collection('friendLinks').get(),
   ]);
+  // pairId -> { uid: true } — 그 사람이 이 채팅만 콕 집어 알림을 꺼둔 경우.
+  const mutedByPair = new Map();
+  friendLinksSnap.forEach((d) => { if (d.data().mutedBy) mutedByPair.set(d.id, d.data().mutedBy); });
 
   // 앱은 삭제를 tombstone(deleted:true)으로 처리하므로 반드시 걸러내야 한다.
   const notices = live(noticesSnap.exists ? noticesSnap.data().list : []);
@@ -610,25 +614,40 @@ async function main() {
   // 8) 친구 채팅 — 지난 실행 이후 새로 온 메시지를 받는 사람에게만 보낸다. pairId(두 uid를
   //    사전순으로 이어붙인 값)가 곧 메시지의 부모(chats/{pairId}) 문서 id라, 거기서 상대
   //    uid를 바로 뽑아낼 수 있다(보낸 사람 자신에게는 당연히 안 보낸다).
+  //    크론이 5분에 한 번만 도니 그사이 한 사람에게 여러 건이 쌓일 수 있다 — 메시지마다 따로
+  //    보내면 알림이 줄줄이 뜨므로, 받는 사람별로 모아서 딱 1건이면 그 내용을, 여러 건이면
+  //    "새 메시지 N개" 식으로 뭉쳐서 한 번만 보낸다.
   const lastChatCheck = st.lastChatCheck || Date.now() - 15 * 60 * 1000; // 처음 실행이면 최근 15분만
   const chatRunStartedAt = Date.now();
   const newMsgsSnap = await db.collectionGroup('messages').where('createdAt', '>', lastChatCheck).get();
   if (!newMsgsSnap.empty) {
+    const byRecipient = new Map(); // recipientUid -> [{ senderUid, text, pairId }]
     for (const d of newMsgsSnap.docs) {
       const m = d.data();
       const pairId = d.ref.parent.parent.id; // chats/{pairId}/messages/{msgId}
       const uids = pairId.split('_');
       const recipientUid = uids.find((u) => u !== m.senderUid);
       if (!recipientUid || !chatOkUids.has(recipientUid)) continue;
+      const muted = mutedByPair.get(pairId);
+      if (muted && muted[recipientUid]) continue; // 이 친구 채팅만 콕 집어 꺼둔 경우
+      if (!byRecipient.has(recipientUid)) byRecipient.set(recipientUid, []);
+      byRecipient.get(recipientUid).push({ senderUid: m.senderUid, text: m.text, pairId });
+    }
+    for (const [recipientUid, msgs] of byRecipient) {
       const allTokens = tokensByUid.get(recipientUid) || [];
       const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
       if (!tokens.length) continue;
-      const senderName = nameByUid.get(m.senderUid) || '친구';
-      const res = await messaging.sendEachForMulticast({
-        tokens,
-        notification: { title: `${senderName}님의 메시지`, body: String(m.text || '').slice(0, 80) },
-        data: { url: './index.html', category: 'chat', pairId },
-      });
+      let notification, data;
+      if (msgs.length === 1) {
+        const only = msgs[0];
+        const senderName = nameByUid.get(only.senderUid) || '친구';
+        notification = { title: `${senderName}님의 메시지`, body: String(only.text || '').slice(0, 80) };
+        data = { url: './index.html', category: 'chat', pairId: only.pairId };
+      } else {
+        notification = { title: '새로운 채팅이 있어요', body: `새 메시지 ${msgs.length}개가 도착했어요` };
+        data = { url: './index.html', category: 'friend' }; // 여러 대화가 섞여 있어 특정 채팅방으로는 못 보내고 친구 목록으로
+      }
+      const res = await messaging.sendEachForMulticast({ tokens, notification, data });
       res.responses.forEach((resp, idx) => {
         if (resp.success) return;
         const code = resp.error && resp.error.code;
@@ -641,7 +660,7 @@ async function main() {
       });
       sentCount++;
     }
-    console.log(`[chatNotify] 새 메시지 ${newMsgsSnap.size}건 확인, 알림 발송 시도`);
+    console.log(`[chatNotify] 새 메시지 ${newMsgsSnap.size}건 확인, 대상자 ${byRecipient.size}명에게 발송 시도`);
   }
   nextState.lastChatCheck = chatRunStartedAt;
 

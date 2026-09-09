@@ -6555,6 +6555,7 @@ async function applyFriendLinksSnapshot(snap){
       shareTimetable: data.shareTimetable || {},
       clearedAt: data.clearedAt || {},
       nickname: (data.nicknames && data.nicknames[state.user.uid]) || '',
+      muted: !!(data.mutedBy && data.mutedBy[state.user.uid]),
     };
     if((data.status||'accepted') === 'pending'){
       if(data.requestedBy === state.user.uid) outgoing.push(entry); else incoming.push(entry);
@@ -6702,6 +6703,7 @@ function friendDetailBody(){
   const ui = state.friendsUI;
   const shareOn = ui.myShareOn !== false;
   const ttCollapsed = !!ui.ttCollapsed;
+  const chatMuted = !!ui.chatMuted;
   const nicknameHtml = ui.activeNickname ? `<span style="font-size:11px; font-weight:400; color:var(--text-dim);">(${escapeHtml(ui.activeNickname)})</span>` : '';
   return `
     <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
@@ -6732,6 +6734,7 @@ function friendDetailBody(){
       <div style="display:flex; gap:6px;">
         <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; padding:3px 8px; font-size:10px;">채팅 신고</button>
         <button type="button" class="btn btn-ghost btn-sm" data-action="clear-friend-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
+        <button type="button" class="btn ${chatMuted?'btn-primary':'btn-ghost'} btn-sm notify-toggle" id="friend-mute-toggle" data-on="${chatMuted?'1':'0'}" style="width:auto; padding:3px 8px; font-size:10px;" title="이 친구 채팅 알림만 끄기">알림 ${chatMuted?'꺼짐':'켜짐'}</button>
       </div>
     </div>
     <div class="card" style="padding:12px;">
@@ -6777,6 +6780,20 @@ function setupFriendsModalListeners(){
       shareToggle.textContent = newOn ? '공개 켜짐' : '공개 꺼짐';
       shareToggle.classList.toggle('btn-primary', newOn);
       shareToggle.classList.toggle('btn-ghost', !newOn);
+    }
+  });
+
+  const muteToggle = document.getElementById('friend-mute-toggle');
+  if(muteToggle) muteToggle.addEventListener('click', async () => {
+    const newOn = muteToggle.dataset.on !== '1';
+    muteToggle.disabled = true;
+    const ok = await toggleChatMute(newOn);
+    muteToggle.disabled = false;
+    if(ok){
+      muteToggle.dataset.on = newOn ? '1' : '0';
+      muteToggle.textContent = newOn ? '알림 꺼짐' : '알림 켜짐';
+      muteToggle.classList.toggle('btn-primary', newOn);
+      muteToggle.classList.toggle('btn-ghost', !newOn);
     }
   });
 
@@ -6879,6 +6896,7 @@ function openFriendDetail(uid, name, pairId){
   state.friendsUI.myShareOn = !rec || rec.shareTimetable[state.user.uid] !== false;
   state.friendsUI.myClearedAt = (rec && rec.clearedAt && rec.clearedAt[state.user.uid]) || 0;
   state.friendsUI.activeNickname = (rec && rec.nickname) || '';
+  state.friendsUI.chatMuted = !!(rec && rec.muted);
   state.friendsUI.ttCollapsed = false;
   localSet('chat_seen_'+pairId, now()); // 기기 로컬 캐시(오프라인 대비) — 진짜 기준은 아래 서버 값
   // friendLinks에도 내 쪽 읽음 시각을 남긴다 — 기기 로컬에만 두면 다른 기기·플랫폼으로
@@ -7170,6 +7188,22 @@ async function toggleShareTimetable(on){
     state.friendsUI.myShareOn = on;
     if(rec) rec.shareTimetable = { ...(rec.shareTimetable||{}), [state.user.uid]: on };
     toast(on ? '이 친구에게 시간표를 공개했어요' : '이 친구에게 시간표를 숨겼어요');
+    return true;
+  }catch(e){
+    toast('변경 실패 (' + (e.code||'알 수 없음') + ')');
+    return false;
+  }
+}
+// 이 친구 채팅만 콕 집어 알림을 끈다 (전체 "채팅 알림" 설정은 그대로 두고, 이 대화만 예외).
+async function toggleChatMute(on){
+  try{
+    await updateDoc(doc(db,'friendLinks',state.friendsUI.activePairId), {
+      ['mutedBy.'+state.user.uid]: on,
+    });
+    state.friendsUI.chatMuted = on;
+    const rec = state.friendsUI.data.friends.find(f=>f.pairId===state.friendsUI.activePairId);
+    if(rec) rec.muted = on;
+    toast(on ? '이 친구 채팅 알림을 껐어요' : '이 친구 채팅 알림을 켰어요');
     return true;
   }catch(e){
     toast('변경 실패 (' + (e.code||'알 수 없음') + ')');
