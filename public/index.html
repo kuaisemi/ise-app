@@ -5867,7 +5867,7 @@ async function notifyRecruitmentOrgMessage(id, msgId){
   state.recruitmentPosts = next;
   renderMain();
   refreshRecruitmentModal(id);
-  toast('참여자에게 공지 알림을 보냈어요 (몇 분 안에 도착해요)');
+  toast('참여자에게 공지 알림을 보냈어요 (5분 안에 도착해요)');
 }
 // 구인글 모달이 열려있는 동안 투표/공지 등을 눌러도 모달은 별도 DOM(modal-root)이라
 // renderMain()만으로는 안 바뀐다 — 최신 상태로 모달을 다시 그려서 버튼 비활성화 등이
@@ -6606,7 +6606,7 @@ async function openSocialTab(){
   state.view = 'council';
   state.councilTab = 'social';
   state.friendsUI.screen = 'list';
-  renderMain();
+  renderShell();
   await refreshFriendsData();
   setupFriendsModalListeners();
 }
@@ -9733,6 +9733,13 @@ document.addEventListener('change', async (e)=>{
   }
 });
 
+document.addEventListener('keydown', async (e)=>{
+  if(e.key !== 'Enter') return;
+  const input = e.target.closest('.rec-org-msg-input');
+  if(!input) return;
+  const id = input.dataset.id;
+  await saveRecruitmentOrgMessage(id, (input.value || '').trim());
+});
 document.addEventListener('click', async (e)=>{
   const el = e.target.closest('[data-action]');
   if(!el) return;
