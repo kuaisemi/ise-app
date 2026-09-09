@@ -1987,6 +1987,10 @@ function boot(){
             name: udoc.name || '재학생',
             role: ROLES[currentRole] ? currentRole : 'student'
           };
+          // 알림 목록의 "읽음/지움" 상태를 기기 로컬(localStorage)에만 두면, 앱을 지우고 새로
+          // 깔거나 다른 기기로 바꿨을 때 이미 확인한 알림이 다시 나타난다. 로그인할 때
+          // 서버(udoc)에 저장된 값과 합쳐서 두 기록 중 더 최근 것을 기준으로 맞춘다.
+          mergeNotifFeedStateFromServer(udoc.notifFeedState);
           await loadAllData(usersList);
           trackUserPresence(state.user);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
@@ -2943,13 +2947,31 @@ async function refreshChatUnseenBadge(){
   }catch(e){ console.warn('[chatUnseen]', e); }
 }
 function getDismissedNotifIds(){ return localGet('notif_feed_dismissed', []); }
+// 로그인할 때 한 번, 서버에 저장돼 있던 지난 지움·읽음 기록을 이 기기 기록과 합친다.
+// (기기 로컬 기록만 있던 예전 상태에서도 그냥 그대로 두면 되므로 마이너스가 되는 방향은 없다.)
+function mergeNotifFeedStateFromServer(serverState){
+  const s = serverState || {};
+  const mergedDismissed = [...new Set([...getDismissedNotifIds(), ...(s.dismissedIds||[])])].slice(-200);
+  localSet('notif_feed_dismissed', mergedDismissed);
+  const mergedSeenAt = Math.max(localGet('notif_feed_seen_at', 0), s.seenAt||0);
+  localSet('notif_feed_seen_at', mergedSeenAt);
+  syncNotifFeedStateToServer();
+}
+function syncNotifFeedStateToServer(){
+  if(!state.user) return;
+  setDoc(doc(db,'users',state.user.uid), {
+    notifFeedState: { dismissedIds: getDismissedNotifIds(), seenAt: localGet('notif_feed_seen_at', 0) }
+  }, { merge:true }).catch(()=>{});
+}
 function dismissNotification(id){
   const cur = getDismissedNotifIds();
   if(!cur.includes(id)) localSet('notif_feed_dismissed', [...cur, id].slice(-200));
+  syncNotifFeedStateToServer();
 }
 function clearAllNotifications(){
   const ids = getNotificationFeed().map(it=>it.id);
   localSet('notif_feed_dismissed', [...new Set([...getDismissedNotifIds(), ...ids])].slice(-200));
+  syncNotifFeedStateToServer();
 }
 function getNotificationFeed(){
   const cutoff = now() - NOTIF_FEED_WINDOW_MS;
@@ -2996,6 +3018,7 @@ function hasUnseenNotifications(){
 }
 function markNotificationsSeen(){
   localSet('notif_feed_seen_at', now());
+  syncNotifFeedStateToServer();
 }
 // 깃허브 릴리즈 태그(v158 형태)에서 숫자만 뽑아 android/app/build.gradle의 versionCode와 비교한다.
 // 앱을 켤 때 자동으로는 돌지 않는다 — 예전엔 켤 때마다 조용히 확인했는데, 그 네트워크 요청이
