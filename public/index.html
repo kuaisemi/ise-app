@@ -2980,6 +2980,8 @@ async function refreshChatUnseenBadge(){
     snap.forEach(d=>{
       const data = d.data();
       if(!data.lastMessageAt || data.lastMessageBy === state.user.uid) return;
+      // 지금 그 친구랑 채팅 화면을 보고 있으면 이미 읽은 것이니 알림으로 안 쌓는다.
+      if(state.friendsUI.screen==='detail' && state.friendsUI.activePairId===d.id) return;
       // 읽음 여부는 friendLinks.lastSeenAt(서버, 기기·플랫폼 공용)을 우선 보고, 아직 그 값이
       // 없는 예전 기록은 기기 로컬 캐시로 대체한다 — 없으면 항상 "안 읽음"으로 보이기 때문.
       const seenAt = (data.lastSeenAt && data.lastSeenAt[state.user.uid]) || localGet('chat_seen_'+d.id, 0);
@@ -6560,8 +6562,16 @@ async function applyFriendLinksSnapshot(snap){
       friends.push(entry);
       // 친구 목록을 새로고침할 때마다 "이 사람한테 새 채팅 왔음" 점도 같이 최신화 (쿼리 재사용, 왕복 안 늘림)
       if(data.lastMessageAt && data.lastMessageBy !== state.user.uid){
-        const seenAt = localGet('chat_seen_'+d.id, 0);
-        if(data.lastMessageAt > seenAt) unseenPairIds.add(d.id);
+        // 지금 바로 그 친구랑 채팅 화면을 보고 있다면 이미 본 것이니 안읽음으로 쌓을 필요가
+        // 없다 — 오히려 그 자리에서 바로 읽음 처리해서(기기·서버 둘 다) 나중에 화면을 벗어나도
+        // "방금 그 메시지"가 새삼 안읽음으로 남지 않게 한다.
+        if(state.friendsUI.screen==='detail' && state.friendsUI.activePairId===d.id){
+          localSet('chat_seen_'+d.id, now());
+          updateDoc(doc(db,'friendLinks',d.id), { ['lastSeenAt.'+state.user.uid]: now() }).catch(()=>{});
+        } else {
+          const seenAt = (data.lastSeenAt && data.lastSeenAt[state.user.uid]) || localGet('chat_seen_'+d.id, 0);
+          if(data.lastMessageAt > seenAt) unseenPairIds.add(d.id);
+        }
       }
     }
   });
