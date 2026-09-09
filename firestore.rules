@@ -189,6 +189,10 @@ service cloud.firestore {
         // 실제 삭제는 기존 24시간 자동 정리가 그대로 처리한다.
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clearedAt'])
           && request.resource.data.clearedAt.diff(resource.data.get('clearedAt', {})).affectedKeys().hasOnly([request.auth.uid]))
+        // 채팅 읽음 시각: 이 친구 채팅을 열어본 마지막 시각을 내 쪽 키로만 남긴다. 기기 로컬에만
+        // 있으면 다른 기기·플랫폼에서 로그인했을 때 이미 읽은 메시지도 계속 "안 읽음"으로 보인다.
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeenAt'])
+          && request.resource.data.lastSeenAt.diff(resource.data.get('lastSeenAt', {})).affectedKeys().hasOnly([request.auth.uid]))
         // 별명: 나만 보는 표시용 텍스트라, shareTimetable·clearedAt과 같은 방식으로
         // 내 쪽 키만 바꿀 수 있게 한다 (상대방의 별명 값을 내가 건드릴 수는 없음).
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nicknames'])

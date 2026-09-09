@@ -2976,17 +2976,28 @@ async function refreshChatUnseenBadge(){
     const snap = await getDocs(q);
     let unseen = false;
     const pairIds = new Set();
-    const details = [];
+    const pending = [];
     snap.forEach(d=>{
       const data = d.data();
       if(!data.lastMessageAt || data.lastMessageBy === state.user.uid) return;
-      const seenAt = localGet('chat_seen_'+d.id, 0);
+      // 읽음 여부는 friendLinks.lastSeenAt(서버, 기기·플랫폼 공용)을 우선 보고, 아직 그 값이
+      // 없는 예전 기록은 기기 로컬 캐시로 대체한다 — 없으면 항상 "안 읽음"으로 보이기 때문.
+      const seenAt = (data.lastSeenAt && data.lastSeenAt[state.user.uid]) || localGet('chat_seen_'+d.id, 0);
       if(data.lastMessageAt > seenAt){
         unseen = true; pairIds.add(d.id);
         const senderName = (data.names && data.names[data.lastMessageBy]) || '친구';
-        details.push({ pairId:d.id, senderUid:data.lastMessageBy, senderName, ts:data.lastMessageAt });
+        pending.push({ pairId:d.id, senderUid:data.lastMessageBy, senderName, ts:data.lastMessageAt });
       }
     });
+    // 알림 목록에서 "눌러서 확인하세요" 대신 실제 마지막 메시지를 바로 보여주기 위해,
+    // 안 읽은 대화마다 마지막 메시지 하나만 따로 가져온다 (안 읽은 대화 수만큼만 조회).
+    const details = await Promise.all(pending.map(async p=>{
+      try{
+        const msnap = await getDocs(query(collection(db,'chats',p.pairId,'messages'), orderBy('createdAt','desc'), limit(1)));
+        const preview = msnap.empty ? '' : String(msnap.docs[0].data().text||'').slice(0,80);
+        return { ...p, preview };
+      }catch(e){ return { ...p, preview:'' }; }
+    }));
     state.hasUnseenChat = unseen;
     state.unseenChatPairIds = pairIds;
     state.unseenChatDetails = details;
@@ -3029,7 +3040,7 @@ function getNotificationFeed(){
   if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
   if(isCouncil() && b.chatReports>0) items.push({ id:'admin_chat_'+b.chatReports, ts:nowTs-2, icon:ICON.inbox, title:'채팅 신고', body:`처리 안 된 신고 ${b.chatReports}건`, action:'open-chat-report-inbox' });
   (state.unseenChatDetails||[]).forEach(cd=>{
-    items.push({ id:'chat_unseen_'+cd.pairId, ts:cd.ts||nowTs-3, icon:ICON.person, title:`${cd.senderName}님의 메시지`, body:'눌러서 대화를 확인해보세요', action:'open-friend-chat', pairId:cd.pairId });
+    items.push({ id:'chat_unseen_'+cd.pairId, ts:cd.ts||nowTs-3, icon:ICON.person, title:`${cd.senderName}님의 메시지`, body:cd.preview||'눌러서 대화를 확인해보세요', action:'open-friend-chat', pairId:cd.pairId });
   });
   live(state.notices).forEach(n=>{
     const ts = n.createdAt || (n.date ? new Date(n.date+'T00:00:00').getTime() : 0);
@@ -6851,7 +6862,10 @@ function openFriendDetail(uid, name, pairId){
   state.friendsUI.myClearedAt = (rec && rec.clearedAt && rec.clearedAt[state.user.uid]) || 0;
   state.friendsUI.activeNickname = (rec && rec.nickname) || '';
   state.friendsUI.ttCollapsed = false;
-  localSet('chat_seen_'+pairId, now()); // 이 친구 채팅을 열어봤으니 "안 읽음" 표시는 내림
+  localSet('chat_seen_'+pairId, now()); // 기기 로컬 캐시(오프라인 대비) — 진짜 기준은 아래 서버 값
+  // friendLinks에도 내 쪽 읽음 시각을 남긴다 — 기기 로컬에만 두면 다른 기기·플랫폼으로
+  // 로그인했을 때 이미 읽은 메시지도 계속 "안 읽음"으로 보이는 문제가 있었다.
+  updateDoc(doc(db,'friendLinks',pairId), { ['lastSeenAt.'+state.user.uid]: now() }).catch(()=>{});
   refreshChatUnseenBadge().then(refreshBellDot); // 다른 친구한테서 온 안 읽은 메시지는 남아있을 수 있으니 다시 계산
   refreshFriendsModalBody();
 }
