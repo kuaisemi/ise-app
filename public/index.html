@@ -5735,14 +5735,31 @@ function renderRecruitmentPollUI(r){
           <summary>참여자 명단 (${yesCount}명)</summary>
           <div style="margin-top:6px;">${yesNames.map(n=>`<span class="voter-badge">${n}</span>`).join('')}</div>
         </details>` : ''}
+      ${(isAuthor || (mine && mine.choice==='yes')) ? renderRecruitmentOrgBoard(r, isAuthor) : ''}
+    </div>`;
+}
+// 구인자가 참여자에게 남기는 공지사항 게시판. 메시지 하나를 계속 덮어쓰는 게 아니라, 보낼
+// 때마다 쌓여서(예: "3시까지 오세요" → 나중에 "장소 바뀌었어요") 참여자가 지난 공지까지
+// 다 볼 수 있다. 작성자도 자기가 남긴 걸 확인할 수 있게 같이 보여준다.
+function renderRecruitmentOrgBoard(r, isAuthor){
+  const msgs = r.poll.orgMessages || [];
+  const list = msgs.length ? `
+    <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;">
+      ${msgs.slice().reverse().map(m=>`
+        <div style="padding:8px 10px; background:var(--surface-2); border-radius:8px; font-size:11.5px; line-height:1.5;">
+          <div style="color:var(--text-faint); font-size:9.5px; margin-bottom:2px;">${fmtDateTime(m.time)}</div>
+          ${escapeHtml(m.text)}
+        </div>`).join('')}
+    </div>` : `<p style="margin:8px 2px 0; font-size:10.5px; color:var(--text-faint);">${isAuthor?'참여자에게 남긴 공지가 아직 없어요.':'아직 구인자가 남긴 공지가 없어요.'}</p>`;
+  return `
+    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);">
+      <b style="font-size:10.5px; color:var(--teal);">${ICON.megaphone} 참여자 공지</b>
+      ${list}
       ${isAuthor ? `
         <div style="margin-top:8px; display:flex; gap:6px;">
-          <input type="text" class="rec-org-msg-input" data-id="${r.id}" placeholder="참석자에게 보낼 메시지 (예: 3시까지 와주세요)" value="${escapeHtml(r.poll.orgMessage||'')}" maxlength="200" style="flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-size:11px; color:var(--text); font-family:var(--font-display);">
-          <button type="button" class="btn btn-primary btn-sm" style="width:auto;" data-action="save-recruitment-org-message" data-id="${r.id}">보내기</button>
-        </div>` : (mine && mine.choice==='yes' && r.poll.orgMessage ? `
-        <div style="margin-top:8px; padding:8px 10px; background:var(--surface-2); border-radius:8px; font-size:11.5px; line-height:1.5;">
-          <b style="color:var(--teal);">${ICON.megaphone} 구인자 메시지</b><br>${escapeHtml(r.poll.orgMessage)}
-        </div>` : '')}
+          <input type="text" class="rec-org-msg-input" data-id="${r.id}" placeholder="참여자에게 남길 공지 (예: 3시까지 와주세요)" maxlength="200" style="flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-size:11px; color:var(--text); font-family:var(--font-display);">
+          <button type="button" class="btn btn-primary btn-sm" style="width:auto;" data-action="save-recruitment-org-message" data-id="${r.id}">남기기</button>
+        </div>` : ''}
     </div>`;
 }
 async function voteRecruitmentPoll(id, choice){
@@ -5761,19 +5778,20 @@ async function voteRecruitmentPoll(id, choice){
   state.recruitmentPosts = next;
   renderMain();
 }
-// 구인자가 "참여" 누른 사람들에게만 보이는 짧은 안내(예: 몇 시까지 와주세요)를 남긴다.
-// 별도 채팅이 아니라 구인글 자체에 붙는 한 줄 메시지라, 수정하면 그냥 덮어쓴다.
+// 구인자가 "참여" 누른 사람들에게 남기는 공지. 하나를 계속 덮어쓰지 않고 게시판처럼
+// 쌓이도록 배열에 추가한다 — 나중에 바뀐 안내(장소 변경 등)도 지난 공지와 함께 남는다.
 async function saveRecruitmentOrgMessage(id, msg){
-  if(!state.user) return;
+  if(!state.user || !msg) return;
   const next = await mutateSharedList('recruitments', 'list', (cur)=>{
     const post = cur.find(r=>r && r.id===id);
     if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
-    return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessage: msg } } : r);
+    const orgMessages = [...(post.poll.orgMessages||[]), { text: msg, time: now() }].slice(-50);
+    return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessages } } : r);
   });
   if(!next){ saveResultToast(false); return; }
   state.recruitmentPosts = next;
   renderMain();
-  toast(msg ? '참석자에게 메시지를 보냈어요' : '메시지를 지웠어요');
+  toast('참여자에게 공지를 남겼어요');
 }
 
 function recruitmentModal(r){
