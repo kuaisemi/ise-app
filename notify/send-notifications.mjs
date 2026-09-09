@@ -107,17 +107,26 @@ async function purgePendingAuthDeletes() {
   for (const entry of list) {
     const uid = typeof entry === 'string' ? entry : entry && entry.uid;
     if (!uid) continue;                       // 형태가 깨진 항목은 그냥 버린다
+    let authGone = false;
     try {
       await getAuth().deleteUser(uid);
+      authGone = true;
       removed++;
       console.log('[authPurge] 삭제', uid, (entry && entry.studentId) || '');
     } catch (e) {
       if (e && e.code === 'auth/user-not-found') {
+        authGone = true;
         removed++;                            // 이미 없으면 처리된 것으로 본다
       } else {
         remaining.push(entry);                // 그 밖의 오류는 다음 실행에서 다시 시도
         console.error('[authPurge] 실패', uid, (e && e.code) || e);
       }
+    }
+    if (authGone) {
+      // 친구 검색용 studentDirectory/{uid}는 본인만 지울 수 있게 규칙이 걸려 있어서
+      // (남의 uid라 클라이언트가 못 지움), Admin SDK로 여기서 대신 지운다. 안 지우면
+      // 탈퇴시킨 학번으로도 계속 "친구 추가" 검색이 되는 유령 학번 문제가 생긴다.
+      await db.collection('studentDirectory').doc(uid).delete().catch(() => {});
     }
   }
   await ref.set({ list: remaining }, { merge: true });

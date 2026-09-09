@@ -9205,6 +9205,9 @@ async function handleDeleteAccountSubmit(fd){
   try{
     await deleteDoc(doc(db, 'timetables', uidStr)).catch(() => {});
     await deleteDoc(doc(db, 'userMeta', uidStr)).catch(() => {});
+    // 친구 검색용 studentDirectory도 같이 지운다 — 안 지우면 탈퇴한 학번으로도 계속
+    // "친구 추가" 검색이 되는 유령 학번 문제가 생긴다.
+    await deleteDoc(doc(db, 'studentDirectory', uidStr)).catch(() => {});
     await deleteDoc(doc(db, 'users', uidStr));
     await deleteUser(user);
     state.user = null;
