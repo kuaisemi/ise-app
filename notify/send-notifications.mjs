@@ -306,7 +306,8 @@ async function main() {
   // 카테고리별 수신 대상 토큰 수집.
   // 한 사람이 폰 앱 + PC 브라우저를 같이 쓸 수 있어 토큰은 배열(fcmTokens)로 관리한다.
   // fcmToken(단일 필드)은 구버전 클라이언트 호환용.
-  const tokensBy = { notice: [], poll: [], meal: [], recruit: [] };
+  const tokensBy = { notice: [], poll: [], recruit: [] };
+  const mealPrefsByUid = new Map(); // uid -> { jinri, mirae, breakfast, lunch, dinner } — 학식은 지점·끼니를 각자 따로 켤 수 있어 카테고리 하나로 뭉뚱그릴 수 없다.
   const bugAlertTokens = []; // 개발자 · 학생회장: 버그 제보는 알림 설정과 무관하게 항상 받음
   const councilAlertTokens = []; // 학생회(국장 이상): 새 건의사항은 알림 설정과 무관하게 항상 받음
   const nightOkTokens = new Set(); // 야간(22시~7시) 알림에 동의한 토큰만
@@ -328,17 +329,32 @@ async function main() {
     tokensByUid.set(docSnap.id, tokens);
     if (prefs.chat) chatOkUids.add(docSnap.id);
     if (prefs.councilChat && u.role && u.role !== 'student') councilChatOkUids.add(docSnap.id);
+    mealPrefsByUid.set(docSnap.id, {
+      jinri: !!prefs.mealJinri,
+      mirae: !!prefs.mealMirae,
+      breakfast: !!prefs.mealBreakfast,
+      lunch: !!prefs.mealLunch,
+      dinner: !!prefs.mealDinner,
+    });
     for (const t of tokens) {
       tokenToUid.set(t, docSnap.id);
       if (prefs.notice) tokensBy.notice.push(t);
       if (prefs.poll) tokensBy.poll.push(t);
-      if (prefs.meal) tokensBy.meal.push(t);
       if (prefs.recruit) tokensBy.recruit.push(t);
       if (prefs.night) nightOkTokens.add(t);
       if (u.role === 'developer' || u.role === 'president') bugAlertTokens.push(t);
       if (u.role && u.role !== 'student') councilAlertTokens.push(t);
     }
   });
+  // 학식 알림 수신 대상: 지점(진리관/미래관)과 끼니(조식/중식/석식)를 둘 다 켠 사람만.
+  function mealTokensFor(cafeteriaKey, slotKey) {
+    const out = [];
+    for (const [uid, tokens] of tokensByUid) {
+      const p = mealPrefsByUid.get(uid);
+      if (p && p[cafeteriaKey] && p[slotKey]) out.push(...tokens);
+    }
+    return out;
+  }
 
   const invalidTokens = new Set();
   let sentCount = 0;
@@ -460,24 +476,38 @@ async function main() {
   }
 
   // 5) 식단 — 조식 07:00 / 중식 10:30 / 석식 16:30 KST
+  // 진리관(학생식당)은 세 끼 다, 미래관(교직원식당)은 중식만 운영한다. 지점·끼니를 각각
+  // 따로 켤 수 있으니, 지점별로 그 지점 메뉴가 있고 대상자가 있을 때만 따로 보낸다.
   const MEAL_SLOTS = [
     { key: 'breakfast', label: '조식', h: 7, m: 0 },
     { key: 'lunch', label: '중식', h: 10, m: 30 },
     { key: 'dinner', label: '석식', h: 16, m: 30 },
   ];
-  const todayMeal = (mealsByDate[today] && mealsByDate[today].student) || null;
+  const MEAL_CAFETERIAS = [
+    { key: 'jinri', label: '진리관 학생식당', slots: ['breakfast', 'lunch', 'dinner'] },
+    { key: 'mirae', label: '미래관 교직원식당', slots: ['lunch'] },
+  ];
+  const todayMealsByCafeteria = {
+    jinri: (mealsByDate[today] && mealsByDate[today].student) || null,
+    mirae: (mealsByDate[today] && mealsByDate[today].staff) || null,
+  };
   const newMealKeys = [];
-  if (todayMeal) {
+  for (const cafe of MEAL_CAFETERIAS) {
+    const todayMeal = todayMealsByCafeteria[cafe.key];
+    if (!todayMeal) continue;
     for (const slot of MEAL_SLOTS) {
-      const dedupKey = `${today}_${slot.key}`;
+      if (!cafe.slots.includes(slot.key)) continue;
+      const dedupKey = `${today}_${cafe.key}_${slot.key}`;
       if (sentMealKeys.has(dedupKey)) continue;
       if (!isDue(slot.h, slot.m)) continue;
       const menu = (todayMeal[slot.key] || '').trim();
       if (!menu) continue;
+      const tokens = mealTokensFor(cafe.key, slot.key);
+      if (!tokens.length) { newMealKeys.push(dedupKey); continue; }
       // 저장된 메뉴는 "[한식] 밥, 국..." 처럼 줄바꿈으로 구분되어 있어 한 줄로 합쳐 보낸다.
       const body = menu.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).join(' / ').slice(0, 200);
-      console.log(`식단 알림(${slot.label}):`, body.slice(0, 40));
-      await send('meal', `오늘의 ${slot.label}`, body);
+      console.log(`식단 알림(${cafe.label} ${slot.label}):`, body.slice(0, 40));
+      await sendToTokens(tokens, `오늘의 ${slot.label} (${cafe.label})`, body, 'meal');
       newMealKeys.push(dedupKey);
     }
   }
