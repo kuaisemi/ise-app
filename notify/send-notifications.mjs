@@ -455,6 +455,44 @@ async function main() {
     await send('recruit', '새 구인글이 올라왔어요', `제목: ${r.title}`);
   }
 
+  // 2.7) 구인글 참여자 공지 — 구인자가 poll.orgMessages에 새 공지를 남기면 "참여" 누른
+  //      사람에게만 보낸다. 개인 일정 안내라 알림 설정(prefs.recruit)과 무관하게 항상 보낸다.
+  const lastOrgMsgCheck = st.lastOrgMsgCheck || Date.now() - 24 * 60 * 60 * 1000;
+  const orgMsgRunStartedAt = Date.now();
+  for (const r of recruitments) {
+    if (!r.poll || !Array.isArray(r.poll.orgMessages)) continue;
+    const newOrgMsgs = r.poll.orgMessages.filter((m) => (m.time || 0) > lastOrgMsgCheck);
+    if (!newOrgMsgs.length) continue;
+    const votes = r.poll.votes || {};
+    const yesStudentIds = Object.keys(votes).filter((sid) => votes[sid].choice === 'yes' && sid !== r.authorId);
+    if (!yesStudentIds.length) continue;
+    const title = `${r.title} 참여자 공지`;
+    const body = newOrgMsgs.length === 1 ? String(newOrgMsgs[0].text || '').slice(0, 80) : `새 공지 ${newOrgMsgs.length}개가 있어요`;
+    for (const sid of yesStudentIds) {
+      const allTokens = tokensByStudentId.get(sid) || [];
+      const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+      if (!tokens.length) continue;
+      const res = await messaging.sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        data: { url: './index.html', category: 'recruit' },
+      });
+      res.responses.forEach((resp, idx) => {
+        if (resp.success) return;
+        const code = resp.error && resp.error.code;
+        if (
+          code === 'messaging/invalid-registration-token' ||
+          code === 'messaging/registration-token-not-registered'
+        ) {
+          invalidTokens.add(tokens[idx]);
+        }
+      });
+      sentCount++;
+    }
+    console.log(`[recruitOrgNotify] "${r.title}" 새 공지 ${newOrgMsgs.length}건, 참여자 ${yesStudentIds.length}명에게 발송 시도`);
+  }
+  nextState.lastOrgMsgCheck = orgMsgRunStartedAt;
+
   // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만, 그 투표에 아직 참여 안 한 사람에게만 보낸다.
   //    투표마다 안 한 사람이 다를 수 있어서 한 번에 묶어 보내지 않고 투표별로 따로 보낸다.
   //    알림 발송을 끈 투표는 리마인더 대상에서도 빠진다.

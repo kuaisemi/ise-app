@@ -5745,15 +5745,21 @@ function renderRecruitmentOrgBoard(r, isAuthor){
   const msgs = r.poll.orgMessages || [];
   const list = msgs.length ? `
     <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;">
-      ${msgs.slice().reverse().map(m=>`
-        <div style="padding:8px 10px; background:var(--surface-2); border-radius:8px; font-size:11.5px; line-height:1.5;">
-          <div style="color:var(--text-faint); font-size:9.5px; margin-bottom:2px;">${fmtDateTime(m.time)}</div>
-          ${escapeHtml(m.text)}
+      ${msgs.map((m,i)=>({m,i})).reverse().map(({m,i})=>`
+        <div class="row-between" style="padding:8px 10px; background:var(--surface-2); border-radius:8px; align-items:flex-start; gap:6px;">
+          <div style="min-width:0; flex:1; font-size:11.5px; line-height:1.5;">
+            <div style="color:var(--text-faint); font-size:9.5px; margin-bottom:2px;">${fmtDateTime(m.time)}</div>
+            ${escapeHtml(m.text)}
+          </div>
+          ${isAuthor ? `<button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-idx="${i}" title="삭제" style="flex-shrink:0;">${ICON.close}</button>` : ''}
         </div>`).join('')}
     </div>` : `<p style="margin:8px 2px 0; font-size:10.5px; color:var(--text-faint);">${isAuthor?'참여자에게 남긴 공지가 아직 없어요.':'아직 구인자가 남긴 공지가 없어요.'}</p>`;
   return `
-    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);">
-      <b style="font-size:10.5px; color:var(--teal);">${ICON.megaphone} 참여자 공지</b>
+    <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+      <div style="display:flex; align-items:center; gap:5px;">
+        <span style="display:flex; color:var(--teal);">${ICON.megaphone}</span>
+        <b style="font-size:11.5px; color:var(--teal);">참여자 공지</b>
+      </div>
       ${list}
       ${isAuthor ? `
         <div style="margin-top:8px; display:flex; gap:6px;">
@@ -5792,6 +5798,18 @@ async function saveRecruitmentOrgMessage(id, msg){
   state.recruitmentPosts = next;
   renderMain();
   toast('참여자에게 공지를 남겼어요');
+}
+async function deleteRecruitmentOrgMessage(id, idx){
+  if(!state.user) return;
+  const next = await mutateSharedList('recruitments', 'list', (cur)=>{
+    const post = cur.find(r=>r && r.id===id);
+    if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
+    const orgMessages = (post.poll.orgMessages||[]).filter((_,i)=>i!==Number(idx));
+    return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessages } } : r);
+  });
+  if(!next){ saveResultToast(false); return; }
+  state.recruitmentPosts = next;
+  renderMain();
 }
 
 function recruitmentModal(r){
@@ -8461,7 +8479,8 @@ async function parseTimetableWithGeminiVision(file){
   });
   const prompt = `이 한국 대학교 주간 강의 시간표 이미지에서 모든 수업을 찾아 JSON 배열로만 반환하세요.
 요일(0=월,1=화,2=수,3=목,4=금), 시작시각(HH:MM), 종료시각(HH:MM), 과목명, 교수명(있는 경우), 강의실.
-한국 대학교 수업은 대부분 종료 시각이 정각(00분) 단위로 끝납니다 (예: 10:00, 11:00, 13:00). 이미지에서 종료 시각이 애매하거나 살짝 겹쳐 보이더라도, 특별히 다른 표시가 없다면 가장 가까운 정각(00분) 단위로 반올림해서 작성하세요. 시작 시각은 이미지에 보이는 그대로 정확히 기록하세요.
+종료 시각 판단은 이 인식에서 가장 자주 틀리는 부분이니 서두르지 말고 격자선·시간축을 충분히 살펴본 뒤 신중하게 결정하세요. 한국 대학교 수업의 종료 시각은 절대다수(체감상 90% 이상)가 정각(00분) 단위로 끝나고 (예: 10:00, 11:00, 13:00), 30분 단위로 끝나는 경우는 그 시간표만의 특수한 설정일 때뿐으로 극히 드뭅니다. 그러니 종료 시각이 격자선과 살짝 겹쳐 보이거나 애매하면, 눈금이 정확히 30분 위치에 걸려 있다는 게 뚜렷이 보이지 않는 한 가장 가까운 정각(00분) 단위로 판단하세요. 시작 시각은 이미지에 보이는 그대로 정확히 기록하세요.
+같은 요일의 두 수업이 시간적으로 겹치는 일은 실제로는 절대 없습니다(시간표 자체가 겹치지 않게 짜여 있음). 인식 결과에서 같은 요일의 두 수업이 겹친다면 그건 시작·종료 시각을 잘못 읽은 것이니, 겹치지 않도록 시각을 다시 확인해서 고치세요.
 JSON으로만 작성하세요.
 예시: [{"day":0,"startTime":"09:00","endTime":"10:00","subject":"반도체의 이해","professor":"김교수","room":"과학기술1관 301호"}]`;
 
@@ -10204,6 +10223,7 @@ document.addEventListener('click', async (e)=>{
       const input = document.querySelector(`.rec-org-msg-input[data-id="${id}"]`);
       await saveRecruitmentOrgMessage(id, (input && input.value || '').trim());
     }
+    else if(a === 'delete-recruitment-org-message'){ await deleteRecruitmentOrgMessage(el.dataset.id, el.dataset.idx); }
     else if(a === 'clear-all-board'){ await clearAllBoard(el.dataset.type); }
     else if(a === 'toggle-like'){ await handleToggleLike(el.dataset.type, el.dataset.id); }
   }catch(err){
