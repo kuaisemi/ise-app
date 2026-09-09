@@ -2559,14 +2559,24 @@ function clearWidgetPrimaryTimetable(){
   localSet('widget_primary_tt', null);
   pushWidgetData();
 }
+// 지금 실제로 다니고 있는 학기 — 노출 규칙(semesterRevealDate)을 지난 학기 중 가장 최근 것.
+// 앱 화면에서 지금 들여다보고 있는(활성) 학기와는 다를 수 있다 — 예전 학기 시간표를
+// 잠깐 열어봐도 이 값은 안 바뀐다. 학기가 바뀌는 시점(1/25, 5/1, 7/25, 11/1)이 지나면
+// 자동으로 다음 학기로 넘어간다.
+function currentSemesterKey(){
+  const revealed = sortedSemesterKeys().filter(k=>isSemesterRevealed(k) && semesterVariants(k).length);
+  return revealed[0] || sortedSemesterKeys()[0] || null;
+}
 function widgetPrimaryLabel(){
   const p = getWidgetPrimaryTimetable();
-  if(!p || !state.timetablesBySemester[p.sem]) return '지금 보고 있는 시간표 따라가기';
+  if(!p || !state.timetablesBySemester[p.sem]) return '자동 (가장 최근 학기)';
   const variants = semesterVariants(p.sem);
   const v = variants[p.idx];
-  return v ? `${semesterLabel(p.sem)} · ${v.name}` : '지금 보고 있는 시간표 따라가기';
+  return v ? `${semesterLabel(p.sem)} · ${v.name}` : '자동 (가장 최근 학기)';
 }
-// 위젯이 실제로 그릴 수업 목록 — 대표 시간표가 지정돼 있으면 그걸, 아니면 지금 활성 시간표를 쓴다.
+// 위젯이 실제로 그릴 수업 목록 — 대표 시간표가 지정돼 있으면 그걸, 아니면 지금 다니고 있는
+// 학기(currentSemesterKey)의 첫 시간표를 쓴다. 예전엔 "앱에서 지금 보고 있는 시간표"를
+// 따라갔는데, 그러면 다른 학기를 잠깐 들여다보기만 해도 위젯이 같이 바뀌어버렸다.
 function widgetTimetableSlots(){
   const p = getWidgetPrimaryTimetable();
   if(p && state.timetablesBySemester[p.sem]){
@@ -2574,12 +2584,15 @@ function widgetTimetableSlots(){
     const v = variants[p.idx];
     if(v) return v.slots;
   }
-  return state.timetable;
+  const key = currentSemesterKey();
+  const variants = key ? semesterVariants(key) : [];
+  return (variants[0] && variants[0].slots) || [];
 }
 function widgetSemesterLabel(){
   const p = getWidgetPrimaryTimetable();
   if(p && state.timetablesBySemester[p.sem]) return semesterLabel(p.sem);
-  return state.activeSemester ? semesterLabel(state.activeSemester) : '';
+  const key = currentSemesterKey();
+  return key ? semesterLabel(key) : '';
 }
 
 function primaryTimetableModal(){
@@ -2589,11 +2602,11 @@ function primaryTimetableModal(){
     <div class="modal-handle"></div>
     <div class="modal-title">대표 시간표<button data-action="close-modal">${ICON.close}</button></div>
     <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6;">
-      위젯이 항상 보여줄 시간표를 골라두세요. 지정하지 않으면 앱에서 마지막으로 보고 있던 시간표를 따라가요.
+      위젯이 항상 보여줄 시간표를 골라두세요. 지정하지 않으면 지금 다니고 있는 학기(학기 전환일이 지나면 자동으로 넘어감)의 첫 시간표를 보여줘요.
     </p>
     <div class="tt-list-scroll">
       <div class="tt-list-row ${!cur?'active':''}" data-action="pick-primary-variant" data-key="" data-idx="-1" style="margin-bottom:6px;">
-        <span>지금 보고 있는 시간표 따라가기</span>
+        <span>자동 (가장 최근 학기)</span>
       </div>
       <div class="divider" style="margin:4px 0 16px;"></div>
       ${keys.filter(k=>semesterVariants(k).length).map(k=>{
