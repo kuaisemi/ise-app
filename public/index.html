@@ -5773,9 +5773,11 @@ function renderRecruitmentPollUI(r){
 // 다 볼 수 있다. 작성자도 자기가 남긴 걸 확인할 수 있게 같이 보여준다.
 function renderRecruitmentOrgBoard(r, isAuthor){
   const msgs = r.poll.orgMessages || [];
+  // 옛날에 만들어진 공지(id 없이 저장된 레코드)도 다룰 수 있도록, id가 없으면 배열 순서(idx0,
+  // idx1...)를 대신 식별자로 쓴다 — 새 메시지가 항상 끝에 추가되기 때문에 순서는 안정적이다.
   const list = msgs.length ? `
     <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;">
-      ${msgs.slice().reverse().map(m=>`
+      ${msgs.map((m,i)=>({m, msgId:m.id||('idx'+i)})).slice().reverse().map(({m,msgId})=>`
         <div style="padding:8px 10px; background:var(--surface-2); border-radius:8px;">
           <div class="row-between" style="align-items:flex-start; gap:6px;">
             <div style="min-width:0; flex:1; font-size:11.5px; line-height:1.5;">
@@ -5784,8 +5786,8 @@ function renderRecruitmentOrgBoard(r, isAuthor){
             </div>
             ${isAuthor ? `
             <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
-              <button type="button" class="btn ${m.notify?'btn-ghost':'btn-primary'} btn-sm" ${m.notify?'disabled':''} data-action="notify-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="${m.notify?'이미 공지했어요':'참여자에게 공지하기'}" style="width:auto; padding:3px 8px; font-size:10px;">공지</button>
-              <button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-msg-id="${m.id}" title="삭제" style="padding:6px; margin:-4px -6px -4px -4px; transform:scale(0.7);">${ICON.close}</button>
+              <button type="button" class="btn ${m.notify?'btn-ghost':'btn-primary'} btn-sm" ${m.notify?'disabled':''} data-action="notify-recruitment-org-message" data-id="${r.id}" data-msg-id="${msgId}" title="${m.notify?'이미 공지했어요':'참여자에게 공지하기'}" style="width:auto; padding:3px 8px; font-size:10px;">공지</button>
+              <button type="button" class="btn-settings-mini" data-action="delete-recruitment-org-message" data-id="${r.id}" data-msg-id="${msgId}" title="삭제" style="padding:6px; margin:-4px -6px -4px -4px; transform:scale(0.7);">${ICON.close}</button>
             </div>` : ''}
           </div>
         </div>`).join('')}
@@ -5844,7 +5846,7 @@ async function deleteRecruitmentOrgMessage(id, msgId){
   const next = await mutateSharedList('recruitments', 'list', (cur)=>{
     const post = cur.find(r=>r && r.id===id);
     if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
-    const orgMessages = (post.poll.orgMessages||[]).filter(m=>m.id!==msgId);
+    const orgMessages = (post.poll.orgMessages||[]).filter((m,i)=>(m.id||('idx'+i))!==msgId);
     return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessages } } : r);
   });
   if(!next){ saveResultToast(false); return; }
@@ -5860,7 +5862,7 @@ async function notifyRecruitmentOrgMessage(id, msgId){
   const next = await mutateSharedList('recruitments', 'list', (cur)=>{
     const post = cur.find(r=>r && r.id===id);
     if(!post || !post.poll || post.authorId!==state.user.studentId) return null;
-    const orgMessages = (post.poll.orgMessages||[]).map(m=>m.id===msgId ? { ...m, notify:true } : m);
+    const orgMessages = (post.poll.orgMessages||[]).map((m,i)=>(m.id||('idx'+i))===msgId ? { ...m, notify:true } : m);
     return cur.map(r=>r.id===id ? { ...r, poll: { ...r.poll, orgMessages } } : r);
   });
   if(!next){ saveResultToast(false); return; }

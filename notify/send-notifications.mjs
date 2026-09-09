@@ -463,11 +463,14 @@ async function main() {
   const newOrgMsgSentIds = [];
   for (const r of recruitments) {
     if (!r.poll || !Array.isArray(r.poll.orgMessages)) continue;
-    const toSend = r.poll.orgMessages.filter((m) => m.notify && m.id && !notifiedOrgMsg.has(`${r.id}_${m.id}`));
+    // id 없이 저장된 옛 메시지도 다룰 수 있도록 클라이언트와 같은 규칙(id 없으면 배열
+    // 순서를 대신 씀)으로 식별자를 만든다.
+    const withMsgId = r.poll.orgMessages.map((m, i) => ({ m, msgId: m.id || `idx${i}` }));
+    const toSend = withMsgId.filter(({ m, msgId }) => m.notify && !notifiedOrgMsg.has(`${r.id}_${msgId}`));
     if (!toSend.length) continue;
     const votes = r.poll.votes || {};
     const yesStudentIds = Object.keys(votes).filter((sid) => votes[sid].choice === 'yes' && sid !== r.authorId);
-    for (const m of toSend) {
+    for (const { m, msgId } of toSend) {
       const title = `${r.title} 참여자 공지`;
       const body = String(m.text || '').slice(0, 80);
       if (yesStudentIds.length) {
@@ -494,7 +497,7 @@ async function main() {
         }
         console.log(`[recruitOrgNotify] "${r.title}" 공지 발송, 참여자 ${yesStudentIds.length}명에게 시도`);
       }
-      newOrgMsgSentIds.push(`${r.id}_${m.id}`);
+      newOrgMsgSentIds.push(`${r.id}_${msgId}`);
     }
   }
 
