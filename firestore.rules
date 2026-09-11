@@ -34,6 +34,61 @@ service cloud.firestore {
         && userDoc().role in ['director','vice','president','developer'];
     }
 
+    function isVicePlus() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role in ['vice','president','developer'];
+    }
+
+    // 학번별 채팅방 접근 판단용 — users/{uid}.cohortYear(학번 앞 두 자리, 클라이언트가
+    // 로그인할 때 자기 문서에 미리 남겨둔다)를 그대로 읽는다. 문자열을 규칙 안에서
+    // 직접 자르지 않기 위해서다.
+    function cohortYearOf(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+        ? get(/databases/$(database)/documents/users/$(uid)).data.get('cohortYear', '')
+        : '';
+    }
+
+    // 경고 · 정지 기능의 직급별 상한. ROLES(클라이언트 index.html)의 level과 맞춰 둔다
+    // (학생회 1 · 국장 2 · 부회장·회장 3 · 개발자 4). 여기도 따로 값을 들고 있으므로,
+    // 클라이언트 ROLES를 바꿀 땐 이 함수도 같이 바꿔야 한다.
+    function roleLevelNum(role) {
+      return role == 'council' ? 1
+        : role == 'director' ? 2
+        : (role == 'vice' || role == 'president') ? 3
+        : role == 'developer' ? 4
+        : 0;
+    }
+    // 직급별 정지 최대 기간(ms). 부회장 이상은 사실상 무제한(영구 포함 가능).
+    function maxSuspendMs(role) {
+      return role == 'council' ? 2 * 24 * 60 * 60 * 1000
+        : role == 'director' ? 7 * 24 * 60 * 60 * 1000
+        : 999999999999999;
+    }
+    // suspension 필드를 걸거나(값 있음) 푸는(null) 요청이 actorRole 권한 범위 안인지 검사.
+    // 클라이언트가 상한을 우회해서 보내도 여기서 다시 막는다.
+    function suspensionChangeAllowed(actorRole, susp) {
+      return susp == null
+        || (
+          susp.reason is string && susp.reason.size() > 0
+          && susp.byUid is string
+          && (
+            susp.get('permanent', false) == true
+              ? roleLevelNum(actorRole) >= 3
+              : (susp.until is number && susp.until <= request.time.toMillis() + maxSuspendMs(actorRole))
+          )
+        );
+    }
+    // 정지 중인 계정은 채팅을 보낼 수 없게 막는다("무조건 채팅 금지"가 가장 낮은 단계).
+    function isChatSuspended() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().get('suspension', null) != null
+        && (
+          userDoc().suspension.get('permanent', false) == true
+          || userDoc().suspension.get('until', 0) > request.time.toMillis()
+        );
+    }
+
 
     // 인증코드 원본. 클라이언트 코드에는 절대 값이 들어가지 않고, 아래 users/{uid} 규칙
     // 안에서 서버가 직접 대조한다(규칙 내부 get()은 read 권한과 무관하게 동작).
@@ -86,6 +141,35 @@ service cloud.firestore {
       // 회장 이상은 남의 직급을 바꿀 수 있다(관리자 화면).
       allow update: if isPresident()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']);
+
+      // 학생회 이상이 자기보다 직급이 낮은 사람에게 경고를 남기거나 정지를 걸/풀 수 있다.
+      // 정지 기간 상한(학생회 2일 · 국장 7일 · 부회장 이상 영구)은 suspensionChangeAllowed가
+      // 다시 검사한다 — suspension 필드를 실제로 건드릴 때만 검사해서, 이미 걸려 있는(자기보다
+      // 상위 직급이 예전에 건) 정지를 안 건드리고 경고만 추가하는 요청까지 막지 않게 한다.
+      allow update: if isCouncil()
+        && roleLevelNum(userDoc().role) > roleLevelNum(resource.data.get('role', 'student'))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspension', 'warnings', 'suspActive', 'hasWarnings'])
+        && (
+          !('suspension' in request.resource.data.diff(resource.data).affectedKeys())
+          || suspensionChangeAllowed(userDoc().role, request.resource.data.get('suspension', null))
+        )
+        && request.resource.data.get('warnings', []) is list
+        // 경고를 새로 남기는(늘어나는) 건 학생회 이상 누구나 — 단 대상 한 명당 최대 3개까지만.
+        // 지우는(줄어드는) 건 부회장 이상만, 개수 제한 없이.
+        && (
+          !('warnings' in request.resource.data.diff(resource.data).affectedKeys())
+          || (request.resource.data.warnings.size() >= resource.data.get('warnings', []).size()
+            && request.resource.data.warnings.size() <= 3)
+          || roleLevelNum(userDoc().role) >= 3
+        );
+
+      // 정지 기간이 이미 지났으면(영구 제외) 본인이 스스로 풀 수 있다 — 로그인할 때 자동 정리용.
+      allow update: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspension', 'suspActive'])
+        && request.resource.data.get('suspension', null) == null
+        && resource.data.get('suspension', null) != null
+        && resource.data.suspension.get('permanent', false) != true
+        && resource.data.suspension.get('until', 0) <= request.time.toMillis();
 
       // 회장이 계정을 실제로 뺄 수 있게. 예전엔 delete 규칙이 없어 삭제가 조용히 거부됐고,
       // 그래서 "탈퇴시키기"가 화면용 캐시에서만 사라지는 시늉으로 끝났다.
@@ -221,6 +305,7 @@ service cloud.firestore {
         && friendsWith(pairId.split('_')[0], pairId.split('_')[1]);
       allow create: if isSignedIn() && pairContains(pairId, request.auth.uid)
         && friendsWith(pairId.split('_')[0], pairId.split('_')[1])
+        && !isChatSuspended()
         && request.resource.data.senderUid == request.auth.uid
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1500
@@ -234,7 +319,7 @@ service cloud.firestore {
     // 컬렉션에 바로 둔다. 7일 지난 메시지는 notify/send-notifications.mjs가 자동 삭제한다.
     match /councilChatMessages/{msgId} {
       allow read: if isCouncil();
-      allow create: if isCouncil()
+      allow create: if isCouncil() && !isChatSuspended()
         && request.resource.data.senderUid == request.auth.uid
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
@@ -245,10 +330,35 @@ service cloud.firestore {
     }
     // 학생회 채팅을 "몇 명이 읽었는지" 계산하기 위한 사람별 마지막 열람 시각.
     // 본인 키만 쓸 수 있다 — 남의 열람 시각을 조작해 읽음 표시를 속일 수 없게.
+    // 학생회 채팅 상단 고정 공지(카톡 채팅방 공지 같은 것) — 한 개짜리 문서, 학생회 이상만.
+    match /shared/councilChatNotice {
+      allow read, write: if isCouncil();
+    }
     match /shared/councilChatReads {
       allow read: if isCouncil();
       allow create: if isCouncil() && request.resource.data.keys().hasOnly([request.auth.uid]);
       allow update: if isCouncil()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([request.auth.uid]);
+    }
+
+    // 학번별 채팅 — 가입 절차 없이 users/{uid}.cohortYear가 같은 사람끼리 자동으로 한 방.
+    // 부회장 이상(부회장·회장·개발자)은 사고 파악·운영 목적으로 모든 학번 방을 볼 수 있다.
+    match /cohortChats/{yy}/messages/{msgId} {
+      allow read: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus());
+      allow create: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus()) && !isChatSuspended()
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+        && request.resource.data.keys().hasOnly(['senderUid', 'senderName', 'text', 'createdAt']);
+      allow update: if false;
+      allow delete: if isPresident();
+    }
+    // 학번별 채팅의 "몇 명이 읽었는지 · 내 화면에서 언제 지웠는지" — 학생회 채팅과 같은 구조.
+    match /cohortChatMeta/{yy} {
+      allow read: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus());
+      allow create: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus())
+        && request.resource.data.keys().hasOnly([request.auth.uid]);
+      allow update: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus())
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([request.auth.uid]);
     }
 
@@ -288,6 +398,9 @@ service cloud.firestore {
     // 회장이 탈퇴시킬 때뿐 아니라, 국장 이상이 가입 신청을 거절할 때도 그 계정을
     // 여기에 큐잉해서 로그인 계정만 남는 유령 계정이 되지 않게 한다.
     match /shared/pendingAuthDeletes { allow read, write: if isDirectorPlus(); }
+    // 1년 이상 미접속으로 자동 잠긴(withdrawn) 계정을 학생회장이 다시 풀어달라고 넣는 대기열.
+    // 계정 잠금 해제(Auth updateUser)는 Admin SDK 전용이라 서버(notify 크론)가 대신 처리한다.
+    match /shared/pendingAuthReactivations { allow read, write: if isPresident(); }
     // 사진 인식(Gemini) API 키. 예전에는 빌드할 때 키를 index.html에 끼워 넣었는데, 이 앱은
     // 웹뷰를 그대로 감싼 구조라 index.html이 배포 사이트 소스에도 APK 안에도 텍스트 그대로
     // 들어간다. "페이지 소스 보기" 한 번이면 키가 나왔고, 실제로 구글에 탐지돼 반복해서

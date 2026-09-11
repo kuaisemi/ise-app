@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- "오늘의 학식" 위젯 — 시간대에 맞는 진리관 식단 한 끼 -->
+<!-- "오늘의 학식" 위젯 — 시간대에 맞는 진리관(학생식당)·미래관(교직원식당, 중식만) 식단 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -19,51 +19,107 @@
         android:orientation="vertical"
         android:padding="15dp">
 
+        <!-- 진리관 -->
         <LinearLayout
+            android:id="@+id/meal_jinri_section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:orientation="vertical">
 
-            <ImageView
-                android:id="@+id/meal_accent"
-                android:layout_width="3dp"
-                android:layout_height="12dp"
-                android:src="@drawable/widget_bar"
-                android:scaleType="fitXY"
-                android:layout_marginEnd="7dp"
-                android:contentDescription="@null" />
-
-            <TextView
-                android:id="@+id/meal_label"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:maxLines="1"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/meal_accent"
+                    android:layout_width="3dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/widget_bar"
+                    android:scaleType="fitXY"
+                    android:layout_marginEnd="7dp"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/meal_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="진리관 · 중식"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/meal_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="9dp"
+                android:maxLines="5"
                 android:ellipsize="end"
-                android:text="진리관 · 중식"
-                android:textColor="#FFFFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:lineSpacingExtra="3dp"
+                android:text="김치찌개&#10;계란후라이&#10;잡곡밥"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/meal_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="12sp"
+                android:visibility="gone" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/meal_text"
+        <!-- 미래관 (중식만 운영) -->
+        <LinearLayout
+            android:id="@+id/meal_staff_section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="9dp"
-            android:maxLines="5"
-            android:ellipsize="end"
-            android:lineSpacingExtra="3dp"
-            android:text="김치찌개&#10;계란후라이&#10;잡곡밥"
-            android:textColor="#CCFFFFFF"
-            android:textSize="12sp" />
+            android:orientation="vertical"
+            android:layout_marginTop="12dp"
+            android:visibility="gone">
 
-        <TextView
-            android:id="@+id/meal_empty"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:textSize="12sp"
-            android:visibility="gone" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/meal_accent2"
+                    android:layout_width="3dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/widget_bar"
+                    android:scaleType="fitXY"
+                    android:layout_marginEnd="7dp"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/meal_label2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="미래관 · 중식"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/meal_text2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="9dp"
+                android:maxLines="4"
+                android:ellipsize="end"
+                android:lineSpacingExtra="3dp"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

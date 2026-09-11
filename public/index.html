@@ -607,6 +607,11 @@ details.likers-accordion > div, details.voters-accordion > div{
 .capture-topbar{position:sticky; top:0; z-index:12; background:var(--capture-bg); padding:16px 0 12px; margin-bottom:4px;}
 
 .app-version{text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); letter-spacing:.06em; margin:28px 0 2px; opacity:.8;}
+/* "꾸밀 위젯 고르기" 아이콘들은 원래 다른 화면(네비바·버튼 등)에서 쓰던 아이콘을 그대로
+   가져다 써서 SVG 자체 width/height가 15~21로 제각각이었다 — 아이콘 문자열(ICON.*)은 다른
+   곳에서도 쓰이므로 거기를 고치는 대신, 이 그리드 안에서만 강제로 같은 칸에 맞춘다. */
+.widget-type-icon{display:flex; align-items:center; justify-content:center; width:20px; height:20px;}
+.widget-type-icon svg{width:100%; height:100%;}
 </style>
 </head>
 <body>
@@ -754,8 +759,12 @@ const APP = document.getElementById('app');
 const APP_VERSION = 'Beta 0.2.6';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 161;
+const ANDROID_VERSION_CODE = 162;
 const PATCH_NOTES = [
+  { version:'Beta 0.2.7', date:'2026-09-11', items:[
+    '경고·정지 시스템 추가 — 학생회 이상이 경고·정지를 줄 수 있고, 직급별 상한(학생회 2일·국장 7일·부회장 이상 영구), 경고는 대상당 최대 3회로 제한, 경고 삭제는 부회장 이상만',
+    '학번별 단체 채팅 추가 — 가입 절차 없이 내 학번 방에 자동 입장, 부회장 이상은 다른 학번 방도 열람 가능, 학생 목록(가나다순) · 신고 기능 포함',
+  ]},
   { version:'Beta 0.2.6', date:'2026-09-09', items:[
     '앱이 아예 안 열리던 심각한 버그 수정 (스크립트 이름 충돌로 로딩이 멈추던 문제)',
     '구인글 참여자 공지: 옛날에 남겨진 메시지가 공지·삭제 버튼을 영영 못 누르게 막던 문제 수정',
@@ -1146,6 +1155,41 @@ function canModify(item){
   return myLevel() >= roleLevel(item.authorRole || 'council');
 }
 
+/* ===== 경고 · 정지 권한 ===== */
+// 직급별 최대 정지 기간(일). 부회장·회장·개발자는 영구 정지까지 가능.
+function maxSuspendDays(role){
+  const lvl = roleLevel(role);
+  if(lvl >= 3) return Infinity;
+  if(lvl === 2) return 7;
+  if(lvl === 1) return 2;
+  return 0;
+}
+// 나보다 직급이 낮은 사람에게만 경고·정지를 줄 수 있다(동급·상급은 불가).
+function canDiscipline(targetRole){ return myLevel() > roleLevel(targetRole || 'student'); }
+// 경고 "삭제"는 더 무거운 조치라 부회장 이상만.
+function isVicePlus(){ return myLevel() >= 3; }
+function isSuspendedNow(u){
+  const s = u && u.suspension;
+  if(!s) return false;
+  return s.permanent === true || (typeof s.until === 'number' && s.until > Date.now());
+}
+// 정지 중이면 토스트로 안내하고 true를 돌려준다 — 호출부에서 그대로 return에 쓴다.
+function blockIfSuspended(){
+  if(!isSuspendedNow(state.user)) return false;
+  const s = state.user.suspension;
+  toast('정지 중이라 이용할 수 없어요' + (s.reason ? ` (${s.reason})` : ''));
+  return true;
+}
+// 정지 기간이 이미 지났으면(영구 제외) 본인이 스스로 풀 수 있다 — 로그인 시 한 번 시도.
+async function clearExpiredSuspensionIfAny(){
+  const s = state.user && state.user.suspension;
+  if(!s || s.permanent || typeof s.until !== 'number' || s.until > Date.now()) return;
+  try{
+    await updateDoc(doc(db,'users',state.user.uid), { suspension: null, suspActive: false });
+    state.user.suspension = null;
+  }catch(e){ console.error('[clearExpiredSuspensionIfAny]', e); }
+}
+
 const CATS = [
   {key:'academic', label:'학사', tag:'tag-blue'},
   {key:'council',  label:'학생회', tag:'tag-crimson'},
@@ -1334,6 +1378,12 @@ function currentAdmissionYear2(){
 function fmtStudentYear(sid){
   if(!sid || sid.length < 4) return '';
   return sid.slice(2,4) + '학번';
+}
+// 학번별 채팅방 키(2자리, 예: '24'). users/{uid}.cohortYear에도 그대로 저장해서
+// firestore.rules가 문자열을 직접 자르지 않고 이 필드로만 접근 권한을 판단하게 한다.
+function myCohortYear(){
+  const sid = state.user && state.user.studentId;
+  return (sid && sid.length>=4) ? sid.slice(2,4) : '';
 }
 function fmtAuthorBadge(name, sid, role){
   if(role && role !== 'student') return `${escapeHtml(name)} (${publicRoleLabel(role)})`;
@@ -2018,8 +2068,11 @@ function boot(){
             uid: fbUser.uid,
             studentId: sid,
             name: udoc.name || '재학생',
-            role: ROLES[currentRole] ? currentRole : 'student'
+            role: ROLES[currentRole] ? currentRole : 'student',
+            suspension: udoc.suspension || null,
+            warnings: udoc.warnings || [],
           };
+          clearExpiredSuspensionIfAny();
           // 알림 목록의 "읽음/지움" 상태를 기기 로컬(localStorage)에만 두면, 앱을 지우고 새로
           // 깔거나 다른 기기로 바꿨을 때 이미 확인한 알림이 다시 나타난다. 로그인할 때
           // 서버(udoc)에 저장된 값과 합쳐서 두 기록 중 더 최근 것을 기준으로 맞춘다.
@@ -2089,7 +2142,15 @@ async function trackUserPresence(u){
     // 아예 남지 않았다.
     const ts = now();
     const platform = currentPlatform();
-    await setDoc(doc(db,'users',u.uid), { lastSeen: ts, platform }, { merge:true });
+    // 낮 12시에 업데이트 미완료자에게 한 번만 안내 푸시를 보내려면(notify/send-notifications.mjs),
+    // 서버가 "이 사람이 지금 몇 버전을 쓰고 있는지" 알아야 한다. 네이티브 앱일 때만 의미가 있다.
+    // cohortYear(학번 앞 두 자리)는 firestore.rules가 학번별 채팅방 접근을 판단하는 기준이라
+    // 문자열 자르기 같은 걸 규칙 안에서 하지 않고 여기서 미리 필드로 남겨둔다.
+    await setDoc(doc(db,'users',u.uid), {
+      lastSeen: ts, platform,
+      ...(isNativeApp ? { androidVersionCode: ANDROID_VERSION_CODE } : {}),
+      ...(myCohortYear() ? { cohortYear: myCohortYear() } : {}),
+    }, { merge:true });
     // IP는 users 문서가 아니라 userMeta에 따로 남긴다(위 규칙 참고).
     // 외부 조회라 3분마다 부르면 낭비여서 한 세션에 한 번만 받아 재사용한다.
     try{
@@ -2208,6 +2269,16 @@ function startRoleRealtimeListener(){
     if(!snap.exists() || !state.user) return;
     const data = snap.data();
     const fresh = ROLES[data.role] ? data.role : 'student';
+    const wasSuspended = isSuspendedNow(state.user);
+    state.user.suspension = data.suspension || null;
+    state.user.warnings = data.warnings || [];
+    if(!wasSuspended && isSuspendedNow(state.user)){
+      renderApp();
+      toast(`정지 처리되었습니다${state.user.suspension.reason?` (${state.user.suspension.reason})`:''}`);
+    } else if(wasSuspended && !isSuspendedNow(state.user)){
+      renderApp();
+      toast('정지가 해제되었습니다');
+    }
     if(fresh === state.user.role) return;
     state.user.role = fresh;
     localSet('user_'+state.user.uid, state.user);
@@ -2237,13 +2308,14 @@ function getNotifyPrefs(){
     night: localGet('notif_night', false),
     chat: localGet('notif_chat', true),
     councilChat: localGet('notif_councilChat', true),
+    cohortChat: localGet('notif_cohortChat', false),
     timetable: localGet('notif_timetable', false),
     timetableHour: localGet('notif_timetableHour', 8),
   };
 }
 // 서버(GitHub Actions)가 "누구에게 보낼지" 알아야 하는 항목만 Firestore에도 저장한다.
 // 시간표 알림은 기기 로컬 알림이라 서버가 알 필요 없음.
-const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'mealJinri', 'mealMirae', 'mealBreakfast', 'mealLunch', 'mealDinner', 'recruit', 'night', 'chat', 'councilChat'];
+const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'mealJinri', 'mealMirae', 'mealBreakfast', 'mealLunch', 'mealDinner', 'recruit', 'night', 'chat', 'councilChat', 'cohortChat'];
 async function setNotifyPref(key, value){
   localSet('notif_'+key, value);
   if(SERVER_NOTIFY_KEYS.includes(key) && state.user){
@@ -2503,7 +2575,7 @@ function hexToHsv(hex){
 // 다음 수업은 이미 커서 그대로 두는 식). 목록/키는 네이티브(WidgetTheme.java)와 맞춰야 한다.
 const WIDGET_TYPES = [
   // 시간표류
-  ['timetable','오늘의 시간표'], ['nextClass','다음 수업'], ['week','주간 시간표'],
+  ['timetable','오늘의 시간표'], ['week','주간 시간표'], ['nextClass','다음 수업'],
   // 학식
   ['meal','오늘의 학식'],
   // 일정 · 달력류
@@ -2523,8 +2595,10 @@ function getWidgetSettings(key){
     opacity: typeof p.opacity === 'number' ? p.opacity : o.opacity,
     fontScale: (typeof fs === 'number' && fs>=0.7 && fs<=1.6) ? fs : 1,
     dateShowEvents: typeof p.dateShowEvents === 'boolean' ? p.dateShowEvents : o.dateShowEvents,
-    weekShowFullDay: typeof p.weekShowFullDay === 'boolean' ? p.weekShowFullDay : false,
+    weekShowTime: typeof p.weekShowTime === 'boolean' ? p.weekShowTime : true,
     weekShowRoom: typeof p.weekShowRoom === 'boolean' ? p.weekShowRoom : false,
+    mealShowJinri: typeof p.mealShowJinri === 'boolean' ? p.mealShowJinri : true,
+    mealShowMirae: typeof p.mealShowMirae === 'boolean' ? p.mealShowMirae : true,
     calendarShowMemo: typeof p.calendarShowMemo === 'boolean' ? p.calendarShowMemo : o.calendarShowMemo,
     calendarShowOfficial: typeof p.calendarShowOfficial === 'boolean' ? p.calendarShowOfficial : true,
     calendarShowCouncil: typeof p.calendarShowCouncil === 'boolean' ? p.calendarShowCouncil : true,
@@ -2732,8 +2806,8 @@ function colorPickerModal(id, hex, title){
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   const WIDGET_TYPE_ICONS = {
-    timetable: ICON.grid, nextClass: ICON.bell, week: ICON.clipboard, meal: ICON.bowl,
-    schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendar, date: ICON.sunrise,
+    timetable: ICON.grid, nextClass: ICON.bell, week: ICON.weekBars, meal: ICON.bowl,
+    schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendarWideIcon, date: ICON.todayCal,
   };
   return `
     <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -2754,9 +2828,9 @@ function renderWidgetSettingsTab(){
           const active = state.widgetFontScaleTarget===key;
           return `
           <button type="button" data-action="pick-widget-font-target" data-key="${key}"
-            style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 4px; border-radius:var(--radius-sm); cursor:pointer; text-align:center;
+            style="display:flex; flex-direction:column; align-items:center; gap:5px; padding:9px 4px; border-radius:var(--radius-sm); cursor:pointer; text-align:center;
               border:1px solid ${active?'var(--teal)':'var(--border)'}; background:${active?'var(--teal-glow-3)':'var(--surface-2)'}; color:${active?'var(--teal)':'var(--text-dim)'};">
-            <span style="display:flex;">${WIDGET_TYPE_ICONS[key]||ICON.chip}</span>
+            <span class="widget-type-icon">${WIDGET_TYPE_ICONS[key]||ICON.chip}</span>
             <span style="font-size:9.5px; font-weight:${active?'700':'500'}; line-height:1.25;">${label}</span>
           </button>`;
         }).join('')}
@@ -2836,12 +2910,22 @@ function renderWidgetSettingsTab(){
 
         ${key==='week' ? `
         <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>시간 전체 표시</b><small>수업 있는 시간대만 대신 9시~18시 고정으로</small></span></span>
-          <button type="button" class="btn ${w.weekShowFullDay?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-fullday">${w.weekShowFullDay?'켜짐':'꺼짐'}</button>
+          <span class="notify-label"><span class="notify-label-text"><b>수업 시간 표시</b><small>각 수업 칸에 몇시~몇시인지 표시. 칸이 좁으면 자동으로 생략돼요</small></span></span>
+          <button type="button" class="btn ${w.weekShowTime?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-time">${w.weekShowTime?'켜짐':'꺼짐'}</button>
         </div>
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>강의실 표시</b><small>칸이 좁으면 자동으로 생략돼요</small></span></span>
           <button type="button" class="btn ${w.weekShowRoom?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-room">${w.weekShowRoom?'켜짐':'꺼짐'}</button>
+        </div>` : ''}
+
+        ${key==='meal' ? `
+        <div class="notify-row" style="padding:8px 2px;">
+          <span class="notify-label"><span class="notify-label-text"><b>진리관 표시</b><small>학생식당 (조식·중식·석식)</small></span></span>
+          <button type="button" class="btn ${w.mealShowJinri?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-meal-jinri">${w.mealShowJinri?'켜짐':'꺼짐'}</button>
+        </div>
+        <div class="notify-row" style="padding:8px 2px;">
+          <span class="notify-label"><span class="notify-label-text"><b>미래관 표시</b><small>교직원식당 (중식만 운영)</small></span></span>
+          <button type="button" class="btn ${w.mealShowMirae?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-meal-mirae">${w.mealShowMirae?'켜짐':'꺼짐'}</button>
         </div>` : ''}
       </div>`;
     })()}`;
@@ -2874,7 +2958,9 @@ async function pushWidgetData(){
     const today = todayStr();
     const tomorrow = addDays(today, 1);
     const studentOf = (d)=> ((state.meals[d]||{}).student) || {};
+    const staffOf = (d)=> ((state.meals[d]||{}).staff) || {};
     const st = studentOf(today), stTom = studentOf(tomorrow);
+    const staff = staffOf(today), staffTom = staffOf(tomorrow);
 
     const upcoming = live(state.calendar)
       .filter(ev=>ev.endDate >= today)
@@ -2938,8 +3024,8 @@ async function pushWidgetData(){
       classes,
       weekClasses,
       meals: {
-        today: { breakfast: st.breakfast||'', lunch: st.lunch||'', dinner: st.dinner||'' },
-        tomorrow: { breakfast: stTom.breakfast||'', lunch: stTom.lunch||'', dinner: stTom.dinner||'' },
+        today: { breakfast: st.breakfast||'', lunch: st.lunch||'', dinner: st.dinner||'', staffLunch: staff.lunch||'' },
+        tomorrow: { breakfast: stTom.breakfast||'', lunch: stTom.lunch||'', dinner: stTom.dinner||'', staffLunch: staffTom.lunch||'' },
       },
       events,
       markedDates,
@@ -2969,6 +3055,17 @@ function applyWidgetDeepLink(target){
   if(target === 'examCal'){
     state.view = 'info';
     state.infoTab = 'examCal';
+    renderShell();
+  } else if(target === 'timetable'){
+    state.view = 'timetable';
+    renderShell();
+  } else if(target === 'meal'){
+    state.view = 'info';
+    state.infoTab = 'meal';
+    renderShell();
+  } else if(target === 'schedule'){
+    state.view = 'info';
+    state.infoTab = 'calendar';
     renderShell();
   }
 }
@@ -3289,11 +3386,15 @@ function checkAutoDeptNoticeFetch(){
 // 안정적으로 하고 있으므로 브라우저에서는 더 이상 시도하지 않는다.
 
 const ICON = {
+  ban:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="5.5" y1="5.5" x2="18.5" y2="18.5"/></svg>`,
   chipMark:`<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>`,
   chipMini:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>`,
   home:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5L12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9"/></svg>`,
   grid:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg>`,
   calendar:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>`,
+  todayCal:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2.3" fill="currentColor" stroke="none"/></svg>`,
+  weekBars:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v4M9 9v10M14 12v7M19 6v13"/></svg>`,
+  calendarWideIcon:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10.5h20M8 6v3.5M14 6v3.5M18 6v3.5"/></svg>`,
   megaphone:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4a1 1 0 0 0 1 1h2l5 4V5L6 9H4a1 1 0 0 0-1 1Z"/><path d="M15 8.5c1.2 1 1.2 6 0 7M18.5 6c2.2 2.2 2.2 9.8 0 12"/></svg>`,
   chip:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/><path d="M9 3v3.5M15 3v3.5M9 17.5V21M15 17.5V21M3 9h3.5M3 15h3.5M17.5 9H21M17.5 15H21"/></svg>`,
   person:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>`,
@@ -6321,6 +6422,20 @@ function renderMypage(){
     </div>
     ` : ''}
 
+    ${isSuspendedNow(state.user) ? `
+    <div class="card" style="border:1px solid var(--danger, #e5484d); background:var(--surface-2); margin-bottom:8px;">
+      <p style="font-size:12.5px; font-weight:700; margin:0 0 4px;">${ICON.ban} 현재 ${state.user.suspension.permanent?'영구':fmtSuspendRemaining(state.user.suspension)} 정지 중이에요</p>
+      <p style="font-size:11.5px; color:var(--text-dim); margin:0; line-height:1.6;">사유: ${escapeHtml(state.user.suspension.reason||'')}</p>
+      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0;">채팅 전송 · 좋아요 등 일부 기능이 제한돼요.</p>
+    </div>
+    ` : ''}
+    ${(state.user.warnings||[]).length ? `
+    <div class="card" style="margin-bottom:8px;">
+      <p style="font-size:12px; font-weight:700; margin:0 0 4px;">받은 경고 (${state.user.warnings.length}건)</p>
+      ${state.user.warnings.slice().reverse().slice(0,5).map(w=>`<p style="font-size:11px; color:var(--text-dim); margin:2px 0; line-height:1.6;">· ${escapeHtml(w.reason||'')} <span class="meta">(${fmtDateTime(w.ts)})</span></p>`).join('')}
+    </div>
+    ` : ''}
+
     ${isPresident() ? `
     <div class="section-title">권한 및 관리</div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
@@ -6358,6 +6473,8 @@ function renderMypage(){
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>
       ${isPresident() ? `<div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div><div class="divider" style="margin:2px 0;"></div>` : ''}
       <div class="link-row" data-action="open-chat-report-inbox"><span class="link-row-label">${ICON.flag} 채팅 신고함</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="open-suspension-list"><span class="link-row-label">${ICON.ban} 경고 · 정지 목록</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
@@ -6599,7 +6716,7 @@ function moveFriendOrder(pairId, dir){
   localSet('friend_order', ids);
   refreshFriendsModalBody();
 }
-state.councilChatUI = { hasUnseen:false };
+state.councilChatUI = { hasUnseen:false, notice:null };
 
 // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
 // 친구 화면을 열 때만 하면 "상대가 그 화면을 먼저 열어봐야만" 검색되는 이상한 제약이 생기므로,
@@ -6629,6 +6746,7 @@ function friendsModalBody(){
   if(state.friendsUI.screen === 'detail') return friendDetailBody();
   if(state.friendsUI.screen === 'nickname') return friendNicknameBody();
   if(state.friendsUI.screen === 'councilChat') return councilChatBody();
+  if(state.friendsUI.screen === 'cohortChat') return cohortChatBody();
   return friendListBody();
 }
 function refreshFriendsModalBody(){
@@ -6764,13 +6882,32 @@ function friendListBody(){
     <div class="card" style="padding:8px 12px; margin-bottom:12px;">
       <div class="list-item" style="cursor:pointer; padding:8px 0;" data-action="open-council-chat">
         <div class="row-between">
-          <div><b style="font-size:13.5px;">학생회 채팅</b><div class="meta">학생회 전체 단체 채팅</div></div>
+          <div><b style="font-size:13.5px;">학생회</b><div class="meta">학생회 전체 단체 채팅</div></div>
           <span style="display:flex; align-items:center; gap:6px;">
             ${state.councilChatUI.hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
             <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
           </span>
         </div>
       </div>
+    </div>
+    ` : ''}
+
+    ${myCohortYear() ? `
+    <div class="card" style="padding:8px 12px; margin-bottom:12px;">
+      <div class="list-item" style="cursor:pointer; padding:8px 0;" data-action="open-cohort-chat" data-year="${escapeHtml(myCohortYear())}">
+        <div class="row-between">
+          <div><b style="font-size:13.5px;">${escapeHtml(myCohortYear())}학번</b><div class="meta">같은 학번끼리 단체 채팅</div></div>
+          <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
+        </div>
+      </div>
+      ${isVicePlus() ? `
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="list-item" style="cursor:pointer; padding:8px 0;" data-action="open-cohort-chat-picker">
+        <div class="row-between">
+          <div><b style="font-size:12.5px; color:var(--text-dim);">다른 학번 채팅방 보기</b></div>
+          <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
+        </div>
+      </div>` : ''}
     </div>
     ` : ''}
 
@@ -6900,6 +7037,17 @@ function setupFriendsModalListeners(){
     const send = () => sendCouncilChatMessage();
     if(ccSend) ccSend.onclick = send;
     if(ccInput) ccInput.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
+    return;
+  }
+
+  if(state.friendsUI.screen === 'cohortChat'){
+    stopCohortChatListener();
+    openCohortChatListener();
+    const chInput = document.getElementById('cohort-chat-input');
+    const chSend = document.getElementById('cohort-chat-send');
+    const chSendFn = () => sendCohortChatMessage();
+    if(chSend) chSend.onclick = chSendFn;
+    if(chInput) chInput.addEventListener('keydown', e => { if(e.key==='Enter') chSendFn(); });
     return;
   }
 
@@ -7049,6 +7197,7 @@ function openFriendDetail(uid, name, pairId){
 function friendsBackToList(){
   stopFriendChatListener();
   stopCouncilChatListener();
+  stopCohortChatListener();
   state.friendsUI.screen = 'list';
   refreshFriendsModalBody();
 }
@@ -7068,17 +7217,62 @@ function stopCouncilChatListener(){
 function councilMemberList(){
   return Object.values(state.allUsers||{}).filter(u=>u.role && u.role!=='student' && u.role!=='developer');
 }
+// 카톡 채팅방 상단 공지처럼, 학생회 채팅에도 고정 공지 하나를 둘 수 있게 한다.
+async function loadCouncilChatNotice(){
+  try{
+    const snap = await getDoc(doc(db,'shared','councilChatNotice'));
+    return (snap.exists() && snap.data()) || null;
+  }catch(e){ console.error('[loadCouncilChatNotice]', e); return null; }
+}
 async function openCouncilChat(){
   stopFriendChatListener();
   state.friendsUI.screen = 'councilChat';
   localSet('councilchat_seen', now());
   state.councilChatUI.hasUnseen = false;
+  state.councilChatUI.notice = await loadCouncilChatNotice();
   try{
     // 점 표기 경로로 써야 같은 문서 안 다른 사람 키·내 clearedAt을 안 건드리고
     // lastReadAt만 갱신된다 (필드 전체를 덮어쓰면 merge:true여도 clearedAt이 날아감).
     await setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: now() }, { merge:true });
   }catch(e){}
   refreshFriendsModalBody();
+}
+function councilChatNoticeModal(){
+  const text = (state.councilChatUI.notice && state.councilChatUI.notice.text) || '';
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">학생회 채팅 공지<button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">채팅방 맨 위에 고정으로 보여줄 공지예요. 비워두고 저장하면 공지가 사라져요.</p>
+    <form id="council-chat-notice-form">
+      <div class="field"><textarea name="text" style="min-height:90px" maxlength="200" placeholder="예: 이번주 금요일 회의 6시">${escapeHtml(text)}</textarea></div>
+      <div class="modal-actions" style="display:flex; gap:8px;">
+        ${text ? `<button type="button" class="btn btn-ghost" data-action="clear-council-chat-notice">공지 지우기</button>` : ''}
+        <button type="submit" class="btn btn-primary">저장</button>
+      </div>
+    </form>`;
+}
+async function handleCouncilChatNoticeSubmit(fd){
+  const text = (fd.get('text')||'').trim();
+  try{
+    await setDoc(doc(db,'shared','councilChatNotice'), { text, updatedBy: state.user.uid, updatedByName: state.user.name, updatedAt: now() });
+    state.councilChatUI.notice = text ? { text, updatedByName: state.user.name, updatedAt: now() } : null;
+    closeModal();
+    refreshFriendsModalBody();
+  }catch(e){
+    console.error('[handleCouncilChatNoticeSubmit]', e);
+    toast('저장에 실패했어요 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+async function clearCouncilChatNotice(){
+  try{
+    await setDoc(doc(db,'shared','councilChatNotice'), { text:'', updatedBy: state.user.uid, updatedByName: state.user.name, updatedAt: now() });
+    state.councilChatUI.notice = null;
+    closeModal();
+    refreshFriendsModalBody();
+  }catch(e){
+    console.error('[clearCouncilChatNotice]', e);
+    toast('삭제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
+  }
 }
 function councilFriendStatus(uid){
   if(uid === state.user.uid) return 'me';
@@ -7137,6 +7331,21 @@ function councilChatBody(){
       </div>
     </div>
     <p style="font-size:10px; color:var(--text-faint); margin:0 2px 8px;">7일 뒤 채팅이 삭제돼요.</p>
+
+    ${state.councilChatUI.notice && state.councilChatUI.notice.text ? `
+    <div class="card" style="padding:8px 12px; margin-bottom:10px; cursor:pointer;" data-action="open-council-chat-notice-edit">
+      <div class="row-between">
+        <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+          <span class="tag tag-crimson" style="flex-shrink:0;">공지</span>
+          <span style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(state.councilChatUI.notice.text)}</span>
+        </div>
+        <span style="color:var(--text-dim); display:flex; flex-shrink:0;">${ICON.chevR}</span>
+      </div>
+    </div>
+    ` : isCouncil() ? `
+    <button type="button" class="btn btn-ghost btn-sm" data-action="open-council-chat-notice-edit" style="width:100%; margin-bottom:10px;">+ 공지 작성하기</button>
+    ` : ''}
+
     <div class="card" style="padding:12px;">
       <div id="council-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
       <div style="display:flex; gap:8px; margin-top:10px;">
@@ -7273,6 +7482,282 @@ async function sendCouncilChatMessage(){
   }catch(e){
     console.error(e);
     toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+
+/* ===== 학번별 채팅 =====
+ * 학생회 채팅과 같은 구조지만 멤버 자격이 "그 학번(cohortYear)"으로 자동 결정된다(따로 가입
+ * 절차가 없음). 부회장 이상은 자기 학번 방 + 다른 학번 방도 전부 들어가 볼 수 있다(사고
+ * 파악·운영 목적) — 그래서 목록에는 "내 학번" 카드 하나만 두고, 그 사람들에게만 "다른 학번
+ * 채팅방 보기"를 추가로 보여준다.
+ */
+function cohortYearList(){
+  const latest = currentAdmissionYear2();
+  const start = 21; // 이 앱이 쓰이기 시작한 학번대 — 그 이전 학번은 방을 안 보여준다.
+  const years = [];
+  for(let y=start; y<=latest; y++) years.push(String(y).padStart(2,'0'));
+  return years;
+}
+function cohortChatPickerModal(){
+  const mine = myCohortYear();
+  const years = cohortYearList().filter(y=>y!==mine);
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">학번별 채팅방</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div style="max-height:60vh; overflow-y:auto;">
+      ${years.length ? years.map(y=>`
+        <div class="list-item" style="cursor:pointer;" data-action="open-cohort-chat" data-year="${y}">
+          <div class="row-between"><b style="font-size:13px;">${y}학번</b><span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span></div>
+        </div>`).join('') : `<div class="empty"><p>표시할 학번이 없습니다.</p></div>`}
+    </div>`;
+}
+// 직급은 안 보여준다("직급 가리기") — studentDirectory는 {studentId, name}만 있어서
+// 애초에 직급을 넘겨받지도 않는다. 이름 가나다순 정렬.
+async function loadCohortMembers(year){
+  try{
+    const snap = await getDocs(collection(db,'studentDirectory'));
+    return snap.docs
+      .map(d=>d.data())
+      .filter(u=>u.studentId && u.studentId.length>=4 && u.studentId.slice(2,4)===year)
+      .sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  }catch(e){ console.error('[loadCohortMembers]', e); return []; }
+}
+function cohortMembersModal(year, members){
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${escapeHtml(year)}학번 학생 목록 (${members.length})</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div style="max-height:60vh; overflow-y:auto;">
+      ${members.length ? members.map(m=>`<div class="list-item"><b style="font-size:13px;">${escapeHtml(m.name||'')}</b></div>`).join('') : `<div class="empty"><p>등록된 사람이 없습니다.</p></div>`}
+    </div>`;
+}
+async function openCohortChat(year){
+  if(!year) return;
+  const mine = myCohortYear();
+  if(year !== mine && !isVicePlus()){ toast('내 학번 채팅방만 볼 수 있어요'); return; }
+  stopFriendChatListener();
+  stopCouncilChatListener();
+  closeModal();
+  state.friendsUI.screen = 'cohortChat';
+  state.cohortChatUI = { year };
+  try{
+    await setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: now() }, { merge:true });
+  }catch(e){}
+  refreshFriendsModalBody();
+}
+function cohortChatBody(){
+  const year = state.cohortChatUI && state.cohortChatUI.year;
+  const np = getNotifyPrefs();
+  return `
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:14px;">
+      <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
+      <b style="font-size:15px; flex:1;">${escapeHtml(year)}학번 채팅</b>
+      <button type="button" data-action="open-cohort-members" data-year="${escapeHtml(year)}" style="background:none; border:none; color:var(--text-dim); font-size:11.5px; cursor:pointer; padding:4px; flex-shrink:0;">
+        학생 목록
+      </button>
+    </div>
+
+    <div class="row-between" style="margin-bottom:2px;">
+      <div class="section-title" style="margin:0;">채팅</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+        <button type="button" class="btn ${np.cohortChat?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-cohort-chat-notify" style="width:auto; padding:3px 8px; font-size:10px;">채팅 알림 ${np.cohortChat?'켜짐':'꺼짐'}</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="report-cohort-message" data-year="${escapeHtml(year)}" data-uid="" data-name="" style="width:auto; padding:3px 8px; font-size:10px;">신고</button>
+        ${isPresident() ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-cohort-chat-all" style="width:auto; padding:3px 8px; font-size:10px;">채팅 삭제(학생회장용)</button>` : ''}
+        <button type="button" class="btn btn-ghost btn-sm" data-action="clear-cohort-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
+      </div>
+    </div>
+    <p style="font-size:10px; color:var(--text-faint); margin:0 2px 8px;">7일 뒤 채팅이 삭제돼요.</p>
+    <div class="card" style="padding:12px;">
+      <div id="cohort-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="text" id="cohort-chat-input" placeholder="메시지 입력…" maxlength="2000"
+          style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
+        <button type="button" class="btn btn-primary btn-sm" id="cohort-chat-send" style="width:auto;">전송</button>
+      </div>
+    </div>`;
+}
+let cohortChatUnsub = null;
+function stopCohortChatListener(){ if(cohortChatUnsub){ cohortChatUnsub(); cohortChatUnsub=null; } }
+async function toggleCohortChatNotify(){
+  const cur = getNotifyPrefs();
+  await setNotifyPref('cohortChat', !cur.cohortChat);
+  if(state.friendsUI.screen === 'cohortChat') refreshFriendsModalBody();
+}
+async function clearCohortChat(){
+  const year = state.cohortChatUI && state.cohortChatUI.year;
+  if(!year) return;
+  if(!await showConfirm('내 화면에서 이 채팅을 지울까요?\n(다른 사람 화면에는 그대로 남아요)')) return;
+  const ts = now();
+  try{
+    await setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: ts, [state.user.uid+'.clearedAt']: ts }, { merge:true });
+  }catch(e){ toast('실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')'); return; }
+  const el = document.getElementById('cohort-chat-log');
+  if(el) el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`;
+  toast('채팅을 지웠어요');
+}
+async function deleteAllCohortChatMessages(){
+  const year = state.cohortChatUI && state.cohortChatUI.year;
+  if(!isPresident() || !year) return;
+  if(!await showConfirm(`${year}학번 채팅을 모두에게서 완전히 삭제할까요?\n(되돌릴 수 없습니다)`)) return;
+  try{
+    const snap = await getDocs(collection(db,'cohortChats',year,'messages'));
+    const docs = snap.docs;
+    const batchSize = 400;
+    for(let i=0;i<docs.length;i+=batchSize){
+      const batch = writeBatch(db);
+      docs.slice(i,i+batchSize).forEach(d=>batch.delete(d.ref));
+      await batch.commit();
+    }
+    toast('학번 채팅을 전부 삭제했어요');
+  }catch(e){
+    toast('삭제 실패 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+function openCohortChatListener(){
+  const year = state.cohortChatUI && state.cohortChatUI.year;
+  const log = document.getElementById('cohort-chat-log');
+  if(!log || !year) return;
+  log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
+  const q = query(collection(db,'cohortChats',year,'messages'), orderBy('createdAt'), limit(200));
+  cohortChatUnsub = onSnapshot(q, async (snap) => {
+    if(!(state.friendsUI.screen === 'cohortChat' && state.cohortChatUI && state.cohortChatUI.year===year)) return;
+    let reads = {};
+    try{
+      const rSnap = await getDoc(doc(db,'cohortChatMeta',year));
+      reads = rSnap.exists() ? rSnap.data() : {};
+    }catch(e){}
+    const el = document.getElementById('cohort-chat-log');
+    if(!el) return;
+    const myClearedAt = (reads[state.user.uid]||{}).clearedAt || 0;
+    const docs = snap.docs.filter(d => (d.data().createdAt||0) > myClearedAt);
+    if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
+    el.innerHTML = docs.map(d=>{
+      const m = d.data();
+      const mine = m.senderUid === state.user.uid;
+      const actions = [];
+      if(!mine) actions.push(`<button type="button" data-action="report-cohort-message" data-year="${escapeHtml(year)}" data-uid="${escapeHtml(m.senderUid)}" data-name="${escapeHtml(m.senderName||'')}" style="background:none; border:none; color:var(--text-faint); font-size:9px; cursor:pointer; padding:0;">신고</button>`);
+      if(isPresident()) actions.push(`<button type="button" data-action="delete-cohort-message" data-year="${escapeHtml(year)}" data-mid="${escapeHtml(d.id)}" style="background:none; border:none; color:var(--text-faint); font-size:9px; cursor:pointer; padding:0;">삭제</button>`);
+      return `<div style="max-width:78%; align-self:${mine?'flex-end':'flex-start'};">
+        ${mine ? '' : `<div style="font-size:9.5px; color:var(--text-faint); margin:0 2px 2px;">${escapeHtml(m.senderName||'')}</div>`}
+        <div style="padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div></div>
+        ${actions.length ? `<div style="display:flex; gap:8px; margin-top:2px; justify-content:${mine?'flex-end':'flex-start'};">${actions.join('')}</div>` : ''}
+      </div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+    setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }).catch(()=>{});
+  }, (err) => {
+    console.error('[cohort-chat]', err);
+    const el = document.getElementById('cohort-chat-log');
+    if(el) el.innerHTML = `<div class="empty"><p>채팅을 불러오지 못했어요.</p></div>`;
+  });
+}
+const cohortChatRateState = { sendTimes: [], blockedUntil: 0 };
+function cohortChatRateLimited(){
+  const t = Date.now();
+  if(cohortChatRateState.blockedUntil && t < cohortChatRateState.blockedUntil){
+    toast('메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.');
+    return true;
+  }
+  cohortChatRateState.sendTimes = cohortChatRateState.sendTimes.filter(x => t - x < 10000);
+  cohortChatRateState.sendTimes.push(t);
+  if(cohortChatRateState.sendTimes.length > 7){
+    cohortChatRateState.blockedUntil = t + 3000;
+    cohortChatRateState.sendTimes = [];
+    toast('메시지를 너무 빠르게 보내고 있어요. 3초만 기다려주세요.');
+    return true;
+  }
+  return false;
+}
+async function sendCohortChatMessage(){
+  if(blockIfSuspended()) return;
+  const year = state.cohortChatUI && state.cohortChatUI.year;
+  const input = document.getElementById('cohort-chat-input');
+  const text = (input && input.value || '').trim();
+  if(!text || !year) return;
+  if(utf8ByteLength(text) > COUNCIL_CHAT_MAX_BYTES){ toast(`메시지가 너무 길어요 (최대 ${COUNCIL_CHAT_MAX_BYTES}바이트)`); return; }
+  if(cohortChatRateLimited()) return;
+  input.value = '';
+  try{
+    await addDoc(collection(db,'cohortChats',year,'messages'), {
+      senderUid: state.user.uid, senderName: state.user.name, text, createdAt: Date.now(),
+    });
+  }catch(e){
+    console.error(e);
+    toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+async function deleteCohortMessage(year, msgId){
+  if(!await showConfirm('이 메시지를 삭제할까요?')) return;
+  try{
+    await deleteDoc(doc(db,'cohortChats',year,'messages',msgId));
+    toast('삭제했어요');
+  }catch(e){
+    console.error(e);
+    toast('삭제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+
+/* ----- 학번별 채팅 신고 (기존 채팅 신고함 파이프라인 재사용) ----- */
+function reportCohortMessageModal(year, targetUid, targetName){
+  const hasTarget = !!targetUid;
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">채팅 신고하기</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">
+      ${hasTarget ? `<b>${escapeHtml(targetName)}</b>님을 ` : ''}[${escapeHtml(year)}학번] 채팅에서 신고해요. 최근 대화 내용이 신고 내역에 함께 남아요.
+    </p>
+    <form id="report-cohort-chat-form" data-year="${escapeHtml(year)}" data-uid="${escapeHtml(targetUid)}" data-name="${escapeHtml(targetName)}">
+      ${!hasTarget ? `<div class="field"><label>신고 대상 학번</label><input type="text" name="targetSid" required inputmode="numeric" placeholder="신고할 사람의 학번"></div>` : ''}
+      <div class="field"><label>신고 사유</label><textarea name="reason" style="min-height:100px" required placeholder="어떤 내용이 문제였는지 적어주세요"></textarea></div>
+      <div class="modal-actions"><button type="submit" class="btn btn-danger">신고 접수</button></div>
+    </form>`;
+}
+async function handleReportCohortChatSubmit(fd){
+  const form = document.getElementById('report-cohort-chat-form');
+  const year = form.dataset.year;
+  let targetUid = form.dataset.uid, targetName = form.dataset.name;
+  const reason = (fd.get('reason')||'').trim();
+  if(!reason){ toast('신고 사유를 입력해주세요'); return; }
+  if(!targetUid){
+    const targetSid = (fd.get('targetSid')||'').trim();
+    if(!targetSid){ toast('신고 대상 학번을 입력해주세요'); return; }
+    try{
+      const dq = query(collection(db,'studentDirectory'), where('studentId','==',targetSid));
+      const dsnap = await getDocs(dq);
+      if(dsnap.empty){ toast('해당 학번을 찾을 수 없어요'); return; }
+      targetUid = dsnap.docs[0].id;
+      targetName = dsnap.docs[0].data().name || targetSid;
+    }catch(e){ toast('학번 조회에 실패했어요'); return; }
+  }
+  const btn = document.querySelector('#report-cohort-chat-form button[type=submit]');
+  if(btn) btn.disabled = true;
+  try{
+    let fullMessages = [];
+    try{
+      const q = query(collection(db,'cohortChats',year,'messages'), orderBy('createdAt','desc'), limit(500));
+      const snap = await getDocs(q);
+      fullMessages = snap.docs.map(d=>{
+        const m = d.data();
+        return { senderName: m.senderName || (m.senderUid===state.user.uid?state.user.name:targetName), text: m.text, createdAt: m.createdAt };
+      }).reverse();
+    }catch(e){}
+    const recentMessages = fullMessages.slice(-20).map(m=>`${m.senderName}: ${m.text}`);
+    const report = {
+      id: uid(), createdAt: now(), status:'접수',
+      reporterId: state.user.studentId, reporterName: state.user.name,
+      targetUid, targetName,
+      pairId: 'cohort:'+year, reason,
+      recentMessages, fullMessages,
+    };
+    const latest = await loadShared('chatReports', {list:[]});
+    const next = [report, ...(latest.list||[])].slice(0,300);
+    const ok = await saveShared('chatReports', {list: next});
+    closeModal();
+    saveResultToast(ok, '신고가 접수됐어요. 학생회가 확인할게요.');
+  }catch(e){
+    console.error('[handleReportCohortChatSubmit]', e);
+    toast('신고 접수에 실패했어요');
+  }finally{
+    if(btn) btn.disabled = false;
   }
 }
 
@@ -7479,6 +7964,7 @@ function friendChatRateLimited(){
   return false;
 }
 async function sendFriendChatMessage(){
+  if(blockIfSuspended()) return;
   const input = document.getElementById('friend-chat-input');
   const text = (input && input.value || '').trim();
   if(!text) return;
@@ -7541,15 +8027,20 @@ async function handleReportFriendChatSubmit(fd){
   const btn = document.querySelector('#report-friend-chat-form button[type=submit]');
   if(btn) btn.disabled = true;
   try{
-    // 신고 맥락으로 최근 메시지 몇 개를 같이 남긴다(정말 문제였는지 학생회가 판단할 수 있게).
+    // 신고 맥락으로 최근 메시지를 같이 남긴다(정말 문제였는지 학생회가 판단할 수 있게).
+    // "범죄 의심" 상세 확인·다운로드에 쓸 수 있도록 최대 500개까지는 전문(fullMessages)으로도
+    // 같이 저장해 둔다 — 학생회는 chats/{pairId}를 직접 읽을 권한이 없어서(당사자만 읽을 수
+    // 있음, 채팅 사생활 보호), 신고 시점에 신고자 클라이언트가 이렇게 스냅샷을 남겨야만 한다.
     let recentMessages = [];
+    let fullMessages = [];
     try{
-      const q = query(collection(db,'chats',state.friendsUI.activePairId,'messages'), orderBy('createdAt'), limit(200));
+      const q = query(collection(db,'chats',state.friendsUI.activePairId,'messages'), orderBy('createdAt','desc'), limit(500));
       const snap = await getDocs(q);
-      recentMessages = snap.docs.slice(-20).map(d=>{
+      fullMessages = snap.docs.map(d=>{
         const m = d.data();
-        return `${m.senderUid===state.user.uid?state.user.name:state.friendsUI.activeName}: ${m.text}`;
-      });
+        return { senderName: m.senderUid===state.user.uid?state.user.name:state.friendsUI.activeName, text: m.text, createdAt: m.createdAt };
+      }).reverse();
+      recentMessages = fullMessages.slice(-20).map(m=>`${m.senderName}: ${m.text}`);
     }catch(e){}
 
     const report = {
@@ -7557,7 +8048,7 @@ async function handleReportFriendChatSubmit(fd){
       reporterId: state.user.studentId, reporterName: state.user.name,
       targetUid: state.friendsUI.activeUid, targetName: state.friendsUI.activeName,
       pairId: state.friendsUI.activePairId, reason,
-      recentMessages,
+      recentMessages, fullMessages,
     };
     const latest = await loadShared('chatReports', {list:[]});
     const next = [report, ...(latest.list||[])].slice(0,300);
@@ -7590,12 +8081,20 @@ function chatReportInboxModal(){
           <div style="background:var(--surface-2); border-radius:8px; padding:8px 10px; margin-bottom:8px; font-size:11px; color:var(--text-dim); max-height:140px; overflow-y:auto; line-height:1.6;">
             ${r.recentMessages.map(m=>escapeHtml(m)).join('<br>')}
           </div>` : ''}
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button class="btn btn-ghost btn-sm" data-action="toggle-chat-report-status" data-id="${r.id}">${r.status==='해결'?'접수로 되돌리기':'해결로 표시'}</button>
+            <button class="btn btn-ghost btn-sm" data-action="open-suspend-user" data-uid="${escapeHtml(r.targetUid)}" data-name="${escapeHtml(r.targetName)}" data-report="${escapeHtml(r.id)}">경고 · 정지 주기</button>
+            <button class="btn btn-ghost btn-sm" data-action="open-crime-suspicion" data-id="${r.id}">범죄 의심</button>
             <button class="btn btn-danger btn-sm" data-action="delete-chat-report" data-id="${r.id}">삭제</button>
           </div>
         </div>`).join('') : `<div class="empty"><p>접수된 신고가 없습니다.</p></div>`}
     </div>`;
+}
+async function markChatReportResolved(id){
+  const latest = await loadShared('chatReports', {list:[]});
+  const next = (latest.list||[]).map(r => r.id===id ? {...r, status:'해결'} : r);
+  await saveShared('chatReports', {list: next});
+  state.chatReports = {list: next};
 }
 async function toggleChatReportStatus(id){
   const latest = await loadShared('chatReports', {list:[]});
@@ -7613,6 +8112,258 @@ async function deleteChatReport(id){
   state.chatReports = {list: next};
   if(document.querySelector('.modal-sheet')) openModal(chatReportInboxModal());
   saveResultToast(ok, '삭제했습니다');
+}
+
+/* ===== 경고 · 정지 (학생회 이상) =====
+ * users/{uid} 문서에 suspension(정지 상세)과 warnings(경고 이력)을 둔다.
+ * 직급별 상한(학생회 2일 · 국장 7일 · 부회장 이상 영구)은 firestore.rules에서도
+ * 다시 검사해서, 클라이언트를 우회해도 상한을 넘길 수 없게 한다.
+ */
+async function fetchUserBrief(targetUid){
+  try{
+    const snap = await getDoc(doc(db,'users',targetUid));
+    return snap.exists() ? { uid: targetUid, ...snap.data() } : null;
+  }catch(e){ console.error('[fetchUserBrief]', e); return null; }
+}
+
+function suspendActionModal(targetUid, targetName, reportId){
+  const cap = maxSuspendDays(myRole());
+  const capLabel = cap === Infinity ? '영구 정지까지' : `최대 ${cap}일까지`;
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${escapeHtml(targetName)}님 경고 · 정지</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">
+      내 직급(${escapeHtml(roleLabel(myRole()))})으로는 ${capLabel} 정지를 줄 수 있어요. 정지 기간을 0으로 두면 정지 없이 경고만 기록돼요. 사유는 필수예요.
+    </p>
+    <form id="suspend-user-form" data-uid="${escapeHtml(targetUid)}" data-name="${escapeHtml(targetName)}" data-report="${escapeHtml(reportId||'')}">
+      <div class="field"><label>사유</label><textarea name="reason" style="min-height:80px" required placeholder="경고 · 정지 사유를 적어주세요"></textarea></div>
+      <div class="field">
+        <label>정지 기간</label>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="suspend-days-input" name="days" placeholder="0" style="width:2.4em; flex:none; padding:8px 4px; text-align:center;" />
+          <span style="font-size:12px; color:var(--text-dim);">일</span>
+          ${cap===Infinity ? `<button type="button" class="btn btn-ghost btn-sm suspend-day-chip" data-days="permanent" style="width:auto; padding:6px 13px; border-radius:99px; margin-left:4px;">영구</button>` : ''}
+        </div>
+        <input type="checkbox" name="permanent" style="display:none;" />
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-danger">적용</button>
+      </div>
+    </form>`;
+}
+function setupSuspendActionModalListeners(){
+  const form = document.getElementById('suspend-user-form');
+  if(!form) return;
+  const daysInput = form.querySelector('#suspend-days-input');
+  const permInput = form.querySelector('input[name="permanent"]');
+  const chips = Array.from(form.querySelectorAll('.suspend-day-chip'));
+  const selectChip = (btn)=>{
+    chips.forEach(c=>c.classList.remove('btn-primary'));
+    chips.forEach(c=>c.classList.add('btn-ghost'));
+    if(btn){ btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary'); }
+  };
+  chips.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      selectChip(btn);
+      if(btn.dataset.days === 'permanent'){
+        if(permInput) permInput.checked = true;
+        daysInput.value = '';
+      }else{
+        if(permInput) permInput.checked = false;
+        daysInput.value = btn.dataset.days;
+      }
+    });
+  });
+  if(daysInput){
+    daysInput.addEventListener('input', ()=>{
+      // 숫자만 입력되게: 직접 타이핑할 때마다 숫자가 아닌 글자는 바로 지운다.
+      const clean = daysInput.value.replace(/[^0-9]/g, '');
+      if(clean !== daysInput.value) daysInput.value = clean;
+      selectChip(null);
+      if(permInput) permInput.checked = false;
+    });
+  }
+}
+async function handleSuspendUserSubmit(fd){
+  const form = document.getElementById('suspend-user-form');
+  const targetUid = form.dataset.uid, targetName = form.dataset.name, reportId = form.dataset.report;
+  const reason = (fd.get('reason')||'').trim();
+  const permanent = fd.get('permanent') === 'on';
+  const days = Number(fd.get('days')||0);
+  if(!reason){ toast('사유를 입력해주세요'); return; }
+
+  const target = await fetchUserBrief(targetUid);
+  if(!target){ toast('대상 사용자를 찾을 수 없어요'); return; }
+  if(!canDiscipline(target.role)){ toast('내 직급으로는 이 사람에게 조치할 수 없어요'); return; }
+
+  const cap = maxSuspendDays(myRole());
+  if(permanent && cap !== Infinity){ toast('내 직급으로는 영구 정지를 줄 수 없어요'); return; }
+  if(!permanent && days > 0 && days > cap){ toast(`내 직급으로는 최대 ${cap}일까지만 정지할 수 있어요`); return; }
+  // 경고가 무한정 쌓이지 않게, 대상 한 명당 총 경고 개수를 제한한다(누가 줬는지와 무관하게).
+  const MAX_WARNINGS_PER_TARGET = 3;
+  if(!permanent && days <= 0 && (target.warnings||[]).length >= MAX_WARNINGS_PER_TARGET){
+    toast(`이미 경고 ${MAX_WARNINGS_PER_TARGET}회를 받은 사람이에요. 더 줄 거면 정지로 조치해주세요.`);
+    return;
+  }
+
+  const btn = document.querySelector('#suspend-user-form button[type=submit]');
+  if(btn) btn.disabled = true;
+  try{
+    if(!permanent && days <= 0){
+      await updateDoc(doc(db,'users',targetUid), {
+        warnings: arrayUnion({ id: uid(), ts: now(), byUid: state.user.uid, byName: state.user.name, byRole: myRole(), reason }),
+        hasWarnings: true,
+      });
+      toast(`${targetName}님에게 경고를 기록했어요`);
+    }else{
+      const suspension = {
+        reason, permanent: !!permanent,
+        until: permanent ? null : (Date.now() + days*24*60*60*1000),
+        days: permanent ? null : days,
+        byUid: state.user.uid, byName: state.user.name, byRole: myRole(),
+        ts: now(),
+      };
+      await updateDoc(doc(db,'users',targetUid), { suspension, suspActive: true });
+      toast(`${targetName}님을 ${permanent?'영구':days+'일'} 정지했어요`);
+    }
+    // 신고함에서 조치한 거라면, 처리된 신고니까 자동으로 "해결"로 넘겨준다.
+    if(reportId) await markChatReportResolved(reportId);
+    closeModal();
+  }catch(e){
+    console.error('[handleSuspendUserSubmit]', e);
+    toast('처리에 실패했어요 (' + (e.code||'알 수 없음') + ')');
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+async function liftSuspension(targetUid, targetName){
+  const target = await fetchUserBrief(targetUid);
+  if(target && !canDiscipline(target.role)){ toast('내 직급으로는 이 사람의 정지를 풀 수 없어요'); return; }
+  if(!await showConfirm(`${targetName}님의 정지를 지금 풀까요?`, {danger:false, okLabel:'해제'})) return;
+  try{
+    await updateDoc(doc(db,'users',targetUid), { suspension: null, suspActive: false });
+    toast(`${targetName}님의 정지를 해제했어요`);
+    if(document.querySelector('.modal-sheet')) openModal(suspensionListModal(await loadDisciplineList()));
+  }catch(e){
+    console.error('[liftSuspension]', e);
+    toast('해제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+async function loadDisciplineList(){
+  try{
+    const [suspSnap, warnSnap] = await Promise.all([
+      getDocs(query(collection(db,'users'), where('suspActive','==',true))),
+      getDocs(query(collection(db,'users'), where('hasWarnings','==',true))),
+    ]);
+    const map = new Map();
+    suspSnap.docs.forEach(d=>map.set(d.id, {uid:d.id, ...d.data()}));
+    warnSnap.docs.forEach(d=>{ if(!map.has(d.id)) map.set(d.id, {uid:d.id, ...d.data()}); });
+    return Array.from(map.values()).filter(u => isSuspendedNow(u) || (u.warnings&&u.warnings.length));
+  }catch(e){ console.error('[loadDisciplineList]', e); return []; }
+}
+function fmtSuspendRemaining(s){
+  if(s.permanent) return '영구 정지';
+  const days = Math.max(1, Math.ceil((s.until - Date.now())/(24*60*60*1000)));
+  return `${days}일 남음`;
+}
+function suspensionListModal(list){
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.ban} 경고 · 정지 목록</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div style="max-height:64vh; overflow-y:auto;">
+      ${list.length ? list.map(u=>{
+        const susp = isSuspendedNow(u) ? u.suspension : null;
+        const warnings = u.warnings || [];
+        return `
+        <div class="card" style="margin-bottom:10px;">
+          <div class="row-between" style="margin-bottom:4px;">
+            <b style="font-size:12px;">${susp?ICON.ban+' ':''}${escapeHtml(u.name||'')} <span class="meta">(${escapeHtml(roleLabel(u.role))})</span></b>
+            ${susp ? `<span class="tag tag-red">${fmtSuspendRemaining(susp)}</span>` : `<span class="tag tag-amber">경고 ${warnings.length}건</span>`}
+          </div>
+          ${susp ? `
+          <div class="meta" style="margin-bottom:6px;">${escapeHtml(susp.byName||'')}(${escapeHtml(roleLabel(susp.byRole||''))}) · ${fmtDateTime(susp.ts)}</div>
+          <div class="body" style="margin-bottom:8px;">${escapeHtml(susp.reason||'')}</div>
+          ${canDiscipline(u.role) ? `<button class="btn btn-ghost btn-sm" data-action="lift-suspension" data-uid="${escapeHtml(u.uid)}" data-name="${escapeHtml(u.name||'')}">정지 해제</button>` : ''}
+          ` : ''}
+          ${warnings.length ? `
+          <div style="background:var(--surface-2); border-radius:8px; padding:8px 10px; font-size:11px; color:var(--text-dim); line-height:1.7; margin-top:${susp?'8px':'0'};">
+            ${warnings.slice().reverse().slice(0,5).map(w=>`
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:2px;">
+                <span>· ${escapeHtml(w.reason||'')} <span class="meta">(${fmtDateTime(w.ts)})</span></span>
+                ${isVicePlus() ? `<button class="btn btn-ghost btn-sm" style="width:auto; flex-shrink:0; padding:2px 9px; font-size:10px;" data-action="delete-warning" data-uid="${escapeHtml(u.uid)}" data-name="${escapeHtml(u.name||'')}" data-wid="${escapeHtml(w.id)}">삭제</button>` : ''}
+              </div>`).join('')}
+          </div>` : ''}
+        </div>`;
+      }).join('') : `<div class="empty"><p>경고 · 정지 기록이 없습니다.</p></div>`}
+    </div>`;
+}
+async function deleteWarning(targetUid, targetName, warningId){
+  if(!await showConfirm(`${targetName}님의 이 경고를 삭제할까요?`, {danger:false, okLabel:'삭제'})) return;
+  const target = await fetchUserBrief(targetUid);
+  if(!target){ toast('대상 사용자를 찾을 수 없어요'); return; }
+  const nextWarnings = (target.warnings||[]).filter(w=>w.id!==warningId);
+  try{
+    await updateDoc(doc(db,'users',targetUid), { warnings: nextWarnings, hasWarnings: nextWarnings.length>0 });
+    toast('경고를 삭제했어요');
+    if(document.querySelector('.modal-sheet')) openModal(suspensionListModal(await loadDisciplineList()));
+  }catch(e){
+    console.error('[deleteWarning]', e);
+    toast('삭제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
+  }
+}
+
+/* ===== 범죄 의심 신고 상세 (대화 전문 확인 · 다운로드) =====
+ * IP는 포함하지 않는다 — userMeta의 접속 IP는 개발자 전용으로 계속 막아둔다.
+ * 신고 접수 시점에 함께 저장해 둔 fullMessages(최대 500개)를 그대로 보여준다.
+ */
+function crimeSuspicionModal(report){
+  const msgs = report.fullMessages || [];
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.flag} 대화 전문 확인</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 10px; line-height:1.6;">
+      범죄가 의심될 때 증거로 쓸 수 있도록, 신고 접수 시점의 채팅 기록(최대 500개, 시각 포함)을 내려받을 수 있어요. IP 정보는 포함하지 않습니다.
+    </p>
+    <div style="max-height:50vh; overflow-y:auto; background:var(--surface-2); border-radius:8px; padding:8px 10px; font-size:11px; line-height:1.7; margin-bottom:10px;">
+      ${msgs.length ? msgs.map(m=>`<div style="margin-bottom:6px;"><b>${escapeHtml(m.senderName)}</b> <span class="meta">${fmtDateTime(m.createdAt)}</span><br>${escapeHtml(m.text)}</div>`).join('') : '<div class="empty"><p>저장된 대화 기록이 없습니다.</p></div>'}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-action="download-crime-suspicion-log" data-id="${escapeHtml(report.id)}" ${msgs.length?'':'disabled'}>대화 전문 다운로드 (.txt)</button>
+    </div>`;
+}
+async function downloadCrimeSuspicionLog(reportId){
+  const report = ((state.chatReports&&state.chatReports.list)||[]).find(r=>r.id===reportId);
+  const msgs = (report && report.fullMessages) || [];
+  if(!msgs.length){ toast('내려받을 대화가 없어요'); return; }
+  const lines = msgs.map(m=>`[${fmtDateTime(m.createdAt)}] ${m.senderName}: ${m.text}`);
+  const content = lines.join('\n');
+  const filename = `chatlog_${(report.reporterName||'')}_${(report.targetName||'')}.txt`;
+
+  // downloadCSV와 같은 이유: 안드로이드 앱(WebView) 안에서는 <a download> 클릭이 무시된다.
+  // 네이티브에서는 Filesystem으로 기기에 실제 파일을 쓰고 Share 시트로 저장/공유하게 한다.
+  if(isNativePlatformNow() && typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.Filesystem){
+    try{
+      const FS = Capacitor.Plugins.Filesystem;
+      await FS.writeFile({ path: filename, data: content, directory: 'CACHE', encoding: 'utf8' });
+      const { uri } = await FS.getUri({ path: filename, directory: 'CACHE' });
+      if(Capacitor.Plugins.Share){
+        await Capacitor.Plugins.Share.share({ title: filename, url: uri, dialogTitle: '대화 전문 저장/공유' });
+      } else {
+        toast('파일을 저장했어요 (기기 저장소)');
+      }
+    }catch(e){
+      console.error('[downloadCrimeSuspicionLog] 네이티브 저장 실패', e);
+      toast('저장에 실패했습니다 (' + ((e && e.message) || '알 수 없음') + ')');
+    }
+    return;
+  }
+
+  const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
 
 /* ===== 가입 승인 대기함 (국장 이상) =====
@@ -8150,9 +8901,11 @@ function usersListPanel(){
               <div style="display:flex; align-items:center; gap:6px;">
                 <b>${escapeHtml(u.name)}</b>
                 <span class="tag ${roleLevel(u.role)>=1?'tag-crimson':'tag-blue'}" style="font-size:9px; padding:1px 6px;">${publicRoleLabel(u.role)}</span>
+                ${u.withdrawn ? `<span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">1년+ 미접속(잠김)</span>` : (u.dormant ? `<span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">6개월+ 휴면</span>` : '')}
               </div>
               <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
             </div>
+            ${u.withdrawn && isPresident() ? `<button type="button" class="btn btn-ghost btn-sm" data-action="reactivate-user" data-uid="${escapeHtml(u.uid||'')}" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">잠금 해제</button>` : ''}
             <button type="button" class="btn btn-ghost btn-sm" data-action="open-assign-role" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" data-role="${escapeHtml(u.role)}" style="width:auto; max-width:110px; padding:6px 8px; font-size:11.5px; white-space:nowrap; display:flex; align-items:center; gap:3px;">${roleLabel(u.role)} ${ICON.chevDown}</button>
             ${(state.user && u.studentId!==state.user.studentId) ? `<button class="btn btn-danger btn-sm" data-action="kick-member" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">탈퇴</button>` : ''}
           </div>
@@ -8341,6 +9094,7 @@ function toast(msg){
 /* ===== 따봉 토글 핸들러 ===== */
 async function handleToggleLike(type, id){
   if(!state.user){ toast('로그인이 필요합니다'); return; }
+  if(blockIfSuspended()) return;
   const sid = state.user.studentId;
   const uName = state.user.name;
 
@@ -8687,6 +9441,9 @@ document.addEventListener('submit', async (e)=>{
     'roster-form': handleRosterSubmit,
     'gemini-keys-form': handleGeminiKeysSubmit,
     'report-friend-chat-form': handleReportFriendChatSubmit,
+    'suspend-user-form': handleSuspendUserSubmit,
+    'council-chat-notice-form': handleCouncilChatNoticeSubmit,
+    'report-cohort-chat-form': handleReportCohortChatSubmit,
     'nickname-form': handleNicknameSubmit,
   };
   const fn = HANDLERS[formId];
@@ -8712,6 +9469,7 @@ function mapAuthError(err){
   if(c==='auth/weak-password') return '비밀번호는 6자 이상이어야 합니다.';
   if(c==='auth/invalid-email') return '학번을 다시 확인해주세요.';
   if(c==='auth/too-many-requests') return '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
+  if(c==='auth/user-disabled') return '1년 이상 미접속으로 계정이 잠겼습니다. 정보는 그대로 남아있어요 — 다시 쓰시려면 학생회에 문의해주세요.';
   return '오류가 발생했습니다: ' + (c || (err && err.message) || '알 수 없음');
 }
 
@@ -9542,6 +10300,25 @@ async function handleKickMemberSubmit(fd){
   }
 }
 
+// 1년 이상 미접속으로 자동 잠긴(withdrawn) 계정을 다시 풀어준다. 클라이언트는 Firebase Auth
+// 계정을 남 대신 못 풀어서(Admin SDK 전용), pendingAuthDeletes와 같은 방식으로 대기열에
+// 넣어두면 서버(notify 크론)가 몇 분 안에 대신 처리한다. 정보는 애초에 안 지웠으니 그대로 남는다.
+async function reactivateUser(uid, sid, name){
+  if(!isPresident()){ toast('학생회장만 할 수 있어요'); return; }
+  if(!uid){ toast('대상을 찾을 수 없어요'); return; }
+  if(!await showConfirm(`${name||sid}님의 계정 잠금을 해제할까요?`, {danger:false, okLabel:'해제 신청'})) return;
+  try{
+    await mutateSharedList('pendingAuthReactivations', 'list', (list)=>[
+      ...list.filter(x=>x && x.uid !== uid),
+      { uid, studentId: sid, name: name||'', ts: now() },
+    ].slice(-200));
+    toast('잠금 해제를 신청했어요. 몇 분 안에 반영돼요.');
+  }catch(e){
+    console.error('[reactivateUser]', e);
+    toast('신청에 실패했어요');
+  }
+}
+
 async function handleDeleteAccountSubmit(fd){
   const password = fd.get('password');
   if(!password){ toast('비밀번호를 입력해주세요'); return; }
@@ -9964,6 +10741,17 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'decline-friend-request'){ await declineFriendRequest(el.dataset.pair); }
     else if(a === 'open-friend-detail'){ openFriendDetail(el.dataset.uid, el.dataset.name, el.dataset.pair); }
     else if(a === 'open-council-chat'){ await openCouncilChat(); }
+    else if(a === 'open-council-chat-notice-edit'){ if(isCouncil()) openModal(councilChatNoticeModal()); }
+    else if(a === 'clear-council-chat-notice'){ await clearCouncilChatNotice(); }
+    else if(a === 'open-cohort-chat'){ await openCohortChat(el.dataset.year); }
+    else if(a === 'open-cohort-chat-picker'){ if(isVicePlus()) openModal(cohortChatPickerModal()); }
+    else if(a === 'open-cohort-members'){ openModal(cohortMembersModal(el.dataset.year, await loadCohortMembers(el.dataset.year))); }
+    else if(a === 'reactivate-user'){ await reactivateUser(el.dataset.uid, el.dataset.sid, el.dataset.name); }
+    else if(a === 'toggle-cohort-chat-notify'){ await toggleCohortChatNotify(); }
+    else if(a === 'clear-cohort-chat'){ await clearCohortChat(); }
+    else if(a === 'delete-cohort-chat-all'){ await deleteAllCohortChatMessages(); }
+    else if(a === 'delete-cohort-message'){ await deleteCohortMessage(el.dataset.year, el.dataset.mid); }
+    else if(a === 'report-cohort-message'){ openModal(reportCohortMessageModal(el.dataset.year, el.dataset.uid, el.dataset.name)); }
     else if(a === 'add-friend-from-council'){ await sendFriendRequestFromCouncil(el.dataset.uid, el.dataset.sid, el.dataset.name); }
     else if(a === 'clear-council-chat'){ await clearCouncilChat(); }
     else if(a === 'delete-council-chat-all'){ await deleteAllCouncilChatMessages(); }
@@ -9993,6 +10781,15 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'reject-signup-inquiry'){ await rejectSignupInquiry(el.dataset.uid); }
     else if(a === 'toggle-chat-report-status'){ await toggleChatReportStatus(el.dataset.id); }
     else if(a === 'delete-chat-report'){ await deleteChatReport(el.dataset.id); }
+    else if(a === 'open-suspend-user'){ openModal(suspendActionModal(el.dataset.uid, el.dataset.name, el.dataset.report||'')); setupSuspendActionModalListeners(); }
+    else if(a === 'lift-suspension'){ await liftSuspension(el.dataset.uid, el.dataset.name); }
+    else if(a === 'delete-warning'){ await deleteWarning(el.dataset.uid, el.dataset.name, el.dataset.wid); }
+    else if(a === 'open-suspension-list'){ openModal(suspensionListModal(await loadDisciplineList())); }
+    else if(a === 'open-crime-suspicion'){
+      const r = ((state.chatReports&&state.chatReports.list)||[]).find(x=>x.id===el.dataset.id);
+      if(r) openModal(crimeSuspicionModal(r));
+    }
+    else if(a === 'download-crime-suspicion-log'){ await downloadCrimeSuspicionLog(el.dataset.id); }
     else if(a === 'purge-tombstones'){
       if(!await showConfirm('삭제된 지 24시간 지난 게시물을 지금 완전히 지울까요?\n(어차피 서버에서 약 5분마다 자동으로도 정리돼요)', { danger:false, okLabel:'정리하기' })) return;
       const removed = await purgeOldTombstonesNow();
@@ -10241,7 +11038,9 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a==='toggle-widget-calendar-official'){ setWidgetSetting('calendarWide', { calendarShowOfficial: !getWidgetSettings('calendarWide').calendarShowOfficial }); renderMain(); }
     else if(a==='toggle-widget-calendar-council'){ setWidgetSetting('calendarWide', { calendarShowCouncil: !getWidgetSettings('calendarWide').calendarShowCouncil }); renderMain(); }
-    else if(a==='toggle-widget-week-fullday'){ setWidgetSetting('week', { weekShowFullDay: !getWidgetSettings('week').weekShowFullDay }); renderMain(); }
+    else if(a==='toggle-widget-week-time'){ setWidgetSetting('week', { weekShowTime: !getWidgetSettings('week').weekShowTime }); renderMain(); }
+    else if(a==='toggle-widget-meal-jinri'){ setWidgetSetting('meal', { mealShowJinri: !getWidgetSettings('meal').mealShowJinri }); renderMain(); }
+    else if(a==='toggle-widget-meal-mirae'){ setWidgetSetting('meal', { mealShowMirae: !getWidgetSettings('meal').mealShowMirae }); renderMain(); }
     else if(a==='toggle-widget-week-room'){ setWidgetSetting('week', { weekShowRoom: !getWidgetSettings('week').weekShowRoom }); renderMain(); }
     else if(a==='open-primary-timetable'){ openModal(primaryTimetableModal()); }
     else if(a==='pick-primary-variant'){

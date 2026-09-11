@@ -42,6 +42,11 @@ public class TimetableWidget extends BaseWidget {
     }
 
     @Override
+    protected String deepLinkTarget() {
+        return "timetable";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         views.setTextViewText(R.id.widget_date, data.optString("todayLabel", ""));
         theme.sub(views, R.id.widget_date);

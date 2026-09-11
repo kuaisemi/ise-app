@@ -28,6 +28,11 @@ public class NextClassWidget extends BaseWidget {
     }
 
     @Override
+    protected String deepLinkTarget() {
+        return "timetable";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         theme.accent(views, R.id.next_label);
         theme.body(views, R.id.next_subject);

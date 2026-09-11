@@ -32,6 +32,11 @@ public class ScheduleWidget extends BaseWidget {
     }
 
     @Override
+    protected String deepLinkTarget() {
+        return "schedule";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         theme.sub(views, R.id.ev_empty);
         theme.accent(views, R.id.memo_label);

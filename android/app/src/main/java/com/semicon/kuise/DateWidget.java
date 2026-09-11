@@ -26,6 +26,11 @@ public class DateWidget extends BaseWidget {
     }
 
     @Override
+    protected String deepLinkTarget() {
+        return "examCal";
+    }
+
+    @Override
     protected void render(Context ctx, RemoteViews views, JSONObject data, WidgetTheme theme) {
         views.setTextViewText(R.id.date_weekday, data.optString("todayWeekday", "") + "요일");
         views.setTextViewText(R.id.date_day, data.optString("todayDay", ""));

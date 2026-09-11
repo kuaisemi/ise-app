@@ -6,6 +6,7 @@
 //   1) 새 공지          → 감지 즉시
 //   2) 새 투표 시작      → 감지 즉시
 //   3) 진행 중인 투표    → 매일 20:00 KST 한 번
+//   3.5) 새 버전 안내    → 매일 12:00 KST, 구버전 쓰는 사람에게 그 버전 기준 딱 한 번만
 //   4) 투표 마감 30분 전 → 투표당 한 번
 //   5) 식단             → 조식 07:00 / 중식 10:30 / 석식 16:30 KST
 //   6) 새 버그 제보      → 감지 즉시 (개발자·학생회장 전용)
@@ -13,6 +14,7 @@
 //   7) 건의사항 답변     → 감지 즉시 (작성자 본인 전용)
 //   8) 친구 채팅         → 감지 즉시 (채팅 알림을 켠 수신자 전용)
 //   8.5) 학생회 단체 채팅 → 감지 즉시 (학생회 채팅 알림을 켠 학생회 구성원 전용)
+//   8.55) 학번별 채팅     → 감지 즉시 (그 학번 채팅 알림을 켠 같은 학번 전용, 기본 꺼짐)
 //   8.7) 친구 요청 도착 / 친구 수락 → 감지 즉시 (알림 설정과 무관하게 항상)
 //
 // 필요한 비밀값: 저장소 Settings → Secrets and variables → Actions에
@@ -133,6 +135,39 @@ async function purgePendingAuthDeletes() {
   console.log(`[authPurge] ${removed}건 삭제, ${remaining.length}건 남음`);
 }
 
+// 1년 이상 미접속으로 자동 잠금(disabled)된 계정을 학생회장이 다시 풀어주는 큐.
+// 클라이언트는 Admin SDK 권한이 없어 계정 잠금을 직접 못 풀어서, pendingAuthDeletes와
+// 같은 방식으로 여기 쌓아두면 이 크론이 대신 처리한다. 정보(프로필·시간표 등)는
+// 애초에 지운 적이 없으니 그대로 두고 잠금 상태와 withdrawn 표시만 되돌린다.
+async function processPendingAuthReactivations() {
+  const ref = db.collection('shared').doc('pendingAuthReactivations');
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  const list = Array.isArray(snap.data().list) ? snap.data().list : [];
+  if (!list.length) return;
+
+  const remaining = [];
+  let done = 0;
+  for (const entry of list) {
+    const uid = typeof entry === 'string' ? entry : entry && entry.uid;
+    if (!uid) continue;
+    try {
+      await getAuth().updateUser(uid, { disabled: false });
+      await db.collection('users').doc(uid).set(
+        { withdrawn: false, dormant: false, reactivatedAt: Date.now() },
+        { merge: true }
+      );
+      done++;
+      console.log('[authReactivate] 잠금 해제', uid, (entry && entry.studentId) || '');
+    } catch (e) {
+      remaining.push(entry);
+      console.error('[authReactivate] 실패', uid, (e && e.code) || e);
+    }
+  }
+  await ref.set({ list: remaining }, { merge: true });
+  console.log(`[authReactivate] ${done}건 해제, ${remaining.length}건 남음`);
+}
+
 // 가입 중 프로필(users/{uid}) 저장이 실패하면(네트워크 끊김 등) 로그인 계정만 남아
 // 그 학번으로 다시는 가입할 수 없는 유령 계정이 된다. 클라이언트가 실패 시 즉시
 // 되돌리도록 고쳤지만(2026-09-08), 그 전에 이미 생긴 것과 향후 놓치는 경우를 대비해
@@ -168,6 +203,45 @@ async function purgeGhostAuthAccounts(authUsers) {
     }
   }
   if (removed) console.log(`[ghostPurge] 프로필 없는 계정 ${removed}건 삭제`);
+}
+
+// 6개월 이상 미접속 → 휴면 표시만(dormant). 1년 이상 미접속 → 로그인 계정을 잠그되(disabled),
+// "탈퇴"(kick-member)와 달리 users 문서·시간표·게시물 등 정보는 전혀 지우지 않고 그대로 둔다.
+// lastSeen이 아예 없는(한 번도 안 남은) 계정은 판단 기준이 없어 건드리지 않는다.
+const DORMANT_MS = 180 * 24 * 60 * 60 * 1000;
+const AUTO_WITHDRAW_MS = 365 * 24 * 60 * 60 * 1000;
+async function processInactiveAccounts(usersSnap) {
+  const nowTs = Date.now();
+  let dormantCount = 0;
+  let withdrawnCount = 0;
+  for (const docSnap of usersSnap.docs) {
+    const u = docSnap.data();
+    const uid = docSnap.id;
+    if (!u.lastSeen || u.withdrawn) continue;
+    const inactiveMs = nowTs - u.lastSeen;
+    if (inactiveMs >= AUTO_WITHDRAW_MS) {
+      try {
+        await getAuth().updateUser(uid, { disabled: true });
+        await db.collection('users').doc(uid).set(
+          { withdrawn: true, withdrawnAt: nowTs, withdrawnReason: 'inactive_1y' },
+          { merge: true }
+        );
+        withdrawnCount++;
+        console.log('[autoWithdraw] 1년 이상 미접속, 계정 잠금(정보 유지):', uid);
+      } catch (e) {
+        console.warn('[autoWithdraw] 실패', uid, (e && e.code) || e);
+      }
+    } else if (inactiveMs >= DORMANT_MS && !u.dormant) {
+      try {
+        await db.collection('users').doc(uid).set({ dormant: true, dormantAt: nowTs }, { merge: true });
+        dormantCount++;
+      } catch (e) {
+        console.warn('[dormant] 실패', uid, (e && e.code) || e);
+      }
+    }
+  }
+  if (dormantCount) console.log(`[dormant] 6개월 이상 미접속 ${dormantCount}건 휴면 표시`);
+  if (withdrawnCount) console.log(`[autoWithdraw] 1년 이상 미접속 ${withdrawnCount}건 계정 잠금`);
 }
 
 // 예전에 계정이 지워졌는데(직접 탈퇴, 관리자 탈퇴, 유령 계정 정리 등) 그 uid로 만들어둔
@@ -272,8 +346,31 @@ async function purgeOldCouncilChatMessages() {
   console.log(`[councilChatPurge] 7일 지난 메시지 ${docs.length}건 삭제`);
 }
 
+// cohortChats/{yy} 부모 문서는 실제로 만든 적이 없어(메시지만 서브컬렉션에 addDoc으로 쌓임)
+// db.collection('cohortChats').get()으로는 하나도 안 잡힌다("유령 부모" — 필드값 없는 문서 경로는
+// 컬렉션 목록에 안 뜬다). 그래서 있을 법한 학번 범위를 직접 돌면서 확인한다.
+async function purgeOldCohortChatMessages() {
+  const cutoff = Date.now() - COUNCIL_CHAT_TTL_MS;
+  const d = kstNow();
+  const ay = d.getUTCMonth() >= 1 ? d.getUTCFullYear() : d.getUTCFullYear() - 1;
+  const latestY2 = ay % 100;
+  for (let y = 21; y <= latestY2; y++) {
+    const yy = String(y).padStart(2, '0');
+    const snap = await db.collection('cohortChats').doc(yy).collection('messages').where('createdAt', '<', cutoff).get();
+    if (snap.empty) continue;
+    const batchSize = 400;
+    const docs = snap.docs;
+    for (let i = 0; i < docs.length; i += batchSize) {
+      const batch = db.batch();
+      docs.slice(i, i + batchSize).forEach((dd) => batch.delete(dd.ref));
+      await batch.commit();
+    }
+    console.log(`[cohortChatPurge] ${yy}학번 7일 지난 메시지 ${docs.length}건 삭제`);
+  }
+}
+
 async function main() {
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap, friendLinksSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap, friendLinksSnap, councilChatNoticeSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
@@ -283,6 +380,7 @@ async function main() {
     db.collection('shared').doc('notifyState').get(),
     db.collection('users').get(),
     db.collection('friendLinks').get(),
+    db.collection('shared').doc('councilChatNotice').get(),
   ]);
   // pairId -> { uid: true } — 그 사람이 이 채팅만 콕 집어 알림을 꺼둔 경우.
   const mutedByPair = new Map();
@@ -517,6 +615,47 @@ async function main() {
       await sendToTokens(tokens, '아직 참여하지 않은 투표가 있어요', `제목: ${p.question}`, 'poll');
     }
     nextState.lastPollReminderDate = today;
+  }
+
+  // 3.5) 새 버전 안내 — 매일 낮 12시에 한 번, GitHub 최신 릴리즈보다 낮은 버전을 쓰는 사람에게만
+  //      "새 버전이 있어요"를 보낸다. 앱을 켤 때마다 서버에 물어보면 로딩이 느려져 보여서
+  //      자동 확인 자체를 뺐었는데(그럼 업데이트가 나온 줄 아예 모르게 됨), 그 대신 이 크론이
+  //      하루에 한 번만 물어보고 필요한 사람에게만 푸시로 알려준다. 같은 버전으로는 한 사람당
+  //      딱 한 번만 보내고, 업데이트를 안 해도 다음날 또 조르지 않는다(다음 버전이 나와야 재발송).
+  if (isDue(12, 0)) {
+    try {
+      const res = await fetch('https://api.github.com/repos/kuaisemi/ise-app/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        const m = String(j.tag_name || '').match(/(\d+)/);
+        const latestVersion = m ? parseInt(m[1], 10) : 0;
+        if (latestVersion > 0) {
+          const notifiedUids = new Set(
+            st.notifiedUpdateVersion === latestVersion ? st.notifiedUpdateUids || [] : []
+          );
+          let sentThisRun = 0;
+          for (const docSnap of usersSnap.docs) {
+            const u = docSnap.data();
+            const uid = docSnap.id;
+            if (!u.androidVersionCode || u.androidVersionCode >= latestVersion) continue;
+            if (notifiedUids.has(uid)) continue;
+            const tokens = tokensByUid.get(uid) || [];
+            if (!tokens.length) continue;
+            await sendToTokens(tokens, '새로운 버전이 있어요', '업데이트하면 최신 기능과 버그 수정을 받을 수 있어요', 'update');
+            notifiedUids.add(uid);
+            sentThisRun++;
+          }
+          if (sentThisRun) console.log(`[updateNotify] v${latestVersion} 안내 ${sentThisRun}명에게 발송`);
+          nextState.notifiedUpdateVersion = latestVersion;
+          nextState.notifiedUpdateUids = [...notifiedUids];
+        }
+      }
+    } catch (e) {
+      console.warn('[updateNotify] 실패', e && e.message);
+    }
   }
 
   // 4) 투표 마감 30분 전 (투표당 한 번) — 이미 참여한 사람은 종료 임박 알림을 받을 필요가 없다.
@@ -826,6 +965,100 @@ async function main() {
   }
   nextState.lastCouncilChatCheck = councilChatRunStartedAt;
 
+  // 8.55) 학번별 채팅 — 방이 학번마다 따로 있어서 마지막 확인 시각도 학번별로 따로 추적한다.
+  //       보낸 사람 본인 제외, 그 학번 채팅 알림을 켠(기본 꺼짐) 같은 학번 사람에게만 보낸다.
+  function admissionYear2KST() {
+    const d = kstNow();
+    const y = d.getUTCFullYear();
+    const ay = d.getUTCMonth() >= 1 ? y : y - 1; // getUTCMonth(): 0=1월
+    return ay % 100;
+  }
+  const cohortOkUidsByYear = new Map(); // yy -> Set(uid)
+  usersSnap.forEach((docSnap) => {
+    const u = docSnap.data();
+    const prefs = u.notifyPrefs || {};
+    if (prefs.cohortChat && u.cohortYear) {
+      if (!cohortOkUidsByYear.has(u.cohortYear)) cohortOkUidsByYear.set(u.cohortYear, new Set());
+      cohortOkUidsByYear.get(u.cohortYear).add(docSnap.id);
+    }
+  });
+  const prevCohortChatCheck = st.lastCohortChatCheck || {};
+  const nextCohortChatCheck = { ...prevCohortChatCheck };
+  const latestY2 = admissionYear2KST();
+  for (let y = 21; y <= latestY2; y++) {
+    const yy = String(y).padStart(2, '0');
+    const okUids = cohortOkUidsByYear.get(yy);
+    if (!okUids || !okUids.size) continue;
+    const lastCheck = prevCohortChatCheck[yy] || Date.now() - 15 * 60 * 1000;
+    const runStartedAt = Date.now();
+    const newMsgsSnap = await db
+      .collection('cohortChats')
+      .doc(yy)
+      .collection('messages')
+      .where('createdAt', '>', lastCheck)
+      .get();
+    if (!newMsgsSnap.empty) {
+      for (const d of newMsgsSnap.docs) {
+        const m = d.data();
+        for (const recipientUid of okUids) {
+          if (recipientUid === m.senderUid) continue;
+          const allTokens = tokensByUid.get(recipientUid) || [];
+          const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+          if (!tokens.length) continue;
+          const res = await messaging.sendEachForMulticast({
+            tokens,
+            notification: {
+              title: `${m.senderName || yy + '학번'}님의 ${yy}학번 채팅`,
+              body: String(m.text || '').slice(0, 80),
+            },
+            data: { url: './index.html' },
+          });
+          res.responses.forEach((resp, idx) => {
+            if (resp.success) return;
+            const code = resp.error && resp.error.code;
+            if (
+              code === 'messaging/invalid-registration-token' ||
+              code === 'messaging/registration-token-not-registered'
+            ) {
+              invalidTokens.add(tokens[idx]);
+            }
+          });
+          sentCount++;
+        }
+      }
+      console.log(`[cohortChatNotify] ${yy}학번 새 메시지 ${newMsgsSnap.size}건 확인, 알림 발송 시도`);
+    }
+    nextCohortChatCheck[yy] = runStartedAt;
+  }
+  nextState.lastCohortChatCheck = nextCohortChatCheck;
+
+  // 8.6) 학생회 채팅 상단 고정 공지(카톡 채팅방 공지 같은 것) — 새로 쓰이거나 바뀌었을 때만,
+  //      학생회 채팅 알림을 켠 사람에게 "새로운 공지가 있어요"를 보낸다. 지운(text 빈) 것은 안 보낸다.
+  const councilNotice = councilChatNoticeSnap.exists ? councilChatNoticeSnap.data() : null;
+  if (councilNotice && councilNotice.text && councilNotice.updatedAt > (st.lastCouncilChatNoticeAt || 0)) {
+    console.log('학생회 채팅 공지 알림:', councilNotice.text);
+    for (const recipientUid of councilChatOkUids) {
+      if (recipientUid === councilNotice.updatedBy) continue;
+      const allTokens = tokensByUid.get(recipientUid) || [];
+      const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
+      if (!tokens.length) continue;
+      const res = await messaging.sendEachForMulticast({
+        tokens,
+        notification: { title: '새로운 공지가 있어요', body: `학생회 채팅: ${String(councilNotice.text).slice(0, 80)}` },
+        data: { url: './index.html' },
+      });
+      res.responses.forEach((resp, idx) => {
+        if (resp.success) return;
+        const code = resp.error && resp.error.code;
+        if (code === 'messaging/invalid-registration-token' || code === 'messaging/registration-token-not-registered') {
+          invalidTokens.add(tokens[idx]);
+        }
+      });
+      sentCount++;
+    }
+  }
+  nextState.lastCouncilChatNoticeAt = (councilNotice && councilNotice.updatedAt) || st.lastCouncilChatNoticeAt || 0;
+
   if (!sentCount) {
     console.log('보낼 알림 없음 — 종료');
   }
@@ -850,11 +1083,14 @@ async function main() {
 
   await purgeOldTombstones();
   await purgePendingAuthDeletes();
+  await processPendingAuthReactivations();
   const authUsers = await listAllAuthUsers();
   await purgeGhostAuthAccounts(authUsers);
   await purgeOrphanedDirectoryAndFriendLinks(authUsers);
   await purgeOldChatMessages();
   await purgeOldCouncilChatMessages();
+  await purgeOldCohortChatMessages();
+  await processInactiveAccounts(usersSnap);
 
   // 만료/무효 토큰 정리 — 배열에서 해당 토큰만 빼고, 단일 필드는 그 토큰일 때만 지운다.
   if (invalidTokens.size) {
