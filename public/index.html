@@ -759,9 +759,10 @@ const APP = document.getElementById('app');
 const APP_VERSION = 'Beta 0.2.6';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 163;
+const ANDROID_VERSION_CODE = 164;
 const PATCH_NOTES = [
   { version:'Beta 0.2.7', date:'2026-09-14', items:[
+    '건의사항 삭제·답변·작성이 서로 거의 동시에 일어나면 나중에 저장되는 쪽이 앞의 변경을 통째로 덮어써서, 방금 삭제한 글이 도로 살아나던 문제 수정(트랜잭션으로 안전하게 저장)',
     '업데이트 다운로드 링크가 실제 릴리즈 첨부파일 이름과 달라서 새 버전 다운로드 버튼이 항상 404로 뜨던 문제 수정',
     '경고·정지 시스템 추가 — 학생회 이상이 경고·정지를 줄 수 있고, 직급별 상한(학생회 2일·국장 7일·부회장 이상 영구), 경고는 대상당 최대 3회로 제한, 경고 삭제는 부회장 이상만',
     '학번별 단체 채팅 추가 — 가입 절차 없이 내 학번 방에 자동 입장, 부회장 이상은 다른 학번 방도 열람 가능, 학생 목록(가나다순) · 신고 기능 포함',
@@ -9943,8 +9944,7 @@ async function togglePin(id){
 async function handleSuggestionSubmit(fd){
   const content = (fd.get('content') || '').trim();
   if(!content){ toast('건의 내용을 입력해주세요'); return; }
-  const latest = await loadSuggestions();
-  const next = [{
+  const entry = {
     id: uid(),
     studentId: state.user.studentId,
     name: state.user.name,
@@ -9958,12 +9958,15 @@ async function handleSuggestionSubmit(fd){
     likes: {},
     createdAt: now(),
     updatedAt: now()
-  }, ...latest];
-  const ok = await saveSuggestions(next);
-  state.suggestions = next;
+  };
+  // 다른 사람이 거의 같은 순간에 삭제·답변을 저장하면, 그 저장 이후에 이 글만 얹어 다시
+  // 쓰지 않는 한 서로의 변경을 덮어써 버린다(예: 삭제 직후 되살아나는 문제) — 그래서 항상
+  // "지금 서버에 있는 최신 목록"을 트랜잭션으로 다시 읽어와서 그 위에 얹는다.
+  const next = await mutateSharedList('suggestions', 'list', (list)=>[entry, ...list]);
+  if(next) state.suggestions = next;
   closeModal();
   renderMain();
-  saveResultToast(ok, '건의사항이 접수되었습니다');
+  saveResultToast(!!next, '건의사항이 접수되었습니다');
 }
 
 // 답변 수정 중에 "이 답변 자체를 취소"할 때 쓴다 — 답변 내용을 지우고 다시 미답변 상태로 되돌린다
@@ -9997,23 +10000,24 @@ async function handleReplySubmit(fd){
   const btn = document.querySelector('#reply-form button[type=submit]');
   if(btn) btn.disabled = true;
   try{
-    const latest = await loadSuggestions();
-    if(!latest.some(s => s.id === id)) return;
-    const next = latest.map(s => s.id === id ? {
-      ...s,
-      answer,
-      isPrivate,
-      status: '답변완료',
-      answerDate: todayStr(),
-      answeredBy: state.user.name,
-      answeredRole: myRole(),
-      updatedAt: now()
-    } : s);
-    const ok = await saveSuggestions(next);
+    const next = await mutateSharedList('suggestions', 'list', (list)=>{
+      if(!list.some(s => s.id === id)) return null;
+      return list.map(s => s.id === id ? {
+        ...s,
+        answer,
+        isPrivate,
+        status: '답변완료',
+        answerDate: todayStr(),
+        answeredBy: state.user.name,
+        answeredRole: myRole(),
+        updatedAt: now()
+      } : s);
+    });
+    if(!next) return;
     state.suggestions = next;
     closeModal();
     renderMain();
-    saveResultToast(ok, '답변이 등록되었습니다');
+    saveResultToast(true, '답변이 등록되었습니다');
   } finally {
     if(btn) btn.disabled = false;
   }
@@ -10025,11 +10029,15 @@ async function deleteSuggestion(id){
   if(!target) return;
   if(!isCouncil() && target.studentId !== state.user.studentId) return;
   if(!await showConfirm('이 건의사항을 삭제할까요?')) return;
-  const next = latest.map(x => x.id === id ? { ...x, deleted: true, updatedAt: now() } : x);
-  const ok = await saveSuggestions(next);
-  state.suggestions = next;
+  // 트랜잭션으로 다시 최신 목록을 읽어와서 지운다 — 그 사이 누가 답변을 남기는 등 다른
+  // 저장을 했어도 그 변경을 덮어쓰지 않고 그 위에 삭제 표시만 얹는다(삭제가 도로 살아나는
+  // 문제 방지).
+  const next = await mutateSharedList('suggestions', 'list', (list)=>
+    list.map(x => x.id === id ? { ...x, deleted: true, updatedAt: now() } : x)
+  );
+  if(next) state.suggestions = next;
   renderMain();
-  saveResultToast(ok, '삭제되었습니다');
+  saveResultToast(!!next, '삭제되었습니다');
   logAudit('삭제', '건의사항', target.title || target.content);
 }
 
