@@ -759,9 +759,10 @@ const APP = document.getElementById('app');
 const APP_VERSION = 'Beta 0.2.7';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 164;
+const ANDROID_VERSION_CODE = 165;
 const PATCH_NOTES = [
   { version:'Beta 0.2.7', date:'2026-09-14', items:[
+    '로그인 직후 공지·건의사항·학사일정 등을 한꺼번에 불러올 때 일부가 조용히 실패해서 "새로고침을 눌러야만" 내용이 뜨던 문제 완화 (실패하면 짧게 한 번 더 시도), 학사일정 탭에 학생도 쓸 수 있는 새로고침 버튼 추가',
     '건의사항 삭제·답변·작성이 서로 거의 동시에 일어나면 나중에 저장되는 쪽이 앞의 변경을 통째로 덮어써서, 방금 삭제한 글이 도로 살아나던 문제 수정(트랜잭션으로 안전하게 저장)',
     '업데이트 다운로드 링크가 실제 릴리즈 첨부파일 이름과 달라서 새 버전 다운로드 버튼이 항상 404로 뜨던 문제 수정',
     { text:'경고·정지 시스템 추가 — 학생회 이상이 경고·정지를 줄 수 있고, 직급별 상한(학생회 2일·국장 7일·부회장 이상 영구), 경고는 대상당 최대 3회로 제한, 경고 삭제는 부회장 이상만', admin:true },
@@ -1592,18 +1593,29 @@ function mergeLists(remote, local){
 
 async function loadShared(name, fallback){
   const localVal = localGet('shared_'+name, fallback);
-  try{
-    const snap = await getDoc(doc(db,'shared',name));
-    if(snap && snap.exists()){
-      const remote = snap.data();
-      let merged = remote;
-      if(remote && Array.isArray(remote.list)) merged = { list: mergeLists(remote.list, (localVal&&localVal.list)||[]) };
-      else if(remote && Array.isArray(remote.events)) merged = { events: mergeLists(remote.events, (localVal&&localVal.events)||[]) };
-      else if(remote && remote.byDate) merged = { byDate: { ...(localVal&&localVal.byDate||{}), ...remote.byDate } };
-      localSet('shared_'+name, merged);
-      return merged;
+  // 로그인 직후(onAuthStateChanged 콜백 안에서) 여러 shared/* 문서를 한꺼번에 Promise.all로
+  // 불러오면, 인증 토큰이 아직 Firestore SDK에 완전히 붙기 전이라 이 중 일부가 조용히
+  // permission-denied로 실패하는 경우가 있었다(같은 계정으로 새로고침 버튼을 눌러 다시
+  // 부르면 그때는 성공 — 딱 그 타이밍 차이). 실패해도 곧바로 캐시로 눙치지 말고, 아주 짧게
+  // 한 번 더 시도해서 그 경합을 흡수한다.
+  for(let attempt=0; attempt<2; attempt++){
+    try{
+      const snap = await getDoc(doc(db,'shared',name));
+      if(snap && snap.exists()){
+        const remote = snap.data();
+        let merged = remote;
+        if(remote && Array.isArray(remote.list)) merged = { list: mergeLists(remote.list, (localVal&&localVal.list)||[]) };
+        else if(remote && Array.isArray(remote.events)) merged = { events: mergeLists(remote.events, (localVal&&localVal.events)||[]) };
+        else if(remote && remote.byDate) merged = { byDate: { ...(localVal&&localVal.byDate||{}), ...remote.byDate } };
+        localSet('shared_'+name, merged);
+        return merged;
+      }
+      break; // 문서가 진짜 없는 것뿐이면(exists()===false) 재시도해도 의미 없다
+    }catch(e){
+      console.warn('[load]', name, e && e.code, attempt===0?'(재시도)':'(포기)');
+      if(attempt===0) await new Promise(r=>setTimeout(r, 700));
     }
-  }catch(e){ console.warn('[load]', name, e && e.code); }
+  }
   return localVal;
 }
 
@@ -4669,6 +4681,10 @@ function renderCalendarTab(){
       <span class="meal-date">${fmtMonthLabel(state.calendarMonth)}</span>
       <button data-action="cal-month-next">${ICON.chevR}</button>
     </div>
+    ${!council ? `
+    <div style="display:flex; justify-content:flex-end; margin-bottom:4px;">
+      <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-calendar-tab" style="width:auto; padding:4px 10px; font-size:10.5px;">${ICON.refresh} 새로고침</button>
+    </div>` : ''}
     ${council ? `
     <div style="display:flex; gap:8px; margin-bottom:8px;">
       <button class="btn btn-primary btn-sm" data-action="add-event" style="flex:1;">${ICON.plus} 학사일정 추가</button>
@@ -11002,6 +11018,13 @@ document.addEventListener('click', async (e)=>{
     else if(a==='delete-all-calendar'){ await deleteAllCalendarEvents(); }
     else if(a==='ocr-calendar'){ openModal(calendarOcrModal()); setupCalendarOcrModalListeners(); }
     else if(a==='open-official-schedule'){ openModal(officialScheduleModal()); setupOfficialScheduleModalListeners(); }
+    else if(a==='refresh-calendar-tab'){
+      try{
+        state.calendar = await loadCalendar();
+        renderMain();
+        toast('새로고침했어요');
+      }catch(e){ toast('새로고침에 실패했어요'); }
+    }
     else if(a==='add-student-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, false)); }
     else if(a==='add-council-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, true)); }
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
