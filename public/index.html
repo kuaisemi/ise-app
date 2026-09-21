@@ -756,13 +756,18 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.2.7';
+const APP_VERSION = 'Beta 0.2.8';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 165;
+const ANDROID_VERSION_CODE = 166;
 const PATCH_NOTES = [
+  { version:'Beta 0.2.8', date:'2026-09-21', items:[
+    '셔틀버스 시간표에서 "08:45(2대 운행)"처럼 괄호가 붙은 회차는 다음 출발이어도 빨갛게 강조되지 않던 문제 수정',
+    '홈 화면에서 진행 중인 투표가 하나도 없고 종료된 투표만 있을 때도 "진행 중인 투표 0개 · 모두 참여하셨습니다"가 뜨던 문제 수정 (이제 진행 중인 투표가 없으면 설정과 상관없이 표시하지 않아요)',
+    { text:'학사일정 "전체 삭제"를 국장 이상만 쓸 수 있게 하고, 삭제할 때 "학사일정 삭제 / 학생회 일정 삭제" 중 무엇을 지울지 고르도록 변경 (개인 시험 일정은 그대로 유지)', admin:true },
+  ]},
   { version:'Beta 0.2.7', date:'2026-09-14', items:[
-    '로그인 직후 공지·건의사항·학사일정 등을 한꺼번에 불러올 때 일부가 조용히 실패해서 "새로고침을 눌러야만" 내용이 뜨던 문제 완화 (실패하면 짧게 한 번 더 시도), 학사일정 탭에 학생도 쓸 수 있는 새로고침 버튼 추가',
+    '로그인 직후 공지·건의사항·학사일정 등을 한꺼번에 불러올 때 일부가 조용히 실패해서 "새로고침을 눌러야만" 내용이 뜨던 문제 완화 (실패하면 짧게 한 번 더 시도)',
     '건의사항 삭제·답변·작성이 서로 거의 동시에 일어나면 나중에 저장되는 쪽이 앞의 변경을 통째로 덮어써서, 방금 삭제한 글이 도로 살아나던 문제 수정(트랜잭션으로 안전하게 저장)',
     '업데이트 다운로드 링크가 실제 릴리즈 첨부파일 이름과 달라서 새 버전 다운로드 버튼이 항상 404로 뜨던 문제 수정',
     { text:'경고·정지 시스템 추가 — 학생회 이상이 경고·정지를 줄 수 있고, 직급별 상한(학생회 2일·국장 7일·부회장 이상 영구), 경고는 대상당 최대 3회로 제한, 경고 삭제는 부회장 이상만', admin:true },
@@ -3812,7 +3817,8 @@ function renderHome(){
     return true;
   }).sort((a,b)=>pollDeadlineSortValue(a)-pollDeadlineSortValue(b));
   
-  const unvoted = activePolls.filter(p=>!isPollEnded(p) && !hasUserVoted(p));
+  const openPolls = activePolls.filter(p=>!isPollEnded(p));
+  const unvoted = openPolls.filter(p=>!hasUserVoted(p));
 
   const hp = getHomePrefs();
 
@@ -3914,8 +3920,8 @@ function renderHome(){
       <p class="greet-sub">${di>=0 ? `오늘은 ${DAYS[di]}요일, 수업 ${todays.length}개가 있어요` : '오늘은 주말이에요, 편안한 하루 보내세요'}</p>
     </div>
 
-    ${(activePolls.length && !(hp.hideVotedPolls && unvoted.length===0)) ? `
-    <div class="section-title">진행 중인 투표 <span class="count">총 ${activePolls.filter(p=>!isPollEnded(p)).length}개</span></div>
+    ${(openPolls.length && !(hp.hideVotedPolls && unvoted.length===0)) ? `
+    <div class="section-title">진행 중인 투표 <span class="count">총 ${openPolls.length}개</span></div>
     <div class="card" style="padding:10px 14px;">
       ${unvoted.length ? unvoted.map(p=>`
         <div class="list-item" data-action="go-poll-page" style="cursor:pointer; padding:8px 0;">
@@ -4659,14 +4665,49 @@ function renderDeptNoticeBox(){
 }
 
 /* ---------- 2026학년도 학사일정(안) 1년치 시딩 데이터 ---------- */
+// 학사일정(공식 포함) / 학생회 일정 중 무엇을 지울지 고르는 팝업. 취소하면 null.
+function chooseCalendarDeleteKind(){
+  return new Promise((resolve)=>{
+    const wrap=document.createElement('div');
+    wrap.className='confirm-overlay';
+    wrap.innerHTML=`
+      <div class="confirm-box">
+        <p class="confirm-msg">어떤 일정을 전부 삭제할까요?</p>
+        <div class="confirm-actions" style="flex-direction:column; gap:8px;">
+          <button type="button" class="btn btn-danger" data-act="academic">학사일정 삭제</button>
+          <button type="button" class="btn btn-danger" data-act="council">학생회 일정 삭제</button>
+          <button type="button" class="btn btn-ghost" data-act="cancel">취소</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    requestAnimationFrame(()=>wrap.classList.add('open'));
+    const cleanup=(result)=>{
+      wrap.classList.remove('open');
+      setTimeout(()=>wrap.remove(),160);
+      resolve(result);
+    };
+    wrap.addEventListener('click', e=>{
+      const act = e.target.dataset.act;
+      if(act==='academic' || act==='council') cleanup(act);
+      else if(act==='cancel' || e.target===wrap) cleanup(null);
+    });
+  });
+}
 async function deleteAllCalendarEvents(){
-  if(!await showConfirm('학사일정을 전부 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
+  if(!isDirectorPlus()){ toast('국장 이상 권한이 필요한 기능입니다'); return; }
+  const kind = await chooseCalendarDeleteKind();
+  if(!kind) return;
+  const label = kind==='council' ? '학생회 일정' : '학사일정';
+  if(!await showConfirm(`${label}을 전부 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
   const latest = await loadCalendar();
-  const next = latest.map(e => (e.category !== 'exam') ? { ...e, deleted: true, updatedAt: now() } : e);
+  // 개인 시험 일정(exam)은 어느 쪽에서도 건드리지 않는다. 학생회 일정은 category==='council',
+  // 학사일정은 그 외 나머지(공식 학사일정 포함).
+  const inScope = (e) => e.category !== 'exam' && ((e.category==='council') === (kind==='council'));
+  const next = latest.map(e => (!e.deleted && inScope(e)) ? { ...e, deleted: true, updatedAt: now() } : e);
   const ok = await saveCalendar(next);
   state.calendar = next;
   renderMain();
-  saveResultToast(ok, '학사일정이 모두 삭제되었습니다');
+  saveResultToast(ok, `${label}이 모두 삭제되었습니다`);
 }
 
 
@@ -4681,10 +4722,6 @@ function renderCalendarTab(){
       <span class="meal-date">${fmtMonthLabel(state.calendarMonth)}</span>
       <button data-action="cal-month-next">${ICON.chevR}</button>
     </div>
-    ${!council ? `
-    <div style="display:flex; justify-content:flex-end; margin-bottom:4px;">
-      <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-calendar-tab" style="width:auto; padding:4px 10px; font-size:10.5px;">${ICON.refresh} 새로고침</button>
-    </div>` : ''}
     ${council ? `
     <div style="display:flex; gap:8px; margin-bottom:8px;">
       <button class="btn btn-primary btn-sm" data-action="add-event" style="flex:1;">${ICON.plus} 학사일정 추가</button>
@@ -4692,7 +4729,7 @@ function renderCalendarTab(){
     </div>
     <div style="display:flex; gap:8px; margin-bottom:12px;">
       <button class="btn btn-ghost btn-sm" data-action="open-official-schedule" style="flex:1;">${ICON.globe} 공식 학사일정 새로고침</button>
-      <button class="btn btn-danger btn-sm" data-action="delete-all-calendar" style="flex:1;">전체 삭제</button>
+      ${isDirectorPlus() ? `<button class="btn btn-danger btn-sm" data-action="delete-all-calendar" style="flex:1;">전체 삭제</button>` : ''}
     </div>` : ''}
     <div class="card">
       ${sorted.length ? sorted.map(ev=>`
@@ -5323,7 +5360,7 @@ function shuttleTimeListHtml(list, highlight){
   // 크기를 좀 더 키우고, 그래도 자리가 부족한 긴 회차만 글자를 줄인다.
   return `<div style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); align-items:start; gap:5px;">
     ${list.map(x=>{
-      const isNext = highlight && x.time===highlight;
+      const isNext = highlight && shuttleParseMinutes(x.time)===shuttleParseMinutes(highlight);
       // "08:45(2대 운행)"처럼 괄호가 붙은 회차는 글자가 길어서 두 줄로 줄바꿈되면 그 칸만
       // 유독 커 보인다 — 줄바꿈 대신 "운행"은 빼고 글자만 살짝 줄여서 한 줄에 맞춘다.
       const short = x.time.replace(/\s*운행/, '').trim();
@@ -11018,13 +11055,6 @@ document.addEventListener('click', async (e)=>{
     else if(a==='delete-all-calendar'){ await deleteAllCalendarEvents(); }
     else if(a==='ocr-calendar'){ openModal(calendarOcrModal()); setupCalendarOcrModalListeners(); }
     else if(a==='open-official-schedule'){ openModal(officialScheduleModal()); setupOfficialScheduleModalListeners(); }
-    else if(a==='refresh-calendar-tab'){
-      try{
-        state.calendar = await loadCalendar();
-        renderMain();
-        toast('새로고침했어요');
-      }catch(e){ toast('새로고침에 실패했어요'); }
-    }
     else if(a==='add-student-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, false)); }
     else if(a==='add-council-event'){ openModal(scheduleModal(el.dataset.date || state.selectedExamDate, true)); }
     else if(a==='add-exam-event'){ openModal(examScheduleModal(el.dataset.date || state.selectedExamDate)); setupExamModalListeners(); }
