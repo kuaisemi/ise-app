@@ -559,12 +559,20 @@ details.likers-accordion > div, details.voters-accordion > div{
 .time-slot-inline{display:flex; align-items:center; gap:8px; background:var(--surface-3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 12px; margin-top:4px;}
 .time-slot-inline input[type=time]{background:transparent; border:none; padding:2px; font-size:12.5px; font-family:var(--font-mono); color:var(--text); outline:none; width:90px; text-align:center;}
 .time-slot-inline span.sep{color:var(--text-faint); font-weight:700;}
-.time-picker{display:flex; align-items:center; gap:6px;}
-.time-picker .tp-col{display:flex; flex-direction:column; align-items:center; gap:2px;}
-.time-picker .tp-val{font-family:var(--font-mono); font-size:13.5px; font-weight:800; color:var(--text); width:26px; text-align:center; user-select:none;}
-.time-picker .tp-btn{width:26px; height:20px; border:1px solid var(--border); background:var(--surface-2); color:var(--teal); border-radius:5px; font-size:9px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+/* 시간 선택기 — 시간표 수업시간 · 투표 마감 · 일정 알림이 함께 쓴다.
+   예전에는 26x20px 버튼이 낱개로 떠 있어서 누르기도 어렵고 입력칸처럼 보이지도 않았다.
+   하나의 입력 필드처럼 테두리로 묶고, 손가락에 맞게 버튼을 키웠다(권장 최소 크기에 맞춤). */
+.time-picker{display:inline-flex; align-items:stretch; gap:0; border:1px solid var(--border); background:var(--surface-2); border-radius:var(--radius-sm); overflow:hidden;}
+.time-picker .tp-col{display:flex; flex-direction:column; align-items:stretch; gap:0;}
+.time-picker .tp-val{font-family:var(--font-mono); font-size:17px; font-weight:800; color:var(--text); min-width:38px; text-align:center; user-select:none; display:flex; align-items:center; justify-content:center; padding:2px 0;}
+.time-picker .tp-btn{width:38px; height:22px; border:none; background:transparent; color:var(--text-faint); font-size:8px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s;}
+.time-picker .tp-btn:hover{color:var(--teal);}
 .time-picker .tp-btn:active{background:var(--teal); color:var(--teal-ink);}
-.time-picker .tp-colon{color:var(--text-faint); font-weight:800; font-size:13.5px; padding-bottom:1px;}
+.time-picker .tp-colon{color:var(--text-faint); font-weight:800; font-size:17px; display:flex; align-items:center; padding:0 1px;}
+/* 오전/오후 칸은 글자가 두 자라 조금 넓고, 숫자가 아니라 본문 서체를 쓴다. */
+.time-picker .tp-col-ampm{border-right:1px solid var(--border);}
+.time-picker .tp-col-ampm .tp-btn{width:46px;}
+.time-picker .tp-ampm{font-family:inherit; font-size:13px; font-weight:700; color:var(--teal); min-width:46px;}
 
 .date-field-btn{width:100%; display:flex; align-items:center; justify-content:space-between; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 13px; font-size:13px; color:var(--text); cursor:pointer; font-family:var(--font-display);}
 .date-field-btn svg{width:14px; height:14px; color:var(--text-faint); flex-shrink:0;}
@@ -1139,7 +1147,11 @@ async function loadDeptNotices(){
 // 나머지 양력 고정 공휴일과 대체공휴일은 아래에서 계산한다.
 const HOLIDAY_LUNAR_BY_YEAR = {
   2026: { seollal:'2026-02-17', chuseok:'2026-09-25', buddha:'2026-05-24' },
-  2027: { seollal:'2027-02-06', chuseok:'2027-09-15', buddha:'2027-05-13' },
+  // 2027 설날은 2/7(일)이다. 학교 학사일정의 "설날(공휴일) 2027-02-06~02-08 + 대체휴일
+  // 02-09"와 일치한다(연휴는 당일 앞뒤 하루씩, 당일이 일요일이라 대체공휴일 하루 발생).
+  // 처음에 2/6으로 넣었다가 학사일정과 어긋나는 걸 발견해 고쳤다 — 그대로 뒀으면
+  // 2027-02-05(금)이 공휴일로 잡혀 셔틀이 멀쩡한 금요일에 운휴로 표시됐을 것이다.
+  2027: { seollal:'2027-02-07', chuseok:'2027-09-15', buddha:'2027-05-13' },
 };
 const HOLIDAY_EXTRA_BY_YEAR = {
   2026: ['2026-06-03'], // 제9회 전국동시지방선거
@@ -1196,20 +1208,50 @@ function fmtDateStr(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(
 
 const holidaySetCache = {};
 function holidaySetFor(year){
-  const fromServer = state.holidays && state.holidays.byYear && state.holidays.byYear[String(year)];
-  if(Array.isArray(fromServer) && fromServer.length) return new Set(fromServer);
   if(!holidaySetCache[year]) holidaySetCache[year] = new Set(holidayFallbackFor(year));
   return holidaySetCache[year];
 }
 // dateStr은 'YYYY-MM-DD'. Date를 넘겨도 되도록 받아준다.
 function toDateStr(v){ return v instanceof Date ? fmtDateStr(v) : String(v); }
+
+// 학사일정에 들어 있는 공휴일(category==='holiday')이 실제로 덮고 있는 기간.
+// 학교가 올리는 공식 학사일정은 보통 한 학년도치(8월~다음해 2월 등)만 들어 있어서,
+// "이 범위 안"과 "밖"을 구분해야 한다.
+function academicHolidayRange(){
+  let min = null, max = null;
+  live(state.calendar).forEach(ev=>{
+    if(ev.category !== 'holiday') return;
+    if(min === null || ev.startDate < min) min = ev.startDate;
+    if(max === null || ev.endDate > max) max = ev.endDate;
+  });
+  return (min && max) ? { min, max } : null;
+}
+function inAcademicHolidayList(s){
+  return live(state.calendar).some(ev=>ev.category==='holiday' && ev.startDate<=s && ev.endDate>=s);
+}
+
+// 공휴일 판정. 출처가 셋이고, 믿을 수 있는 순서대로 본다:
+//
+//   1. shared/holidays — 공공데이터포털 특일정보. 임시공휴일까지 나오는 유일한 경로라 최우선.
+//   2. 학사일정(category==='holiday') — 학교가 직접 올린 값이라 실제 휴무와 가장 잘 맞는다.
+//      ★ 이 범위 안에서는 아래 내장 표를 아예 쓰지 않고 학사일정만 믿는다. 둘을 합치면
+//        내장 표의 오차가 그대로 섞여 들어오기 때문. 실제로 내장 표는 2027년 설날을 하루
+//        일찍(2/6) 잡고 있었고, 그대로 합쳤다면 2027-02-05(금)이 공휴일로 잡혀 셔틀이
+//        멀쩡한 금요일에 운휴로 표시됐을 것이다. 학사일정에는 2/6~2/8 + 대체 2/9로 정확히 들어 있다.
+//   3. 내장 표 — 학사일정이 안 덮는 기간(다음 학년도, 방학 전후 등)용 안전망.
 function isHolidayDate(v){
   const s = toDateStr(v);
   const year = Number(s.slice(0,4));
   if(!year) return false;
-  if(holidaySetFor(year).has(s)) return true;
-  // 학교가 올린 학사일정에만 있고 위 두 소스엔 없는 날(재량휴업일 등)도 공휴일로 본다.
-  return live(state.calendar).some(ev=>ev.category==='holiday' && ev.startDate<=s && ev.endDate>=s);
+
+  const fromServer = state.holidays && state.holidays.byYear && state.holidays.byYear[String(year)];
+  if(Array.isArray(fromServer) && fromServer.length) return fromServer.includes(s);
+
+  const range = academicHolidayRange();
+  if(range && s >= range.min && s <= range.max) return inAcademicHolidayList(s);
+
+  // 학사일정 범위 밖 — 내장 표로 보되, 달력에 따로 적힌 날(재량휴업일 등)도 같이 인정한다.
+  return holidaySetFor(year).has(s) || inAcademicHolidayList(s);
 }
 // 셔틀의 "쉬는 날" — 주말이거나 공휴일.
 function isRestDay(v){
@@ -1471,14 +1513,28 @@ function dateGridHtml(name, ym, selected){
 // 안드로이드/iOS 시스템 시계 UI(<input type=time>)를 쓰지 않기 위한 자체 제작 시간 선택 위젯.
 // 5분 단위 +/- 버튼으로만 조작하며, 실제 값은 name이 그대로인 hidden input에 저장돼
 // 기존 FormData 처리 로직(querySelector('[name=...]').value)과 100% 호환된다.
-function renderTimePicker(name, minutes){
-  const hhmm = minutesToTimeInput(minutes);
+// 화면에는 "오전 9시"처럼 12시간제로 보여주고, 저장값(hidden input)은 계속 24시간 "HH:MM"으로
+// 둔다 — 저장·비교·서버 전송이 전부 24시간 기준이라 거기까지 바꾸면 손댈 곳이 확 늘어난다.
+function hour24To12(h){ const v = h % 12; return v === 0 ? 12 : v; }
+function meridiemLabel(h){ return h >= 12 ? '오후' : '오전'; }
+// opts.clamp === false 면 09:00~22:00(TIME_START~TIME_END) 제한을 걸지 않는다.
+// 이 제한은 원래 시간표 수업 시간용이라, 아침 7시 알림 같은 걸 09:00으로 끌어올려 버린다.
+function renderTimePicker(name, minutes, opts={}){
+  const hhmm = opts.clamp === false
+    ? `${pad(Math.floor((Number(minutes)||0)/60)%24)}:${pad((Number(minutes)||0)%60)}`
+    : minutesToTimeInput(minutes);
   const [hh, mm] = hhmm.split(':');
+  const h24 = parseInt(hh, 10);
   return `
     <div class="time-picker" data-name="${name}">
+      <div class="tp-col tp-col-ampm">
+        <button type="button" class="tp-btn" data-action="tp-step" data-part="a" data-dir="1" aria-label="오전/오후 바꾸기">▲</button>
+        <span class="tp-val tp-ampm" data-part="a">${meridiemLabel(h24)}</span>
+        <button type="button" class="tp-btn" data-action="tp-step" data-part="a" data-dir="-1" aria-label="오전/오후 바꾸기">▼</button>
+      </div>
       <div class="tp-col">
         <button type="button" class="tp-btn" data-action="tp-step" data-part="h" data-dir="1" aria-label="시 증가">▲</button>
-        <span class="tp-val" data-part="h">${hh}</span>
+        <span class="tp-val" data-part="h">${pad(hour24To12(h24))}</span>
         <button type="button" class="tp-btn" data-action="tp-step" data-part="h" data-dir="-1" aria-label="시 감소">▼</button>
       </div>
       <span class="tp-colon">:</span>
@@ -1995,9 +2051,9 @@ function reminderFieldsHtml(opts={}){
         <label for="remind-on-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.bell} ${broadcast ? '전체 알림 보내기' : '알림 받기'}</label>
         <label class="switch"><input type="checkbox" name="remindOn" id="remind-on-check" data-action="toggle-remind" ${on?'checked':''}><span class="slider"></span></label>
       </div>
-      <div id="remind-fields" class="field-row" style="margin-top:8px; ${on?'':'opacity:0.45; pointer-events:none;'}">
+      <div id="remind-fields" class="field-row" style="margin-top:10px; ${on?'':'display:none;'}">
         <div class="field" style="margin:0;"><label>알림 날짜</label>${dateFieldHtml('remindDate', dateStr)}</div>
-        <div class="field" style="margin:0;"><label>알림 시각</label><input type="time" name="remindTime" value="${timeStr}" style="font-family:var(--font-mono);"></div>
+        <div class="field" style="margin:0;"><label>알림 시각</label>${renderTimePicker('remindTime', timeInputToMinutes(timeStr), {clamp:false})}</div>
       </div>
       <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.5;">${broadcast
         ? '켜면 지정한 시각에 <b>전교생</b>에게 푸시가 갑니다. 앱이 꺼져 있어도 도착해요.'
@@ -11037,10 +11093,22 @@ document.addEventListener('click', async (e)=>{
       const hidden = picker.querySelector('input[type=hidden]');
       const part = el.dataset.part, dir = parseInt(el.dataset.dir, 10);
       let [h, m] = hidden.value.split(':').map(Number);
-      if(part==='h') h = (h + dir + 24) % 24;
-      else m = (m + dir*5 + 60) % 60;
+      if(part==='a'){
+        // 오전 ↔ 오후. 위·아래 어느 쪽을 눌러도 두 값뿐이라 똑같이 뒤집는다.
+        h = (h + 12) % 24;
+      } else if(part==='h'){
+        // 화면이 12시간제이므로 1~12 안에서만 돌고, 오전/오후는 여기서 바뀌지 않는다.
+        // (24시간으로 그냥 ±1 하면 11시→12시에서 오전이 오후로 넘어가 버린다)
+        const isPM = h >= 12;
+        const next12 = ((hour24To12(h) - 1 + dir + 12) % 12) + 1;
+        h = (next12 % 12) + (isPM ? 12 : 0);
+      } else {
+        m = (m + dir*5 + 60) % 60;
+      }
       hidden.value = `${pad(h)}:${pad(m)}`;
-      picker.querySelector('.tp-val[data-part="h"]').textContent = pad(h);
+      const ampmEl = picker.querySelector('.tp-val[data-part="a"]');
+      if(ampmEl) ampmEl.textContent = meridiemLabel(h);
+      picker.querySelector('.tp-val[data-part="h"]').textContent = pad(hour24To12(h));
       picker.querySelector('.tp-val[data-part="m"]').textContent = pad(m);
     }
     else if(a === 'set-signup-role'){ state.signupRole = el.dataset.role; renderAuth(); }
@@ -11469,14 +11537,11 @@ document.addEventListener('click', async (e)=>{
       renderMain();
     }
     else if(a==='add-event'){ openModal(eventModal(null, null)); }
-    // "알림 받기" 스위치 — 끄면 날짜·시각 입력을 회색으로 죽이고, 켜면 되살린다.
+    // "알림 받기" 스위치 — 꺼져 있으면 날짜·시각 입력을 아예 감춘다.
+    // (회색으로 죽여두면 쓰지도 않을 입력칸이 자리만 차지해서 폼이 길어 보인다)
     else if(a==='toggle-remind'){
       const box = document.getElementById('remind-fields');
-      if(box){
-        const on = el.checked;
-        box.style.opacity = on ? '' : '0.45';
-        box.style.pointerEvents = on ? '' : 'none';
-      }
+      if(box) box.style.display = el.checked ? '' : 'none';
     }
     else if(a==='delete-all-calendar'){ await deleteAllCalendarEvents(); }
     else if(a==='ocr-calendar'){ openModal(calendarOcrModal()); setupCalendarOcrModalListeners(); }

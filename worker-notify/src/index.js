@@ -26,7 +26,8 @@ const QUEUE_FETCH_LIMIT = 50;
    사본이 있다(런타임이 달라 한 파일을 공유할 수 없음). 셋 중 하나를 고치면 셋 다 고쳐야 한다. */
 const HOLIDAY_LUNAR_BY_YEAR = {
   2026: { seollal: '2026-02-17', chuseok: '2026-09-25', buddha: '2026-05-24' },
-  2027: { seollal: '2027-02-06', chuseok: '2027-09-15', buddha: '2027-05-13' },
+  // 2027 설날은 2/7(일). 학교 학사일정(설날 2/6~2/8 + 대체 2/9)과 일치시킨 값.
+  2027: { seollal: '2027-02-07', chuseok: '2027-09-15', buddha: '2027-05-13' },
 };
 const HOLIDAY_EXTRA_BY_YEAR = { 2026: ['2026-06-03'], 2027: [] };
 const pad2 = (n) => String(n).padStart(2, '0');
