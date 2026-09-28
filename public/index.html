@@ -5523,17 +5523,19 @@ function renderExamCalTab(){
                다만 텍스트 없이 아이콘만 있는 작은 원형 버튼으로 둬서 자리를 적게 차지한다. -->
           ${(hasDetail || canManage) ? `
           <div id="ev-detail-${ev.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
-            ${(parsed.time || parsed.room) ? `
-            <div style="display:flex; flex-wrap:wrap; gap:16px;">
-              ${parsed.time ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.clock} ${escapeHtml(parsed.time)}</span>` : ''}
-              ${parsed.room ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.pin} ${escapeHtml(parsed.room)}</span>` : ''}
+            ${(parsed.time || parsed.room || canManage) ? `
+            <div class="row-between" style="gap:10px;">
+              <div style="display:flex; flex-wrap:wrap; gap:16px; min-width:0;">
+                ${parsed.time ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.clock} ${escapeHtml(parsed.time)}</span>` : ''}
+                ${parsed.room ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.pin} ${escapeHtml(parsed.room)}</span>` : ''}
+              </div>
+              ${canManage ? `
+              <div style="display:flex; gap:6px; flex-shrink:0;">
+                <button type="button" class="ev-circle-btn ev-circle-btn-sm" data-action="edit-personal-event" data-id="${ev.id}" aria-label="수정">${ICON.pencil}</button>
+                <button type="button" class="ev-circle-btn ev-circle-btn-sm ev-circle-btn-danger" data-action="delete-event" data-id="${ev.id}" aria-label="삭제">${ICON.trash}</button>
+              </div>` : ''}
             </div>` : ''}
-            ${parsed.description ? `<div class="body" style="margin-top:${(parsed.time||parsed.room)?'8px':'0'}; font-size:11.5px; color:var(--text-dim); white-space:pre-wrap; line-height:1.5;">${escapeHtml(parsed.description)}</div>` : ''}
-            ${canManage ? `
-            <div style="display:flex; gap:6px; margin-top:${hasDetail?'10px':'0'};">
-              <button type="button" class="ev-circle-btn ev-circle-btn-sm" data-action="edit-personal-event" data-id="${ev.id}" aria-label="수정">${ICON.pencil}</button>
-              <button type="button" class="ev-circle-btn ev-circle-btn-sm ev-circle-btn-danger" data-action="delete-event" data-id="${ev.id}" aria-label="삭제">${ICON.trash}</button>
-            </div>` : ''}
+            ${parsed.description ? `<div class="body" style="margin-top:${(parsed.time||parsed.room||canManage)?'8px':'0'}; font-size:11.5px; color:var(--text-dim); white-space:pre-wrap; line-height:1.5;">${escapeHtml(parsed.description)}</div>` : ''}
           </div>` : ''}
         </div>`;
       }).join('') : `<div class="empty" style="padding:18px 0;"><p>선택한 날짜에 등록된 일정이 없습니다.</p></div>`}
