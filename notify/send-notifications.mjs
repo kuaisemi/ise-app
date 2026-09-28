@@ -613,7 +613,12 @@ async function main() {
   // 진리관(학생식당)은 세 끼 다, 미래관(교직원식당)은 중식만 운영한다. 지점·끼니를 각각
   // 따로 켤 수 있으니, 지점별로 그 지점 메뉴가 있고 대상자가 있을 때만 따로 보낸다.
   const MEAL_SLOTS = [
-    { key: 'breakfast', label: '조식', h: 7, m: 0 },
+    // 조식만 유예 시간을 길게 준다. 그 주 식단 정보는 월요일 오전 10시부터 가져오기
+    // 시작하는데(runMeals, 화~금은 월요일에 이미 받아둔 데이터로 문제없음), 월요일
+    // 아침 07~08시는 그보다 이른 시각이라 항상 데이터가 없어서 조식 알림이 통째로
+    // 빠지고 있었다. 데이터가 늦게 들어와도(예: 10시 13분) 오전 중에는 따라잡아
+    // 보내도록 유예를 4시간(240분)으로 늘렸다 — 늦게라도 오는 게 영영 안 오는 것보다 낫다.
+    { key: 'breakfast', label: '조식', h: 7, m: 0, grace: 240 },
     { key: 'lunch', label: '중식', h: 10, m: 30 },
     { key: 'dinner', label: '석식', h: 16, m: 30 },
   ];
@@ -633,7 +638,7 @@ async function main() {
       if (!cafe.slots.includes(slot.key)) continue;
       const dedupKey = `${today}_${cafe.key}_${slot.key}`;
       if (sentMealKeys.has(dedupKey)) continue;
-      if (!isDue(slot.h, slot.m)) continue;
+      if (!isDue(slot.h, slot.m, slot.grace)) continue;
       const menu = (todayMeal[slot.key] || '').trim();
       if (!menu) continue;
       const tokens = mealTokensFor(cafe.key, slot.key);
