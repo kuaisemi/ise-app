@@ -403,14 +403,8 @@ async function main() {
   const recruitments = live(recruitmentsSnap.exists ? recruitmentsSnap.data().list : []);
   const st = stateSnap.exists ? stateSnap.data() : {};
 
-  const notifiedNotice = new Set(st.notifiedNoticeIds || []);
-  const notifiedPoll = new Set(st.notifiedPollIds || []);
   const warnedPollEnd = new Set(st.warnedPollEndIds || []);
   const sentMealKeys = new Set(st.sentMealKeys || []);
-  const notifiedBugReport = new Set(st.notifiedBugReportIds || []);
-  const notifiedSuggestionAnswer = new Set(st.notifiedSuggestionAnswerIds || []);
-  const notifiedSuggestionNew = new Set(st.notifiedSuggestionNewIds || []);
-  const notifiedRecruitment = new Set(st.notifiedRecruitmentIds || []);
   const notifiedOrgMsg = new Set(st.notifiedOrgMsgIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
@@ -427,6 +421,9 @@ async function main() {
   const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
   const chatOkUids = new Set(); // 채팅 알림을 켜둔 사람만
   const councilChatOkUids = new Set(); // 학생회 채팅 알림을 켜둔 학생회 구성원만
+  const cohortChatOkUids = new Set(); // 학번별 채팅 알림을 켜둔 사람만 (학번 구분 없이 하나로)
+  const councilChatTokens = []; // 학생회 채팅 알림을 켠 학생회 구성원 토큰 (즉시 발송용)
+  const cohortChatByYear = {}; // { '24': [tokens...] } — 학번별 채팅 알림을 켠 그 학번 사람들
   const nameByUid = new Map();
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
@@ -440,6 +437,7 @@ async function main() {
     tokensByUid.set(docSnap.id, tokens);
     if (prefs.chat) chatOkUids.add(docSnap.id);
     if (prefs.councilChat && u.role && u.role !== 'student') councilChatOkUids.add(docSnap.id);
+    if (prefs.cohortChat) cohortChatOkUids.add(docSnap.id);
     mealPrefsByUid.set(docSnap.id, {
       jinri: !!prefs.mealJinri,
       mirae: !!prefs.mealMirae,
@@ -455,6 +453,12 @@ async function main() {
       if (prefs.night) nightOkTokens.add(t);
       if (u.role === 'developer' || u.role === 'president') bugAlertTokens.push(t);
       if (u.role && u.role !== 'student') councilAlertTokens.push(t);
+      if (prefs.councilChat && u.role && u.role !== 'student') councilChatTokens.push(t);
+      // 학번별 채팅은 방이 학번마다 따로 있어서, 토큰도 그 학번 배열에만 넣는다.
+      if (prefs.cohortChat && u.cohortYear) {
+        if (!cohortChatByYear[u.cohortYear]) cohortChatByYear[u.cohortYear] = [];
+        cohortChatByYear[u.cohortYear].push(t);
+      }
     }
   });
   // 학식 알림 수신 대상: 지점(진리관/미래관)과 끼니(조식/중식/석식)를 둘 다 켠 사람만.
@@ -522,37 +526,6 @@ async function main() {
   }
 
   const nextState = {};
-
-  // 1) 새 공지 — 작성자가 "알림 발송"을 켠 공지만 보낸다(기본 꺼짐).
-  //    보내지 않는 공지도 처리 완료로 기록해서, 나중에 켜지지도 않았는데 뒤늦게 발송되는 걸 막는다.
-  const newNotices = notices.filter((n) => !notifiedNotice.has(n.id));
-  for (const n of newNotices) {
-    if (!n.notifyPush) {
-      console.log('새 공지(알림 발송 꺼짐, 건너뜀):', n.title);
-      continue;
-    }
-    console.log('새 공지 알림:', n.title);
-    await send('notice', '새로운 공지가 있어요', `제목: ${n.title}`);
-  }
-
-  // 2) 새 투표 시작 — 공지와 마찬가지로 작성자가 "알림 발송"을 켠 투표만 보낸다(기본 꺼짐).
-  const newPolls = polls.filter((p) => !notifiedPoll.has(p.id));
-  for (const p of newPolls) {
-    if (!p.notifyPush) {
-      console.log('새 투표(알림 발송 꺼짐, 건너뜀):', p.question);
-      continue;
-    }
-    console.log('새 투표 알림:', p.question);
-    await send('poll', '새 투표가 시작됐어요', `제목: ${p.question}`);
-  }
-
-  // 2.5) 새 구인글 — 학생 누구나 쓸 수 있는 글이라 공지·투표처럼 작성자가 켜는 스위치는 없다.
-  //      대신 받는 쪽 알림 설정(prefs.recruit)이 기본 꺼짐이라 원하는 사람만 받는다.
-  const newRecruitments = recruitments.filter((r) => !notifiedRecruitment.has(r.id));
-  for (const r of newRecruitments) {
-    console.log('새 구인글 알림:', r.title);
-    await send('recruit', '새 구인글이 올라왔어요', `제목: ${r.title}`);
-  }
 
   // 2.7) 구인글 참여자 공지 — poll.orgMessages에 남긴다고 바로 보내는 게 아니라, 구인자가
   //      그 메시지를 "공지하기"로 따로 표시(notify:true)한 것만 "참여" 누른 사람에게 보낸다.
@@ -713,152 +686,6 @@ async function main() {
     }
   }
 
-  // 6) 새 버그 제보 — 개발자 · 학생회장에게는 알림 설정과 무관하게 항상 즉시 알림.
-  const newBugReports = bugReports.filter((r) => !notifiedBugReport.has(r.id));
-  if (newBugReports.length && bugAlertTokens.length) {
-    for (const r of newBugReports) {
-      console.log('새 버그 제보 알림:', r.title);
-      for (let i = 0; i < bugAlertTokens.length; i += CHUNK) {
-        const batch = bugAlertTokens.slice(i, i + CHUNK);
-        const res = await messaging.sendEachForMulticast({
-          tokens: batch,
-          notification: { title: '새 버그 제보가 있어요', body: `제목: ${r.title}` },
-          data: { url: './index.html' },
-        });
-        res.responses.forEach((resp, idx) => {
-          if (resp.success) return;
-          const code = resp.error && resp.error.code;
-          if (
-            code === 'messaging/invalid-registration-token' ||
-            code === 'messaging/registration-token-not-registered'
-          ) {
-            invalidTokens.add(batch[idx]);
-          } else {
-            console.warn('발송 실패:', code, resp.error && resp.error.message);
-          }
-        });
-      }
-      sentCount++;
-    }
-  }
-
-  // 6.5) 새 건의사항 — 학생회(국장 이상)에게는 알림 설정과 무관하게 항상 즉시 알림.
-  const newSuggestions = suggestions.filter((s) => !notifiedSuggestionNew.has(s.id));
-  if (newSuggestions.length && councilAlertTokens.length) {
-    for (const s of newSuggestions) {
-      console.log('새 건의사항 알림:', s.title || s.content);
-      for (let i = 0; i < councilAlertTokens.length; i += CHUNK) {
-        const batch = councilAlertTokens.slice(i, i + CHUNK);
-        const res = await messaging.sendEachForMulticast({
-          tokens: batch,
-          notification: { title: '새 건의사항이 올라왔어요', body: `제목: ${s.title || s.content}` },
-          data: { url: './index.html' },
-        });
-        res.responses.forEach((resp, idx) => {
-          if (resp.success) return;
-          const code = resp.error && resp.error.code;
-          if (
-            code === 'messaging/invalid-registration-token' ||
-            code === 'messaging/registration-token-not-registered'
-          ) {
-            invalidTokens.add(batch[idx]);
-          } else {
-            console.warn('발송 실패:', code, resp.error && resp.error.message);
-          }
-        });
-      }
-      sentCount++;
-    }
-  }
-
-  // 7) 건의사항에 답변이 달리면 그 글을 쓴 학생에게만 보낸다 (게시판 전체 알림이 아니라
-  //    개인 알림이라, 다른 사람의 "공지" 알림 설정과는 무관하게 본인 토큰이 있으면 보낸다).
-  const newAnswers = suggestions.filter(
-    (s) => s.status === '답변완료' && s.studentId && !notifiedSuggestionAnswer.has(s.id)
-  );
-  for (const s of newAnswers) {
-    const allTokens = tokensByStudentId.get(s.studentId) || [];
-    const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-    if (!tokens.length) {
-      console.log('건의사항 답변 알림(수신 토큰 없음, 건너뜀):', s.title || s.content);
-      continue;
-    }
-    console.log('건의사항 답변 알림:', s.title || s.content);
-    const res = await messaging.sendEachForMulticast({
-      tokens,
-      notification: { title: '건의사항에 답변이 달렸어요', body: `제목: ${s.title || s.content}` },
-      data: { url: './index.html' },
-    });
-    res.responses.forEach((resp, idx) => {
-      if (resp.success) return;
-      const code = resp.error && resp.error.code;
-      if (
-        code === 'messaging/invalid-registration-token' ||
-        code === 'messaging/registration-token-not-registered'
-      ) {
-        invalidTokens.add(tokens[idx]);
-      } else {
-        console.warn('발송 실패:', code, resp.error && resp.error.message);
-      }
-    });
-    sentCount++;
-  }
-
-  // 8) 친구 채팅 — 지난 실행 이후 새로 온 메시지를 받는 사람에게만 보낸다. pairId(두 uid를
-  //    사전순으로 이어붙인 값)가 곧 메시지의 부모(chats/{pairId}) 문서 id라, 거기서 상대
-  //    uid를 바로 뽑아낼 수 있다(보낸 사람 자신에게는 당연히 안 보낸다).
-  //    크론이 5분에 한 번만 도니 그사이 한 사람에게 여러 건이 쌓일 수 있다 — 메시지마다 따로
-  //    보내면 알림이 줄줄이 뜨므로, 받는 사람별로 모아서 딱 1건이면 그 내용을, 여러 건이면
-  //    "새 메시지 N개" 식으로 뭉쳐서 한 번만 보낸다.
-  const lastChatCheck = st.lastChatCheck || Date.now() - 15 * 60 * 1000; // 처음 실행이면 최근 15분만
-  const chatRunStartedAt = Date.now();
-  const newMsgsSnap = await db.collectionGroup('messages').where('createdAt', '>', lastChatCheck).get();
-  if (!newMsgsSnap.empty) {
-    const byRecipient = new Map(); // recipientUid -> [{ senderUid, text, pairId }]
-    for (const d of newMsgsSnap.docs) {
-      const m = d.data();
-      const pairId = d.ref.parent.parent.id; // chats/{pairId}/messages/{msgId}
-      const uids = pairId.split('_');
-      const recipientUid = uids.find((u) => u !== m.senderUid);
-      if (!recipientUid || !chatOkUids.has(recipientUid)) continue;
-      const muted = mutedByPair.get(pairId);
-      if (muted && muted[recipientUid]) continue; // 이 친구 채팅만 콕 집어 꺼둔 경우
-      const seenAt = lastSeenByPair.get(pairId);
-      if (seenAt && seenAt[recipientUid] && seenAt[recipientUid] >= (m.createdAt || 0)) continue; // 크론 돌기 전에 이미 앱에서 읽음
-      if (!byRecipient.has(recipientUid)) byRecipient.set(recipientUid, []);
-      byRecipient.get(recipientUid).push({ senderUid: m.senderUid, text: m.text, pairId });
-    }
-    for (const [recipientUid, msgs] of byRecipient) {
-      const allTokens = tokensByUid.get(recipientUid) || [];
-      const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-      if (!tokens.length) continue;
-      let notification, data;
-      if (msgs.length === 1) {
-        const only = msgs[0];
-        const senderName = nameByUid.get(only.senderUid) || '친구';
-        notification = { title: `${senderName}님의 메시지`, body: String(only.text || '').slice(0, 80) };
-        data = { url: './index.html', category: 'chat', pairId: only.pairId };
-      } else {
-        notification = { title: '새로운 채팅이 있어요', body: `새 메시지 ${msgs.length}개가 도착했어요` };
-        data = { url: './index.html', category: 'friend' }; // 여러 대화가 섞여 있어 특정 채팅방으로는 못 보내고 친구 목록으로
-      }
-      const res = await messaging.sendEachForMulticast({ tokens, notification, data });
-      res.responses.forEach((resp, idx) => {
-        if (resp.success) return;
-        const code = resp.error && resp.error.code;
-        if (
-          code === 'messaging/invalid-registration-token' ||
-          code === 'messaging/registration-token-not-registered'
-        ) {
-          invalidTokens.add(tokens[idx]);
-        }
-      });
-      sentCount++;
-    }
-    console.log(`[chatNotify] 새 메시지 ${newMsgsSnap.size}건 확인, 대상자 ${byRecipient.size}명에게 발송 시도`);
-  }
-  nextState.lastChatCheck = chatRunStartedAt;
-
   // 8.7) 친구 요청 도착 / 친구가 됨 — 개인적인 일회성 알림이라 알림 설정(chat 등)과
   //      무관하게 항상 보낸다(건의사항 답변 알림과 같은 취급).
   const lastFriendLinkCheck = st.lastFriendLinkCheck || Date.now() - 15 * 60 * 1000;
@@ -924,114 +751,6 @@ async function main() {
   }
   nextState.lastFriendLinkCheck = friendLinkRunStartedAt;
 
-  // 8.5) 학생회 단체 채팅 — 방이 하나뿐이라 pairId 없이 컬렉션 전체를 그대로 훑는다.
-  //      보낸 사람 본인 제외, 학생회 채팅 알림을 켠 학생회 구성원에게만 보낸다.
-  const lastCouncilChatCheck = st.lastCouncilChatCheck || Date.now() - 15 * 60 * 1000;
-  const councilChatRunStartedAt = Date.now();
-  const newCouncilMsgsSnap = await db
-    .collection('councilChatMessages')
-    .where('createdAt', '>', lastCouncilChatCheck)
-    .get();
-  if (!newCouncilMsgsSnap.empty) {
-    for (const d of newCouncilMsgsSnap.docs) {
-      const m = d.data();
-      for (const recipientUid of councilChatOkUids) {
-        if (recipientUid === m.senderUid) continue;
-        const allTokens = tokensByUid.get(recipientUid) || [];
-        const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-        if (!tokens.length) continue;
-        const res = await messaging.sendEachForMulticast({
-          tokens,
-          notification: {
-            title: `${m.senderName || '학생회'}님의 학생회 채팅`,
-            body: String(m.text || '').slice(0, 80),
-          },
-          data: { url: './index.html' },
-        });
-        res.responses.forEach((resp, idx) => {
-          if (resp.success) return;
-          const code = resp.error && resp.error.code;
-          if (
-            code === 'messaging/invalid-registration-token' ||
-            code === 'messaging/registration-token-not-registered'
-          ) {
-            invalidTokens.add(tokens[idx]);
-          }
-        });
-        sentCount++;
-      }
-    }
-    console.log(`[councilChatNotify] 새 메시지 ${newCouncilMsgsSnap.size}건 확인, 알림 발송 시도`);
-  }
-  nextState.lastCouncilChatCheck = councilChatRunStartedAt;
-
-  // 8.55) 학번별 채팅 — 방이 학번마다 따로 있어서 마지막 확인 시각도 학번별로 따로 추적한다.
-  //       보낸 사람 본인 제외, 그 학번 채팅 알림을 켠(기본 꺼짐) 같은 학번 사람에게만 보낸다.
-  function admissionYear2KST() {
-    const d = kstNow();
-    const y = d.getUTCFullYear();
-    const ay = d.getUTCMonth() >= 1 ? y : y - 1; // getUTCMonth(): 0=1월
-    return ay % 100;
-  }
-  const cohortOkUidsByYear = new Map(); // yy -> Set(uid)
-  usersSnap.forEach((docSnap) => {
-    const u = docSnap.data();
-    const prefs = u.notifyPrefs || {};
-    if (prefs.cohortChat && u.cohortYear) {
-      if (!cohortOkUidsByYear.has(u.cohortYear)) cohortOkUidsByYear.set(u.cohortYear, new Set());
-      cohortOkUidsByYear.get(u.cohortYear).add(docSnap.id);
-    }
-  });
-  const prevCohortChatCheck = st.lastCohortChatCheck || {};
-  const nextCohortChatCheck = { ...prevCohortChatCheck };
-  const latestY2 = admissionYear2KST();
-  for (let y = 21; y <= latestY2; y++) {
-    const yy = String(y).padStart(2, '0');
-    const okUids = cohortOkUidsByYear.get(yy);
-    if (!okUids || !okUids.size) continue;
-    const lastCheck = prevCohortChatCheck[yy] || Date.now() - 15 * 60 * 1000;
-    const runStartedAt = Date.now();
-    const newMsgsSnap = await db
-      .collection('cohortChats')
-      .doc(yy)
-      .collection('messages')
-      .where('createdAt', '>', lastCheck)
-      .get();
-    if (!newMsgsSnap.empty) {
-      for (const d of newMsgsSnap.docs) {
-        const m = d.data();
-        for (const recipientUid of okUids) {
-          if (recipientUid === m.senderUid) continue;
-          const allTokens = tokensByUid.get(recipientUid) || [];
-          const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-          if (!tokens.length) continue;
-          const res = await messaging.sendEachForMulticast({
-            tokens,
-            notification: {
-              title: `${m.senderName || yy + '학번'}님의 ${yy}학번 채팅`,
-              body: String(m.text || '').slice(0, 80),
-            },
-            data: { url: './index.html' },
-          });
-          res.responses.forEach((resp, idx) => {
-            if (resp.success) return;
-            const code = resp.error && resp.error.code;
-            if (
-              code === 'messaging/invalid-registration-token' ||
-              code === 'messaging/registration-token-not-registered'
-            ) {
-              invalidTokens.add(tokens[idx]);
-            }
-          });
-          sentCount++;
-        }
-      }
-      console.log(`[cohortChatNotify] ${yy}학번 새 메시지 ${newMsgsSnap.size}건 확인, 알림 발송 시도`);
-    }
-    nextCohortChatCheck[yy] = runStartedAt;
-  }
-  nextState.lastCohortChatCheck = nextCohortChatCheck;
-
   // 8.6) 학생회 채팅 상단 고정 공지(카톡 채팅방 공지 같은 것) — 새로 쓰이거나 바뀌었을 때만,
   //      학생회 채팅 알림을 켠 사람에게 "새로운 공지가 있어요"를 보낸다. 지운(text 빈) 것은 안 보낸다.
   const councilNotice = councilChatNoticeSnap.exists ? councilChatNoticeSnap.data() : null;
@@ -1066,15 +785,9 @@ async function main() {
   // 상태 저장 (중복 발송 방지용 커서)
   await db.collection('shared').doc('notifyState').set(
     {
-      notifiedNoticeIds: [...notifiedNotice, ...newNotices.map((n) => n.id)].slice(-KEEP_IDS),
-      notifiedPollIds: [...notifiedPoll, ...newPolls.map((p) => p.id)].slice(-KEEP_IDS),
-      notifiedRecruitmentIds: [...notifiedRecruitment, ...newRecruitments.map((r) => r.id)].slice(-KEEP_IDS),
       notifiedOrgMsgIds: [...notifiedOrgMsg, ...newOrgMsgSentIds].slice(-KEEP_IDS),
       warnedPollEndIds: [...warnedPollEnd, ...endingSoon.map((p) => p.id)].slice(-KEEP_IDS),
       sentMealKeys: [...sentMealKeys, ...newMealKeys].slice(-30),
-      notifiedBugReportIds: [...notifiedBugReport, ...newBugReports.map((r) => r.id)].slice(-KEEP_IDS),
-      notifiedSuggestionAnswerIds: [...notifiedSuggestionAnswer, ...newAnswers.map((s) => s.id)].slice(-KEEP_IDS),
-      notifiedSuggestionNewIds: [...notifiedSuggestionNew, ...newSuggestions.map((s) => s.id)].slice(-KEEP_IDS),
       updatedAt: Date.now(),
       ...nextState,
     },
@@ -1127,7 +840,27 @@ async function main() {
       if (alive.length) byUid[uid] = alive;
     }
     const night = [...nightOkTokens].filter((t) => !invalidTokens.has(t));
-    await db.collection('shared').doc('pushAudience').set({ byUid, night, updatedAt: Date.now() });
+    const alive = (arr) => arr.filter((t) => !invalidTokens.has(t));
+    await db.collection('shared').doc('pushAudience').set({
+      byUid,
+      night,
+      // 카테고리 전체 구독자 토큰 목록 — Worker가 새 공지·투표·구인글·버그제보·건의사항을
+      // 즉시(1분 안에) 보낼 때 "누구에게 보낼지"를 여기서 그대로 가져다 쓴다. 이 스크립트가
+      // 어차피 5분마다 users 전체를 읽어 계산해두는 값이라 추가 비용이 없다.
+      notice: alive(tokensBy.notice),
+      poll: alive(tokensBy.poll),
+      recruit: alive(tokensBy.recruit),
+      bugAlert: alive(bugAlertTokens),
+      councilAlert: alive(councilAlertTokens),
+      // 학생회 채팅 — 방이 하나뿐이라 배열 하나로 충분하다.
+      councilChat: alive(councilChatTokens),
+      // 학번별 채팅 — 방이 학번마다 따로 있어서 학번별 배열로 쪼갠다.
+      cohortChat: Object.fromEntries(Object.entries(cohortChatByYear).map(([y, t]) => [y, alive(t)])),
+      // 채팅처럼 "특정 한 사람"에게 보내는 알림(audience:'user')은 그 사람이 해당 알림
+      // 종류를 켰는지를 uid 목록으로 따로 남겨서 Worker가 확인한다(친구 채팅용).
+      chatOkUids: [...chatOkUids],
+      updatedAt: Date.now(),
+    });
   }
 
   // 전교생 발송용 FCM 토픽 구독.

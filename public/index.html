@@ -795,8 +795,6 @@ const PATCH_NOTES = [
     { title:'알림 시각 선택에 오전/오후 표시', text:'알림 시각을 24시간(14:00)이 아니라 오전/오후(오후 2:00)로 고르도록 변경. 시간표 수업시간·투표 마감 시각 선택기도 같이 커져서 누르기 편해졌어요' },
     { title:'내 일정이 학사일정 목록에 섞여 나오던 문제 수정', text:'직접 추가한 개인 일정이 "학사일정" 탭 목록에도 같이 뜨던 문제 수정. 학사일정 탭에는 학교 공식 일정과 학생회 일정만 나와요' },
     { title:'내 일정에 "학사" 딱지가 붙던 문제 수정', text:'직접 추가한 일정에 파란 "학사" 딱지가 붙어서 학교 공식 일정처럼 보이던 문제 수정' },
-    { title:'가입자 목록 정렬 추가', text:'가입자 및 직급 관리에서 직급순 · 학번순 · 이름순 · 접속순으로 정렬할 수 있어요', admin:true },
-    { title:'가입자 상세에 앱 버전 표시', text:'가입자를 눌러서 자세히 보면 그 사람이 쓰는 앱 버전과 최신/구버전 여부가 보여요 (웹으로만 접속한 사람은 그렇게 표시돼요)', admin:true },
     { title:'공휴일에 시간표 알림이 울리던 문제 수정', text:'공휴일에도 "오늘의 시간표" 알림이 울리던 문제 수정 — 평일이어도 공휴일(대체공휴일 포함)이면 보내지 않아요' },
     { title:'셔틀버스 공휴일 운행 규칙 반영', text:'셔틀버스에 공휴일 운행 규칙 반영 — 공휴일에는 기본적으로 운행하지 않고, 연휴가 시작되기 직전 마지막 평일은 금요일 시간표로, 연휴의 마지막 날은 일요일 시간표로 운행해요. 평소와 다른 시간표가 적용되는 날은 셔틀버스 탭 맨 위에 "공휴일 시간표"라고 표시돼요' },
     { title:'공휴일 정보 자동 갱신', text:'공휴일 정보를 공공데이터포털에서 매일 자동으로 받아오도록 변경 — 임시공휴일이 갑자기 지정돼도 셔틀·알림에 바로 반영돼요' },
@@ -2096,6 +2094,42 @@ async function syncScheduleReminder(fd, ev, broadcast){
     });
   }catch(e){ console.warn('[reminder]', e && e.code); }
 }
+
+/* ===== 즉시 알림 (notifyQueue, at:지금) =====
+   일정 알림과 같은 큐를 쓰지만 "몇 시에 보낼지" 대신 "만들어지자마자 보낸다"는 점이 다르다.
+   새 공지·투표·구인글·채팅 메시지가 이걸 쓴다. Cloudflare Worker가 매분 이 큐를 훑으므로
+   최대 1분 안에 나간다(이전에는 GitHub Actions가 5분마다 새 글이 있는지 직접 뒤져서
+   찾아야 했다 — 그 감지 로직은 이제 여기로 옮겨왔고 Actions 쪽 코드는 지웠다).
+
+   audience별로 필요한 필드가 다르다:
+     notice / poll / recruit / bugAlert / councilAlert / councilChat — 그 카테고리
+       구독자 전체에게. 카테고리별로 누가 구독했는지는 Worker가 shared/pushAudience에서
+       가져다 본다(GitHub Actions가 5분마다 users 전체를 훑어 갱신해두는 값).
+     cohortChat — 위와 같지만 그 학번 방 구독자에게만. cohortYear 필드 필요.
+     user       — 특정 한 사람에게(친구 채팅). targetUid 필요, gateKey를 주면 그 사람이
+                  해당 알림 종류를 켰는지도 Worker가 확인한다.
+   실패해도 조용히 넘어간다 — 이건 "더 빨리 오는" 경로일 뿐, 안 되더라도 앱을 열면 최신
+   데이터는 어차피 보이므로 사용자가 못 볼 내용은 아니다. */
+async function enqueuePush(opts){
+  if(!state.user) return;
+  try{
+    await setDoc(doc(db,'notifyQueue', uid()), {
+      uid: state.user.uid,
+      audience: opts.audience,
+      at: Date.now(),
+      title: opts.title,
+      body: String(opts.body||'').slice(0,200),
+      category: opts.category || opts.audience,
+      sent: false,
+      createdAt: now(),
+      ...(opts.targetUid ? { targetUid: opts.targetUid } : {}),
+      ...(opts.gateKey ? { gateKey: opts.gateKey } : {}),
+      ...(opts.cohortYear ? { cohortYear: opts.cohortYear } : {}),
+      ...(opts.pairId ? { pairId: opts.pairId } : {}),
+    });
+  }catch(e){ console.warn('[push]', opts.audience, e && e.code); }
+}
+
 // 일정 추가·수정 폼 세 곳(개인 일정 / 시험 일정 / 학사일정)이 같이 쓰는 입력 블록.
 // 체크를 끄면 날짜·시각·반복 입력을 통째로 감춘다(회색으로 죽여두면 쓰지도 않을 칸이
 // 자리만 차지해서 폼이 길어 보인다).
@@ -2868,7 +2902,10 @@ function routeNotificationTap(category, data){
   else if(category==='meal'){ state.view='info'; state.infoTab='meal'; renderShell(); }
   else if(category==='timetable'){ state.view='timetable'; renderShell(); }
   else if(category==='chat'){ openFriendChatByPairId(data && data.pairId); }
+  else if(category==='councilChat'){ openSocialTab().then(openCouncilChat); }
+  else if(category==='cohortChat'){ if(data && data.cohortYear) openSocialTab().then(()=>openCohortChat(data.cohortYear)); }
   else if(category==='friend'){ openSocialTab(); }
+  else if(category==='suggestion'){ state.view='council'; state.councilTab='suggestion'; renderShell(); }
 }
 let nativePushListenersBound = false;
 function registerNativePushToken(){
@@ -7149,7 +7186,9 @@ function renderMypage(){
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>
+      <!-- 웹은 새로고침하면 그 자리에서 이미 최신 코드를 받으므로 "업데이트 확인"이 의미가
+           없다. APK만 수동 업데이트가 필요해서 이 메뉴도 APK 전용으로 되돌린다. -->
+      ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>
@@ -7278,6 +7317,7 @@ function setupBugReportModalListeners(){
       const ok=await saveBugReports(next);
       state.bugReports=next;
       closeModal();
+      if(ok) enqueuePush({ audience:'bugAlert', title:'새 버그 제보가 있어요', body:`제목: ${title}` });
       saveResultToast(ok, '제보가 접수되었습니다. 확인해볼게요!');
     };
   }
@@ -8183,6 +8223,7 @@ async function sendCouncilChatMessage(){
     await addDoc(collection(db,'councilChatMessages'), {
       senderUid: state.user.uid, senderName: state.user.name, senderRole: myRole(), text, createdAt: Date.now(),
     });
+    enqueuePush({ audience:'councilChat', category:'councilChat', title:'학생회 채팅', body:`${state.user.name}: ${text}` });
   }catch(e){
     console.error(e);
     toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
@@ -8384,6 +8425,7 @@ async function sendCohortChatMessage(){
     await addDoc(collection(db,'cohortChats',year,'messages'), {
       senderUid: state.user.uid, senderName: state.user.name, text, createdAt: Date.now(),
     });
+    enqueuePush({ audience:'cohortChat', cohortYear:year, category:'cohortChat', title:`${year}학번 채팅`, body:`${state.user.name}: ${text}` });
   }catch(e){
     console.error(e);
     toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
@@ -8679,15 +8721,30 @@ async function sendFriendChatMessage(){
   // 높이가 다시 커지면서 스크롤이 맨 위로 튀어 보이는 문제가 있었다. 입력창에 포커스를
   // 그대로 유지해서 키보드가 안 닫히게 한다 (연속으로 메시지 보낼 때도 자연스러움).
   input.focus();
+  const pairId = state.friendsUI.activePairId;
   try{
-    await addDoc(collection(db,'chats',state.friendsUI.activePairId,'messages'), {
+    await addDoc(collection(db,'chats',pairId,'messages'), {
       senderUid: state.user.uid, text, createdAt: Date.now(),
     });
     // 상대가 채팅을 안 열어봐도 알림 벨에서 "새 채팅 있음"을 볼 수 있게, 마지막 메시지
     // 시각·보낸 사람만 가볍게 같이 남긴다(메시지 본문 자체는 안 넣음).
-    updateDoc(doc(db,'friendLinks',state.friendsUI.activePairId), {
+    updateDoc(doc(db,'friendLinks',pairId), {
       lastMessageAt: now(), lastMessageBy: state.user.uid,
     }).catch(()=>{});
+    // 즉시 푸시는 메시지 전송을 기다리게 하지 않는다(입력 반응이 느려지면 안 됨).
+    // 상대가 이 채팅만 콕 집어 꺼둔 경우(mutedBy)는 한 번 더 읽어서 걸러낸다 — 일반 채팅
+    // 알림은 켜뒀어도 특정 친구만 무음으로 해둔 사람에게 억지로 보내면 안 되기 때문.
+    (async ()=>{
+      const otherUid = pairId.split('_').find(u=>u!==state.user.uid);
+      if(!otherUid) return;
+      try{
+        const linkSnap = await getDoc(doc(db,'friendLinks',pairId));
+        const muted = linkSnap.exists() && linkSnap.data().mutedBy && linkSnap.data().mutedBy[otherUid];
+        if(muted) return;
+      }catch(e){ /* 못 읽으면 그냥 보낸다 — 안 보내는 쪽보다는 안전 */ }
+      enqueuePush({ audience:'user', targetUid:otherUid, gateKey:'chat', pairId, category:'chat',
+        title:`${state.user.name}님의 메시지`, body:text });
+    })();
   }catch(e){
     console.error(e);
     toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
@@ -9594,7 +9651,7 @@ function userSortDropdownHtml(){
         <div style="padding:9px 12px 7px; font-size:9.5px; color:var(--text-faint); font-weight:700; letter-spacing:.02em; border-bottom:1px solid var(--border);">정렬 기준</div>
         ${USER_SORTS.map(([k,label])=>`
           <button type="button" data-action="user-sort" data-sort="${k}"
-            style="display:block; width:100%; text-align:left; background:${k===key?'var(--surface-2)':'none'}; border:none; padding:10px 12px; cursor:pointer; font-size:12px; line-height:1.2; color:${k===key?'var(--teal)':'var(--text)'}; font-weight:${k===key?'800':'500'};">${label}</button>`).join('')}
+            style="display:block; width:100%; text-align:left; background:none; border:none; padding:10px 12px; cursor:pointer; font-size:12px; line-height:1.2; color:${k===key?'var(--teal)':'var(--text)'}; font-weight:${k===key?'800':'500'};">${label}</button>`).join('')}
       </div>
     </span>`;
 }
@@ -10668,7 +10725,6 @@ async function handleNoticeSubmit(fd){
         pinned: false,
         likes: {},
         // 알림은 작성자가 명시적으로 체크했을 때만 발송된다(기본 꺼짐).
-        // 서버(GitHub Actions)가 이 값을 보고 푸시를 보낼지 결정함.
         notifyPush: fd.get('sendPush') === 'on',
         createdAt: now(),
         updatedAt: now()
@@ -10679,7 +10735,10 @@ async function handleNoticeSubmit(fd){
     closeModal();
     renderMain();
     const pushed = !id && fd.get('sendPush') === 'on';
-    saveResultToast(ok, pushed ? '공지가 게시되었습니다 (알림 발송 예약됨)' : '공지가 게시되었습니다');
+    if(ok && pushed){
+      enqueuePush({ audience:'notice', title:'새로운 공지가 있어요', body:`제목: ${title}` });
+    }
+    saveResultToast(ok, pushed ? '공지가 게시되었습니다 (1분 안에 알림이 가요)' : '공지가 게시되었습니다');
   } finally {
     if(btn) btn.disabled = false;
   }
@@ -10734,6 +10793,7 @@ async function handleSuggestionSubmit(fd){
   if(next) state.suggestions = next;
   closeModal();
   renderMain();
+  if(next) enqueuePush({ audience:'councilAlert', title:'새 건의사항이 올라왔어요', body:`제목: ${content}` });
   saveResultToast(!!next, '건의사항이 접수되었습니다');
 }
 
@@ -10785,6 +10845,14 @@ async function handleReplySubmit(fd){
     state.suggestions = next;
     closeModal();
     renderMain();
+    // 건의사항 답변은 게시판 전체가 아니라 글쓴이 본인에게만 간다. studentId로만 알고 있어서
+    // uid가 필요한 notifyQueue에는 state.allUsers에서 찾아 넘긴다 — 탈퇴 등으로 명단에
+    // 없으면(못 찾으면) 조용히 건너뛴다.
+    const answered = next.find(s => s.id === id);
+    const authorUid = answered && (state.allUsers[answered.studentId]||{}).uid;
+    if(authorUid && answered.studentId !== state.user.studentId){
+      enqueuePush({ audience:'user', gateKey:null, targetUid:authorUid, title:'건의사항에 답변이 달렸어요', body:answer, category:'suggestion' });
+    }
     saveResultToast(true, '답변이 등록되었습니다');
   } finally {
     if(btn) btn.disabled = false;
@@ -10844,10 +10912,16 @@ async function handleRecruitmentSubmit(fd){
       updatedAt: now()
     }, ...latest];
   }
+  const isNew = !(id && latest.some(r => r.id === id));
   const ok = await saveRecruitments(next);
   state.recruitmentPosts = next;
   closeModal();
   renderMain();
+  // 구인글은 공지·투표와 달리 작성자가 켜는 스위치가 없다 — 받는 쪽 알림 설정
+  // (notif_recruit, 기본 꺼짐)이 원하는 사람만 받게 걸러준다.
+  if(ok && isNew){
+    enqueuePush({ audience:'recruit', title:'새 구인글이 올라왔어요', body:`제목: ${title}` });
+  }
   saveResultToast(ok, '구인글이 저장되었습니다');
 }
 
@@ -10898,7 +10972,11 @@ async function handlePollSubmit(fd){
   state.polls = next;
   closeModal();
   renderMain();
-  saveResultToast(ok, fd.get('sendPush') === 'on' ? '투표가 게시되었습니다 (알림 발송 예약됨)' : '투표가 게시되었습니다');
+  const pushed = fd.get('sendPush') === 'on';
+  if(ok && pushed){
+    enqueuePush({ audience:'poll', title:'새 투표가 시작됐어요', body:`제목: ${question}` });
+  }
+  saveResultToast(ok, pushed ? '투표가 게시되었습니다 (1분 안에 알림이 가요)' : '투표가 게시되었습니다');
 }
 
 async function handlePollVoteSubmit(fd){

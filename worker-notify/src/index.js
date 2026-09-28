@@ -282,12 +282,24 @@ async function fsCommitUpdates(env, token, updates, budget) {
    (토픽 구독은 GitHub Actions 쪽에서 firebase-admin의 subscribeToTopic으로 해둔다) */
 const TOPIC_ALL = 'ise_all';       // 전체
 const TOPIC_NIGHT = 'ise_night';   // 야간 알림에 동의한 사람만
-async function fcmSend(env, token, target, title, body, category, budget) {
+function tapData(item) {
+  const out = {};
+  if (item.pairId) out.pairId = item.pairId;
+  if (item.cohortYear) out.cohortYear = item.cohortYear;
+  return Object.keys(out).length ? out : null;
+}
+async function fcmSend(env, token, target, title, body, category, budget, extraData) {
   budget.spend();
   const message = {
     ...target, // { token } 또는 { topic }
     notification: { title, body },
-    data: { url: './index.html', ...(category ? { category } : {}) },
+    // extraData — 채팅 알림의 pairId처럼, 눌렀을 때 어디로 갈지에 필요한 추가 정보.
+    // FCM data 필드는 값이 전부 문자열이어야 해서 String()으로 감싼다.
+    data: {
+      url: './index.html',
+      ...(category ? { category } : {}),
+      ...Object.fromEntries(Object.entries(extraData || {}).map(([k, v]) => [k, String(v)])),
+    },
   };
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/messages:send`,
@@ -372,7 +384,7 @@ async function runOnce(env) {
     if (item.audience === 'all') {
       // 전교생 발송 — 토픽 하나로 끝난다. 야간에는 동의자 토픽으로 대상을 좁힌다.
       const topic = quiet ? TOPIC_NIGHT : TOPIC_ALL;
-      const r = await fcmSend(env, token, { topic }, item.title, item.body, item.category, budget);
+      const r = await fcmSend(env, token, { topic }, item.title, item.body, item.category, budget, tapData(item));
       if (r.ok) { sentCount++; updates.push(settle(item)); }
       else updates.push({ name: item.name, sent: false, error: r.error });
       continue;
@@ -385,15 +397,42 @@ async function runOnce(env) {
       continue;
     }
 
-    // 개인 발송 — 그 사람의 기기 토큰들(폰 앱 + PC 브라우저)에 각각 보낸다.
-    const tokens = (audience.byUid && audience.byUid[item.uid]) || [];
+    // 대상 토큰 결정. audience 값에 따라 어디서 찾을지가 다르다:
+    //   self                          — 만든 사람 본인 (audience.byUid[item.uid])
+    //   user + targetUid              — 그 uid 한 명 (audience.byUid[item.targetUid]).
+    //                                   gateKey가 있으면(chat/councilChat/cohortChat) 그
+    //                                   사람이 해당 알림을 켰는지도 같이 본다 — 꺼둔 사람에게
+    //                                   억지로 보내면 안 된다.
+    //   notice/poll/recruit/bugAlert/councilAlert — 그 카테고리를 구독한 사람들 전체
+    //                                   (audience[category], Actions가 5분마다 채워둔 배열)
+    let tokens;
+    if (item.audience === 'user') {
+      const gateOk = !item.gateKey || (audience[item.gateKey + 'OkUids'] || []).includes(item.targetUid);
+      tokens = gateOk ? (audience.byUid && audience.byUid[item.targetUid]) || [] : [];
+    } else if (item.audience === 'cohortChat') {
+      // 학번별 채팅 — 그 학번 방의 구독자 배열만 골라 쓴다. 그룹 채팅이라 보낸 사람
+      // 본인은 빼야 한다(자기가 방금 보낸 메시지 알림을 자기가 또 받을 이유가 없다).
+      const own = (audience.byUid && audience.byUid[item.uid]) || [];
+      tokens = ((audience.cohortChat && audience.cohortChat[item.cohortYear]) || []).filter((t) => !own.includes(t));
+    } else if (item.audience === 'councilChat') {
+      const own = (audience.byUid && audience.byUid[item.uid]) || [];
+      tokens = (audience.councilChat || []).filter((t) => !own.includes(t));
+    } else if (['notice', 'poll', 'recruit', 'bugAlert', 'councilAlert'].includes(item.audience)) {
+      tokens = audience[item.audience] || [];
+    } else {
+      tokens = (audience.byUid && audience.byUid[item.uid]) || [];
+    }
+
     if (!tokens.length) {
-      // 알림을 켠 적이 없거나 토큰이 정리된 사람 — 다시 시도해도 같으니 완료로 둔다.
+      // 알림을 켠 적이 없거나(opt-in 안 함), 꺼둔 사람이거나, 토큰이 정리된 사람 —
+      // 다시 시도해도 같으니 완료로 둔다.
       updates.push(settle(item));
       continue;
     }
-    if (quiet && !(audience.night || []).some((t) => tokens.includes(t))) {
-      // 야간 알림 미동의 — 기존 발송기와 같은 규칙으로, 이 알림은 보내지 않고 끝낸다.
+    // 개인 알림(self/user)만 야간 규칙을 적용한다. notice/poll/recruit 같은 카테고리
+    // 배열은 이미 그 자체로 구독자 목록이라 별도 야간 필터가 없다 — 기존 Actions 발송기도
+    // 카테고리 알림엔 야간 규칙을 적용하지 않았다(공지·투표·구인은 원래 즉시성 알림).
+    if (['self', 'user'].includes(item.audience) && quiet && !(audience.night || []).some((t) => tokens.includes(t))) {
       updates.push(settle(item));
       continue;
     }
@@ -402,7 +441,7 @@ async function runOnce(env) {
     let failed = null;
     for (; i < tokens.length; i++) {
       if (budget.left() <= 1) break;
-      const r = await fcmSend(env, token, { token: tokens[i] }, item.title, item.body, item.category, budget);
+      const r = await fcmSend(env, token, { token: tokens[i] }, item.title, item.body, item.category, budget, tapData(item));
       if (r.ok) sentCount++;
       else if (!r.gone) failed = r.error; // 만료 토큰은 실패로 치지 않는다
     }
