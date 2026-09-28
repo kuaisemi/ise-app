@@ -83,6 +83,33 @@ function isHolidayDate(holidayDoc, dateStr) {
   return list.includes(dateStr);
 }
 
+/* ===== 반복 알림 =====
+   "매일" 또는 "매주 월·수·금"처럼 설정된 알림은 한 번 보내고 끝나는 게 아니라, 보낸 직후
+   다음 차례 시각을 스스로 계산해 다시 예약한다(sent를 true로 찍지 않고 at만 앞으로 민다).
+   앞으로 몇 번 보낼지 미리 큐에 쌓아두지 않는 이유: 사용자가 시각이나 요일을 바꾸면 쌓아둔
+   걸 전부 찾아 고쳐야 하는데, 한 건만 굴리면 그럴 일이 없다. */
+function nextRepeatAt(item) {
+  const repeat = item.repeat;
+  if (!repeat || !repeat.kind || repeat.kind === 'none') return null;
+
+  // 저장된 "보낼 시각"(HH:MM)을 기준으로 다음 날짜를 찾는다. 발송이 밀려서 at이 과거로
+  // 한참 내려가 있어도, 항상 "지금보다 뒤"인 가장 가까운 차례로 맞춘다.
+  const [hh, mm] = String(item.repeatTime || '09:00').split(':').map(Number);
+  const nowKst = kstNow();
+  // KST 기준 날짜 계산을 위해 UTC 게터를 쓴다(kstNow는 +9h를 더해둔 값이라 UTC 게터가 KST를 가리킨다).
+  const cursor = new Date(Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth(), nowKst.getUTCDate(), hh || 0, mm || 0));
+  const days = Array.isArray(repeat.days) ? repeat.days : [];
+
+  for (let i = 0; i <= 14; i++) {
+    const cand = new Date(cursor.getTime() + i * 86400000);
+    if (cand.getTime() <= nowKst.getTime()) continue; // 오늘치가 이미 지났으면 내일부터
+    if (repeat.kind === 'weekly' && days.length && !days.includes(cand.getUTCDay())) continue;
+    // cand는 KST 기준 시각이므로, 실제 저장할 epoch로 되돌리려면 9시간을 뺀다.
+    return cand.getTime() - 9 * 60 * 60 * 1000;
+  }
+  return null; // 2주 안에 해당하는 요일이 없으면(요일 목록이 비었거나 이상하면) 반복을 끝낸다
+}
+
 /* ===== KST 시각 =====
    Worker는 UTC로 돈다. "지금 야간인가", "오늘이 공휴일인가"는 전부 KST 기준이어야 한다. */
 const kstNow = () => new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -225,13 +252,20 @@ async function fsCommitUpdates(env, token, updates, budget) {
       fields: {
         sent: { booleanValue: !!u.sent },
         sentAt: { integerValue: String(Date.now()) },
+        // 반복 알림은 여기서 다음 차례 시각으로 밀린다(sent는 false로 남는다).
+        ...(u.at != null ? { at: { integerValue: String(u.at) } } : {}),
         ...(u.cursor != null ? { cursor: { integerValue: String(u.cursor) } } : {}),
         ...(u.error ? { lastError: { stringValue: String(u.error).slice(0, 300) } } : {}),
       },
     },
     // 지정한 필드만 건드린다 — 이게 없으면 나머지 필드가 전부 지워진다.
     updateMask: {
-      fieldPaths: ['sent', 'sentAt', ...(u.cursor != null ? ['cursor'] : []), ...(u.error ? ['lastError'] : [])],
+      fieldPaths: [
+        'sent', 'sentAt',
+        ...(u.at != null ? ['at'] : []),
+        ...(u.cursor != null ? ['cursor'] : []),
+        ...(u.error ? ['lastError'] : []),
+      ],
     },
   }));
   const res = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}:commit`, {
@@ -312,6 +346,17 @@ async function runOnce(env) {
   const updates = [];
   let sentCount = 0;
   let skippedNoAudience = 0; // 대상 목록이 없어 다음 실행으로 미룬 개인 알림 수
+  let repeatedCount = 0;     // 발송 후 다음 차례로 재예약된 반복 알림 수
+
+  // 한 항목의 처리를 끝낼 때 쓰는 마무리. 반복 설정이 있으면 "완료"로 찍지 않고 다음 차례
+  // 시각으로 밀어둔다 — 그래야 같은 문서 하나가 계속 굴러가면서 매일/매주 알림이 이어진다.
+  const settle = (item, extra = {}) => {
+    const next = nextRepeatAt(item);
+    if (next == null) return { name: item.name, sent: true, ...extra };
+    repeatedCount++;
+    // cursor는 "토큰 몇 개까지 보냈는지" 표시라, 다음 차례에는 처음부터 다시 보내야 한다.
+    return { name: item.name, sent: false, at: next, cursor: 0, ...extra };
+  };
 
   for (const item of due) {
     // 예산이 바닥나면 남은 항목은 손대지 않는다. sent가 false로 남아 있으므로 다음 분에
@@ -320,7 +365,7 @@ async function runOnce(env) {
 
     // 평일에만 의미 있는 알림(시간표 등)은 공휴일이면 보내지 않고 처리 완료로 넘긴다.
     if (item.skipOnHoliday && todayIsHoliday) {
-      updates.push({ name: item.name, sent: true });
+      updates.push(settle(item));
       continue;
     }
 
@@ -328,7 +373,7 @@ async function runOnce(env) {
       // 전교생 발송 — 토픽 하나로 끝난다. 야간에는 동의자 토픽으로 대상을 좁힌다.
       const topic = quiet ? TOPIC_NIGHT : TOPIC_ALL;
       const r = await fcmSend(env, token, { topic }, item.title, item.body, item.category, budget);
-      if (r.ok) { sentCount++; updates.push({ name: item.name, sent: true }); }
+      if (r.ok) { sentCount++; updates.push(settle(item)); }
       else updates.push({ name: item.name, sent: false, error: r.error });
       continue;
     }
@@ -344,12 +389,12 @@ async function runOnce(env) {
     const tokens = (audience.byUid && audience.byUid[item.uid]) || [];
     if (!tokens.length) {
       // 알림을 켠 적이 없거나 토큰이 정리된 사람 — 다시 시도해도 같으니 완료로 둔다.
-      updates.push({ name: item.name, sent: true });
+      updates.push(settle(item));
       continue;
     }
     if (quiet && !(audience.night || []).some((t) => tokens.includes(t))) {
       // 야간 알림 미동의 — 기존 발송기와 같은 규칙으로, 이 알림은 보내지 않고 끝낸다.
-      updates.push({ name: item.name, sent: true });
+      updates.push(settle(item));
       continue;
     }
     // 토큰이 여러 개인데 예산이 모자라면 보낸 데까지 cursor에 적어두고 다음 분에 이어서 보낸다.
@@ -361,7 +406,7 @@ async function runOnce(env) {
       if (r.ok) sentCount++;
       else if (!r.gone) failed = r.error; // 만료 토큰은 실패로 치지 않는다
     }
-    if (i >= tokens.length) updates.push({ name: item.name, sent: true, error: failed });
+    if (i >= tokens.length) updates.push(settle(item, failed ? { error: failed } : {}));
     else updates.push({ name: item.name, sent: false, cursor: i });
   }
 
@@ -369,7 +414,7 @@ async function runOnce(env) {
   if (skippedNoAudience) {
     console.warn(`[notify] shared/pushAudience가 없어 개인 알림 ${skippedNoAudience}건을 미룸 — GitHub Actions가 한 번 돌아야 생깁니다`);
   }
-  return { sent: sentCount, items: updates.length, skipped: skippedNoAudience, subrequests: budget.used };
+  return { sent: sentCount, items: updates.length, skipped: skippedNoAudience, repeated: repeatedCount, subrequests: budget.used };
 }
 
 export default {
@@ -379,7 +424,7 @@ export default {
         .then((r) => {
           // 보낼 게 없는 분이 대부분이라, 실제로 뭔가 한 경우만 로그를 남긴다
           // (wrangler tail로 볼 때 빈 줄이 1분마다 쌓이지 않도록).
-          if (r.items || r.skipped) console.log(`[notify] 발송 ${r.sent}건 / 처리 ${r.items}건 / 미룸 ${r.skipped}건 / 외부요청 ${r.subrequests}개`);
+          if (r.items || r.skipped) console.log(`[notify] 발송 ${r.sent}건 / 처리 ${r.items}건 / 반복재예약 ${r.repeated}건 / 미룸 ${r.skipped}건 / 외부요청 ${r.subrequests}개`);
         })
         .catch((e) => console.error('[notify] 실패:', e && e.message))
     );

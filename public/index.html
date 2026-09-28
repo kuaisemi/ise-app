@@ -764,11 +764,18 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.0';
+const APP_VERSION = 'Beta 0.3.1';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 167;
+const ANDROID_VERSION_CODE = 168;
 const PATCH_NOTES = [
+  { version:'Beta 0.3.1', date:'2026-09-28', items:[
+    { title:'알림 반복(루틴) 추가', text:'일정 알림을 매일 또는 매주 원하는 요일에 반복해서 받을 수 있어요. "알림 받기"를 켜면 날짜·시각 아래에 반복 설정이 나오고, 매주를 고르면 월~일 중 여러 요일을 함께 고를 수 있어요' },
+    { title:'내 일정에 "학사" 딱지가 붙던 문제 수정', text:'직접 추가한 일정에 파란 "학사" 딱지가 붙어서 학교 공식 일정처럼 보이던 문제 수정' },
+    { title:'알림 시각 선택에 오전/오후 표시', text:'알림 시각을 24시간(14:00)이 아니라 오전/오후(오후 2:00)로 고르도록 변경. 시간표 수업시간·투표 마감 시각 선택기도 같이 커져서 누르기 편해졌어요' },
+    { title:'가입자 목록 정렬 추가', text:'가입자 및 직급 관리에서 직급순 · 학번순 · 이름순 · 접속순으로 정렬할 수 있어요', admin:true },
+    { title:'가입자 상세에 앱 버전 표시', text:'가입자를 눌러서 자세히 보면 그 사람이 쓰는 앱 버전과 최신/구버전 여부가 보여요 (웹으로만 접속한 사람은 그렇게 표시돼요)', admin:true },
+  ]},
   { version:'Beta 0.3.0', date:'2026-09-28', items:[
     { title:'일정 알림 추가', text:'일정에 알림 기능 추가 — 일정을 추가·수정할 때 "알림 받기"를 켜고 날짜·시각을 정하면 그 시각에 푸시가 와요. 앱이나 브라우저를 꺼둬도 서버가 보내주기 때문에 도착하고, 일정을 지우거나 시각을 바꾸면 예약된 알림도 같이 취소·갱신돼요' },
     { title:'공휴일에 시간표 알림이 울리던 문제 수정', text:'공휴일에도 "오늘의 시간표" 알림이 울리던 문제 수정 — 평일이어도 공휴일(대체공휴일 포함)이면 보내지 않아요' },
@@ -1397,6 +1404,7 @@ const state = {
   shuttle: { weekday: [], sunday: [], fridayOffNos: [] },
   holidays: { byYear: {}, updatedAt: 0 },
   sentReminders: [], // 앱이 꺼져 있는 동안 발송된 내 예약 알림 (알림 목록 채우기용)
+  userListSort: 'role', // 가입자 관리 목록 정렬 (직급순 기본)
   homeReorderMode: false,
 };
 
@@ -1454,6 +1462,12 @@ function escapeHtml(s){ if(s==null) return ''; return String(s).replaceAll('&','
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function now(){ return Date.now(); }
 function live(arr){ return (arr||[]).filter(x=>x && !x.deleted); }
+// 가입자 관리 화면에 보여줄 앱 버전 문구. 이름을 기록하기 시작한 건 0.3.1부터라,
+// 그 전 버전만 쓰고 있는 사람은 빌드 번호만 남아 있다.
+function appVersionLabel(u){
+  if(!u || !u.androidVersionCode) return '';
+  return u.appVersion ? `${u.appVersion} (build ${u.androidVersionCode})` : `build ${u.androidVersionCode}`;
+}
 function catLabel(k){ const c=CATS.find(x=>x.key===k); return c?c.label:'기타'; }
 function catTag(k){ const c=CATS.find(x=>x.key===k); return c?c.tag:'tag-dim'; }
 function minutesToTimeInput(m){ const n=Math.max(TIME_START,Math.min(TIME_END,Number(m)||TIME_START)); return `${pad(Math.floor(n/60))}:${pad(n%60)}`; }
@@ -2021,6 +2035,13 @@ async function syncScheduleReminder(fd, ev, broadcast){
   const [h, mi] = String(timeStr).split(':').map(Number);
   const at = parseDateStr(dateStr).setHours(h || 0, mi || 0, 0, 0);
   const audience = broadcast ? 'all' : 'self';
+  // 반복 설정. Worker가 발송한 뒤 이 값을 보고 다음 날짜로 스스로 재예약한다.
+  const repeatKind = fd.get('remindRepeat') || 'none';
+  const repeatDays = String(fd.get('remindDays') || '')
+    .split(',').map(s=>parseInt(s,10)).filter(n=>!isNaN(n) && n>=0 && n<=6);
+  const repeat = repeatKind === 'weekly'
+    ? { kind:'weekly', days: repeatDays.length ? repeatDays : [parseDateStr(dateStr).getDay()] }
+    : (repeatKind === 'daily' ? { kind:'daily', days: [] } : { kind:'none', days: [] });
   // 대상이 바뀌었을 수 있으니(개인 → 전체) 반대쪽 예약은 지운다.
   try{ await deleteDoc(doc(db,'notifyQueue', reminderDocId(ev.id, broadcast ? 'self' : 'all'))); }catch(e){}
   try{
@@ -2032,6 +2053,10 @@ async function syncScheduleReminder(fd, ev, broadcast){
       body: `${ev.title}${ev.startDate === dateStr ? ' (오늘)' : ` (${fmtDateLabel(ev.startDate)})`}`,
       category: 'schedule',
       eventId: ev.id,
+      repeat,
+      // 반복 알림은 매번 시각(at)만 바뀌므로, 원래 몇 시 몇 분에 보내기로 했는지를 따로
+      // 들고 있어야 다음 날짜를 계산할 때 그 시각을 그대로 쓸 수 있다.
+      repeatTime: timeStr,
       // 시각을 바꿨으면 이미 보낸 예약이어도 다시 보내야 하므로 항상 false로 되돌린다.
       sent: false,
       createdAt: now(),
@@ -2039,21 +2064,45 @@ async function syncScheduleReminder(fd, ev, broadcast){
   }catch(e){ console.warn('[reminder]', e && e.code); }
 }
 // 일정 추가·수정 폼 세 곳(개인 일정 / 시험 일정 / 학사일정)이 같이 쓰는 입력 블록.
-// 체크를 끄면 날짜·시각 입력이 회색으로 비활성화된다.
+// 체크를 끄면 날짜·시각·반복 입력을 통째로 감춘다(회색으로 죽여두면 쓰지도 않을 칸이
+// 자리만 차지해서 폼이 길어 보인다).
+// 반복 요일 표시 순서 — Date.getDay()와 맞춘다(0=일 ... 6=토).
+const REMIND_WEEKDAYS = ['일','월','화','수','목','금','토'];
 function reminderFieldsHtml(opts={}){
   const broadcast = !!opts.broadcast;
   const on = !!opts.enabled;
   const dateStr = opts.dateStr || opts.targetDate || todayStr();
   const timeStr = opts.timeStr || '09:00';
+  const repeatKind = opts.repeatKind || 'none';
+  // 매주를 골랐는데 요일을 하나도 안 고른 상태면 시작 날짜의 요일을 기본으로 켜둔다.
+  const repeatDays = (opts.repeatDays && opts.repeatDays.length)
+    ? opts.repeatDays
+    : [parseDateStr(dateStr).getDay()];
   return `
     <div style="margin:10px 0 0; padding-top:10px; border-top:1px solid var(--border);">
       <div class="row-between" style="gap:10px;">
         <label for="remind-on-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.bell} ${broadcast ? '전체 알림 보내기' : '알림 받기'}</label>
         <label class="switch"><input type="checkbox" name="remindOn" id="remind-on-check" data-action="toggle-remind" ${on?'checked':''}><span class="slider"></span></label>
       </div>
-      <div id="remind-fields" class="field-row" style="margin-top:10px; ${on?'':'display:none;'}">
-        <div class="field" style="margin:0;"><label>알림 날짜</label>${dateFieldHtml('remindDate', dateStr)}</div>
-        <div class="field" style="margin:0;"><label>알림 시각</label>${renderTimePicker('remindTime', timeInputToMinutes(timeStr), {clamp:false})}</div>
+      <div id="remind-fields" style="${on?'':'display:none;'}">
+        <div class="field-row" style="margin-top:10px;">
+          <div class="field" style="margin:0;"><label>알림 날짜</label>${dateFieldHtml('remindDate', dateStr)}</div>
+          <div class="field" style="margin:0;"><label>알림 시각</label>${renderTimePicker('remindTime', timeInputToMinutes(timeStr), {clamp:false})}</div>
+        </div>
+        <div class="field" style="margin:10px 0 0;">
+          <label>반복</label>
+          ${renderSegPicker('remindRepeat', [['none','안 함'],['daily','매일'],['weekly','매주']], repeatKind)}
+        </div>
+        <div id="remind-weekdays" class="field" style="margin:8px 0 0; ${repeatKind==='weekly'?'':'display:none;'}">
+          <label>요일 (여러 개 고를 수 있어요)</label>
+          <div style="display:flex; gap:5px;">
+            ${REMIND_WEEKDAYS.map((label, i)=>`
+              <button type="button" class="btn ${repeatDays.includes(i)?'btn-primary':'btn-ghost'} btn-sm rd-opt"
+                data-action="toggle-remind-day" data-day="${i}"
+                style="flex:1; padding-left:0; padding-right:0;">${label}</button>`).join('')}
+          </div>
+          <input type="hidden" name="remindDays" value="${repeatDays.join(',')}">
+        </div>
       </div>
       <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.5;">${broadcast
         ? '켜면 지정한 시각에 <b>전교생</b>에게 푸시가 갑니다. 앱이 꺼져 있어도 도착해요.'
@@ -2135,6 +2184,11 @@ async function loadAllUsersList(){
         lastSeen: v.lastSeen || 0,
         platform: v.platform || '',
         createdAt: v.createdAt || 0,
+        // 앱(APK)으로 접속한 사람만 남는 값. 웹 접속자는 늘 최신 코드를 받으므로 기록하지 않는다.
+        // appVersion('Beta 0.3.0')은 0.3.1부터 기록되기 시작해서, 그 전에 마지막으로 접속한
+        // 사람은 androidVersionCode(숫자)만 있다.
+        androidVersionCode: v.androidVersionCode || 0,
+        appVersion: v.appVersion || '',
       };
     });
     localSet('shared_usersList', { map });
@@ -2428,7 +2482,9 @@ async function trackUserPresence(u){
     // 문자열 자르기 같은 걸 규칙 안에서 하지 않고 여기서 미리 필드로 남겨둔다.
     await setDoc(doc(db,'users',u.uid), {
       lastSeen: ts, platform,
-      ...(isNativeApp ? { androidVersionCode: ANDROID_VERSION_CODE } : {}),
+      // 숫자(build 167)만 있으면 관리 화면에서 그 사람이 어느 버전인지 한눈에 안 들어와서,
+      // 읽을 수 있는 이름('Beta 0.3.0')도 같이 남긴다.
+      ...(isNativeApp ? { androidVersionCode: ANDROID_VERSION_CODE, appVersion: APP_VERSION } : {}),
       ...(myCohortYear() ? { cohortYear: myCohortYear() } : {}),
     }, { merge:true });
     // IP는 users 문서가 아니라 userMeta에 따로 남긴다(위 규칙 참고).
@@ -5235,7 +5291,15 @@ function renderExamCalTab(){
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="width:10px; height:10px; border-radius:50%; background:${ev.color || (ev.category==='council'?'var(--crimson)':'var(--blue)')}; display:inline-block; flex-shrink:0;"></span>
               <b style="font-size:13px;">${escapeHtml(ev.title)}</b>
-              <span class="tag ${catTag(ev.category)}">${catLabel(ev.category)}</span>
+              ${(()=>{
+                // 개인 일정은 저장할 때 분류를 'academic'으로 넣는데(폼에 분류 선택이 없어서
+                // 기본값이 그렇게 박혀 있다), 그 값을 그대로 표시하면 내가 만든 "스터디"에
+                // 파란 "학사" 딱지가 붙어서 학교 공식 일정처럼 보인다. 개인 일정에는 분류
+                // 딱지를 아예 달지 않는다 — 어차피 이 목록에 학사일정은 안 올라온다.
+                const isPersonalPlain = ev.source === 'personal' && ev.category === 'academic';
+                if(isPersonalPlain) return '';
+                return `<span class="tag ${catTag(ev.category)}">${catLabel(ev.category)}</span>`;
+              })()}
             </div>
             ${canDel ? `<button class="btn btn-danger btn-sm" data-action="delete-event" data-id="${ev.id}" style="width:auto; padding:3px 8px; font-size:10.5px;">삭제</button>` : ''}
           </div>
@@ -5443,7 +5507,9 @@ function eventModal(ev, reminder){
         broadcast: true,
         enabled: !!reminder,
         dateStr: remindAt ? fmtDateStr(remindAt) : v.startDate,
-        timeStr: remindAt ? `${pad(remindAt.getHours())}:${pad(remindAt.getMinutes())}` : '09:00',
+        timeStr: (reminder && reminder.repeatTime) || (remindAt ? `${pad(remindAt.getHours())}:${pad(remindAt.getMinutes())}` : '09:00'),
+        repeatKind: (reminder && reminder.repeat && reminder.repeat.kind) || 'none',
+        repeatDays: (reminder && reminder.repeat && reminder.repeat.days) || [],
       })}
       <div class="modal-actions">
         ${isEdit?`<button type="button" class="btn btn-danger" data-action="delete-event" data-id="${ev.id}">삭제</button>`:''}
@@ -9272,6 +9338,7 @@ function userDetailBody(sid){
       <div class="meta" style="margin-top:4px;">가입일 <b style="color:var(--text);">${u.createdAt ? fmtDateTime(u.createdAt) : '알 수 없음'}</b></div>
       <div class="meta" style="margin-top:4px;">최근 접속 ${online ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : escapeHtml(fmtLastSeen(u.lastSeen))}</div>
       ${u.platform ? `<div class="meta" style="margin-top:4px;">기기 ${escapeHtml(platformLabel(u.platform))}</div>` : ''}
+      ${u.androidVersionCode ? `<div class="meta" style="margin-top:4px;">앱 버전 <b style="color:var(--text);">${escapeHtml(appVersionLabel(u))}</b>${u.androidVersionCode < ANDROID_VERSION_CODE ? ` <span class="tag tag-amber" style="font-size:9px; padding:1px 6px;">구버전</span>` : ` <span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">최신</span>`}</div>` : `<div class="meta" style="margin-top:4px;">앱 버전 <span style="color:var(--text-faint);">웹으로만 접속 (앱 설치 기록 없음)</span></div>`}
       ${dev ? `<div class="meta" style="margin-top:4px; font-family:var(--font-mono);">최종 접속 IP ${escapeHtml((meta && meta.lastIp) || '기록 없음')}</div>` : ''}
     </div>
 
@@ -9325,7 +9392,7 @@ async function userDetailModal(sid){
 }
 
 function usersListModal(){
-  const users = Object.values(state.allUsers||{}).sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+  const users = sortUsersBy(Object.values(state.allUsers||{}), state.userListSort || 'role');
   const rosterMap = state.roster || {};
   const registeredSids = new Set(users.map(u=>u.studentId));
   const unregUsers = Object.entries(rosterMap).filter(([sid])=>!registeredSids.has(sid)).map(([sid, v])=>({
@@ -9362,8 +9429,24 @@ function usersListModal(){
 
 // 학번 탭을 누를 때마다 모달을 통째로 다시 열면 열림 애니메이션이 다시 돌고 스크롤 위치와
 // 입력해 둔 검색어가 매번 날아간다. 그래서 바뀌는 부분만 따로 떼어내 이 안만 갈아끼운다.
+// 가입자 목록 정렬 방식. 기본은 예전과 같은 직급순이라 쓰던 사람이 놀라지 않는다.
+const USER_SORTS = [
+  ['role',   '직급순'],
+  ['sid',    '학번순'],
+  ['name',   '이름순'],
+  ['seen',   '접속순'],
+];
+function sortUsersBy(list, key){
+  const arr = [...list];
+  if(key === 'sid')  return arr.sort((a,b)=>String(a.studentId).localeCompare(String(b.studentId)));
+  if(key === 'name') return arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'ko'));
+  // 접속순은 최근에 본 사람이 위로. 접속 기록이 없는 사람은 맨 뒤로 보낸다.
+  if(key === 'seen') return arr.sort((a,b)=>(b.lastSeen||0)-(a.lastSeen||0));
+  return arr.sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+}
 function usersListPanel(){
-  const users = Object.values(state.allUsers||{}).sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+  const sortKey = state.userListSort || 'role';
+  const users = sortUsersBy(Object.values(state.allUsers||{}), sortKey);
   const rosterMap = state.roster || {};
   const registeredSids = new Set(users.map(u=>u.studentId));
   const unregUsers = Object.entries(rosterMap).filter(([sid])=>!registeredSids.has(sid)).map(([sid, v])=>({
@@ -9395,6 +9478,12 @@ function usersListPanel(){
       <div class="subtab ${tab==='prev'?'active':''}" data-action="user-tab" data-tab="prev">${prevY}학번(${prevCount})</div>
       <div class="subtab ${tab==='old'?'active':''}" data-action="user-tab" data-tab="old">${prevY-1}이전(${oldCount})</div>
       <div class="subtab ${tab==='unreg'?'active':''}" data-action="user-tab" data-tab="unreg">미가입(${unregUsers.length})</div>
+    </div>
+    <div style="display:flex; gap:5px; margin-bottom:8px;">
+      ${USER_SORTS.map(([k,label])=>`
+        <button type="button" class="btn ${sortKey===k?'btn-primary':'btn-ghost'} btn-sm"
+          data-action="user-sort" data-sort="${k}"
+          style="flex:1; padding-left:0; padding-right:0; font-size:11px;">${label}</button>`).join('')}
     </div>
     <div class="user-search-wrap">
       <input type="text" id="user-search-input" class="user-search-input" placeholder="이름 또는 학번으로 검색" autocomplete="off">
@@ -11069,7 +11158,7 @@ document.addEventListener('click', async (e)=>{
 
   const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','delete-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
-  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail','delete-council-chat-all'];
+  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail','delete-council-chat-all','user-sort'];
   if(councilOnly.includes(a) && !isCouncil()){ toast('학생회 권한이 필요한 기능입니다'); return; }
   if(pollOnly.includes(a) && !canPoll()){ toast('국장 이상 권한이 필요한 기능입니다'); return; }
   if(presidentOnly.includes(a) && !isPresident()){ toast('학생회장 권한이 필요한 기능입니다'); return; }
@@ -11147,6 +11236,11 @@ document.addEventListener('click', async (e)=>{
         const hidden = wrap.querySelector('input[type=hidden]');
         if(hidden) hidden.value = el.dataset.value;
         hidden && hidden.dispatchEvent(new Event('change', { bubbles:true }));
+        // 알림 반복에서 "매주"를 골랐을 때만 요일 고르는 줄을 보여준다.
+        if(wrap.dataset.name === 'remindRepeat'){
+          const days = document.getElementById('remind-weekdays');
+          if(days) days.style.display = el.dataset.value === 'weekly' ? '' : 'none';
+        }
       }
     }
     else if(a === 'toggle-date-picker'){
@@ -11436,12 +11530,14 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'regen-council-code'){ await regenCouncilCode(el.dataset.field); }
     else if(a === 'copy-council-code'){ copyCouncilCode(el.dataset.field); }
-    else if(a === 'user-tab'){
+    // 정렬 바꾸기도 탭 전환과 똑같이 "안쪽 패널만 갈아끼우기"로 처리한다.
+    else if(a === 'user-sort' || a === 'user-tab'){
       // 모달을 통째로 다시 열면 열림 애니메이션이 다시 돌고 검색어·스크롤이 날아간다.
       // 안쪽 패널만 바꾸고, 쳐 두었던 검색어는 그대로 되살린다.
       const prevInput = document.getElementById('user-search-input');
       const q = prevInput ? prevInput.value : '';
-      state.activeUserListTab = el.dataset.tab;
+      if(a === 'user-sort') state.userListSort = el.dataset.sort;
+      else state.activeUserListTab = el.dataset.tab;
       const panel = document.getElementById('users-list-panel');
       if(panel){
         panel.innerHTML = usersListPanel();
@@ -11542,6 +11638,21 @@ document.addEventListener('click', async (e)=>{
     else if(a==='toggle-remind'){
       const box = document.getElementById('remind-fields');
       if(box) box.style.display = el.checked ? '' : 'none';
+    }
+    // 반복 요일 칩 — 여러 개를 켜고 끌 수 있어서 seg-picker(하나만 선택)를 못 쓴다.
+    else if(a==='toggle-remind-day'){
+      const wrap = document.getElementById('remind-weekdays');
+      const hidden = wrap && wrap.querySelector('input[type=hidden]');
+      if(!hidden) return;
+      const day = el.dataset.day;
+      const cur = hidden.value.split(',').filter(Boolean);
+      const idx = cur.indexOf(day);
+      if(idx >= 0) cur.splice(idx, 1); else cur.push(day);
+      // 전부 끄면 "매주"인데 보낼 요일이 없어져서 알림이 영영 안 간다 — 마지막 하나는 남긴다.
+      if(!cur.length){ toast('요일을 최소 하나는 골라주세요'); return; }
+      hidden.value = cur.sort().join(',');
+      el.classList.toggle('btn-primary', idx < 0);
+      el.classList.toggle('btn-ghost', idx >= 0);
     }
     else if(a==='delete-all-calendar'){ await deleteAllCalendarEvents(); }
     else if(a==='ocr-calendar'){ openModal(calendarOcrModal()); setupCalendarOcrModalListeners(); }
