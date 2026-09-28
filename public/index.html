@@ -1494,6 +1494,12 @@ function getWeekdayDates(base){ const mon=new Date(getWeekMonday(base)+'T00:00:0
 function minutesToLabel(m){ return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
 function todayDayIndex(){ const g=new Date().getDay(); return (g>=1&&g<=5)?g-1:-1; }
 function escapeHtml(s){ if(s==null) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
+// 공지 등 게시글 본문에 http(s) 링크를 적으면 눌러서 바로 열 수 있게 한다.
+// escapeHtml을 먼저 거친 뒤에만 호출해야 안전하다 — URL 문자열 안에는 <,>,"가 나올
+// 일이 없어서 이스케이프 이후에도 그대로 매치된다.
+function linkifyEscaped(escaped){
+  return String(escaped||'').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--teal); text-decoration:underline; word-break:break-all;">$1</a>');
+}
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function now(){ return Date.now(); }
 function live(arr){ return (arr||[]).filter(x=>x && !x.deleted); }
@@ -6550,7 +6556,7 @@ function renderNoticeTab(){
         <div class="list-item">
           <div class="title-line">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b>${escapeHtml(n.title)}</b></div>
           <div class="meta">${n.anonymous ? '학생회' : fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole)} · ${fmtDateTime(n.createdAt || n.date)}</div>
-          <div class="body">${escapeHtml(n.content)}</div>
+          <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
           ${noticeImagesHtml(n)}
           ${renderLikeUI(n, 'notice')}
           ${council ? `
