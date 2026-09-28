@@ -779,11 +779,16 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.2';
+const APP_VERSION = 'Beta 0.3.3';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 170;
+const ANDROID_VERSION_CODE = 171;
 const PATCH_NOTES = [
+  { version:'Beta 0.3.3', date:'2026-09-28', items:[
+    { title:'일정 추가에서 여러 날짜 걸치는 일정 등록', text:'일정을 추가할 때 시작일과 종료일을 따로 골라 여러 날짜에 걸친 일정을 등록할 수 있어요' },
+    { title:'일정 상세 펼침 화면 정리', text:'일정을 눌러 펼쳤을 때 시간·장소가 한 줄에 나란히 보이고, 메모·수정·삭제는 구분선 아래로 깔끔하게 정리됐어요' },
+    { title:'학사일정이 전부 2개씩 보이던 문제 수정', text:'공식 학사일정이 기기에 저장된 예전 캐시와 겹쳐서 모든 항목이 2개씩 중복으로 보이던 문제 수정', type:'fix' },
+  ]},
   { version:'Beta 0.3.2', date:'2026-09-28', items:[
     { title:'앱을 보는 중에도 알림이 울리도록 변경', text:'앱을 켜서 보고 있는 동안에도 채팅,공지 등 알림이 오면 실제로 소리,진동과 함께 알려줘요. 다만 지금 보고 있는 바로 그 채팅방에서 온 메시지는 이미 화면에 실시간으로 보이니 다시 울리지 않아요' },
     { title:'학식은 이번 주치만 보관', text:'학식 정보를 이번 주(월~일)치만 저장하도록 변경 - 지난 주 식단은 자동으로 정리돼요. 요일 칸에 이번 주 전체가 다 나오니 좌우로 날짜를 넘기던 화살표는 없앴어요' },
@@ -1814,17 +1819,6 @@ if(window.matchMedia){
   });
 }
 
-function mergeLists(remote, local){
-  const map={};
-  (remote||[]).forEach(it=>{ if(it&&it.id) map[it.id]=it; });
-  (local||[]).forEach(it=>{
-    if(!it||!it.id) return;
-    const prev=map[it.id];
-    if(!prev || (it.updatedAt||0) >= (prev.updatedAt||0)) map[it.id]=it;
-  });
-  return Object.values(map);
-}
-
 async function loadShared(name, fallback){
   const localVal = localGet('shared_'+name, fallback);
   // 로그인 직후(onAuthStateChanged 콜백 안에서) 여러 shared/* 문서를 한꺼번에 Promise.all로
@@ -1832,17 +1826,20 @@ async function loadShared(name, fallback){
   // permission-denied로 실패하는 경우가 있었다(같은 계정으로 새로고침 버튼을 눌러 다시
   // 부르면 그때는 성공 — 딱 그 타이밍 차이). 실패해도 곧바로 캐시로 눙치지 말고, 아주 짧게
   // 한 번 더 시도해서 그 경합을 흡수한다.
+  //
+  // ★ getDoc이 성공하면 그 결과가 이미 그 문서의 전체 최신 내용이라, 캐시된 local 값과
+  // 합칠 이유가 없다 — 예전엔 여기서 항상 mergeLists로 합쳤는데, 그러면 캐시에 남아있는
+  // "예전에 다른 id로 만들어졌다가 그 뒤 삭제·재생성된 항목"이 remote가 아무리 깨끗해도
+  // 영원히 되살아났다(id가 바뀌면 mergeLists가 "새 항목"으로 보고 그대로 유지하기 때문).
+  // 실제로 학사일정을 이 방식 때문에 모든 공식 일정이 2개씩 보이는 문제가 있었다.
+  // local은 오직 "이번 시도가 전부 실패했을 때"의 폴백으로만 쓴다.
   for(let attempt=0; attempt<2; attempt++){
     try{
       const snap = await getDoc(doc(db,'shared',name));
       if(snap && snap.exists()){
         const remote = snap.data();
-        let merged = remote;
-        if(remote && Array.isArray(remote.list)) merged = { list: mergeLists(remote.list, (localVal&&localVal.list)||[]) };
-        else if(remote && Array.isArray(remote.events)) merged = { events: mergeLists(remote.events, (localVal&&localVal.events)||[]) };
-        else if(remote && remote.byDate) merged = { byDate: { ...(localVal&&localVal.byDate||{}), ...remote.byDate } };
-        localSet('shared_'+name, merged);
-        return merged;
+        localSet('shared_'+name, remote);
+        return remote;
       }
       break; // 문서가 진짜 없는 것뿐이면(exists()===false) 재시도해도 의미 없다
     }catch(e){
@@ -3988,6 +3985,7 @@ const ICON = {
   chevDown:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`,
   more:`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`,
   pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 0 0-5 5c0 3 2 4.5 3 7l-4 1v2h4v5l2 2 2-2v-5h4v-2l-4-1c1-2.5 3-4 3-7a5 5 0 0 0-5-5Z"/></svg>`,
+  clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
   lock:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>`,
   trace:`<svg width="150" height="150" viewBox="0 0 150 150" fill="none"><path d="M0 40 H50 V10 H150 M0 90 H30 V130 H90 V150 M60 0 V25 H150 M20 150 V110 H0" stroke="currentColor" stroke-width="1.4"/><circle cx="50" cy="40" r="3" fill="currentColor"/><circle cx="30" cy="90" r="3" fill="currentColor"/><circle cx="90" cy="130" r="3" fill="currentColor"/><circle cx="60" cy="25" r="3" fill="currentColor"/></svg>`,
   // 아래는 기존에 이모지로 쓰이던 자리를 대체하는 선 아이콘들. 위 아이콘들과 같은 규격
@@ -5516,15 +5514,20 @@ function renderExamCalTab(){
             ${(hasDetail || canManage) ? `<span class="sub ev-detail-chev" id="ev-chev-${ev.id}" style="transition:transform .15s; display:inline-flex; flex-shrink:0;">${ICON.chevR}</span>` : ''}
           </div>
           <!-- 시간·장소·메모는 평소엔 접어두고, 위 줄을 눌러야 펼쳐진다 — 목록이 한 줄씩
-               짧게 보이게 하려는 것. 수정·삭제 버튼도 여기 안에 넣어서 실수로 안 눌리게 한다. -->
-          <div id="ev-detail-${ev.id}" style="display:none; margin-top:8px;">
-            ${parsed.time ? `<div class="meta" style="font-size:11px;">${ICON.clock||''} 시간: ${escapeHtml(parsed.time)}</div>` : ''}
-            ${parsed.room ? `<div class="meta" style="font-size:11px; margin-top:2px;">${ICON.pin||''} 장소: ${escapeHtml(parsed.room)}</div>` : ''}
-            ${parsed.description ? `<div class="body" style="margin-top:6px; font-size:11.5px; color:var(--text-dim); white-space:pre-wrap;">${escapeHtml(parsed.description)}</div>` : ''}
+               짧게 보이게 하려는 것. 수정·삭제 버튼도 여기 안에 넣어서 실수로 안 눌리게 한다.
+               시간·장소는 세로로 두 줄 쓰기엔 아까운 짧은 정보라 한 줄에 나란히 배치하고,
+               메모·버튼은 구분선 아래에 둬서 "언제·어디서"와 "무엇을·어떻게 관리"를 나눈다. -->
+          <div id="ev-detail-${ev.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+            ${(parsed.time || parsed.room) ? `
+            <div style="display:flex; flex-wrap:wrap; gap:14px;">
+              ${parsed.time ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.clock} ${escapeHtml(parsed.time)}</span>` : ''}
+              ${parsed.room ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.pin} ${escapeHtml(parsed.room)}</span>` : ''}
+            </div>` : ''}
+            ${parsed.description ? `<div class="body" style="margin-top:${(parsed.time||parsed.room)?'8px':'0'}; font-size:11.5px; color:var(--text-dim); white-space:pre-wrap; line-height:1.5;">${escapeHtml(parsed.description)}</div>` : ''}
             ${canManage ? `
-            <div style="display:flex; gap:6px; margin-top:8px;">
-              <button class="btn btn-ghost btn-sm" data-action="edit-personal-event" data-id="${ev.id}" style="flex:1; padding:4px 8px; font-size:10.5px;">${ICON.pencil||''} 수정</button>
-              <button class="btn btn-danger btn-sm" data-action="delete-event" data-id="${ev.id}" style="flex:1; padding:4px 8px; font-size:10.5px;">삭제</button>
+            <div style="display:flex; gap:6px; margin-top:${hasDetail?'10px':'0'};">
+              <button class="btn btn-ghost btn-sm" data-action="edit-personal-event" data-id="${ev.id}" style="flex:1; padding:6px 8px; font-size:11px;">${ICON.pencil} 수정</button>
+              <button class="btn btn-danger btn-sm" data-action="delete-event" data-id="${ev.id}" style="flex:1; padding:6px 8px; font-size:11px;">${ICON.trash} 삭제</button>
             </div>` : ''}
           </div>
         </div>`;
@@ -5549,13 +5552,13 @@ function scheduleModal(preselectedDate, isCouncilEvent = false, ev = null, remin
       <input type="hidden" name="source" value="personal">
       <input type="hidden" name="color" id="schedule-color-input" value="${defaultColor}">
       
-      <!-- 제목 옆에 날짜를 붙이고, 그 아래 한 줄에 장소·시간을 둔다.
-           날짜 버튼은 반 칸이라 좁지만, 눌러서 펼친 달력은 아래 .date-field-pop 규칙으로
-           행 전체 폭에 떠오르게 해서 평소 크기 그대로 보인다(좁은 칸에 구겨 넣지 않는다). -->
+      <div class="field"><label>일정 제목</label><input type="text" name="title" required value="${ev ? escapeHtml(ev.title) : ''}" placeholder="${isCouncilEvent ? '예: 회의' : '예: 스터디'}" style="font-family:var(--font-display)"></div>
+      <!-- 시작일·종료일을 나란히 둔다. 같은 날 하루짜리 일정이면 종료일을 시작일과
+           같게 두면 되고, 여러 날에 걸친 일정이면 종료일만 다르게 고르면 된다
+           (시작일을 종료일보다 뒤로 옮기면 종료일도 자동으로 따라간다 — dp-pick-day 참고). -->
       <div class="field-row field-row-split" style="position:relative;">
-        <div class="field" style="margin:0; min-width:0;"><label>일정 제목</label><input type="text" name="title" required value="${ev ? escapeHtml(ev.title) : ''}" placeholder="${isCouncilEvent ? '예: 회의' : '예: 스터디'}" style="font-family:var(--font-display)"></div>
-        <div class="field date-field-pop" style="margin:0; min-width:0;"><label>날짜</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
-        <input type="hidden" name="endDate" id="event-end-date" value="${ev ? ev.endDate : targetDate}">
+        <div class="field date-field-pop" style="margin:0; min-width:0;"><label>시작일</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
+        <div class="field date-field-pop" style="margin:0; min-width:0;"><label>종료일</label>${dateFieldHtml('endDate', ev ? ev.endDate : targetDate, {required:true})}</div>
       </div>
 
       <div class="field-row">
