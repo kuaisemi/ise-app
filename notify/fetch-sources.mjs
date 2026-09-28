@@ -333,6 +333,12 @@ async function runMeals() {
     }
   }
   if (!dayCount) throw new Error('가져온 식단에 내용이 없음');
+  // 식단은 이번 주(월~일)치만 있으면 충분하므로, 지난 주 이전 데이터는 계속 쌓아두지 않고 지운다.
+  const monday = thisMondayStr();
+  const sunday = kstDateStr(new Date(new Date(monday).getTime() + 6 * 86400000));
+  for (const date of Object.keys(byDate)) {
+    if (date < monday || date > sunday) delete byDate[date];
+  }
   await db.collection('shared').doc('meals').set({ byDate });
   return dayCount;
 }

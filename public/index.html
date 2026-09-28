@@ -482,11 +482,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .link-row span.sub{color:var(--text-faint); font-size:11.5px;}
 .link-row.danger{color:var(--danger);}
 
-/* 요일 선택(pill)과 주 단위 이동(화살표)이 각각 다른 줄에 있으면서 그 사이에
-   현재 날짜를 또 한 번 크게 써서 정보가 세 번 겹쳐 보였다. 화살표를 pill 줄
-   양끝에 붙여 한 줄로 합치고, 중복되던 큰 날짜 텍스트는 없앤다. */
 .weekday-nav{display:flex; align-items:center; gap:6px; margin-bottom:12px;}
-.weekday-nav-arrow{flex-shrink:0; background:var(--surface-2); border:1px solid var(--border); border-radius:50%; width:30px; height:30px; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center;}
 .w-pill{flex:1; text-align:center; padding:8px 4px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; font-size:11.5px; color:var(--text-dim); font-weight:700;}
 .w-pill b{display:block; font-size:11.5px; margin-bottom:1px;}
 .w-pill.active{background:var(--crimson); color:#fff; border-color:var(--crimson-light);}
@@ -783,11 +779,15 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.1';
+const APP_VERSION = 'Beta 0.3.2';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 169;
+const ANDROID_VERSION_CODE = 170;
 const PATCH_NOTES = [
+  { version:'Beta 0.3.2', date:'2026-09-28', items:[
+    { title:'앱을 보는 중에도 알림이 울리도록 변경', text:'앱을 켜서 보고 있는 동안에도 채팅,공지 등 알림이 오면 실제로 소리,진동과 함께 알려줘요. 다만 지금 보고 있는 바로 그 채팅방에서 온 메시지는 이미 화면에 실시간으로 보이니 다시 울리지 않아요' },
+    { title:'학식은 이번 주치만 보관', text:'학식 정보를 이번 주(월~일)치만 저장하도록 변경 - 지난 주 식단은 자동으로 정리돼요. 요일 칸에 이번 주 전체가 다 나오니 좌우로 날짜를 넘기던 화살표는 없앴어요' },
+  ]},
   { version:'Beta 0.3.1', date:'2026-09-28', items:[
     { title:'개인 일정·시험 일정 수정 기능 추가', text:'만들어둔 개인 일정·시험 일정을 눌러서 바로 수정할 수 있어요. 항목을 누르면 시간·장소가 펼쳐지고, 그 안에 수정·삭제 버튼이 같이 있어요' },
     { title:'일정 목록에서 시간·장소를 접어서 표시', text:'일정 목록이 평소엔 제목 한 줄로만 보이고, 눌러야 시간·장소·메모가 펼쳐져요' },
@@ -1467,16 +1467,6 @@ function homeStaffMealSlot(){
   return { closed: !(mins >= 7*60 && mins < 21*60) };
 }
 function addDays(str, delta){ const d=new Date(str+'T00:00:00'); d.setDate(d.getDate()+delta); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-// 학식은 평일에만 운영하므로, 하루씩 넘기다 토·일에 걸리면 계속 밀어서 평일에만 멈춘다.
-function shiftWeekday(str, delta){
-  let next = addDays(str, delta);
-  for(let i=0; i<7; i++){
-    const wd = new Date(next+'T00:00:00').getDay();
-    if(wd !== 0 && wd !== 6) return next;
-    next = addDays(next, delta);
-  }
-  return next;
-}
 function addMonths(ym, delta){ let [y,m]=ym.split('-').map(Number); m+=delta; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;} return `${y}-${pad(m)}`; }
 function monthBounds(ym){ const [y,m]=ym.split('-').map(Number); const last=new Date(y,m,0).getDate(); return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(last)}`]; }
 function fmtMonthLabel(ym){ const [y,m]=ym.split('-').map(Number); return `${y}년 ${m}월`; }
@@ -2943,6 +2933,52 @@ function routeNotificationTap(category, data){
   else if(category==='friend'){ openSocialTab(); }
   else if(category==='suggestion'){ state.view='council'; state.councilTab='suggestion'; renderShell(); }
 }
+// 앱을 보고 있는 중에 그 알림이 가리키는 화면(채팅방)을 이미 보고 있으면,
+// 이미 실시간으로 보이는 내용이라 굳이 다시 울려서 알릴 필요가 없다.
+function isViewingChat(category, data){
+  if(typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+  if(!(state.view === 'council' && state.councilTab === 'social')) return false;
+  if(category === 'chat'){
+    return state.friendsUI.screen === 'detail' && !!data && state.friendsUI.activePairId === data.pairId;
+  }
+  if(category === 'councilChat'){
+    return state.friendsUI.screen === 'councilChat';
+  }
+  if(category === 'cohortChat'){
+    return state.friendsUI.screen === 'cohortChat' && !!state.cohortChatUI && !!data
+      && String(state.cohortChatUI.year) === String(data.cohortYear);
+  }
+  return false;
+}
+// 포그라운드(앱을 보고 있는 중)로 온 알림은 OS가 알아서 소리·진동을 내주지 않으므로,
+// 기기 로컬 알림을 즉시(0초 뒤) 예약해 실제 알림처럼 소리/진동/배너가 뜨게 만든다.
+// 단, 지금 그 채팅방을 보고 있는 중이면(위 isViewingChat) 이미 실시간으로 보이므로 건너뛴다.
+let fgAlertSeq = 900000;
+async function fireForegroundAlert(title, body, category, data){
+  if(isViewingChat(category, data)) return;
+  try{
+    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+    if(isNative){
+      const LN = Capacitor.Plugins && Capacitor.Plugins.LocalNotifications;
+      if(!LN) return;
+      let perm = await LN.checkPermissions();
+      if(perm.display !== 'granted'){
+        perm = await LN.requestPermissions();
+        if(perm.display !== 'granted') return;
+      }
+      await LN.schedule({ notifications: [{
+        id: fgAlertSeq++,
+        title: title || '알림',
+        body: body || '',
+        channelId: 'ku_ise_default',
+        schedule: { at: new Date(Date.now() + 300) },
+      }] });
+    }else if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+      new Notification(title || '알림', { body: body || '' });
+      if(navigator.vibrate) navigator.vibrate(200);
+    }
+  }catch(e){ console.warn('[fg-alert]', e); }
+}
 let nativePushListenersBound = false;
 function registerNativePushToken(){
   const PN = (typeof Capacitor !== 'undefined' && Capacitor.Plugins) ? Capacitor.Plugins.PushNotifications : null;
@@ -2962,9 +2998,11 @@ function registerNativePushToken(){
         PN.addListener('pushNotificationReceived', (n)=>{
           const title = (n && n.title) || '알림';
           const body = (n && n.body) || '';
+          const data = (n && n.data) || {};
           toast(`${title}${body ? ' — ' + body : ''}`);
           // 토스트는 몇 초 뒤 사라지므로, 나중에 다시 볼 수 있게 알림 목록에도 남긴다.
-          recordReceivedNotif(title, body, (n && n.data && n.data.category) || '');
+          recordReceivedNotif(title, body, data.category || '');
+          fireForegroundAlert(title, body, data.category, data);
         });
         // 백그라운드·종료 상태에서 시스템 알림을 눌러서 들어왔을 때, 알림 종류에 맞는
         // 화면으로 바로 이동한다 (메시지→그 채팅방, 공지→공지, 투표→투표, 식단→학식탭).
@@ -2984,9 +3022,11 @@ async function setupForegroundMessageListener(){
     if(!messaging) return;
     onMessage(messaging, (payload)=>{
       const n = payload.notification || {};
+      const data = payload.data || {};
       if(n.title || n.body){
         toast(`${n.title||'알림'}${n.body ? ' — '+n.body : ''}`);
-        recordReceivedNotif(n.title||'알림', n.body||'', (payload.data && payload.data.category) || '');
+        recordReceivedNotif(n.title||'알림', n.body||'', data.category || '');
+        fireForegroundAlert(n.title||'알림', n.body||'', data.category, data);
       }
     });
   }catch(e){}
@@ -5776,12 +5816,10 @@ function renderMealTab(){
   const staff = raw.staff || null;
   return `
     <div class="weekday-nav">
-      <button type="button" class="weekday-nav-arrow" data-action="meal-day-prev" aria-label="전날">${ICON.chevL}</button>
       ${weekDates.map((dStr,idx)=>`
         <div class="w-pill ${dStr===state.mealDate?'active':''} ${dStr===todayStr()?'today-pill':''}" data-action="select-meal-date" data-date="${dStr}">
           <b>${DAYS[idx]}</b><span>${fmtDateShort(dStr)}</span>
         </div>`).join('')}
-      <button type="button" class="weekday-nav-arrow" data-action="meal-day-next" aria-label="다음날">${ICON.chevR}</button>
     </div>
     <div class="card" style="margin-bottom:12px;">
       <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
@@ -12134,8 +12172,6 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'select-meal-date'){ state.mealDate = el.dataset.date; renderMain(); }
     // 학식은 평일에만 운영해서 주말 날짜엔 보여줄 게 없다. 화살표로 하루씩 넘길 때
     // 토·일은 건너뛰고 바로 다음(이전) 평일로 이동한다.
-    else if(a === 'meal-day-prev'){ state.mealDate = shiftWeekday(state.mealDate, -1); renderMain(); }
-    else if(a === 'meal-day-next'){ state.mealDate = shiftWeekday(state.mealDate, 1); renderMain(); }
     else if(a === 'edit-meal'){ openModal(mealModal(el.dataset.date)); }
     else if(a === 'fetch-meal-page'){ await fetchMealFromSource(false); }
     else if(a === 'add-notice'){ openModal(noticeModal(null)); setupNoticeModalListeners(); }
