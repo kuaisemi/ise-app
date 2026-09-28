@@ -564,7 +564,9 @@ details.likers-accordion > div, details.voters-accordion > div{
    하나의 입력 필드처럼 테두리로 묶고, 손가락에 맞게 버튼을 키웠다(권장 최소 크기에 맞춤). */
 .time-picker{display:inline-flex; align-items:stretch; gap:0; border:1px solid var(--border); background:var(--surface-2); border-radius:var(--radius-sm); overflow:hidden;}
 .time-picker .tp-col{display:flex; flex-direction:column; align-items:stretch; gap:0;}
-.time-picker .tp-val{font-family:var(--font-mono); font-size:17px; font-weight:800; color:var(--text); min-width:38px; text-align:center; user-select:none; display:flex; align-items:center; justify-content:center; padding:2px 0;}
+/* 세 칸(오전·시·분)의 글자 크기가 서로 달라서 높이를 안 고정하면 "오전"만 아래로 처진다.
+   같은 높이로 못 박아 세 칸의 글자가 한 줄에 정확히 놓이게 한다. */
+.time-picker .tp-val{font-family:var(--font-mono); font-size:17px; font-weight:800; color:var(--text); min-width:38px; height:28px; text-align:center; user-select:none; display:flex; align-items:center; justify-content:center; padding:0;}
 .time-picker .tp-btn{width:38px; height:22px; border:none; background:transparent; color:var(--text-faint); font-size:8px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s;}
 .time-picker .tp-btn:hover{color:var(--teal);}
 .time-picker .tp-btn:active{background:var(--teal); color:var(--teal-ink);}
@@ -572,11 +574,28 @@ details.likers-accordion > div, details.voters-accordion > div{
 /* 오전/오후 칸은 글자가 두 자라 조금 넓고, 숫자가 아니라 본문 서체를 쓴다. */
 .time-picker .tp-col-ampm{border-right:1px solid var(--border);}
 .time-picker .tp-col-ampm .tp-btn{width:46px;}
-.time-picker .tp-ampm{font-family:inherit; font-size:13px; font-weight:700; color:var(--teal); min-width:46px;}
+.time-picker .tp-ampm{font-family:inherit; font-size:13px; font-weight:700; color:var(--teal); width:46px; min-width:46px; text-align:center; justify-content:center;}
 
 .date-field-btn{width:100%; display:flex; align-items:center; justify-content:space-between; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 13px; font-size:13px; color:var(--text); cursor:pointer; font-family:var(--font-display);}
 .date-field-btn svg{width:14px; height:14px; color:var(--text-faint); flex-shrink:0;}
 .date-field-panel{margin-top:8px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px;}
+/* 날짜를 왼쪽 반 칸에 두는 배치. 오른쪽 칸(장소·시간)은 위에 맞춰 붙인다. */
+.field-row-split{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start;}
+/* 반 칸에 놓인 날짜 버튼을 눌렀을 때, 달력만 행 전체 폭으로 떠오르게 한다.
+   좁은 칸 안에서 펼치면 7칸이 눌려서 날짜를 누르기 어려운데, 이렇게 하면 버튼은 반 칸에
+   있으면서 달력은 평소 크기 그대로 보인다. (부모 .field-row-split에 position:relative 필요) */
+/* 입력칸과 날짜/선택 버튼을 나란히 두면 줄이 미세하게 어긋난다 — 안쪽 여백은 같은데
+   서체(입력은 mono, 버튼은 display)와 버튼 안 화살표 아이콘 때문에 줄 높이가 달라서다.
+   모달 폼 전체에서 한 줄짜리 입력·버튼 높이를 같은 값으로 못 박아 어느 줄이든 맞게 한다. */
+.modal-sheet .date-field-btn,
+.modal-sheet .field input[type=text],
+.modal-sheet .field input[type=password]{ height:43px; box-sizing:border-box; }
+/* 2단으로 세운 줄끼리도 아래 줄과 같은 간격을 둔다(.field의 margin이 죽어 있어서 필요). */
+.field-row-split{margin-bottom:14px;}
+.date-field-pop .date-field-panel{
+  position:absolute; left:0; right:0; top:100%; z-index:6;
+  box-shadow:0 10px 26px rgba(0,0,0,.20);
+}
 .dp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:12.5px; font-weight:800;}
 .dp-nav{background:none; border:none; color:var(--text-dim); padding:4px; cursor:pointer; display:flex;}
 .dp-nav svg{width:14px; height:14px;}
@@ -764,20 +783,20 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.1';
+const APP_VERSION = 'Beta 0.3.0';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 168;
 const PATCH_NOTES = [
-  { version:'Beta 0.3.1', date:'2026-09-28', items:[
-    { title:'알림 반복(루틴) 추가', text:'일정 알림을 매일 또는 매주 원하는 요일에 반복해서 받을 수 있어요. "알림 받기"를 켜면 날짜·시각 아래에 반복 설정이 나오고, 매주를 고르면 월~일 중 여러 요일을 함께 고를 수 있어요' },
-    { title:'내 일정에 "학사" 딱지가 붙던 문제 수정', text:'직접 추가한 일정에 파란 "학사" 딱지가 붙어서 학교 공식 일정처럼 보이던 문제 수정' },
-    { title:'알림 시각 선택에 오전/오후 표시', text:'알림 시각을 24시간(14:00)이 아니라 오전/오후(오후 2:00)로 고르도록 변경. 시간표 수업시간·투표 마감 시각 선택기도 같이 커져서 누르기 편해졌어요' },
-    { title:'가입자 목록 정렬 추가', text:'가입자 및 직급 관리에서 직급순 · 학번순 · 이름순 · 접속순으로 정렬할 수 있어요', admin:true },
-    { title:'가입자 상세에 앱 버전 표시', text:'가입자를 눌러서 자세히 보면 그 사람이 쓰는 앱 버전과 최신/구버전 여부가 보여요 (웹으로만 접속한 사람은 그렇게 표시돼요)', admin:true },
-  ]},
   { version:'Beta 0.3.0', date:'2026-09-28', items:[
     { title:'일정 알림 추가', text:'일정에 알림 기능 추가 — 일정을 추가·수정할 때 "알림 받기"를 켜고 날짜·시각을 정하면 그 시각에 푸시가 와요. 앱이나 브라우저를 꺼둬도 서버가 보내주기 때문에 도착하고, 일정을 지우거나 시각을 바꾸면 예약된 알림도 같이 취소·갱신돼요' },
+    { title:'알림 반복(루틴) 추가', text:'일정 알림을 매일 또는 매주 원하는 요일에 반복해서 받을 수 있어요. "알림 받기"를 켜면 날짜·시각 아래에 반복 설정이 나오고, 매주를 고르면 월~일 중 여러 요일을 함께 고를 수 있어요' },
+    { title:'메모에도 알림 추가', text:'날짜별 메모에도 알림을 걸 수 있어요. 과제 마감이나 준비물을 적어두고 그 시각에 알림을 받을 수 있고, 반복도 똑같이 됩니다' },
+    { title:'알림 시각 선택에 오전/오후 표시', text:'알림 시각을 24시간(14:00)이 아니라 오전/오후(오후 2:00)로 고르도록 변경. 시간표 수업시간·투표 마감 시각 선택기도 같이 커져서 누르기 편해졌어요' },
+    { title:'내 일정이 학사일정 목록에 섞여 나오던 문제 수정', text:'직접 추가한 개인 일정이 "학사일정" 탭 목록에도 같이 뜨던 문제 수정. 학사일정 탭에는 학교 공식 일정과 학생회 일정만 나와요' },
+    { title:'내 일정에 "학사" 딱지가 붙던 문제 수정', text:'직접 추가한 일정에 파란 "학사" 딱지가 붙어서 학교 공식 일정처럼 보이던 문제 수정' },
+    { title:'가입자 목록 정렬 추가', text:'가입자 및 직급 관리에서 직급순 · 학번순 · 이름순 · 접속순으로 정렬할 수 있어요', admin:true },
+    { title:'가입자 상세에 앱 버전 표시', text:'가입자를 눌러서 자세히 보면 그 사람이 쓰는 앱 버전과 최신/구버전 여부가 보여요 (웹으로만 접속한 사람은 그렇게 표시돼요)', admin:true },
     { title:'공휴일에 시간표 알림이 울리던 문제 수정', text:'공휴일에도 "오늘의 시간표" 알림이 울리던 문제 수정 — 평일이어도 공휴일(대체공휴일 포함)이면 보내지 않아요' },
     { title:'셔틀버스 공휴일 운행 규칙 반영', text:'셔틀버스에 공휴일 운행 규칙 반영 — 공휴일에는 기본적으로 운행하지 않고, 연휴가 시작되기 직전 마지막 평일은 금요일 시간표로, 연휴의 마지막 날은 일요일 시간표로 운행해요. 평소와 다른 시간표가 적용되는 날은 셔틀버스 탭 맨 위에 "공휴일 시간표"라고 표시돼요' },
     { title:'공휴일 정보 자동 갱신', text:'공휴일 정보를 공공데이터포털에서 매일 자동으로 받아오도록 변경 — 임시공휴일이 갑자기 지정돼도 셔틀·알림에 바로 반영돼요' },
@@ -1517,9 +1536,9 @@ function dateGridHtml(name, ym, selected){
   }
   return `
     <div class="dp-head">
-      <button type="button" class="dp-nav" data-action="dp-nav-month" data-name="${name}" data-ym="${addMonths(ym,-1)}">${ICON.chevDown}</button>
+      <button type="button" class="dp-nav" data-action="dp-nav-month" data-name="${name}" data-ym="${addMonths(ym,-1)}">${ICON.chevL}</button>
       <b>${fmtMonthLabel(ym)}</b>
-      <button type="button" class="dp-nav" data-action="dp-nav-month" data-name="${name}" data-ym="${addMonths(ym,1)}" style="transform:rotate(180deg);">${ICON.chevDown}</button>
+      <button type="button" class="dp-nav" data-action="dp-nav-month" data-name="${name}" data-ym="${addMonths(ym,1)}">${ICON.chevR}</button>
     </div>
     <div class="dp-weekdays">${['일','월','화','수','목','금','토'].map((w,i)=>`<span class="${i===0?'dp-sun':i===6?'dp-sat':''}">${w}</span>`).join('')}</div>
     <div class="dp-grid">${cells.join('')}</div>`;
@@ -1986,6 +2005,20 @@ async function createUserDocWithCode(uidStr, baseData, code){
   return null;
 }
 
+// 개인 일정 판정 — 학생이 학사 달력에서 직접 추가한 일정(개인 일정·시험 일정).
+// 학교 공식 학사일정(source:'official')이나 학생회 일정(category:'council')과 구분한다.
+// 예전 데이터에는 source가 없을 수 있어서, 그 경우 시험만 개인 일정으로 본다.
+function isPersonalEvent(ev){
+  if(!ev || ev.category === 'council') return false;
+  if(ev.source === 'personal') return true;
+  return !ev.source && ev.category === 'exam';
+}
+function isMyEvent(ev){ return !!(state.user && ev && ev.authorId === state.user.studentId); }
+// 화면에 보여도 되는 일정만. 개인 일정은 만든 사람에게만 보인다.
+// 일정이 전부 한 문서(shared/calendarEvents)에 들어 있어서, 이걸 안 거치면 달력·위젯·홈
+// 어디서든 49명의 개인 일정이 서로에게 그대로 노출된다.
+function visibleCalendar(){ return live(state.calendar).filter(ev=>!isPersonalEvent(ev) || isMyEvent(ev)); }
+
 async function loadCalendar(){ return (await loadShared('calendarEvents',{events:[]})).events || []; }
 async function saveCalendar(a){ return await saveShared('calendarEvents',{events:a}); }
 
@@ -2087,11 +2120,24 @@ function reminderFieldsHtml(opts={}){
       <div id="remind-fields" style="${on?'':'display:none;'}">
         <div class="field-row" style="margin-top:10px;">
           <div class="field" style="margin:0;"><label>알림 날짜</label>${dateFieldHtml('remindDate', dateStr)}</div>
-          <div class="field" style="margin:0;"><label>알림 시각</label>${renderTimePicker('remindTime', timeInputToMinutes(timeStr), {clamp:false})}</div>
-        </div>
-        <div class="field" style="margin:10px 0 0;">
-          <label>반복</label>
-          ${renderSegPicker('remindRepeat', [['none','안 함'],['daily','매일'],['weekly','매주']], repeatKind)}
+          <!-- 시각 선택기가 칸을 다 못 채워서 오른쪽이 비는데, 반복을 따로 한 줄 잡으면
+               폼만 길어진다. 그 빈 자리에 작은 세로 버튼 세 개로 끼워 넣는다. -->
+          <div style="display:flex; gap:6px; min-width:0;">
+            <div class="field" style="margin:0;">
+              <label>알림 시각</label>
+              ${renderTimePicker('remindTime', timeInputToMinutes(timeStr), {clamp:false})}
+            </div>
+            <div class="field" style="margin:0; flex:1; min-width:0;">
+              <label>반복</label>
+              <div class="seg-picker remind-repeat-mini" data-name="remindRepeat" style="display:flex; flex-direction:column; gap:2px;">
+                ${[['none','안 함'],['daily','매일'],['weekly','매주']].map(([v,label])=>`
+                  <button type="button" class="btn ${v===repeatKind?'btn-primary':'btn-ghost'} btn-sm seg-opt"
+                    data-action="seg-pick" data-value="${v}"
+                    style="padding:0 4px; font-size:10px; min-height:0; height:24px;">${label}</button>`).join('')}
+                <input type="hidden" name="remindRepeat" value="${repeatKind}">
+              </div>
+            </div>
+          </div>
         </div>
         <div id="remind-weekdays" class="field" style="margin:8px 0 0; ${repeatKind==='weekly'?'':'display:none;'}">
           <label>요일 (여러 개 고를 수 있어요)</label>
@@ -3303,7 +3349,7 @@ async function pushWidgetData(){
     const st = studentOf(today), stTom = studentOf(tomorrow);
     const staff = staffOf(today), staffTom = staffOf(tomorrow);
 
-    const upcoming = live(state.calendar)
+    const upcoming = visibleCalendar()
       .filter(ev=>ev.endDate >= today)
       .sort((a,b)=>a.startDate.localeCompare(b.startDate));
     const events = upcoming.slice(0,3).map(ev=>({
@@ -3332,7 +3378,7 @@ async function pushWidgetData(){
     // 여기서도 제외한다 — 안 그러면 앱 화면에는 안 뜨던 점이 위젯에만 잔뜩 찍혀 헷갈린다.
     const markedDates = {};
     const ym = today.slice(0,7);
-    live(state.calendar).forEach(ev=>{
+    visibleCalendar().forEach(ev=>{
       if(!ev.startDate) return;
       const isOfficial = ev.source==='official' || (!ev.source && ev.category!=='council');
       if(isOfficial) return;
@@ -3345,7 +3391,7 @@ async function pushWidgetData(){
     // "오늘 날짜"/"달력(가로형)" 위젯용 — 오늘에 실제로 걸쳐있는 일정.
     // 학사일정(official)과 학생회 일정(council)을 구분해서 넘겨줘야, 위젯 쪽에서 각각 따로
     // 켜고 끌 수 있다 (markedDates에 점 찍을 때 쓰는 기준과 동일).
-    const todayEvents = live(state.calendar)
+    const todayEvents = visibleCalendar()
       .filter(ev=>ev.startDate<=today && ev.endDate>=today)
       .sort((a,b)=>a.startDate.localeCompare(b.startDate))
       .map(ev=>({
@@ -3923,6 +3969,41 @@ function versionSortValue(v){
   return Number(m[1])*10000 + Number(m[2])*100 + Number(m[3]);
 }
 let patchPopupShownThisLoad = false;
+// 새 버전으로 처음 들어왔을 때 띄우는 작은 카드. 전체 패치노트(모든 버전 이력)를 그대로
+// 펼치면 처음 보는 사람에게는 읽을 게 너무 많아서, 이번 버전에 뭐가 생겼는지 제목만
+// 추려서 보여주고 자세한 내용은 "자세히 보기"로 넘긴다.
+function showWebPatchPopup(){
+  const entry = PATCH_NOTES.find(p => p.version === APP_VERSION);
+  const items = entry ? entry.items.filter(patchNoteItemVisible) : [];
+  if(!items.length) return;
+  const root = document.body; // APK 설치 안내 팝업(showApkInstallPopup)과 같은 방식으로 붙인다
+  const wrap = document.createElement('div');
+  wrap.className = 'apk-popup-overlay';
+  wrap.id = 'patch-popup-overlay';
+  wrap.innerHTML = `
+    <div class="apk-popup-sheet" style="text-align:left;">
+      <button type="button" class="apk-popup-x" data-action="patch-popup-close" aria-label="닫기">${ICON.close}</button>
+      <div style="text-align:center;"><div class="apk-popup-icon">${ICON.clipboard}</div></div>
+      <p class="apk-popup-title" style="text-align:center;">${escapeHtml(APP_VERSION)} 업데이트</p>
+      <p class="apk-popup-desc" style="text-align:center;">이번에 이런 게 새로 생겼어요</p>
+      <ul style="margin:0 0 16px; padding-left:18px; font-size:12px; color:var(--text-dim); line-height:1.7;">
+        ${items.map(it=>`<li style="margin-bottom:4px;">${escapeHtml(patchNoteItemTitle(it))}</li>`).join('')}
+      </ul>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-ghost btn-sm" data-action="patch-popup-detail" style="flex:1;">자세히 보기</button>
+        <button type="button" class="btn btn-primary btn-sm" data-action="patch-popup-close" style="flex:1;">확인</button>
+      </div>
+    </div>`;
+  root.appendChild(wrap);
+  requestAnimationFrame(()=>wrap.classList.add('open'));
+  wrap.addEventListener('click', (e)=>{ if(e.target === wrap) closeWebPatchPopup(); });
+}
+function closeWebPatchPopup(){
+  const el = document.getElementById('patch-popup-overlay');
+  if(!el) return;
+  el.classList.remove('open');
+  setTimeout(()=>el.remove(), 200);
+}
 function maybeShowWebPatchNotes(){
   if(isNativeApp || patchPopupShownThisLoad) return;
   const seen = localGet('patch_seen_version', null);
@@ -3930,7 +4011,7 @@ function maybeShowWebPatchNotes(){
   if(seen && versionSortValue(seen) >= versionSortValue(APP_VERSION)){ return; }
   patchPopupShownThisLoad = true;
   localSet('patch_seen_version', APP_VERSION);
-  openModal(patchNotesModal());
+  showWebPatchPopup();
 }
 function maybeShowApkInstallPopup(){
   if(apkPopupShownThisLoad) return;
@@ -4218,7 +4299,7 @@ function renderHome(){
   const studentSlotText = studentMeal ? studentMeal[studentSlot.key] : '';
   const staffMeal = (state.meals[studentSlot.date] || {}).staff || null;
 
-  const upcoming = live(state.calendar).filter(ev=>ev.endDate>=todayStr())
+  const upcoming = visibleCalendar().filter(ev=>ev.endDate>=todayStr())
     .sort((a,b)=>a.startDate.localeCompare(b.startDate)).slice(0,3);
   const recentNotices = live(state.notices)
     .sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||String(b.date).localeCompare(String(a.date))).slice(0,5);
@@ -5132,7 +5213,12 @@ async function deleteAllCalendarEvents(){
 function renderCalendarTab(){
   const council = isCouncil();
   const [ms,me] = monthBounds(state.calendarMonth);
-  const sorted = live(state.calendar).filter(ev=>ev.category!=='exam' && ev.startDate<=me && ev.endDate>=ms)
+  // 이 탭은 "학사일정"이라 학교 공식 일정과 학생회 일정만 보여준다.
+  // 예전에는 시험(exam)만 걸러서, 학생이 학사 달력에서 추가한 개인 일정(source:'personal')이
+  // 여기에 같이 올라왔다. 개인 일정인데 전교생이 보는 목록에 공식 일정처럼 섞여 나왔던 것.
+  // (학사 달력 그리드는 이미 반대로 공식 일정을 걸러내고 있어서, 두 화면의 기준이 어긋나 있었다)
+  const sorted = live(state.calendar)
+    .filter(ev=>ev.category!=='exam' && !isPersonalEvent(ev) && ev.startDate<=me && ev.endDate>=ms)
     .sort((a,b)=>a.startDate.localeCompare(b.startDate));
   return `
     <div class="meal-nav">
@@ -5187,10 +5273,13 @@ function renderExamCalTab(){
     }));
 
   const allEvents = [
-    ...live(state.calendar).filter(ev => {
+    ...visibleCalendar().filter(ev => {
       if(!state.showCouncilEvents && ev.category==='council') return false;
       const isOfficial = ev.source==='official' || (!ev.source && ev.category!=='council');
       if(isOfficial) return false; // 학사 달력에는 학사일정을 항상 숨김 (학사일정 탭에서만 확인)
+      // 개인 일정은 만든 사람에게만 보인다. 모두가 한 문서(shared/calendarEvents)를 같이 쓰다
+      // 보니 걸러내지 않으면 49명의 개인 일정이 서로의 달력에 전부 떠버린다.
+      if(isPersonalEvent(ev) && !isMyEvent(ev)) return false;
       return true;
     }),
     ...(state.showCouncilEvents ? pollDeadlineEvents : []),
@@ -5322,8 +5411,20 @@ function scheduleModal(preselectedDate, isCouncilEvent = false){
       <input type="hidden" name="source" value="personal">
       <input type="hidden" name="color" id="schedule-color-input" value="${defaultColor}">
       
-      <div class="field"><label>일정 제목</label><input type="text" name="title" required placeholder="${isCouncilEvent ? '예: 학생회 정기 회의' : '예: 반도체소자 시험 / 스터디'}" style="font-family:var(--font-display)"></div>
-      
+      <!-- 제목 옆에 날짜를 붙이고, 그 아래 한 줄에 장소·시간을 둔다.
+           날짜 버튼은 반 칸이라 좁지만, 눌러서 펼친 달력은 아래 .date-field-pop 규칙으로
+           행 전체 폭에 떠오르게 해서 평소 크기 그대로 보인다(좁은 칸에 구겨 넣지 않는다). -->
+      <div class="field-row field-row-split" style="position:relative;">
+        <div class="field" style="margin:0; min-width:0;"><label>일정 제목</label><input type="text" name="title" required placeholder="${isCouncilEvent ? '예: 회의' : '예: 스터디'}" style="font-family:var(--font-display)"></div>
+        <div class="field date-field-pop" style="margin:0; min-width:0;"><label>날짜</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
+        <input type="hidden" name="endDate" id="event-end-date" value="${targetDate}">
+      </div>
+
+      <div class="field-row">
+        <div class="field"><label>장소 (선택)</label><input type="text" name="event_room" placeholder="예: 과학기술1관 301호" style="font-family:var(--font-display)"></div>
+        <div class="field"><label>시간 (선택)</label><input type="text" name="event_time" placeholder="예: 09:00 ~ 10:15" style="font-family:var(--font-display)"></div>
+      </div>
+
       <div class="field">
         <label>일정 색상</label>
         <div class="swatches" id="schedule-swatches-wrap">
@@ -5331,15 +5432,6 @@ function scheduleModal(preselectedDate, isCouncilEvent = false){
           ${inlineColorSwatchHtml('schedcolor', defaultColor, !COLORS.some(c=>c.hex.toLowerCase()===defaultColor.toLowerCase()))}
         </div>
         ${inlineColorPanelHtml('schedcolor', defaultColor)}
-      </div>
-
-      <div class="field-row">
-        <div class="field"><label>날짜</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
-        <input type="hidden" name="endDate" id="event-end-date" value="${targetDate}">
-      </div>
-      <div class="field-row">
-        <div class="field"><label>장소 (선택)</label><input type="text" name="event_room" placeholder="예: 과학기술1관 301호" style="font-family:var(--font-display)"></div>
-        <div class="field"><label>시간 (선택)</label><input type="text" name="event_time" placeholder="예: 09:00 ~ 10:15" style="font-family:var(--font-display)"></div>
       </div>
       <div class="field"><label>세부 메모 (선택)</label><textarea name="description" placeholder="일정 세부 내용 및 준비물 등"></textarea></div>
       ${reminderFieldsHtml({ targetDate, broadcast: isCouncilEvent })}
@@ -5358,18 +5450,29 @@ function examScheduleModal(preselectedDate){
       <input type="hidden" name="category" value="exam">
       <input type="hidden" name="source" value="personal">
       <input type="hidden" name="color" value="${COLORS[2].hex}">
-      <div class="field">
+      <!-- 수업 목록을 알약으로 쫙 깔면 수강 과목이 많을 때 그것만 대여섯 줄을 잡아먹는다.
+           평소엔 고른 과목 한 줄만 보여주고, 누르면 팝업으로 펼친다. -->
+      <div class="field" style="position:relative;">
         <label>어느 수업의 시험인가요?</label>
-        ${renderSegPicker('__examClass', [['','직접 입력'], ...subjects.map(s=>[s,s])], '', false, 'exam-class-select')}
+        <button type="button" class="date-field-btn" data-action="toggle-exam-class">
+          <span class="date-field-text" id="exam-class-label">시간표에서 선택</span> ${ICON.chevDown}
+        </button>
+        <input type="hidden" name="__examClass" id="exam-class-select" value="">
+        <div class="date-field-panel" id="exam-class-panel" style="display:none; position:absolute; left:0; right:0; top:100%; z-index:6; box-shadow:0 10px 26px rgba(0,0,0,.20); max-height:210px; overflow-y:auto;">
+          <button type="button" class="btn btn-ghost btn-sm" data-action="pick-exam-class" data-subject="" style="width:100%; justify-content:flex-start; margin-bottom:4px;">직접 입력</button>
+          ${subjects.length ? subjects.map(s=>`
+            <button type="button" class="btn btn-ghost btn-sm" data-action="pick-exam-class" data-subject="${escapeHtml(s)}" style="width:100%; justify-content:flex-start; margin-bottom:4px; text-align:left;">${escapeHtml(s)}</button>`).join('')
+            : `<p style="font-size:11px; color:var(--text-faint); margin:4px 2px;">시간표에 등록된 수업이 없어요.</p>`}
+        </div>
       </div>
-      <div class="field"><label>시험명</label><input type="text" name="title" id="exam-title-input" required placeholder="예: 반도체소자 중간고사" style="font-family:var(--font-display)"></div>
-      <div class="field-row">
-        <div class="field"><label>시험 날짜</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
+      <div class="field-row field-row-split" style="position:relative;">
+        <div class="field" style="margin:0; min-width:0;"><label>시험명</label><input type="text" name="title" id="exam-title-input" required placeholder="예: 중간고사" style="font-family:var(--font-display)"></div>
+        <div class="field date-field-pop" style="margin:0; min-width:0;"><label>시험 날짜</label>${dateFieldHtml('startDate', targetDate, {required:true})}</div>
         <input type="hidden" name="endDate" value="${targetDate}">
       </div>
       <div class="field-row">
-        <div class="field"><label>시험 장소</label><input type="text" name="event_room" id="exam-room-input" placeholder="강의실 (수정 가능)" style="font-family:var(--font-display)"></div>
-        <div class="field"><label>시험 시간</label><input type="text" name="event_time" id="exam-time-input" placeholder="09:00 ~ 10:15 (수정 가능)" style="font-family:var(--font-display)"></div>
+        <div class="field"><label>시험 장소</label><input type="text" name="event_room" id="exam-room-input" placeholder="강의실" style="font-family:var(--font-display)"></div>
+        <div class="field"><label>시험 시간</label><input type="text" name="event_time" id="exam-time-input" placeholder="09:00 ~ 10:15" style="font-family:var(--font-display)"></div>
       </div>
       <div class="field"><label>세부 메모</label><textarea name="description" placeholder="범위 및 준비물"></textarea></div>
       ${reminderFieldsHtml({ targetDate })}
@@ -5378,8 +5481,13 @@ function examScheduleModal(preselectedDate){
 }
 
 // 날짜별 개인 메모 편집 — 남에게 보이지 않는 내 메모라 별도 권한 확인이 필요 없다.
-function memoModal(dateStr){
+// 메모 알림도 일정 알림과 똑같은 큐(notifyQueue)를 쓴다. 다른 점은 "무엇에 붙는 알림인지"를
+// 가리키는 id뿐이라, 일정 쪽 컴포넌트(reminderFieldsHtml)와 저장 함수를 그대로 재사용한다.
+function memoReminderId(dateStr){ return `memo_${dateStr}`; }
+// reminder: 모달을 열기 전에 미리 읽어둔 기존 알림 예약(없으면 null).
+function memoModal(dateStr, reminder){
   const text = (state.memos && state.memos[dateStr]) || '';
+  const remindAt = reminder && reminder.at ? new Date(reminder.at) : null;
   return `
     <div class="modal-handle"></div>
     <div class="modal-title"><span class="modal-title-text">${ICON.clipboard} ${fmtDateLabel(dateStr)} 메모</span><button data-action="close-modal">${ICON.close}</button></div>
@@ -5390,6 +5498,14 @@ function memoModal(dateStr){
         <textarea name="content" id="memo-content" maxlength="${MEMO_MAX_CHARS}" placeholder="예)&#10;· 반도체소자 과제 3장까지 제출&#10;· 센서공학 퀴즈 준비&#10;· 조별과제 자료 정리" style="min-height:160px;">${escapeHtml(text)}</textarea>
         <p style="font-size:10.5px; color:var(--text-faint); margin:6px 2px 0;"><span id="memo-count">${text.length}</span> / ${MEMO_MAX_CHARS}자</p>
       </div>
+      ${reminderFieldsHtml({
+        targetDate: dateStr,
+        enabled: !!reminder,
+        dateStr: remindAt ? fmtDateStr(remindAt) : dateStr,
+        timeStr: (reminder && reminder.repeatTime) || (remindAt ? `${pad(remindAt.getHours())}:${pad(remindAt.getMinutes())}` : '09:00'),
+        repeatKind: (reminder && reminder.repeat && reminder.repeat.kind) || 'none',
+        repeatDays: (reminder && reminder.repeat && reminder.repeat.days) || [],
+      })}
       <div class="modal-actions" style="display:flex; gap:8px;">
         ${text ? `<button type="button" class="btn btn-danger" data-action="delete-memo" data-date="${dateStr}" style="flex:1;">삭제</button>` : ''}
         <button type="submit" class="btn btn-primary" style="flex:1.6;">저장</button>
@@ -5411,6 +5527,15 @@ async function handleMemoSubmit(fd){
   else delete next[date]; // 내용을 비우면 그 날 메모는 지운다
   const ok = await saveMemos(state.user.uid, next);
   if(ok){ state.memos = next; pushWidgetData(); }
+  if(ok){
+    // 메모를 비워서 지운 경우엔 알림도 같이 없앤다 — 없는 메모의 알림이 올 이유가 없다.
+    if(!content) await deleteScheduleReminder(memoReminderId(date));
+    else await syncScheduleReminder(fd, {
+      id: memoReminderId(date),
+      title: `${fmtDateLabel(date)} 메모`,
+      startDate: date,
+    }, false);
+  }
   closeModal();
   renderMain();
   if(ok) toast(content ? '메모를 저장했어요' : '메모를 지웠어요');
@@ -5423,12 +5548,15 @@ async function deleteMemo(dateStr){
   delete next[dateStr];
   const ok = await saveMemos(state.user.uid, next);
   if(ok) state.memos = next;
+  if(ok) await deleteScheduleReminder(memoReminderId(dateStr));
   closeModal();
   renderMain();
   toast(ok ? '메모를 지웠어요' : '삭제에 실패했어요');
 }
 
 function setupExamModalListeners(){
+  // 예전에는 <select>였고 지금은 팝업이 값을 넣는 hidden input이다. 둘 다 change를 쏘므로
+  // 이 아래 로직(과목을 고르면 시험명·장소·시간 자동 채우기)은 그대로 쓴다.
   const select = document.getElementById('exam-class-select');
   if(!select) return;
   select.onchange = ()=>{
@@ -9423,7 +9551,13 @@ function usersListModal(){
 
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">가입자 및 직급 관리 (${users.length}명)<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title">
+      <span class="modal-title-text">가입자 및 직급 관리 (${users.length}명)</span>
+      <span style="display:flex; align-items:center; gap:8px;">
+        ${userSortDropdownHtml()}
+        <button data-action="close-modal">${ICON.close}</button>
+      </span>
+    </div>
     <div id="users-list-panel">${usersListPanel()}</div>`;
 }
 
@@ -9443,6 +9577,26 @@ function sortUsersBy(list, key){
   // 접속순은 최근에 본 사람이 위로. 접속 기록이 없는 사람은 맨 뒤로 보낸다.
   if(key === 'seen') return arr.sort((a,b)=>(b.lastSeen||0)-(a.lastSeen||0));
   return arr.sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
+}
+// 제목 줄 오른쪽(닫기 X 바로 왼쪽)에 붙는 작은 정렬 선택기.
+// 목록 위에 버튼 네 개를 깔면 가뜩이나 좁은 모달에서 한 줄을 통째로 잡아먹어서,
+// 평소엔 현재 기준만 작게 보여주고 누를 때만 펼친다.
+function userSortDropdownHtml(){
+  const key = state.userListSort || 'role';
+  const cur = (USER_SORTS.find(([k])=>k===key) || USER_SORTS[0])[1];
+  return `
+    <span class="user-sort" style="position:relative;">
+      <button type="button" data-action="toggle-user-sort"
+        style="display:flex; align-items:center; gap:3px; background:none; border:none; padding:2px 4px; cursor:pointer; color:var(--text-dim); font-size:11px; font-weight:600; white-space:nowrap;">
+        ${escapeHtml(cur)} ${ICON.chevDown}
+      </button>
+      <div id="user-sort-menu" style="display:none; position:absolute; right:0; top:100%; margin-top:4px; z-index:5; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); box-shadow:0 8px 20px rgba(0,0,0,.18); overflow:hidden; min-width:104px;">
+        <div style="padding:9px 12px 7px; font-size:9.5px; color:var(--text-faint); font-weight:700; letter-spacing:.02em; border-bottom:1px solid var(--border);">정렬 기준</div>
+        ${USER_SORTS.map(([k,label])=>`
+          <button type="button" data-action="user-sort" data-sort="${k}"
+            style="display:block; width:100%; text-align:left; background:${k===key?'var(--surface-2)':'none'}; border:none; padding:10px 12px; cursor:pointer; font-size:12px; line-height:1.2; color:${k===key?'var(--teal)':'var(--text)'}; font-weight:${k===key?'800':'500'};">${label}</button>`).join('')}
+      </div>
+    </span>`;
 }
 function usersListPanel(){
   const sortKey = state.userListSort || 'role';
@@ -9478,12 +9632,6 @@ function usersListPanel(){
       <div class="subtab ${tab==='prev'?'active':''}" data-action="user-tab" data-tab="prev">${prevY}학번(${prevCount})</div>
       <div class="subtab ${tab==='old'?'active':''}" data-action="user-tab" data-tab="old">${prevY-1}이전(${oldCount})</div>
       <div class="subtab ${tab==='unreg'?'active':''}" data-action="user-tab" data-tab="unreg">미가입(${unregUsers.length})</div>
-    </div>
-    <div style="display:flex; gap:5px; margin-bottom:8px;">
-      ${USER_SORTS.map(([k,label])=>`
-        <button type="button" class="btn ${sortKey===k?'btn-primary':'btn-ghost'} btn-sm"
-          data-action="user-sort" data-sort="${k}"
-          style="flex:1; padding-left:0; padding-right:0; font-size:11px;">${label}</button>`).join('')}
     </div>
     <div class="user-search-wrap">
       <input type="text" id="user-search-input" class="user-search-input" placeholder="이름 또는 학번으로 검색" autocomplete="off">
@@ -10449,6 +10597,13 @@ async function handleEventSubmit(fd){
 }
 
 async function deleteEvent(id){
+  // 전역 councilOnly 가드에서 뺐으므로 권한 판단을 여기서 한다.
+  // 개인 일정은 만든 본인이, 그 외(학사·학생회 일정)는 학생회 이상이 지울 수 있다.
+  const target = live(state.calendar).find(x=>x.id===id);
+  if(target && !(isMyEvent(target) || isCouncil())){
+    toast('이 일정을 지울 권한이 없습니다');
+    return;
+  }
   if(!await showConfirm('이 일정을 삭제할까요?')) return;
   const latest = await loadCalendar();
   const next = latest.map(x => x.id === id ? { ...x, deleted: true, updatedAt: now() } : x);
@@ -11156,9 +11311,12 @@ document.addEventListener('click', async (e)=>{
   if(!el) return;
   const a = el.dataset.action;
 
-  const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','delete-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
+  // delete-event는 여기서 뺐다. 개인 일정은 자기가 만든 것이라 본인이 지울 수 있어야 하는데,
+  // 목록에는 삭제 버튼이 보이면서(작성자면 표시됨) 누르면 이 가드에 막혀 "학생회 권한이
+  // 필요합니다"만 뜨고 있었다. 실제 권한 판단은 deleteEvent() 안에서 작성자/직급으로 한다.
+  const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
-  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail','delete-council-chat-all','user-sort'];
+  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail','delete-council-chat-all','user-sort','toggle-user-sort'];
   if(councilOnly.includes(a) && !isCouncil()){ toast('학생회 권한이 필요한 기능입니다'); return; }
   if(pollOnly.includes(a) && !canPoll()){ toast('국장 이상 권한이 필요한 기능입니다'); return; }
   if(presidentOnly.includes(a) && !isPresident()){ toast('학생회장 권한이 필요한 기능입니다'); return; }
@@ -11360,6 +11518,8 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'toggle-audit-reveal'){ toggleAuditReveal(el.dataset.id); }
     else if(a === 'delete-audit-entry'){ await deleteAuditEntry(el.dataset.id); }
     else if(a === 'show-patch-notes'){ openModal(patchNotesModal()); }
+    else if(a === 'patch-popup-close'){ closeWebPatchPopup(); }
+    else if(a === 'patch-popup-detail'){ closeWebPatchPopup(); openModal(patchNotesModal()); }
     else if(a === 'toggle-patch-cat'){
       const cat = el.dataset.cat;
       patchNoteOpenCat = patchNoteOpenCat === cat ? '' : cat;
@@ -11530,14 +11690,39 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'regen-council-code'){ await regenCouncilCode(el.dataset.field); }
     else if(a === 'copy-council-code'){ copyCouncilCode(el.dataset.field); }
+    else if(a === 'toggle-exam-class'){
+      const panel = document.getElementById('exam-class-panel');
+      if(panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+    else if(a === 'pick-exam-class'){
+      const subject = el.dataset.subject || '';
+      const hidden = document.getElementById('exam-class-select');
+      const label = document.getElementById('exam-class-label');
+      const panel = document.getElementById('exam-class-panel');
+      if(hidden){
+        hidden.value = subject;
+        // 과목을 고르면 시험명·장소·시간을 자동으로 채우는 기존 로직이 change를 듣고 있다.
+        hidden.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+      if(label) label.textContent = subject || '직접 입력';
+      if(panel) panel.style.display = 'none';
+    }
+    else if(a === 'toggle-user-sort'){
+      const menu = document.getElementById('user-sort-menu');
+      if(menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
     // 정렬 바꾸기도 탭 전환과 똑같이 "안쪽 패널만 갈아끼우기"로 처리한다.
+    // (정렬은 제목 줄의 표시 문구도 같이 바뀌어야 해서 그 부분만 따로 갱신한다)
     else if(a === 'user-sort' || a === 'user-tab'){
       // 모달을 통째로 다시 열면 열림 애니메이션이 다시 돌고 검색어·스크롤이 날아간다.
       // 안쪽 패널만 바꾸고, 쳐 두었던 검색어는 그대로 되살린다.
       const prevInput = document.getElementById('user-search-input');
       const q = prevInput ? prevInput.value : '';
-      if(a === 'user-sort') state.userListSort = el.dataset.sort;
-      else state.activeUserListTab = el.dataset.tab;
+      if(a === 'user-sort'){
+        state.userListSort = el.dataset.sort;
+        const sortWrap = el.closest('.user-sort');
+        if(sortWrap) sortWrap.outerHTML = userSortDropdownHtml(); // 표시 문구·체크 위치 갱신 + 메뉴 닫힘
+      } else state.activeUserListTab = el.dataset.tab;
       const panel = document.getElementById('users-list-panel');
       if(panel){
         panel.innerHTML = usersListPanel();
@@ -11712,7 +11897,11 @@ document.addEventListener('click', async (e)=>{
       else setWidgetPrimaryTimetable(el.dataset.key, parseInt(el.dataset.idx,10));
       closeModal(); renderMain();
     }
-    else if(a==='edit-memo'){ openModal(memoModal(el.dataset.date || state.selectedExamDate)); setupMemoModalListeners(); }
+    else if(a==='edit-memo'){
+      const d = el.dataset.date || state.selectedExamDate;
+      openModal(memoModal(d, await loadScheduleReminder(memoReminderId(d))));
+      setupMemoModalListeners();
+    }
     else if(a==='delete-memo'){ await deleteMemo(el.dataset.date || state.selectedExamDate); }
     else if(a==='edit-event'){
       const ev=live(state.calendar).find(x=>x.id===el.dataset.id);
