@@ -1,21 +1,23 @@
-// GitHub Actions 크론(5분 간격)으로 실행되는 무료 알림 발송 스크립트.
+// GitHub Actions 크론(1시간 간격)으로 실행되는 무료 알림 발송 스크립트.
 // Firebase Cloud Functions(=Blaze 요금제 필요) 없이도 푸시 알림을 보내기 위한 대안 —
 // 신뢰할 수 있는 실행 환경에서 서비스 계정 키로 Firestore를 읽고 firebase-admin으로 직접 발송한다.
 //
+// 새 공지·투표·구인글·버그제보·건의사항(+답변)·친구채팅·학생회채팅·학번별채팅처럼 "감지 즉시"
+// 필요한 알림은 전부 Cloudflare Worker(worker-notify, notifyQueue를 1분마다 확인)로 옮겨졌다
+// (2026-09-28, 커밋 e7bdcca). 이 스크립트는 시각이 고정됐거나(식단·투표 리마인더) 어차피
+// 1시간 정도 지연돼도 괜찮은 것만 남아서, 예전엔 5분마다 users 컬렉션 전체를 읽어야 해서
+// Firestore 무료 할당량(하루 5만 읽기)을 다 썼는데 이제 1시간마다로 늘려 읽기량을 12분의 1로
+// 줄였다. pushAudience(Worker가 수신자 판단에 쓰는 캐시)도 이제 1시간에 한 번만 갱신된다 —
+// 채팅 알림 설정을 막 바꾸거나 새 기기 토큰이 생긴 경우 최대 1시간 지연될 수 있지만, 채팅
+// 메시지 자체가 오는 속도(Worker 몫)는 영향 없다.
+//
 // 보내는 알림 종류
-//   1) 새 공지          → 감지 즉시
-//   2) 새 투표 시작      → 감지 즉시
 //   3) 진행 중인 투표    → 매일 20:00 KST 한 번
 //   3.5) 새 버전 안내    → 매일 12:00 KST, 구버전 쓰는 사람에게 그 버전 기준 딱 한 번만
-//   4) 투표 마감 30분 전 → 투표당 한 번
+//   4) 투표 마감 임박    → 투표당 한 번 (1시간 주기라 사각지대 없이 잡히도록 넉넉한 창을 둠)
 //   5) 식단             → 조식 07:00 / 중식 10:30 / 석식 16:30 KST
-//   6) 새 버그 제보      → 감지 즉시 (개발자·학생회장 전용)
-//   6.5) 새 건의사항     → 감지 즉시 (학생회 전용)
-//   7) 건의사항 답변     → 감지 즉시 (작성자 본인 전용)
-//   8) 친구 채팅         → 감지 즉시 (채팅 알림을 켠 수신자 전용)
-//   8.5) 학생회 단체 채팅 → 감지 즉시 (학생회 채팅 알림을 켠 학생회 구성원 전용)
-//   8.55) 학번별 채팅     → 감지 즉시 (그 학번 채팅 알림을 켠 같은 학번 전용, 기본 꺼짐)
-//   8.7) 친구 요청 도착 / 친구 수락 → 감지 즉시 (알림 설정과 무관하게 항상)
+//   8.6) 학생회 채팅 상단 고정 공지 갱신 → 감지 즉시(최대 1시간 지연)
+//   8.7) 친구 요청 도착 / 친구 수락 → 감지 즉시(최대 1시간 지연), 알림 설정과 무관하게 항상
 //
 // 필요한 비밀값: 저장소 Settings → Secrets and variables → Actions에
 //   FIREBASE_SERVICE_ACCOUNT = Firebase 콘솔에서 발급한 서비스 계정 JSON 전체 내용
@@ -372,7 +374,9 @@ async function purgeOldCohortChatMessages() {
 }
 
 async function main() {
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap, friendLinksSnap, councilChatNoticeSnap] = await Promise.all([
+  // friendLinks·councilChatNotice는 예전엔 여기서 매번 통째로 읽었는데(친구요청/학생회 공지
+  // 감지용), 그 감지 로직 자체가 Worker로 옮겨가면서 더 이상 안 쓰여서 읽기를 아예 없앴다.
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
@@ -381,20 +385,7 @@ async function main() {
     db.collection('shared').doc('recruitments').get(),
     db.collection('shared').doc('notifyState').get(),
     db.collection('users').get(),
-    db.collection('friendLinks').get(),
-    db.collection('shared').doc('councilChatNotice').get(),
   ]);
-  // pairId -> { uid: true } — 그 사람이 이 채팅만 콕 집어 알림을 꺼둔 경우.
-  const mutedByPair = new Map();
-  // pairId -> { uid: ts } — 그 사람이 이 채팅을 마지막으로 읽어본 시각. 크론이 도는 사이에
-  // 앱을 직접 열어서 이미 읽었으면(메시지 시각보다 이 값이 더 최근이면) 굳이 푸시를 또 보낼
-  // 필요가 없다.
-  const lastSeenByPair = new Map();
-  friendLinksSnap.forEach((d) => {
-    const data = d.data();
-    if (data.mutedBy) mutedByPair.set(d.id, data.mutedBy);
-    if (data.lastSeenAt) lastSeenByPair.set(d.id, data.lastSeenAt);
-  });
 
   // 앱은 삭제를 tombstone(deleted:true)으로 처리하므로 반드시 걸러내야 한다.
   const notices = live(noticesSnap.exists ? noticesSnap.data().list : []);
@@ -422,23 +413,19 @@ async function main() {
   const pollTokensByStudentId = new Map(); // 투표 알림(prefs.poll 켠 사람)을 학번별로 묶어둔 것 — 그 투표에 아직 투표 안 한 사람만 골라 보낼 때 씀
   const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
   const chatOkUids = new Set(); // 채팅 알림을 켜둔 사람만
-  const councilChatOkUids = new Set(); // 학생회 채팅 알림을 켜둔 학생회 구성원만
   const cohortChatOkUids = new Set(); // 학번별 채팅 알림을 켜둔 사람만 (학번 구분 없이 하나로)
   const councilChatTokens = []; // 학생회 채팅 알림을 켠 학생회 구성원 토큰 (즉시 발송용)
   const cohortChatByYear = {}; // { '24': [tokens...] } — 학번별 채팅 알림을 켠 그 학번 사람들
-  const nameByUid = new Map();
   const tokenToUid = new Map();
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
     const tokens = [...new Set([...(u.fcmTokens || []), ...(u.fcmToken ? [u.fcmToken] : [])])];
-    nameByUid.set(docSnap.id, u.name || '친구');
     if (!tokens.length) return;
     const prefs = u.notifyPrefs || {};
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
     if (u.studentId && prefs.poll) pollTokensByStudentId.set(u.studentId, tokens);
     tokensByUid.set(docSnap.id, tokens);
     if (prefs.chat) chatOkUids.add(docSnap.id);
-    if (prefs.councilChat && u.role && u.role !== 'student') councilChatOkUids.add(docSnap.id);
     if (prefs.cohortChat) cohortChatOkUids.add(docSnap.id);
     mealPrefsByUid.set(docSnap.id, {
       jinri: !!prefs.mealJinri,
@@ -593,13 +580,17 @@ async function main() {
     }
   }
 
-  // 4) 투표 마감 30분 전 (투표당 한 번) — 이미 참여한 사람은 종료 임박 알림을 받을 필요가 없다.
+  // 4) 투표 마감 임박 (투표당 한 번) — 이미 참여한 사람은 종료 임박 알림을 받을 필요가 없다.
+  // 예전엔 30분 전이었는데, 이 크론이 5분이 아니라 1시간마다 돌게 되면서 창을 30분으로 두면
+  // 두 번의 실행 사이(최대 60분) 그 창을 완전히 비껴가는 투표가 생길 수 있었다(사각지대).
+  // 그래서 창을 크론 주기(60분)보다 넉넉하게 90분으로 넓혀서, 어떤 실행이든 마감 전에 최소
+  // 한 번은 반드시 걸리도록 한다.
   const endingSoon = activePolls.filter((p) => {
     if (warnedPollEnd.has(p.id)) return false;
     const end = pollEndsAt(p);
     if (!end) return false;
     const minutesLeft = (end.getTime() - Date.now()) / 60000;
-    return minutesLeft > 0 && minutesLeft <= 30;
+    return minutesLeft > 0 && minutesLeft <= 90;
   });
   for (const p of endingSoon) {
     const tokens = nonVoterPollTokens(p);
@@ -608,7 +599,7 @@ async function main() {
       continue;
     }
     console.log(`투표 마감 임박 알림 (미참여자 ${tokens.length}명):`, p.question);
-    await sendToTokens(tokens, '곧 마감되는 투표가 있어요', `제목: ${p.question} (30분 후 마감)`, 'poll');
+    await sendToTokens(tokens, '곧 마감되는 투표가 있어요', `제목: ${p.question} (곧 마감돼요)`, 'poll');
   }
 
   // 5) 식단 — 조식 07:00 / 중식 10:30 / 석식 16:30 KST
@@ -653,97 +644,9 @@ async function main() {
     }
   }
 
-  // 8.7) 친구 요청 도착 / 친구가 됨 — 개인적인 일회성 알림이라 알림 설정(chat 등)과
-  //      무관하게 항상 보낸다(건의사항 답변 알림과 같은 취급).
-  const lastFriendLinkCheck = st.lastFriendLinkCheck || Date.now() - 15 * 60 * 1000;
-  const friendLinkRunStartedAt = Date.now();
-  const newRequestsSnap = await db
-    .collection('friendLinks')
-    .where('createdAt', '>', lastFriendLinkCheck)
-    .get();
-  for (const d of newRequestsSnap.docs) {
-    const f = d.data();
-    if (f.status !== 'pending' || !f.requestedBy) continue;
-    const recipientUid = (f.uids || []).find((u) => u !== f.requestedBy);
-    if (!recipientUid) continue;
-    const allTokens = tokensByUid.get(recipientUid) || [];
-    const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-    if (!tokens.length) continue;
-    const senderName = nameByUid.get(f.requestedBy) || '누군가';
-    const res = await messaging.sendEachForMulticast({
-      tokens,
-      notification: { title: '새 친구 요청이 왔어요', body: `${senderName}님이 친구 요청을 보냈어요` },
-      data: { url: './index.html' },
-    });
-    res.responses.forEach((resp, idx) => {
-      if (resp.success) return;
-      const code = resp.error && resp.error.code;
-      if (
-        code === 'messaging/invalid-registration-token' ||
-        code === 'messaging/registration-token-not-registered'
-      ) {
-        invalidTokens.add(tokens[idx]);
-      }
-    });
-    sentCount++;
-  }
-  const acceptedSnap = await db
-    .collection('friendLinks')
-    .where('acceptedAt', '>', lastFriendLinkCheck)
-    .get();
-  for (const d of acceptedSnap.docs) {
-    const f = d.data();
-    if (f.status !== 'accepted' || !f.requestedBy) continue;
-    const allTokens = tokensByUid.get(f.requestedBy) || [];
-    const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-    if (!tokens.length) continue;
-    const otherUid = (f.uids || []).find((u) => u !== f.requestedBy);
-    const otherName = nameByUid.get(otherUid) || '상대방';
-    const res = await messaging.sendEachForMulticast({
-      tokens,
-      notification: { title: '친구가 됐어요', body: `${otherName}님과 친구가 됐어요` },
-      data: { url: './index.html' },
-    });
-    res.responses.forEach((resp, idx) => {
-      if (resp.success) return;
-      const code = resp.error && resp.error.code;
-      if (
-        code === 'messaging/invalid-registration-token' ||
-        code === 'messaging/registration-token-not-registered'
-      ) {
-        invalidTokens.add(tokens[idx]);
-      }
-    });
-    sentCount++;
-  }
-  nextState.lastFriendLinkCheck = friendLinkRunStartedAt;
-
-  // 8.6) 학생회 채팅 상단 고정 공지(카톡 채팅방 공지 같은 것) — 새로 쓰이거나 바뀌었을 때만,
-  //      학생회 채팅 알림을 켠 사람에게 "새로운 공지가 있어요"를 보낸다. 지운(text 빈) 것은 안 보낸다.
-  const councilNotice = councilChatNoticeSnap.exists ? councilChatNoticeSnap.data() : null;
-  if (councilNotice && councilNotice.text && councilNotice.updatedAt > (st.lastCouncilChatNoticeAt || 0)) {
-    console.log('학생회 채팅 공지 알림:', councilNotice.text);
-    for (const recipientUid of councilChatOkUids) {
-      if (recipientUid === councilNotice.updatedBy) continue;
-      const allTokens = tokensByUid.get(recipientUid) || [];
-      const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-      if (!tokens.length) continue;
-      const res = await messaging.sendEachForMulticast({
-        tokens,
-        notification: { title: '새로운 공지가 있어요', body: `학생회 채팅: ${String(councilNotice.text).slice(0, 80)}` },
-        data: { url: './index.html' },
-      });
-      res.responses.forEach((resp, idx) => {
-        if (resp.success) return;
-        const code = resp.error && resp.error.code;
-        if (code === 'messaging/invalid-registration-token' || code === 'messaging/registration-token-not-registered') {
-          invalidTokens.add(tokens[idx]);
-        }
-      });
-      sentCount++;
-    }
-  }
-  nextState.lastCouncilChatNoticeAt = (councilNotice && councilNotice.updatedAt) || st.lastCouncilChatNoticeAt || 0;
+  // 친구 요청/수락, 학생회 채팅 공지 갱신 알림은 클라이언트가 enqueuePush()로 notifyQueue에
+  // 바로 넣고 Cloudflare Worker(1분 주기)가 보내는 방식으로 옮겨졌다(2026-09-28) — 이 크론이
+  // 감지할 필요가 없어졌다. friendLinks·councilChatNotice를 여기서 더 이상 안 읽는다.
 
   if (!sentCount) {
     console.log('보낼 알림 없음 — 종료');

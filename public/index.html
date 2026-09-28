@@ -2799,6 +2799,7 @@ function getHomePrefs(){
     hideTodayTimetable: localGet('home_hideTodayTimetable', false),
     hideTodayMeal: localGet('home_hideTodayMeal', false),
     hideUpcomingCalendar: localGet('home_hideUpcomingCalendar', false),
+    hideUpcomingMine: localGet('home_hideUpcomingMine', false),
     hideRecruits: localGet('home_hideRecruits', false),
     hideShuttle: localGet('home_hideShuttle', true), // 셔틀버스는 새 항목이라 기본은 숨김
     order,
@@ -3470,8 +3471,10 @@ async function pushWidgetData(){
     const st = studentOf(today), stTom = studentOf(tomorrow);
     const staff = staffOf(today), staffTom = staffOf(tomorrow);
 
+    // 위젯 칸이 좁아 구분 섹션을 못 두니, 학사일정 자리에는 공식·학생회 일정만 넣는다
+    // (개인 일정을 섞으면 위젯에서도 "내 메모"가 학사일정처럼 보인다).
     const upcoming = visibleCalendar()
-      .filter(ev=>ev.endDate >= today)
+      .filter(ev=>ev.endDate >= today && !isPersonalEvent(ev))
       .sort((a,b)=>a.startDate.localeCompare(b.startDate));
     const events = upcoming.slice(0,3).map(ev=>({
       title: ev.title || '',
@@ -4427,8 +4430,13 @@ function renderHome(){
   const studentSlotText = studentMeal ? studentMeal[studentSlot.key] : '';
   const staffMeal = (state.meals[studentSlot.date] || {}).staff || null;
 
-  const upcoming = visibleCalendar().filter(ev=>ev.endDate>=todayStr())
-    .sort((a,b)=>a.startDate.localeCompare(b.startDate)).slice(0,3);
+  // "다가오는 학사일정"이라는 이름 그대로 학교 공식·학생회 일정만 담는다. visibleCalendar()는
+  // 개인 일정도 본인 것이면 그대로 포함시키는데, 그걸 여기 섞으면 "내가 적은 메모"가 학사일정
+  // 인 것처럼 보인다 — 개인 일정은 따로 "다가오는 내 일정" 섹션으로 분리한다.
+  const upcomingAll = visibleCalendar().filter(ev=>ev.endDate>=todayStr())
+    .sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  const upcoming = upcomingAll.filter(ev=>!isPersonalEvent(ev)).slice(0,3);
+  const upcomingMine = upcomingAll.filter(ev=>isPersonalEvent(ev)).slice(0,3);
   const recentNotices = live(state.notices)
     .sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||String(b.date).localeCompare(String(a.date))).slice(0,5);
   
@@ -4526,7 +4534,9 @@ function renderHome(){
     <div class="section-title">셔틀버스</div>
     ${shuttleHomeMiniCard()}` : '',
 
-    calendar: !hp.hideUpcomingCalendar ? `
+    // "다가오는 학사일정"과 "다가오는 내 일정"은 각각 따로 숨길 수 있지만, 순서 변경 목록에는
+    // 한 자리(calendar)만 있으므로 두 조각을 이어붙여 그 한 자리에 함께 넣는다.
+    calendar: (!hp.hideUpcomingCalendar ? `
     <div class="section-title">다가오는 학사일정</div>
     <div class="card" style="padding:8px 14px;">
       ${upcoming.length ? upcoming.map(ev=>`
@@ -4537,7 +4547,18 @@ function renderHome(){
           </div>
           <span style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateShort(ev.startDate)}${ev.endDate!==ev.startDate?'~'+fmtDateShort(ev.endDate):''}</span>
         </div>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); margin:4px 0;">등록된 일정이 없습니다.</p>`}
-    </div>` : '',
+    </div>` : '') + ((!hp.hideUpcomingMine && upcomingMine.length) ? `
+    <div class="section-title" style="margin-top:${hp.hideUpcomingCalendar?'0':'12px'};">다가오는 내 일정</div>
+    <div class="card" style="padding:8px 14px;">
+      ${upcomingMine.map(ev=>`
+        <div class="row-between upcoming-row" style="padding:6px 0; gap:8px; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1; flex-wrap:nowrap;">
+            <span style="width:9px; height:9px; border-radius:50%; background:${ev.color||'var(--blue)'}; display:inline-block; flex-shrink:0;"></span>
+            <b class="one-line" style="font-size:12px;">${escapeHtml(ev.title)}</b>
+          </div>
+          <span style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateShort(ev.startDate)}${ev.endDate!==ev.startDate?'~'+fmtDateShort(ev.endDate):''}</span>
+        </div>`).join('')}
+    </div>` : ''),
   };
 
   return `
@@ -7211,11 +7232,17 @@ function renderMypage(){
           calendar:  { icon:ICON.calendar, label:'다가오는 학사일정', hidden:hp.hideUpcomingCalendar },
         }[key];
         const hideKey = { timetable:'hideTodayTimetable', recruits:'hideRecruits', meal:'hideTodayMeal', shuttle:'hideShuttle', calendar:'hideUpcomingCalendar' }[key];
+        // "다가오는 내 일정"은 학사일정과 한 자리(calendar)를 같이 쓰지만 숨김 여부는 따로 둔다 —
+        // 순서 변경 모드에서는 화살표 두 벌을 나란히 둘 자리가 없어서 그 칸 바로 아래에만 덧붙인다.
         return `
       <div class="notify-row">
         <span class="notify-label">${meta.icon}<span class="notify-label-text"><b>${meta.label}</b></span></span>
         ${state.homeReorderMode ? homeOrderMoveHtml(key, i===0, i===hp.order.length-1) : homePrefToggleHtml(hideKey, meta.hidden)}
-      </div>`;
+      </div>${(key==='calendar' && !state.homeReorderMode) ? `
+      <div class="notify-row">
+        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>다가오는 내 일정</b><small>내가 만든 개인 일정만</small></span></span>
+        ${homePrefToggleHtml('hideUpcomingMine', hp.hideUpcomingMine)}
+      </div>` : ''}`;
       }).join('')}
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         학생회 공지는 등록된 공지가 있을 때만 자동으로 나타나요.
@@ -8044,6 +8071,7 @@ async function sendFriendRequest(){
       status: 'pending',
       createdAt: Date.now(),
     });
+    enqueuePush({ audience:'user', targetUid, category:'friendRequest', title:'새 친구 요청이 왔어요', body:`${state.user.name}님이 친구 요청을 보냈어요` });
 
     msgEl.style.color='var(--teal)';
     msgEl.textContent = `학번 ${sid}에게 요청을 보냈어요.`;
@@ -8059,6 +8087,8 @@ async function sendFriendRequest(){
 async function acceptFriendRequest(pairId){
   try{ await updateDoc(doc(db,'friendLinks',pairId), { status:'accepted', acceptedAt: now() }); }
   catch(e){ toast('수락에 실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
+  const otherUid = pairId.split('_').find(u=>u!==state.user.uid);
+  if(otherUid) enqueuePush({ audience:'user', targetUid:otherUid, category:'friendRequest', title:'친구가 됐어요', body:`${state.user.name}님과 친구가 됐어요` });
   await refreshFriendsData();
   toast('친구가 됐어요');
 }
@@ -8161,6 +8191,7 @@ async function handleCouncilChatNoticeSubmit(fd){
   const text = (fd.get('text')||'').trim();
   try{
     await setDoc(doc(db,'shared','councilChatNotice'), { text, updatedBy: state.user.uid, updatedByName: state.user.name, updatedAt: now() });
+    if(text) enqueuePush({ audience:'councilChat', category:'councilChatNotice', title:'새로운 공지가 있어요', body:`학생회 채팅: ${text.slice(0,80)}` });
     state.councilChatUI.notice = text ? { text, updatedByName: state.user.name, updatedAt: now() } : null;
     closeModal();
     refreshFriendsModalBody();
@@ -8280,6 +8311,7 @@ async function sendFriendRequestFromCouncil(targetUid, targetSid, targetName){
       status: 'pending',
       createdAt: Date.now(),
     });
+    enqueuePush({ audience:'user', targetUid, category:'friendRequest', title:'새 친구 요청이 왔어요', body:`${state.user.name}님이 친구 요청을 보냈어요` });
     toast(`${targetName}님에게 친구 요청을 보냈어요`);
     await refreshFriendsData();
     if(state.friendsUI.screen === 'councilChat') refreshFriendsModalBody();

@@ -2,8 +2,12 @@ name: Send push notifications
 
 on:
   schedule:
-    # GitHub Actions 크론은 정확히 5분 간격을 보장하지 않고 몇 분 밀릴 수 있음(실시간 아님, 근접 실시간)
-    - cron: '*/5 * * * *'
+    # 5분 간격은 매 실행마다 users 컬렉션을 통째로 읽어서(친구요청·식단·투표리마인더 등에 필요)
+    # Firestore 무료 할당량(하루 5만 읽기)을 다 써버렸다(2026-09-28). 채팅 등 진짜 즉시성이
+    # 필요한 알림은 이미 Cloudflare Worker(notify/../worker-notify, 1분 주기)로 옮겨져 있어서
+    # 이 크론은 더 이상 안 촘촘해도 된다 — 1시간으로 늘려 읽기량을 12분의 1로 줄인다.
+    # GitHub Actions 크론은 정확히 정시를 보장하지 않고 몇 분 밀릴 수 있음(실시간 아님, 근접 실시간)
+    - cron: '0 * * * *'
   workflow_dispatch: {}
 
 jobs:
