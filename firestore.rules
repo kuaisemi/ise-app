@@ -420,6 +420,23 @@ service cloud.firestore {
       allow write: if isCouncil();
     }
 
+    // 일정 알림 예약 큐. Cloudflare Worker가 매분 "발송 시각이 된" 문서를 찾아 FCM으로 보낸다.
+    // Worker는 서비스 계정으로 붙어서 보안 규칙을 우회하므로, 여기 규칙은 순전히 앱(학생)이
+    // 무엇을 할 수 있는지만 정한다.
+    //   - 자기가 만든 예약만 읽고 지울 수 있다.
+    //   - 만들 때 uid를 남의 것으로 적을 수 없다(그러면 남에게 알림을 보낼 수 있게 된다).
+    //   - 전교생 발송(audience:'all')은 학생회 이상만. 이게 없으면 학생 아무나 전체 푸시를
+    //     쏠 수 있다.
+    //   - sent는 항상 false로만 쓸 수 있다 — 발송 완료 표시는 Worker만 한다.
+    match /notifyQueue/{id} {
+      allow read, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.sent == false
+        && request.resource.data.at is number
+        && (request.resource.data.audience == 'self' || isCouncil());
+    }
+
     // 모두가 읽어야 하는 공용 문서만 여기에 이름을 적어둔다.
     //
     // 예전에는 여기가 `match /shared/{docId}` 와일드카드로 "로그인했으면 뭐든 읽기"였는데,
@@ -427,8 +444,17 @@ service cloud.firestore {
     // 그래서 위에서 roster·usersList·bugReports·auditLog를 아무리 좁혀놔도, 이 와일드카드
     // 하나 때문에 로그인한 학생이면 전부 읽을 수 있었다. 명단 보호가 사실상 없던 셈이라
     // 와일드카드를 없애고 공개해도 되는 문서만 하나씩 나열한다.
-    match /shared/calendarEvents { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    // calendarEvents 쓰기가 예전엔 isCouncil()이었는데, 학사일정 탭의 "+ 일정 추가"·"+ 시험 추가"
+    // 버튼은 일반 학생에게도 보인다(클라이언트 councilOnly 가드에도 없음). 그래서 학생이 개인
+    // 일정을 저장하면 조용히 permission-denied로 실패하고 있었다. 공지·건의사항·투표와 같은
+    // 수준(isSignedIn)으로 맞춘다 — 학사일정 추가·삭제 같은 관리 동작은 클라이언트 쪽
+    // councilOnly 가드가 계속 막는다.
+    match /shared/calendarEvents { allow read: if isSignedIn(); allow write: if isSignedIn(); }
     match /shared/deptNotices    { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    // 공휴일 목록 — 서버(fetch-sources)가 공공데이터포털에서 받아 채운다. 앱은 읽기만 한다.
+    match /shared/holidays       { allow read: if isSignedIn(); allow write: if isCouncil(); }
+    // 발송 대기 큐의 수신 대상 캐시 — Cloudflare Worker가 매분 읽는다.
+    match /shared/pushAudience   { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/meals          { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/shuttle        { allow read: if isSignedIn(); allow write: if isCouncil(); }
     match /shared/fetchState     { allow read: if isSignedIn(); allow write: if isCouncil(); }

@@ -1,0 +1,404 @@
+// KU ISE — 예약 알림 발송기 (Cloudflare Worker, 매분 실행)
+//
+// 왜 만들었나:
+// 알림 발송은 원래 GitHub Actions 크론이 5분 간격으로 돌렸다. 그런데 GitHub의 스케줄러는
+// 정확히 5분을 지켜주지 않고 몇 분씩 더 밀린다("예약 시각"이라는 개념이 성립하지 않는다).
+// 일정 알림처럼 "9시 정각에 와야 하는" 알림에는 못 쓴다. Cloudflare Cron Trigger는 매분
+// 돌릴 수 있어서 오차가 1분 안으로 들어온다.
+//
+// 하는 일은 딱 하나다: Firestore의 notifyQueue에서 "발송 시각이 된" 항목을 꺼내 FCM으로
+// 보내고 보냈다고 표시한다. 크롤링·계정 정리처럼 오래 걸리는 일은 여전히 GitHub Actions가
+// 맡는다(무료 플랜의 CPU 10ms/요청 제한 안에 들어갈 수 없는 작업들이다).
+//
+// 무료 플랜 한도와 이 코드의 관계:
+//   - 외부 요청 50개/실행 → 아래 SUBREQUEST_BUDGET으로 직접 센다. 남은 건 다음 분에 보낸다.
+//   - CPU 10ms/요청       → 매분 하는 일은 작은 JSON 몇 개 파싱이 전부다. 비싼 작업(JWT
+//                           RSA 서명)은 결과를 KV에 55분 캐싱해서 하루 30번 이하로 줄였다.
+
+/* ===== 무료 한도 관리 ===== */
+// 50개가 상한이지만 토큰 발급·조회·기록에도 쓰이므로 발송에는 40개까지만 쓴다.
+const SUBREQUEST_BUDGET = 40;
+// 한 번에 꺼내오는 큐 항목 수. 예산보다 넉넉히 가져와도 예산이 먼저 바닥나면 거기서 멈춘다.
+const QUEUE_FETCH_LIMIT = 50;
+
+/* ===== 공휴일 판정 =====
+   규칙 원본은 notify/holidays.mjs다. 여기 있는 건 그 사본이고, public/index.html에도 같은
+   사본이 있다(런타임이 달라 한 파일을 공유할 수 없음). 셋 중 하나를 고치면 셋 다 고쳐야 한다. */
+const HOLIDAY_LUNAR_BY_YEAR = {
+  2026: { seollal: '2026-02-17', chuseok: '2026-09-25', buddha: '2026-05-24' },
+  2027: { seollal: '2027-02-06', chuseok: '2027-09-15', buddha: '2027-05-13' },
+};
+const HOLIDAY_EXTRA_BY_YEAR = { 2026: ['2026-06-03'], 2027: [] };
+const pad2 = (n) => String(n).padStart(2, '0');
+const fmtDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const parseDate = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+
+// 대체공휴일 조건 — 관공서의 공휴일에 관한 규정 제3조.
+//   'weekend'(제2항) 토·일과 겹치면 대체. 삼일절·어린이날·석탄일·광복절·개천절·한글날·성탄절.
+//   'sunday' (제1항) "다른 공휴일과 겹치는 경우"만. 설날·추석 연휴. 토요일은 법정 공휴일이
+//            아니라 대체가 안 생긴다(2026년 추석 9/26 토 → 9/28 대체공휴일 없음).
+function holidayFallbackFor(year) {
+  const lunar = HOLIDAY_LUNAR_BY_YEAR[year];
+  if (!lunar) return [];
+  const threeDays = (s) => {
+    const base = parseDate(s);
+    return [-1, 0, 1].map((off) => { const d = new Date(base); d.setDate(d.getDate() + off); return fmtDate(d); });
+  };
+  const base = [
+    { date: `${year}-01-01`, sub: false },
+    ...threeDays(lunar.seollal).map((date) => ({ date, sub: 'sunday' })),
+    { date: `${year}-03-01`, sub: 'weekend' },
+    { date: `${year}-05-05`, sub: 'weekend' },
+    { date: lunar.buddha, sub: 'weekend' },
+    { date: `${year}-06-06`, sub: false },
+    { date: `${year}-08-15`, sub: 'weekend' },
+    ...threeDays(lunar.chuseok).map((date) => ({ date, sub: 'sunday' })),
+    { date: `${year}-10-03`, sub: 'weekend' },
+    { date: `${year}-10-09`, sub: 'weekend' },
+    { date: `${year}-12-25`, sub: 'weekend' },
+    ...(HOLIDAY_EXTRA_BY_YEAR[year] || []).map((date) => ({ date, sub: false })),
+  ];
+  const taken = new Set(base.map((h) => h.date));
+  const out = base.map((h) => h.date);
+  for (const h of base) {
+    if (!h.sub) continue;
+    const dow = parseDate(h.date).getDay();
+    if (!(h.sub === 'weekend' ? dow === 0 || dow === 6 : dow === 0)) continue;
+    const cur = parseDate(h.date);
+    for (let i = 0; i < 10; i++) {
+      cur.setDate(cur.getDate() + 1);
+      const s = fmtDate(cur), d = cur.getDay();
+      if (d === 0 || d === 6 || taken.has(s)) continue;
+      taken.add(s); out.push(s); break;
+    }
+  }
+  return out;
+}
+function isHolidayDate(holidayDoc, dateStr) {
+  const year = Number(String(dateStr).slice(0, 4));
+  if (!year) return false;
+  const fromServer = holidayDoc && holidayDoc.byYear && holidayDoc.byYear[String(year)];
+  const list = Array.isArray(fromServer) && fromServer.length ? fromServer : holidayFallbackFor(year);
+  return list.includes(dateStr);
+}
+
+/* ===== KST 시각 =====
+   Worker는 UTC로 돈다. "지금 야간인가", "오늘이 공휴일인가"는 전부 KST 기준이어야 한다. */
+const kstNow = () => new Date(Date.now() + 9 * 60 * 60 * 1000);
+const kstDateStr = () => kstNow().toISOString().slice(0, 10);
+// 22시~다음날 7시(KST)에는 야간 알림에 동의한 사람에게만 보낸다 — 기존 GitHub Actions
+// 발송기(notify/send-notifications.mjs의 isQuietHour)와 같은 규칙.
+function isQuietHour() {
+  const h = kstNow().getUTCHours();
+  return h >= 22 || h < 7;
+}
+
+/* ===== 구글 액세스 토큰 (서비스 계정 JWT → OAuth2) =====
+   RSA 서명은 이 Worker에서 제일 비싼 연산이라 결과를 KV에 55분 캐싱한다(토큰 수명 60분).
+   그래서 실제로는 하루 26번 남짓만 서명한다. */
+function b64url(buf) {
+  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function pemToDer(pem) {
+  const body = pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+  const bin = atob(body);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+}
+async function mintAccessToken(sa) {
+  const iat = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: sa.client_email,
+    // Firestore 읽기·쓰기와 FCM 발송 두 가지가 필요하다.
+    scope: 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat,
+    exp: iat + 3600,
+  };
+  const unsigned = `${b64url(new TextEncoder().encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })))}.${b64url(new TextEncoder().encode(JSON.stringify(claim)))}`;
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToDer(sa.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const jwt = `${unsigned}.${b64url(sig)}`;
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${jwt}`,
+  });
+  if (!res.ok) throw new Error(`토큰 발급 실패 ${res.status} ${(await res.text()).slice(0, 200)}`);
+  return (await res.json()).access_token;
+}
+async function getAccessToken(env, budget) {
+  const cached = await env.NOTIFY_CACHE.get('access_token');
+  if (cached) return cached;
+  budget.spend(); // oauth2 호출 1회
+  const token = await mintAccessToken(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT));
+  // 수명 60분짜리를 55분만 쓴다 — 만료 직전에 걸려 401이 나는 일을 피하려는 여유분.
+  await env.NOTIFY_CACHE.put('access_token', token, { expirationTtl: 55 * 60 });
+  return token;
+}
+
+/* ===== Firestore REST =====
+   서비스 계정으로 붙으므로 보안 규칙을 우회한다(Admin SDK와 같은 권한). */
+function fsBase(pid) {
+  return `https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents`;
+}
+// Firestore REST는 값에 타입 껍데기를 씌워 보낸다. 필요한 타입만 벗겨낸다.
+function decodeValue(v) {
+  if (v == null) return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('nullValue' in v) return null;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(decodeValue);
+  if ('mapValue' in v) return decodeFields(v.mapValue.fields || {});
+  return null;
+}
+function decodeFields(fields) {
+  const out = {};
+  for (const [k, v] of Object.entries(fields || {})) out[k] = decodeValue(v);
+  return out;
+}
+async function fsGetDoc(env, token, path, budget) {
+  budget.spend();
+  const res = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}/${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`문서 읽기 실패 ${path} ${res.status}`);
+  const j = await res.json();
+  return decodeFields(j.fields);
+}
+// 발송 시각이 지났는데 아직 안 보낸 항목을 이른 순서대로 가져온다.
+// (sent ASC, at ASC 복합 인덱스가 firestore.indexes.json에 있어야 동작한다)
+async function fsQueryDueNotifications(env, token, nowMs, budget) {
+  budget.spend();
+  const res = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}:runQuery`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'notifyQueue' }],
+        where: {
+          compositeFilter: {
+            op: 'AND',
+            filters: [
+              { fieldFilter: { field: { fieldPath: 'sent' }, op: 'EQUAL', value: { booleanValue: false } } },
+              { fieldFilter: { field: { fieldPath: 'at' }, op: 'LESS_THAN_OR_EQUAL', value: { integerValue: String(nowMs) } } },
+            ],
+          },
+        },
+        orderBy: [{ field: { fieldPath: 'at' }, direction: 'ASCENDING' }],
+        limit: QUEUE_FETCH_LIMIT,
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`큐 조회 실패 ${res.status} ${(await res.text()).slice(0, 300)}`);
+  const rows = await res.json();
+  return rows
+    .filter((r) => r.document)
+    .map((r) => ({
+      name: r.document.name,             // projects/.../documents/notifyQueue/{id}
+      id: r.document.name.split('/').pop(),
+      ...decodeFields(r.document.fields),
+    }));
+}
+// 처리한 항목들의 상태를 한 번의 commit으로 기록한다(항목 수와 무관하게 외부 요청 1회).
+async function fsCommitUpdates(env, token, updates, budget) {
+  if (!updates.length) return;
+  budget.spend();
+  const writes = updates.map((u) => ({
+    update: {
+      name: u.name,
+      fields: {
+        sent: { booleanValue: !!u.sent },
+        sentAt: { integerValue: String(Date.now()) },
+        ...(u.cursor != null ? { cursor: { integerValue: String(u.cursor) } } : {}),
+        ...(u.error ? { lastError: { stringValue: String(u.error).slice(0, 300) } } : {}),
+      },
+    },
+    // 지정한 필드만 건드린다 — 이게 없으면 나머지 필드가 전부 지워진다.
+    updateMask: {
+      fieldPaths: ['sent', 'sentAt', ...(u.cursor != null ? ['cursor'] : []), ...(u.error ? ['lastError'] : [])],
+    },
+  }));
+  const res = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}:commit`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ writes }),
+  });
+  if (!res.ok) throw new Error(`발송 표시 실패 ${res.status} ${(await res.text()).slice(0, 300)}`);
+}
+
+/* ===== FCM HTTP v1 =====
+   v1에는 멀티캐스트가 없어서 토큰 하나당 요청 하나다. 그래서 전교생 발송은 토큰을 훑지 않고
+   토픽으로 보낸다 — 받는 사람이 몇 명이든 요청 1회로 끝난다.
+   (토픽 구독은 GitHub Actions 쪽에서 firebase-admin의 subscribeToTopic으로 해둔다) */
+const TOPIC_ALL = 'ise_all';       // 전체
+const TOPIC_NIGHT = 'ise_night';   // 야간 알림에 동의한 사람만
+async function fcmSend(env, token, target, title, body, category, budget) {
+  budget.spend();
+  const message = {
+    ...target, // { token } 또는 { topic }
+    notification: { title, body },
+    data: { url: './index.html', ...(category ? { category } : {}) },
+  };
+  const res = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/messages:send`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    }
+  );
+  if (res.ok) return { ok: true };
+  const text = (await res.text()).slice(0, 300);
+  // 만료·무효 토큰은 실패로 세지 않는다 — 기기를 지웠거나 앱을 삭제한 경우라서, 다시
+  // 보내봐야 영영 성공하지 않는다. (토큰 정리는 GitHub Actions 쪽이 이미 하고 있다)
+  const gone = res.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/.test(text);
+  return { ok: false, gone, error: `${res.status} ${text}` };
+}
+
+/* ===== 본체 ===== */
+function makeBudget(limit) {
+  let used = 0;
+  return {
+    spend() { used++; },
+    get used() { return used; },
+    left() { return limit - used; },
+  };
+}
+
+async function runOnce(env) {
+  const budget = makeBudget(SUBREQUEST_BUDGET);
+  const token = await getAccessToken(env, budget);
+  const nowMs = Date.now();
+
+  const due = await fsQueryDueNotifications(env, token, nowMs, budget);
+  if (!due.length) return { sent: 0, items: 0, subrequests: budget.used };
+
+  // 수신 대상 목록은 5분에 한 번만 Firestore에서 읽고 나머지 4분은 KV에서 꺼내 쓴다.
+  // (GitHub Actions가 5분마다 shared/pushAudience를 새로 쓴다)
+  let audience = await env.NOTIFY_CACHE.get('audience', 'json');
+  if (!audience) {
+    audience = await fsGetDoc(env, token, 'shared/pushAudience', budget);
+    // 문서가 아예 없으면 캐싱하지 않는다 — GitHub Actions가 아직 한 번도 안 돈 상태라
+    // 곧 생길 값이다. 빈 값을 5분간 캐싱하면 그 사이 알림이 전부 "받을 사람 없음"으로
+    // 처리돼 조용히 사라진다.
+    if (audience) await env.NOTIFY_CACHE.put('audience', JSON.stringify(audience), { expirationTtl: 300 });
+  }
+
+  // 공휴일 목록은 하루 한 번만 바뀌므로 6시간 캐싱.
+  let holidays = await env.NOTIFY_CACHE.get('holidays', 'json');
+  if (!holidays) {
+    holidays = (await fsGetDoc(env, token, 'shared/holidays', budget)) || { byYear: {} };
+    await env.NOTIFY_CACHE.put('holidays', JSON.stringify(holidays), { expirationTtl: 6 * 3600 });
+  }
+
+  const quiet = isQuietHour();
+  const todayIsHoliday = isHolidayDate(holidays, kstDateStr());
+  const updates = [];
+  let sentCount = 0;
+  let skippedNoAudience = 0; // 대상 목록이 없어 다음 실행으로 미룬 개인 알림 수
+
+  for (const item of due) {
+    // 예산이 바닥나면 남은 항목은 손대지 않는다. sent가 false로 남아 있으므로 다음 분에
+    // 그대로 다시 조회돼서 이어서 나간다 — 이게 "누락분 재발송"이다.
+    if (budget.left() <= 1) break;
+
+    // 평일에만 의미 있는 알림(시간표 등)은 공휴일이면 보내지 않고 처리 완료로 넘긴다.
+    if (item.skipOnHoliday && todayIsHoliday) {
+      updates.push({ name: item.name, sent: true });
+      continue;
+    }
+
+    if (item.audience === 'all') {
+      // 전교생 발송 — 토픽 하나로 끝난다. 야간에는 동의자 토픽으로 대상을 좁힌다.
+      const topic = quiet ? TOPIC_NIGHT : TOPIC_ALL;
+      const r = await fcmSend(env, token, { topic }, item.title, item.body, item.category, budget);
+      if (r.ok) { sentCount++; updates.push({ name: item.name, sent: true }); }
+      else updates.push({ name: item.name, sent: false, error: r.error });
+      continue;
+    }
+
+    // 대상 목록 자체가 아직 없으면(Actions가 한 번도 안 돌았거나 일시적 실패) 이 항목은
+    // 손대지 않고 넘긴다. 여기서 "완료"로 찍어버리면 알림이 영영 안 가고 흔적도 안 남는다.
+    if (!audience) {
+      skippedNoAudience++;
+      continue;
+    }
+
+    // 개인 발송 — 그 사람의 기기 토큰들(폰 앱 + PC 브라우저)에 각각 보낸다.
+    const tokens = (audience.byUid && audience.byUid[item.uid]) || [];
+    if (!tokens.length) {
+      // 알림을 켠 적이 없거나 토큰이 정리된 사람 — 다시 시도해도 같으니 완료로 둔다.
+      updates.push({ name: item.name, sent: true });
+      continue;
+    }
+    if (quiet && !(audience.night || []).some((t) => tokens.includes(t))) {
+      // 야간 알림 미동의 — 기존 발송기와 같은 규칙으로, 이 알림은 보내지 않고 끝낸다.
+      updates.push({ name: item.name, sent: true });
+      continue;
+    }
+    // 토큰이 여러 개인데 예산이 모자라면 보낸 데까지 cursor에 적어두고 다음 분에 이어서 보낸다.
+    let i = Number(item.cursor || 0);
+    let failed = null;
+    for (; i < tokens.length; i++) {
+      if (budget.left() <= 1) break;
+      const r = await fcmSend(env, token, { token: tokens[i] }, item.title, item.body, item.category, budget);
+      if (r.ok) sentCount++;
+      else if (!r.gone) failed = r.error; // 만료 토큰은 실패로 치지 않는다
+    }
+    if (i >= tokens.length) updates.push({ name: item.name, sent: true, error: failed });
+    else updates.push({ name: item.name, sent: false, cursor: i });
+  }
+
+  await fsCommitUpdates(env, token, updates, budget);
+  if (skippedNoAudience) {
+    console.warn(`[notify] shared/pushAudience가 없어 개인 알림 ${skippedNoAudience}건을 미룸 — GitHub Actions가 한 번 돌아야 생깁니다`);
+  }
+  return { sent: sentCount, items: updates.length, skipped: skippedNoAudience, subrequests: budget.used };
+}
+
+export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      runOnce(env)
+        .then((r) => {
+          // 보낼 게 없는 분이 대부분이라, 실제로 뭔가 한 경우만 로그를 남긴다
+          // (wrangler tail로 볼 때 빈 줄이 1분마다 쌓이지 않도록).
+          if (r.items || r.skipped) console.log(`[notify] 발송 ${r.sent}건 / 처리 ${r.items}건 / 미룸 ${r.skipped}건 / 외부요청 ${r.subrequests}개`);
+        })
+        .catch((e) => console.error('[notify] 실패:', e && e.message))
+    );
+  },
+
+  // 크론을 기다리지 않고 바로 한 번 돌려보고 싶을 때 쓰는 수동 실행구.
+  // 배포 주소를 알면 누구나 부를 수 있으므로, 서비스 계정 JSON의 private_key_id 뒷자리를
+  // 아는 사람만 통과시킨다(이 값은 secret 안에만 있고 앱·저장소에는 없다).
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname !== '/run') return new Response('ku-ise-notify', { status: 200 });
+    const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+    if (url.searchParams.get('key') !== String(sa.private_key_id).slice(-8)) {
+      return new Response('unauthorized', { status: 401 });
+    }
+    try {
+      const r = await runOnce(env);
+      return new Response(JSON.stringify(r), { headers: { 'Content-Type': 'application/json' } });
+    } catch (e) {
+      return new Response(`실패: ${e && e.message}`, { status: 500 });
+    }
+  },
+};

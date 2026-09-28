@@ -1113,6 +1113,72 @@ async function main() {
     await batch.commit();
     console.log(`만료된 토큰 ${invalidTokens.size}개 정리 완료`);
   }
+
+  // Cloudflare Worker가 쓸 수신 대상 캐시를 남긴다.
+  //
+  // Worker는 매분 도는데, 거기서 users 컬렉션을 통째로 읽으면 무료 플랜의 CPU 10ms 예산을
+  // 넘기기 쉽다(사람 수만큼 JSON 파싱). 어차피 이 스크립트가 5분마다 users를 다 읽고 있으니,
+  // "누구에게 어떤 토큰으로 보내면 되는지"만 추려 작은 문서 하나로 남겨두고 Worker는 그것만
+  // 읽게 한다. 무효 토큰 정리가 끝난 뒤에 만들어야 방금 지운 토큰이 안 들어간다.
+  {
+    const byUid = {};
+    for (const [uid, tokens] of tokensByUid) {
+      const alive = tokens.filter((t) => !invalidTokens.has(t));
+      if (alive.length) byUid[uid] = alive;
+    }
+    const night = [...nightOkTokens].filter((t) => !invalidTokens.has(t));
+    await db.collection('shared').doc('pushAudience').set({ byUid, night, updatedAt: Date.now() });
+  }
+
+  // 전교생 발송용 FCM 토픽 구독.
+  //
+  // FCM HTTP v1에는 멀티캐스트가 없어서 토큰 하나당 요청 하나다. Worker의 무료 한도는
+  // 실행당 외부 요청 50개라, 전교생에게 토큰으로 쏘면 한 번에 다 못 보낸다. 토픽으로 보내면
+  // 받는 사람이 몇 명이든 요청 1회로 끝나므로, 구독만 여기서 미리 해둔다.
+  //   ise_all   — 전체
+  //   ise_night — 야간(22~07시) 알림에 동의한 사람만. 토픽은 "누구를 빼고 보내기"가 안 돼서,
+  //               야간에 쓸 대상만 따로 모은 토픽이 필요하다.
+  // 이미 구독한 토큰을 또 구독해도 무해하지만 호출이 아깝다 — 한 번 구독한 토큰은
+  // notifyState에 적어두고 새 토큰만 처리한다.
+  {
+    const allTokens = [];
+    for (const [, tokens] of tokensByUid) allTokens.push(...tokens);
+    const liveTokens = [...new Set(allTokens)].filter((t) => !invalidTokens.has(t));
+    const liveNight = [...nightOkTokens].filter((t) => !invalidTokens.has(t));
+    const already = new Set(st.topicSubscribed || []);
+    const alreadyNight = new Set(st.topicSubscribedNight || []);
+    const newAll = liveTokens.filter((t) => !already.has(t));
+    const newNight = liveNight.filter((t) => !alreadyNight.has(t));
+    try {
+      // subscribeToTopic은 한 번에 1000개까지 받는다.
+      for (let i = 0; i < newAll.length; i += 1000) {
+        await messaging.subscribeToTopic(newAll.slice(i, i + 1000), 'ise_all');
+      }
+      for (let i = 0; i < newNight.length; i += 1000) {
+        await messaging.subscribeToTopic(newNight.slice(i, i + 1000), 'ise_night');
+      }
+      // 야간 동의를 끈 사람은 그 토픽에서 빼야 한다 — 안 그러면 껐는데도 야간에 계속 온다.
+      const dropNight = [...alreadyNight].filter((t) => !liveNight.includes(t));
+      for (let i = 0; i < dropNight.length; i += 1000) {
+        await messaging.unsubscribeFromTopic(dropNight.slice(i, i + 1000), 'ise_night');
+      }
+      if (newAll.length || newNight.length || dropNight.length) {
+        console.log(`토픽 구독 갱신 — 전체 +${newAll.length}, 야간 +${newNight.length}/-${dropNight.length}`);
+      }
+      // notifyState는 위(1067줄 근처)에서 이미 저장이 끝난 뒤라 nextState에 넣어봐야 반영되지
+      // 않는다 — 여기서 따로 merge로 덧쓴다. 이걸 놓치면 매 실행마다 전원을 다시 구독시키고,
+      // 야간 동의를 끈 사람을 토픽에서 빼지도 못한다(껐는데 계속 오는 버그).
+      await db.collection('shared').doc('notifyState').set(
+        {
+          topicSubscribed: liveTokens.slice(-500),
+          topicSubscribedNight: liveNight.slice(-500),
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn('[topic] 구독 실패(다음 실행에서 재시도):', e && e.message);
+    }
+  }
 }
 
 main().catch((e) => {

@@ -1,0 +1,30 @@
+name = "ku-ise-notify"
+main = "src/index.js"
+compatibility_date = "2026-09-28"
+# Node 내장 모듈은 안 쓰지만, crypto.subtle(JWT 서명)은 표준 Web Crypto라 그대로 동작한다.
+
+# 공개 주소(workers.dev)를 만들지 않는다. 이 Worker는 크론으로만 도는 발송기라 바깥에서
+# 부를 일이 없고, 주소가 없으면 공격 표면도 없다.
+# (src/index.js의 fetch 핸들러 /run은 이 값을 true로 바꾸고 대시보드에서 서브도메인을
+#  등록해야 쓸 수 있다. 없어도 크론 동작에는 아무 영향이 없다.)
+# ★ 최상위 키라서 반드시 [triggers] 같은 테이블 헤더보다 위에 있어야 한다 — 아래에 두면
+#   TOML이 그 테이블의 필드로 읽어서 "Unexpected fields found in triggers field"가 난다.
+workers_dev = false
+
+# 매분 1회 실행. Cron Trigger는 이 파일에 적혀 있으면 deploy할 때 같이 등록된다.
+[triggers]
+crons = ["* * * * *"]
+
+# FCM 액세스 토큰과 수신 대상 목록을 캐싱해서 매분 새로 만들지 않는다.
+# 배포 전에 아래 명령으로 만들고 나온 id를 여기에 붙여넣어야 한다:
+#   npx wrangler kv namespace create NOTIFY_CACHE
+[[kv_namespaces]]
+binding = "NOTIFY_CACHE"
+id = "7cbb743d680e460ca6f24003d6d5b04f"
+
+[vars]
+FIREBASE_PROJECT_ID = "ku-ise-d95ee"
+
+# 비밀값은 이 파일에 적지 않는다(이 파일은 git에 올라간다).
+# 배포 후 따로 넣는다:
+#   npx wrangler secret put FIREBASE_SERVICE_ACCOUNT   ← 서비스 계정 JSON 전체

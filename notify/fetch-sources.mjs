@@ -26,6 +26,9 @@ const DEPT_NOTICE_URL = 'https://aisemi.korea.ac.kr/AISEMI/3600/subview.do';
 const DEPT_ORIGIN = 'https://aisemi.korea.ac.kr';
 const OFFICIAL_SCHEDULE_URL = 'https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do';
 const SHUTTLE_URL = 'https://gpa.korea.ac.kr/koreaSejong/7803/subview.do';
+// 공공데이터포털 "특일 정보" — 공휴일(대체공휴일 포함)을 월 단위로 내려준다.
+const HOLIDAY_API_URL =
+  'https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
@@ -403,6 +406,58 @@ async function runShuttle() {
   return weekday.length + sunday.length;
 }
 
+/* ===== 공휴일 (공공데이터포털 특일정보) ===== */
+// 알림(평일 판정)과 셔틀(쉬는 구간 판정)이 같이 쓰는 값이라 한 곳에서만 만든다.
+// 결과는 shared/holidays = { byYear: { "2026": ["2026-01-01", ...] }, updatedAt }.
+//
+// 임시공휴일처럼 갑자기 지정되는 날은 이 API에만 나오고 달력 계산으로는 알 수 없어서,
+// 키가 있으면 항상 API 쪽을 우선한다. 키가 없거나 호출이 실패하면 아무것도 저장하지 않고
+// (기존 문서를 그대로 두고) 앱 쪽 내장 표(notify/holidays.mjs의 FALLBACK)로 돌아간다.
+async function fetchHolidayYear(year, key) {
+  const dates = new Set();
+  // 이 API는 월 단위로만 조회된다 — 한 해에 12번. 하루 1회만 도는 작업이라 부담은 없다.
+  for (let month = 1; month <= 12; month++) {
+    const url =
+      `${HOLIDAY_API_URL}?serviceKey=${encodeURIComponent(key)}` +
+      `&solYear=${year}&solMonth=${pad(month)}&numOfRows=50&_type=json`;
+    const res = await fetch(url, { headers: { 'User-Agent': UA } });
+    if (!res.ok) throw new Error(`${year}-${pad(month)} HTTP ${res.status}`);
+    const text = await res.text();
+    // 인증키가 틀리면 200에 XML 에러 본문이 온다 — JSON.parse가 터지기 전에 먼저 걸러낸다.
+    if (!text.trim().startsWith('{')) {
+      throw new Error(`${year}-${pad(month)} JSON이 아닌 응답 (인증키 확인 필요)`);
+    }
+    const body = JSON.parse(text).response?.body;
+    const raw = body?.items?.item;
+    if (!raw) continue; // 그 달에 공휴일이 없으면 items가 빈 문자열로 온다
+    // 항목이 1건이면 배열이 아니라 객체 하나로 온다.
+    for (const it of Array.isArray(raw) ? raw : [raw]) {
+      // isHoliday가 'Y'인 것만 진짜 쉬는 날이다(절기·잡절도 같은 API에 섞여 있다).
+      if (it.isHoliday !== 'Y') continue;
+      const s = String(it.locdate); // 20260101
+      dates.add(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`);
+    }
+  }
+  return [...dates].sort();
+}
+
+async function runHolidays() {
+  const key = process.env.HOLIDAY_API_KEY;
+  if (!key) throw new Error('HOLIDAY_API_KEY 없음 — 내장 표로 동작합니다');
+  // 올해와 내년. 연말에 내년 일정을 보는 경우가 있어서 두 해를 같이 받아둔다.
+  const thisYear = kstNow().getUTCFullYear();
+  const byYear = {};
+  for (const year of [thisYear, thisYear + 1]) {
+    const list = await fetchHolidayYear(year, key);
+    // 한 해에 공휴일이 10일 미만이면 파싱이 깨진 것으로 보고 통째로 버린다 —
+    // 빈 목록을 저장하면 "공휴일이 하나도 없는" 상태가 돼서 버그가 조용히 퍼진다.
+    if (list.length < 10) throw new Error(`${year}년 공휴일 ${list.length}건 — 응답이 이상함`);
+    byYear[String(year)] = list;
+  }
+  await db.collection('shared').doc('holidays').set({ byYear, updatedAt: Date.now() });
+  return Object.values(byYear).reduce((n, v) => n + v.length, 0);
+}
+
 async function main() {
   const ref = db.collection('shared').doc('fetchState');
   const snap = await ref.get();
@@ -450,6 +505,21 @@ async function main() {
         console.log(`셔틀버스 시간표 갱신 완료 (00:20 슬롯) — ${n}건`);
       } catch (e) {
         console.warn('셔틀버스 시간표 갱신 실패 (00:20 슬롯):', e.message);
+      }
+      newSlots.push(slot);
+    }
+  }
+
+  // 공휴일 — 셔틀과 같은 이유로 하루 한 번, 00:30에. 임시공휴일이 갑자기 지정되는 일이
+  // 있어서 "한 번 받아두면 끝"이 아니라 매일 다시 받는다.
+  {
+    const slot = `holidays_${today}_0030`;
+    if (!doneSlots.has(slot) && isDue(0, 30)) {
+      try {
+        const n = await runHolidays();
+        console.log(`공휴일 갱신 완료 (00:30 슬롯) — ${n}일`);
+      } catch (e) {
+        console.warn('공휴일 갱신 실패 (00:30 슬롯):', e.message);
       }
       newSlots.push(slot);
     }
