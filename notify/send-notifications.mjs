@@ -310,13 +310,15 @@ async function purgeOldTombstones() {
   }
 }
 
-// 친구 채팅은 게시물과 달리 "삭제 표시(tombstone)" 없이, 메시지가 생긴 지 24시간이
+// 친구 채팅은 게시물과 달리 "삭제 표시(tombstone)" 없이, 메시지가 생긴 지 일정 기간이
 // 지나면 그냥 완전히 지운다. 대화 내용을 보관할 이유가 없고(신고 시에는 이미 신고
 // 접수 시점에 최근 대화를 별도로 복사해 남겨둔다), 계속 쌓아두면 문서 수만 늘어난다.
 // chats/{pairId}/messages 서브컬렉션이 계정 쌍마다 따로 있어서, 하나씩 돌지 않고
 // collectionGroup으로 전체 메시지 컬렉션을 한 번에 훑는다.
+// 학생회·학번별 채팅과 같은 7일로 통일한다(예전엔 24시간이었다).
+const FRIEND_CHAT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 async function purgeOldChatMessages() {
-  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+  const cutoff = Date.now() - FRIEND_CHAT_TTL_MS;
   const snap = await db.collectionGroup('messages').where('createdAt', '<', cutoff).get();
   if (snap.empty) return;
   const batchSize = 400; // Firestore 배치 쓰기 한도(500)보다 여유 있게
@@ -326,7 +328,7 @@ async function purgeOldChatMessages() {
     docs.slice(i, i + batchSize).forEach((d) => batch.delete(d.ref));
     await batch.commit();
   }
-  console.log(`[chatPurge] 24시간 지난 메시지 ${docs.length}건 삭제`);
+  console.log(`[chatPurge] 7일 지난 메시지 ${docs.length}건 삭제`);
 }
 
 // 학생회 채팅은 친구 채팅(24시간)보다 길게, 7일치를 보관한 뒤 지운다 — 방이 하나뿐이라
