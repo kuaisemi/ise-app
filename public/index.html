@@ -803,7 +803,12 @@ const PATCH_NOTES = [
     { title:'일정 알림을 서버(Cloudflare Workers)가 보내도록 변경', text:'일정·메모 알림을 1분 간격으로 도는 서버가 보내도록 변경 — 예전 GitHub Actions 크론(5분+ 지연)보다 정확한 시각에 와요', admin:true },
   ]},
   { version:'Beta 0.3.1', date:'2026-09-28', items:[
-    { title:'다른 사람의 일정이 내 화면에 보이던 문제 수정', text:'다른 사람이 만든 개인 일정이 내 달력·홈 화면·위젯에 그대로 보이던 문제 수정 — 이제 내가 만든 일정만 나에게 보여요' },
+    { title:'내가 쓴 글의 알림이 나에게도 오던 문제 수정', text:'공지·투표·구인글·버그제보·건의사항 알림을 켜둔 사람이 학생회 등으로서 그 카테고리 글을 직접 올리면, 자기가 방금 쓴 글의 알림이 자기에게도 오던 문제 수정' },
+    { title:'이미 읽은 채팅에는 알림이 안 오도록 변경', text:'채팅(친구·학생회·학번별) 알림이 도착하기 전에 상대가 이미 채팅방을 열어서 읽었으면 알림을 보내지 않아요' },
+    { title:'채팅 알림이 화면 위로 뜨도록 변경', text:'채팅·공지 등 알림이 진동만 울리고 조용히 목록에만 쌓이던 문제 수정 — 이제 화면 위로 배너(헤드업)로 떠요' },
+    { title:'같은 대화의 채팅 알림을 한 자리에서 갱신', text:'같은 사람·같은 방에서 메시지가 연달아 오면 알림이 여러 장 쌓이지 않고 한 자리에서 최신 내용으로 바뀌어요' },
+    { title:'구인글 참여자 공지도 즉시발송으로 전환', text:'구인글 "참여자 공지"도 이제 1분 안에 도착해요 (예전엔 5분 걸렸어요)' },
+    { title:'다른 사람이 만든 개인 일정이 내 화면에 보이던 문제 수정', text:'다른 사람이 만든 개인 일정이 내 달력·홈 화면·위젯에 그대로 보이던 문제 수정 — 이제 내가 만든 일정만 나에게 보여요' },
     { title:'재학생이 자기 일정을 못 지우던 문제 수정', text:'삭제 버튼은 보이는데 눌러도 "학생회 권한이 필요합니다"만 뜨고 지워지지 않던 문제 수정' },
     { title:'공지·투표·구인글·채팅 알림 즉시발송', text:'새 공지·투표·구인글·버그 제보·건의사항·친구 채팅·학생회 채팅·학번별 채팅 알림이 이제 1분 안에 도착해요. 예전에는 5분 이상(길면 10분 가까이) 걸렸어요', admin:true },
     { title:'채팅 알림을 눌렀을 때 엉뚱한 화면으로 가던 문제 수정', text:'학생회·학번별 채팅 알림을 누르면 그 채팅방으로 바로 이동해요' },
@@ -6709,7 +6714,16 @@ async function notifyRecruitmentOrgMessage(id, msgId){
   state.recruitmentPosts = next;
   renderMain();
   refreshRecruitmentModal(id);
-  toast('참여자에게 공지 알림을 보냈어요 (5분 안에 도착해요)');
+  // "참여(yes)" 누른 사람에게만 즉시 보낸다. studentId로만 알고 있어서 uid가 필요한
+  // notifyQueue에는 state.allUsers에서 찾아 넘긴다 — 탈퇴 등으로 명단에 없으면 건너뛴다.
+  const post = next.find(r=>r.id===id);
+  const msg = (post && post.poll && post.poll.orgMessages || []).find(m=>(m.id||'')===msgId) || {};
+  const yesIds = Object.keys((post && post.poll && post.poll.votes) || {}).filter(sid=>post.poll.votes[sid].choice==='yes' && sid!==post.authorId);
+  yesIds.forEach(sid=>{
+    const targetUid = (state.allUsers[sid]||{}).uid;
+    if(targetUid) enqueuePush({ audience:'user', targetUid, category:'recruit', title:`${post.title} 참여자 공지`, body:msg.text||'' });
+  });
+  toast('참여자에게 공지 알림을 보냈어요 (1분 안에 도착해요)');
 }
 // 구인글 모달이 열려있는 동안 투표/공지 등을 눌러도 모달은 별도 DOM(modal-root)이라
 // renderMain()만으로는 안 바뀐다 — 최신 상태로 모달을 다시 그려서 버튼 비활성화 등이
@@ -7775,7 +7789,7 @@ function friendDetailBody(){
         <button type="button" class="btn btn-primary btn-sm" id="friend-chat-send" style="width:auto;">전송</button>
       </div>
     </div>
-    <p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">채팅 알림은 실시간이 아니라 약 5분마다 한 번씩 모아서 보내져요.</p>
+    <p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">채팅 알림은 실시간이 아니라 서버를 거쳐서 가요 — 최대 1분 정도 걸릴 수 있어요.</p>
   `;
 }
 

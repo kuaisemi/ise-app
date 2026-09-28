@@ -526,51 +526,11 @@ async function main() {
   }
 
   const nextState = {};
-
-  // 2.7) 구인글 참여자 공지 — poll.orgMessages에 남긴다고 바로 보내는 게 아니라, 구인자가
-  //      그 메시지를 "공지하기"로 따로 표시(notify:true)한 것만 "참여" 누른 사람에게 보낸다.
-  //      한 번 보낸 메시지는 다시 안 보내야 하므로(같은 메시지를 계속 다시 보내면 안 됨)
-  //      시간 커서 대신 메시지 id를 기억해서(notifiedOrgMsgIds) 중복 발송을 막는다.
+  // 구인글 참여자 공지(2.7)는 클라이언트가 "공지하기"를 누르는 즉시 notifyQueue에 넣는
+  // 방식으로 이전했다(public/index.html의 notifyRecruitmentOrgMessage). 예전엔 여기서
+  // notify:true 표시를 5분마다 찾아 보냈는데, 그대로 두면 클라이언트가 이미 보낸 걸
+  // 여기서 또 보내는 중복이 생긴다.
   const newOrgMsgSentIds = [];
-  for (const r of recruitments) {
-    if (!r.poll || !Array.isArray(r.poll.orgMessages)) continue;
-    // id 없이 저장된 옛 메시지도 다룰 수 있도록 클라이언트와 같은 규칙(id 없으면 배열
-    // 순서를 대신 씀)으로 식별자를 만든다.
-    const withMsgId = r.poll.orgMessages.map((m, i) => ({ m, msgId: m.id || `idx${i}` }));
-    const toSend = withMsgId.filter(({ m, msgId }) => m.notify && !notifiedOrgMsg.has(`${r.id}_${msgId}`));
-    if (!toSend.length) continue;
-    const votes = r.poll.votes || {};
-    const yesStudentIds = Object.keys(votes).filter((sid) => votes[sid].choice === 'yes' && sid !== r.authorId);
-    for (const { m, msgId } of toSend) {
-      const title = `${r.title} 참여자 공지`;
-      const body = String(m.text || '').slice(0, 80);
-      if (yesStudentIds.length) {
-        for (const sid of yesStudentIds) {
-          const allTokens = tokensByStudentId.get(sid) || [];
-          const tokens = isQuietHour() ? allTokens.filter((t) => nightOkTokens.has(t)) : allTokens;
-          if (!tokens.length) continue;
-          const res = await messaging.sendEachForMulticast({
-            tokens,
-            notification: { title, body },
-            data: { url: './index.html', category: 'recruit' },
-          });
-          res.responses.forEach((resp, idx) => {
-            if (resp.success) return;
-            const code = resp.error && resp.error.code;
-            if (
-              code === 'messaging/invalid-registration-token' ||
-              code === 'messaging/registration-token-not-registered'
-            ) {
-              invalidTokens.add(tokens[idx]);
-            }
-          });
-          sentCount++;
-        }
-        console.log(`[recruitOrgNotify] "${r.title}" 공지 발송, 참여자 ${yesStudentIds.length}명에게 시도`);
-      }
-      newOrgMsgSentIds.push(`${r.id}_${msgId}`);
-    }
-  }
 
   // 3) 진행 중인 투표 — 매일 20:00 KST 한 번만, 그 투표에 아직 참여 안 한 사람에게만 보낸다.
   //    투표마다 안 한 사람이 다를 수 있어서 한 번에 묶어 보내지 않고 투표별로 따로 보낸다.

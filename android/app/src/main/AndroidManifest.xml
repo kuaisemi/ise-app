@@ -141,6 +141,12 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notificationColor" />
+        <!-- MainActivity.createNotificationChannel()이 만드는 채널과 반드시 같은 id여야 한다.
+             이게 없으면 FCM이 임의로 fcm_fallback_notification_channel(중요도 기본값)을 써서,
+             알림이 진동만 울리고 화면 위로 뜨지 않는다(헤드업 배너 없음). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ku_ise_default" />
     </application>
 
     <!-- Permissions -->

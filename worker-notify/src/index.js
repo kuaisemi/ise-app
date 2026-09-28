@@ -282,13 +282,36 @@ async function fsCommitUpdates(env, token, updates, budget) {
    (토픽 구독은 GitHub Actions 쪽에서 firebase-admin의 subscribeToTopic으로 해둔다) */
 const TOPIC_ALL = 'ise_all';       // 전체
 const TOPIC_NIGHT = 'ise_night';   // 야간 알림에 동의한 사람만
+// 그룹 채팅(councilChat/cohortChat)의 토큰 배열은 "누구 건지" uid를 안 들고 있어서,
+// audience.byUid(uid → 토큰들)를 뒤집어 토큰 → uid 역방향 조회표를 즉석에서 만든다.
+// 이미 읽은 사람을 걸러낼 때만 필요해서, 그때마다 만들어도 부담 없는 크기(전교생 규모)다.
+function tokenOwner(audience) {
+  const m = {};
+  for (const [uid, toks] of Object.entries((audience && audience.byUid) || {})) {
+    for (const t of toks) m[t] = uid;
+  }
+  return m;
+}
 function tapData(item) {
   const out = {};
   if (item.pairId) out.pairId = item.pairId;
   if (item.cohortYear) out.cohortYear = item.cohortYear;
   return Object.keys(out).length ? out : null;
 }
-async function fcmSend(env, token, target, title, body, category, budget, extraData) {
+// 같은 대화에서 메시지가 여러 개 연달아 오면 알림이 한 장씩 계속 쌓인다 — 카톡처럼 한
+// 자리에서 최신 내용으로 갱신되게 하려면 안드로이드 알림에 같은 tag를 줘야 한다(같은
+// tag의 알림은 새로 오면 이전 것을 대체한다). 대화 하나당 tag 하나:
+//   친구 채팅   — 그 pairId
+//   학생회 채팅 — 방이 하나뿐이라 고정 문자열
+//   학번별 채팅 — 그 학번
+// 채팅이 아닌 알림(공지·투표 등)은 각각 다른 내용이라 대체되면 안 되므로 tag를 안 준다.
+function notificationTag(item) {
+  if (item.pairId) return `chat_${item.pairId}`;
+  if (item.audience === 'councilChat') return 'councilChat';
+  if (item.audience === 'cohortChat' && item.cohortYear) return `cohortChat_${item.cohortYear}`;
+  return null;
+}
+async function fcmSend(env, token, target, title, body, category, budget, extraData, tag) {
   budget.spend();
   const message = {
     ...target, // { token } 또는 { topic }
@@ -300,6 +323,10 @@ async function fcmSend(env, token, target, title, body, category, budget, extraD
       ...(category ? { category } : {}),
       ...Object.fromEntries(Object.entries(extraData || {}).map(([k, v]) => [k, String(v)])),
     },
+    // channel_id는 항상 붙인다 — MainActivity.createNotificationChannel()이 만든
+    // IMPORTANCE_HIGH 채널로 보내야 진동만이 아니라 화면 위 배너(헤드업)로도 뜬다.
+    // 이걸 빼면 FCM이 기본 중요도짜리 자체 채널로 보내서 조용히 목록에만 쌓인다.
+    android: { notification: { channel_id: 'ku_ise_default', ...(tag ? { tag } : {}) } },
   };
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/messages:send`,
@@ -384,7 +411,7 @@ async function runOnce(env) {
     if (item.audience === 'all') {
       // 전교생 발송 — 토픽 하나로 끝난다. 야간에는 동의자 토픽으로 대상을 좁힌다.
       const topic = quiet ? TOPIC_NIGHT : TOPIC_ALL;
-      const r = await fcmSend(env, token, { topic }, item.title, item.body, item.category, budget, tapData(item));
+      const r = await fcmSend(env, token, { topic }, item.title, item.body, item.category, budget, tapData(item), notificationTag(item));
       if (r.ok) { sentCount++; updates.push(settle(item)); }
       else updates.push({ name: item.name, sent: false, error: r.error });
       continue;
@@ -418,14 +445,40 @@ async function runOnce(env) {
       const own = (audience.byUid && audience.byUid[item.uid]) || [];
       tokens = (audience.councilChat || []).filter((t) => !own.includes(t));
     } else if (['notice', 'poll', 'recruit', 'bugAlert', 'councilAlert'].includes(item.audience)) {
-      tokens = audience[item.audience] || [];
+      // 이 글을 쓴 사람이 그 카테고리 알림도 켜둔 경우(예: 학생회가 공지 알림도 구독 중),
+      // 자기가 방금 올린 글의 알림을 자기도 받는 걸 막는다.
+      const own = (audience.byUid && audience.byUid[item.uid]) || [];
+      tokens = (audience[item.audience] || []).filter((t) => !own.includes(t));
     } else {
       tokens = (audience.byUid && audience.byUid[item.uid]) || [];
     }
 
+    // 채팅은 이미 읽은 사람에게는 안 보낸다. 메시지를 보낸 뒤 발송까지 최대 1분이 걸리는데,
+    // 그 사이 상대가 채팅방을 열어서(실시간 리스너로) 이미 봤을 수 있다 — 그런데도 알림이
+    // 오면 "읽은 메시지 알림이 뒤늦게 오는" 성가신 경험이 된다.
+    if (item.audience === 'user' && item.gateKey === 'chat' && item.pairId) {
+      const link = await fsGetDoc(env, token, `friendLinks/${item.pairId}`, budget);
+      const seenAt = link && link.lastSeenAt && link.lastSeenAt[item.targetUid];
+      if (seenAt && seenAt >= item.at) tokens = [];
+    } else if (item.audience === 'councilChat' && tokens.length) {
+      const reads = await fsGetDoc(env, token, 'shared/councilChatReads', budget);
+      const owner = tokenOwner(audience);
+      tokens = tokens.filter((t) => {
+        const seenAt = reads && reads[owner[t]] && reads[owner[t]].lastReadAt;
+        return !(seenAt && seenAt >= item.at);
+      });
+    } else if (item.audience === 'cohortChat' && tokens.length) {
+      const reads = await fsGetDoc(env, token, `cohortChatMeta/${item.cohortYear}`, budget);
+      const owner = tokenOwner(audience);
+      tokens = tokens.filter((t) => {
+        const seenAt = reads && reads[owner[t]] && reads[owner[t]].lastReadAt;
+        return !(seenAt && seenAt >= item.at);
+      });
+    }
+
     if (!tokens.length) {
-      // 알림을 켠 적이 없거나(opt-in 안 함), 꺼둔 사람이거나, 토큰이 정리된 사람 —
-      // 다시 시도해도 같으니 완료로 둔다.
+      // 알림을 켠 적이 없거나(opt-in 안 함), 꺼둔 사람이거나, 이미 읽었거나, 토큰이
+      // 정리된 사람 — 다시 시도해도 같으니 완료로 둔다.
       updates.push(settle(item));
       continue;
     }
@@ -441,7 +494,7 @@ async function runOnce(env) {
     let failed = null;
     for (; i < tokens.length; i++) {
       if (budget.left() <= 1) break;
-      const r = await fcmSend(env, token, { token: tokens[i] }, item.title, item.body, item.category, budget, tapData(item));
+      const r = await fcmSend(env, token, { token: tokens[i] }, item.title, item.body, item.category, budget, tapData(item), notificationTag(item));
       if (r.ok) sentCount++;
       else if (!r.gone) failed = r.error; // 만료 토큰은 실패로 치지 않는다
     }
