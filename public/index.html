@@ -262,6 +262,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 일정 목록 줄의 수정·삭제 — 펼치지 않아도 바로 누르도록 제목 줄에 작은 동그라미로 둔다. */
 .ev-circle-btn{width:26px; height:26px; border-radius:50%; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); cursor:pointer; padding:0;}
 .ev-circle-btn-danger{color:var(--danger); border-color:rgba(var(--danger-rgb),0.35);}
+.ev-circle-btn-sm{width:22px; height:22px;}
+.ev-circle-btn-sm svg{width:12px; height:12px;}
 /* 학사일정 목록: 분류를 제목 옆에 흘려보내고 날짜를 그 아래 별도 줄에 두면
    분류 배지 너비만큼 둘의 시작 위치가 어긋나 보였다. 분류를 왼쪽에 고정폭
    칸으로 떼어놓고, 제목·날짜를 같은 세로줄로 묶어 서로 정렬되게 한다. */
@@ -5500,7 +5502,7 @@ function renderExamCalTab(){
         const hasDetail = parsed.time || parsed.room || parsed.description;
         return `
         <div class="list-item" style="padding:10px 0;">
-          <div class="row-between" style="${hasDetail ? 'cursor:pointer;' : ''}" ${hasDetail ? `data-action="toggle-event-detail" data-id="${ev.id}"` : ''}>
+          <div class="row-between" style="${hasDetail || canManage ? 'cursor:pointer;' : ''}" ${hasDetail || canManage ? `data-action="toggle-event-detail" data-id="${ev.id}"` : ''}>
             <div style="display:flex; align-items:center; gap:8px; min-width:0;">
               <span style="width:10px; height:10px; border-radius:50%; background:${ev.color || (ev.category==='council'?'var(--crimson)':'var(--blue)')}; display:inline-block; flex-shrink:0;"></span>
               <b style="font-size:13px;">${escapeHtml(ev.title)}</b>
@@ -5514,24 +5516,24 @@ function renderExamCalTab(){
                 return `<span class="tag ${catTag(ev.category)}">${catLabel(ev.category)}</span>`;
               })()}
             </div>
-            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-              ${canManage ? `
-              <button type="button" class="ev-circle-btn" data-action="edit-personal-event" data-id="${ev.id}" aria-label="수정">${ICON.pencil}</button>
-              <button type="button" class="ev-circle-btn ev-circle-btn-danger" data-action="delete-event" data-id="${ev.id}" aria-label="삭제">${ICON.trash}</button>` : ''}
-              ${hasDetail ? `<span class="sub ev-detail-chev" id="ev-chev-${ev.id}" style="transition:transform .15s; display:inline-flex;">${ICON.chevR}</span>` : ''}
-            </div>
+            ${(hasDetail || canManage) ? `<span class="sub ev-detail-chev" id="ev-chev-${ev.id}" style="transition:transform .15s; display:inline-flex; flex-shrink:0;">${ICON.chevR}</span>` : ''}
           </div>
-          <!-- 시간·장소·메모는 평소엔 접어두고, 위 줄을 눌러야 펼쳐진다 — 목록이 한 줄씩
-               짧게 보이게 하려는 것. 수정·삭제는 위 줄의 작은 동그라미 버튼으로 옮겨서
-               펼치지 않아도 바로 누를 수 있다. 시간·장소는 한 줄에 나란히 배치. -->
-          ${hasDetail ? `
+          <!-- 시간·장소·메모·수정·삭제는 평소엔 접어두고, 위 줄을 눌러야 펼쳐진다 — 목록이
+               한 줄씩 짧게 보이게 하려는 것. 수정·삭제는 실수로 안 눌리게 펼친 안쪽에,
+               다만 텍스트 없이 아이콘만 있는 작은 원형 버튼으로 둬서 자리를 적게 차지한다. -->
+          ${(hasDetail || canManage) ? `
           <div id="ev-detail-${ev.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
             ${(parsed.time || parsed.room) ? `
-            <div style="display:flex; flex-wrap:wrap; gap:14px;">
+            <div style="display:flex; flex-wrap:wrap; gap:16px;">
               ${parsed.time ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.clock} ${escapeHtml(parsed.time)}</span>` : ''}
               ${parsed.room ? `<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);">${ICON.pin} ${escapeHtml(parsed.room)}</span>` : ''}
             </div>` : ''}
             ${parsed.description ? `<div class="body" style="margin-top:${(parsed.time||parsed.room)?'8px':'0'}; font-size:11.5px; color:var(--text-dim); white-space:pre-wrap; line-height:1.5;">${escapeHtml(parsed.description)}</div>` : ''}
+            ${canManage ? `
+            <div style="display:flex; gap:6px; margin-top:${hasDetail?'10px':'0'};">
+              <button type="button" class="ev-circle-btn ev-circle-btn-sm" data-action="edit-personal-event" data-id="${ev.id}" aria-label="수정">${ICON.pencil}</button>
+              <button type="button" class="ev-circle-btn ev-circle-btn-sm ev-circle-btn-danger" data-action="delete-event" data-id="${ev.id}" aria-label="삭제">${ICON.trash}</button>
+            </div>` : ''}
           </div>` : ''}
         </div>`;
       }).join('') : `<div class="empty" style="padding:18px 0;"><p>선택한 날짜에 등록된 일정이 없습니다.</p></div>`}
