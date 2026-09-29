@@ -517,6 +517,11 @@ svg{vertical-align:-2px;}
 /* 아이콘이 들어가는 자리마다 글씨 크기가 달라서, 작은 글씨 옆에서는 아이콘도 같이 줄인다. */
 .btn-comment-like svg, .btn-top-refresh svg{width:13px; height:13px;}
 .btn-like svg, .m-label svg, .section-title svg{width:14px; height:14px;}
+.meal-card-title{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; line-height:1.2;}
+.meal-card-title svg{width:16px; height:16px; flex:none; display:block;}
+/* 아이콘이 붙은 섹션 제목(내 메모, 일정 목록 등)은 글자 기준선이 아니라 세로 가운데로 맞춘다. */
+.section-title:has(> svg){display:flex; align-items:center; gap:6px;}
+.section-title:has(> svg) > svg{margin-right:0; flex:none; display:block;}
 .notify-row svg{width:15px; height:15px;}
 /* ICON.plus 등 아이콘은 원래 24x24로 만들어져서, "+ 작성"처럼 작은 버튼(btn-sm) 안에
    그대로 들어가면 옆의 작은 글씨에 비해 아이콘만 크게 튀어 보였다. 버튼 글씨 크기에
@@ -1469,25 +1474,6 @@ const state = {
 function pad(n){ return String(n).padStart(2,'0'); }
 function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function dateStrOf(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-// 홈 화면의 진리관(학생식당) 카드는 하루 종일 "중식"만 고정으로 보여주고 있었는데,
-// 시간대에 맞춰 조식/중식/석식이 자동으로 바뀌도록 한다 (진리관 전용, 홈 화면 전용).
-// 조식 구간(전날 21시~당일 09시)은 자정을 걸치므로, 21시 이후엔 "내일 날짜"의
-// 조식을, 자정 이후 9시 전까지는 "오늘 날짜"의 조식을 봐야 한다.
-function homeStudentMealSlot(){
-  const now = new Date();
-  const mins = now.getHours()*60 + now.getMinutes();
-  if(mins >= 3*60 && mins < 9*60) return { key:'breakfast', label:'조식', icon:ICON.sunrise, date: todayStr(), closed:false };
-  if(mins >= 9*60 && mins < 14*60) return { key:'lunch', label:'중식', icon:ICON.sun, date: todayStr(), closed:false };
-  if(mins >= 14*60 && mins < 21*60) return { key:'dinner', label:'석식', icon:ICON.moon, date: todayStr(), closed:false };
-  // 21시~새벽 3시: 금일 식당 운영 시간이 끝난 뒤라 다음 조식이 뜨기 전까지는 "운영 종료"로 안내한다.
-  return { key:null, label:'', icon:null, date: todayStr(), closed:true };
-}
-// 미래관(교직원식당)은 중식만 운영하므로 진리관과는 별도로 표시 시간대를 둔다 — 아침 7시부터
-// 미리 보여주고, 밤 9시~새벽 6시 59분은 "운영 종료"로 안내한다.
-function homeStaffMealSlot(){
-  const mins = new Date().getHours()*60 + new Date().getMinutes();
-  return { closed: !(mins >= 7*60 && mins < 21*60) };
-}
 function addDays(str, delta){ const d=new Date(str+'T00:00:00'); d.setDate(d.getDate()+delta); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function addMonths(ym, delta){ let [y,m]=ym.split('-').map(Number); m+=delta; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;} return `${y}-${pad(m)}`; }
 function monthBounds(ym){ const [y,m]=ym.split('-').map(Number); const last=new Date(y,m,0).getDate(); return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(last)}`]; }
@@ -2692,22 +2678,26 @@ async function otaConfirmBoot(){
   try{
     const P = otaPlugins();
     const st = await P.Ota.state();
-    if(!st.pending || st.pending !== BUILD_ID) return;
+    if(!st.pending){ await otaCleanup(P); return; }   // 확인할 게 없으면 지난 패치 폴더만 정리
+    if(st.pending !== BUILD_ID) return;
     const drawn = APP && APP.innerHTML.length > 500;
     if(!drawn || otaBootErrors.length){
       console.warn('[ota] 확인 보류 — 화면 그려짐:', drawn, '오류:', otaBootErrors.slice(0, 3));
       return;
     }
     await P.Ota.confirm({ version: BUILD_ID });
-    // 지난 패치 폴더 정리 — 지금 쓰는 것만 남긴다.
-    try{
-      const list = await P.Filesystem.readdir({ path: 'ota', directory: 'DATA' });
-      for(const f of (list.files || [])){
-        const name = f.name || f;
-        if(name && name !== BUILD_ID) await P.Filesystem.rmdir({ path: 'ota/' + name, directory: 'DATA', recursive: true }).catch(()=>{});
-      }
-    }catch(e){ /* 폴더가 없으면 그냥 넘어간다 */ }
+    await otaCleanup(P);
   }catch(e){ console.warn('[ota] confirm', e); }
+}
+// 지난 패치 폴더 정리 — 지금 쓰는 것만 남긴다(앱을 새로 설치해 원본으로 돌아간 뒤 남은 폴더 포함).
+async function otaCleanup(P){
+  try{
+    const list = await P.Filesystem.readdir({ path: 'ota', directory: 'DATA' });
+    for(const f of (list.files || [])){
+      const name = f.name || f;
+      if(name && name !== BUILD_ID) await P.Filesystem.rmdir({ path: 'ota/' + name, directory: 'DATA', recursive: true }).catch(()=>{});
+    }
+  }catch(e){ /* 폴더가 없으면 그냥 넘어간다 */ }
 }
 let otaChecking = false;
 let otaReady = null; // { build, path } — 다 받아 둔, 적용만 남은 패치
@@ -2776,7 +2766,7 @@ async function otaApply(){
   }
 }
 if(isNativePlatformNow()){
-  setTimeout(otaConfirmBoot, 8000);
+  setTimeout(otaConfirmBoot, 4000);
   setTimeout(otaCheck, 15000);
 }
 
@@ -4586,12 +4576,13 @@ function setupTimetableResizeListener(){
 function renderHome(){
   const di = todayDayIndex();
   const todays = di>=0 ? state.timetable.filter(c=>c.day===di).sort((a,b)=>a.start-b.start) : [];
-  // 진리관은 홈 화면에서만 시간대별로 조식/중식/석식을 자동으로 바꿔 보여주고, 21시~새벽 3시는
-  // "운영 종료"로 안내한다(미래관도 별도 시간대로 같은 방식). 둘 다 항상 오늘 날짜 메뉴를 본다.
-  const studentSlot = homeStudentMealSlot();
-  const studentMeal = (state.meals[studentSlot.date] || {}).student || null;
-  const studentSlotText = studentMeal ? studentMeal[studentSlot.key] : '';
-  const staffMeal = (state.meals[studentSlot.date] || {}).staff || null;
+  // 홈 학식 카드: 낮 12시 전까지는 오늘의 조식·중식을, 12시부터는 내일의 조식·중식을 보여준다.
+  // 중간에 "운영 종료"로 사라지는 구간이 없다(석식은 홈에서 뺐다). 진리관·미래관 모두 같은 날짜 기준.
+  const mealAfterNoon = new Date().getHours() >= 12;
+  const mealDate = mealAfterNoon ? addDays(todayStr(), 1) : todayStr();
+  const mealDay = state.meals[mealDate] || {};
+  const studentMeal = mealDay.student || null;
+  const staffMeal = mealDay.staff || null;
 
   // "다가오는 학사일정"이라는 이름 그대로 학교 공식·학생회 일정만 담는다. visibleCalendar()는
   // 개인 일정도 본인 것이면 그대로 포함시키는데, 그걸 여기 섞으면 "내가 적은 메모"가 학사일정
@@ -4656,40 +4647,34 @@ function renderHome(){
     </div>` : '',
 
     meal: hp.hideTodayMeal ? '' : (()=>{
-      const wd = new Date(studentSlot.date+'T00:00:00').getDay();
+      // 주말은 식당을 안 하니 카드를 숨긴다.
+      const wd = new Date(mealDate+'T00:00:00').getDay();
       if(wd===0 || wd===6) return '';
-      const staffSlot = homeStaffMealSlot();
-      const staffLunchText = (staffMeal && staffMeal.lunch) || '';
-      if(studentSlot.closed && staffSlot.closed) return '';
-      return `
-    <div class="section-title">오늘의 학식</div>
+      // 오늘이 공휴일이면 12시 이후로는 카드를 숨긴다(내일 식단을 미리 보여줄 이유가 없다).
+      if(mealAfterNoon && isHolidayDate(todayStr())) return '';
+      const row = (icon, title, color, text, hoursKey, stripPlus, divider) => `
+        <div class="meal-block"${divider ? ' style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"' : ''}>
+          <div class="m-label" style="color:${color}">${icon} ${title}${mealHoursSpan(hoursKey)}</div>
+          ${text
+            ? `<div class="m-text" style="font-size:11.5px">${formatMealHtml(stripPlus ? stripPlusMealLines(text) : text)}</div>`
+            : `<div class="m-text" style="font-size:11.5px; color:var(--text-faint);">정보가 없습니다.</div>`}
+        </div>`;
+      // 그날 식단이 통째로 아직 안 올라온 경우(예: 일요일 낮에 보는 월요일 식단은 월요일 10시 이후에 올라온다)
+      // 세 줄 다 "정보가 없습니다"로 채우지 않고 한 줄로 안내한다.
+      const hasAnyMeal = !!(studentMeal && (studentMeal.breakfast || studentMeal.lunch)) || !!(staffMeal && staffMeal.lunch);
+      if(!hasAnyMeal){
+        return `
+    <div class="section-title">${mealAfterNoon ? '내일의 학식' : '오늘의 학식'}</div>
     <div class="card" data-action="go-meal-tab" style="cursor:pointer;">
-      ${studentSlot.closed ? `
-        <div class="meal-block">
-          <div class="m-label" style="color:var(--text-faint)">${ICON.capHat} 진리관 학생식당</div>
-          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">금일의 식당 운영 시간이 종료됐어요.</div>
-        </div>` : studentSlotText ? `
-        <div class="meal-block">
-          <div class="m-label" style="color:var(--teal)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}${mealHoursSpan('student_'+studentSlot.key)}</div>
-          <div class="m-text" style="font-size:11.5px">${formatMealHtml(studentSlot.key==='lunch' ? stripPlusMealLines(studentSlotText) : studentSlotText)}</div>
-        </div>` : `
-        <div class="meal-block">
-          <div class="m-label" style="color:var(--text-faint)">${ICON.capHat} 진리관 학생식당 ${studentSlot.label}${mealHoursSpan('student_'+studentSlot.key)}</div>
-          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">정보가 없습니다.</div>
-        </div>`}
-      ${staffSlot.closed ? `
-        <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
-          <div class="m-label" style="color:var(--text-faint)">${ICON.tie} 미래관 교직원식당</div>
-          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">금일의 식당 운영 시간이 종료됐어요.</div>
-        </div>` : staffLunchText ? `
-        <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
-          <div class="m-label" style="color:var(--amber)">${ICON.tie} 미래관 교직원식당 중식${mealHoursSpan('staff_lunch')}</div>
-          <div class="m-text" style="font-size:11.5px">${formatMealHtml(stripPlusMealLines(staffLunchText))}</div>
-        </div>` : `
-        <div class="meal-block" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
-          <div class="m-label" style="color:var(--text-faint)">${ICON.tie} 미래관 교직원식당</div>
-          <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">정보가 없습니다.</div>
-        </div>`}
+      <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">식단 정보가 아직 올라오지 않았어요.</div>
+    </div>`;
+      }
+      return `
+    <div class="section-title">${mealAfterNoon ? '내일의 학식' : '오늘의 학식'}</div>
+    <div class="card" data-action="go-meal-tab" style="cursor:pointer;">
+      ${row(ICON.capHat, '진리관 학생식당 조식', 'var(--teal)', studentMeal && studentMeal.breakfast, 'student_breakfast', false, false)}
+      ${row(ICON.capHat, '진리관 학생식당 중식', 'var(--teal)', studentMeal && studentMeal.lunch, 'student_lunch', true, false)}
+      ${row(ICON.tie, '미래관 교직원식당 중식', 'var(--amber)', staffMeal && staffMeal.lunch, 'staff_lunch', true, true)}
     </div>`;
     })(),
 
@@ -6023,7 +6008,7 @@ function renderMealTab(){
     </div>
     <div class="card" style="margin-bottom:12px;">
       <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
-        <b style="font-size:13px; color:var(--teal);">${ICON.capHat} 학생 식단표</b><span class="tag tag-teal">진리관</span>
+        <b class="meal-card-title" style="color:var(--teal);">${ICON.capHat}<span>학생 식단표</span></b><span class="tag tag-teal">진리관</span>
       </div>
       ${student && (student.lunch||student.breakfast||student.dinner) ? `
         ${student.breakfast?`<div class="meal-block"><div class="m-label">${ICON.sunrise} 조식${mealHoursSpan('student_breakfast')}</div><div class="m-text">${formatMealHtml(student.breakfast)}</div></div>`:''}
@@ -6034,7 +6019,7 @@ function renderMealTab(){
     </div>
     <div class="card">
       <div class="row-between" style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);">
-        <b style="font-size:13px; color:var(--amber);">${ICON.tie} 교직원 식단표</b><span class="tag tag-amber">미래관</span>
+        <b class="meal-card-title" style="color:var(--amber);">${ICON.tie}<span>교직원 식단표</span></b><span class="tag tag-amber">미래관</span>
       </div>
       ${staff && staff.lunch ? `
         <div class="meal-block"><div class="m-label">${ICON.sun} 중식${mealHoursSpan('staff_lunch')}</div><div class="m-text">${formatMealHtml(staff.lunch)}</div></div>
@@ -7553,7 +7538,7 @@ function renderMypage(){
         안드로이드 앱(APK)은 자동으로 업데이트되지 않아서, 친구와 화면·기능이 조금 다를 수 있어요.<br>사이트에 접속해서 다시 다운로드하거나, 위 "업데이트 확인"을 눌러도 새 버전을 받을 수 있어요.
       </p>
     </div>` : ''}
-    ${isPresident() ? `<p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">공지·투표·건의·구인글·학생회 게시글·버그 제보·학사일정 중 삭제된 지 24시간 지난 항목을 완전히 지워요. 이 정리는 서버에서 약 1시간마다 자동으로도 돌아가요.</p>` : ''}
+
 
     <p style="text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); margin:22px 0 2px; cursor:pointer; user-select:none;" data-action="easter-egg-tap">
       KU ISE-지능형반도체공학과 앱 - ${APP_VERSION}
@@ -11202,7 +11187,12 @@ document.addEventListener('click', async (e)=>{
       location.reload();
     }
     else if(a === 'nav'){
+      const retap = state.view === el.dataset.view;
       state.view = el.dataset.view;
+      // 이미 그 탭에 있는 채로 하단 탭을 또 누르면 첫 번째 하위 탭(학사일정 / 공지사항)으로 돌아간다.
+      // 다른 탭에서 넘어올 때는 보고 있던 하위 탭을 그대로 유지한다.
+      if(retap && state.view === 'info') state.infoTab = 'calendar';
+      if(retap && state.view === 'council') state.councilTab = 'notice';
       document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
       renderMain();
       if(['home', 'info', 'council'].includes(state.view)){ await refreshShared(); renderMain(); }
@@ -11417,7 +11407,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'download-crime-suspicion-log'){ await downloadCrimeSuspicionLog(el.dataset.id); }
     else if(a === 'purge-tombstones'){
-      if(!await showConfirm('삭제된 지 24시간 지난 게시물을 지금 완전히 지울까요?\n(어차피 서버에서 약 1시간마다 자동으로도 정리돼요)', { danger:false, okLabel:'정리하기' })) return;
+      if(!await showConfirm('삭제된 게시물을 지금 완전히 지울까요?', { danger:false, okLabel:'정리하기' })) return;
       const removed = await purgeOldTombstonesNow();
       renderMain();
       toast(removed ? `${removed}건 정리했습니다` : '정리할 게시물이 없습니다');
