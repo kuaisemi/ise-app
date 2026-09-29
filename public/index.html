@@ -7737,7 +7737,7 @@ function renderMypage(){
       </div>
       ${np.timetable && isNativeApp ? `
       <div class="notify-subrow">
-        <span style="flex-shrink:0;">알림 시각</span>
+        <span class="sub-lbl" style="flex-shrink:0;">알림 시각</span>
         <div class="seg-group sm"><span class="seg-thumb" style="--n:3; --i:${Math.max(0, [7,8,9].indexOf(np.timetableHour))};"></span>
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetableHour===h?'on':''}" data-action="set-notify-hour" data-hour="${h}">${h}시</button>`).join('')}
         </div>
