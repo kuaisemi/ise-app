@@ -514,6 +514,12 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .tgl.sm::after{width:14px; height:14px;}
 .tgl.sm.on::after{transform:translateX(14px);}
 .seg-group.sm{width:156px; flex-shrink:0;}
+/* 오늘의 시간표 알림: 왼쪽 글자와 오른쪽 선택기가 서로 가운데를 넘지 않고, 글씨가 커져도 줄어들며 버틴다 */
+.tt-alert-row{gap:10px;}
+.tt-alert-row .notify-label{flex:1 1 0; min-width:0; max-width:50%;}
+.seg-group.tt-seg{flex:0 1 48%; min-width:0; width:auto;}
+.seg-group.tt-seg button{font-size:clamp(10.5px, 3.1vw, 12px); padding:7px 0;}
+.seg-group.tt-seg.disabled{opacity:.4; pointer-events:none;}
 .seg-group.sm button{font-size:11.5px; padding:7px 0;}
 /* 홈 화면 보기 설정 줄 간격 + 끌어서 순서 바꾸기 */
 .notify-row.hp-row{padding:5px 2px; min-height:40px; box-sizing:border-box;}
@@ -538,6 +544,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .sub-lbl em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 8px;}
 .sub-cap{margin:12px 0 0 27px; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--text-faint);}
 .sub-cap + .notify-subrow{border-top:none;}
+.notify-row.meal-head{padding:12px 2px 6px; min-height:0;}
 .chip-row{display:grid; grid-template-columns:repeat(var(--cols,2), 1fr); gap:6px; margin:0 0 6px 27px;}
 .chip-tgl{border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; line-height:1.2; padding:5px 4px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .22s, color .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
 .chip-tgl em{font-style:normal; font-size:10px; font-weight:600; opacity:.8; margin-left:5px;}
@@ -3732,7 +3739,7 @@ function colorPickerModal(id, hex, title){
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   const WIDGET_TYPE_ICONS = {
-    timetable: ICON.grid, nextClass: ICON.bell, week: ICON.weekBars, meal: ICON.utensils,
+    timetable: ICON.grid, nextClass: ICON.nextClass, week: ICON.weekBars, meal: ICON.utensils,
     schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendarWideIcon, date: ICON.todayCal,
   };
   return `
@@ -4441,6 +4448,7 @@ const ICON = {
   ballot:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M8 10V3h8v7"/><path d="M10.5 6.5h3"/></svg>`,
   bowl:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M2.5 21h19"/><path d="M9 7c0-1 1-1.4 1-2.5S9 3 9 3M14.5 7c0-1 1-1.4 1-2.5S14.5 3 14.5 3"/></svg>`,
   utensils:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
+  nextClass:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M17 3.5l3 1.5M7 3.5L4 5"/></svg>`,
   bell:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 8-2.5 8h17S18 15 18 8.5"/><path d="M13.7 20.5a2 2 0 0 1-3.4 0"/></svg>`,
   capHat:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4z"/><path d="M6 11v4.5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V11"/></svg>`,
   tie:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2h5l-1.2 3.5h-2.6z"/><path d="M10.7 5.5 8.5 14 12 22l3.5-8-2.2-8.5"/></svg>`,
@@ -7745,21 +7753,17 @@ function renderMypage(){
         <button type="button" class="tgl ${np.chat?'on':''}" data-action="toggle-notify" data-key="chat" role="switch" aria-checked="${!!np.chat}"></button>
       </div>
       <div class="notify-row">
-        <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
+        <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
         <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
       </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${isNativeApp ? `평일 아침 ${np.timetableHour}시에 그날 수업 안내` : '앱(APK)에서만 사용할 수 있어요'}</small></span></span>
-        <button type="button" class="tgl ${np.timetable?'on':''}" data-action="toggle-notify" data-key="timetable" role="switch" aria-checked="${!!np.timetable}" ${isNativeApp?'':'disabled'}></button>
-      </div>
-      ${np.timetable && isNativeApp ? `
-      <div class="notify-subrow" style="border-top:none; padding:0 2px 10px;">
-        <span class="sub-lbl" style="flex-shrink:0;">알림 시각</span>
-        <div class="seg-group sm"><span class="seg-thumb" style="--n:3; --i:${Math.max(0, [7,8,9].indexOf(np.timetableHour))};"></span>
-          ${[7,8,9].map(h=>`<button type="button" class="${np.timetableHour===h?'on':''}" data-action="set-notify-hour" data-hour="${h}">${h}시</button>`).join('')}
+      <div class="notify-row tt-alert-row">
+        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${!isNativeApp ? '앱(APK)에서만 사용할 수 있어요' : (np.timetable ? `평일 아침 ${np.timetableHour}시에 수업 안내` : '알림 꺼짐')}</small></span></span>
+        <div class="seg-group tt-seg ${isNativeApp ? '' : 'disabled'}"><span class="seg-thumb" style="--n:4; --i:${np.timetable ? 1 + Math.max(0, [7,8,9].indexOf(np.timetableHour)) : 0};"></span>
+          <button type="button" class="${!np.timetable ? 'on' : ''}" data-action="set-tt-alert" data-val="off">끄기</button>
+          ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
         </div>
-      </div>` : ''}
-      <div class="notify-row" style="border-top:1px solid var(--hairline); padding-bottom:8px;">
+      </div>
+      <div class="notify-row meal-head" style="border-top:1px solid var(--hairline);">
         <span class="notify-label">${ICON.utensils}<span class="notify-label-text"><b>학식</b></span></span>
       </div>
       <div class="chip-row" style="--cols:2;">
@@ -11654,6 +11658,13 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'move-home-item'){
       moveHomeOrderItem(el.dataset.key, el.dataset.dir);
+      renderMain();
+    }
+    else if(a === 'set-tt-alert'){
+      // 끄기 / 7시 / 8시 / 9시 — 하나의 선택기로 켜짐 여부와 알림 시각을 함께 정한다
+      const v = el.dataset.val;
+      if(v === 'off'){ await setNotifyPref('timetable', false); }
+      else { await setNotifyPref('timetableHour', parseInt(v, 10)); await setNotifyPref('timetable', true); }
       renderMain();
     }
     else if(a === 'set-notify-hour'){
