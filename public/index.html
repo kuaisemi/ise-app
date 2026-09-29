@@ -491,6 +491,8 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 /* 환경설정 패널 공통: 제목, 섹션 제목(왼쪽 골드 막대), 이어진 알약 선택기 */
 .set-title{display:flex; align-items:center; gap:8px; margin:0 0 14px; font-size:15px; font-weight:800; letter-spacing:-0.01em;}
 .set-title svg{width:17px; height:17px; color:var(--teal); flex-shrink:0;}
+.set-title .set-hint{margin-left:auto; min-width:0; font-size:10px; font-weight:500; letter-spacing:0; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right;}
+.set-title .set-hint b{color:var(--text-dim); font-weight:700;}
 .set-label{display:flex; align-items:center; gap:7px; margin:0 0 9px; font-size:12px; font-weight:800; color:var(--text); letter-spacing:-0.01em;}
 .set-label::before{content:''; width:3px; height:12px; border-radius:2px; background:var(--teal); flex-shrink:0;}
 .seg-group{position:relative; display:flex; gap:2px; padding:3px; border-radius:999px; background:var(--surface-3); border:1px solid var(--border);}
@@ -544,7 +546,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .sub-lbl em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 8px;}
 .sub-cap{margin:12px 0 0 27px; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--text-faint);}
 .sub-cap + .notify-subrow{border-top:none;}
-.notify-row.meal-head{padding:12px 2px 6px; min-height:0;}
+.notify-row.meal-head{padding:8px 2px 8px; min-height:0;}
 .chip-row{display:grid; grid-template-columns:repeat(var(--cols,2), 1fr); gap:6px; margin:0 0 6px 27px;}
 .chip-tgl{border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; line-height:1.2; padding:5px 4px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .22s, color .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
 .chip-tgl em{font-style:normal; font-size:10px; font-weight:600; opacity:.8; margin-left:5px;}
@@ -3743,10 +3745,6 @@ function renderWidgetSettingsTab(){
     schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendarWideIcon, date: ICON.todayCal,
   };
   return `
-    <p style="font-size:11px; color:var(--text-faint); margin:0 0 12px; line-height:1.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-      홈 화면 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가할 수 있어요.
-    </p>
-
     <div class="field" style="margin-bottom:12px;">
       <p class="set-label">대표 시간표</p>
       <div class="link-row" data-action="open-primary-timetable" style="padding:8px 0;">
@@ -7673,7 +7671,7 @@ function renderMypage(){
 
     ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
-      <p class="set-title">${ICON.gear}<span>환경설정</span></p>
+      <p class="set-title">${ICON.gear}<span>환경설정</span>${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<span class="set-hint">빈 곳을 길게 눌러 <b>위젯 → KU ISE</b></span>` : ''}</p>
       <div class="subtabs" style="margin-bottom:12px;">
         <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
         <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
