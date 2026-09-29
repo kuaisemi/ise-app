@@ -2956,9 +2956,9 @@ function routeNotificationTap(category, data){
   else if(category==='meal'){ state.view='info'; state.infoTab='meal'; renderShell(); }
   else if(category==='timetable'){ state.view='timetable'; renderShell(); }
   else if(category==='chat'){ openFriendChatByPairId(data && data.pairId); }
-  else if(category==='councilChat'){ openSocialTab().then(openCouncilChat); }
+  else if(category==='councilChat' || category==='councilChatNotice'){ openSocialTab().then(openCouncilChat); }
   else if(category==='cohortChat'){ if(data && data.cohortYear) openSocialTab().then(()=>openCohortChat(data.cohortYear)); }
-  else if(category==='friend'){ openSocialTab(); }
+  else if(category==='friend' || category==='friendRequest'){ openSocialTab(); }
   else if(category==='suggestion'){ state.view='council'; state.councilTab='suggestion'; renderShell(); }
 }
 // 앱을 보고 있는 중에 그 알림이 가리키는 화면(채팅방)을 이미 보고 있으면,
