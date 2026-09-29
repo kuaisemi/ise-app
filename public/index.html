@@ -7579,6 +7579,15 @@ function renderMypage(){
     </div>
     ` : ''}
 
+    <div class="section-title">계정</div>
+    <div class="card" style="padding-top:8px; padding-bottom:8px;">
+      <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row danger" data-action="reset-all-timetables">모든 시간표 전체 삭제 <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row danger" data-action="delete-account">회원 탈퇴 <span class="sub">${ICON.chevR}</span></div>
+    </div>
+
     <div class="section-title dev-section-head">
       <span>추가기능</span>
       <span class="dev-card-visitors">오늘 방문자 <b>${traffic.todayVisitors}</b>명</span>
@@ -7601,15 +7610,6 @@ function renderMypage(){
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ` : ''}
-    </div>
-
-    <div class="section-title">계정</div>
-    <div class="card" style="padding-top:8px; padding-bottom:8px;">
-      <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row danger" data-action="reset-all-timetables">모든 시간표 전체 삭제 <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row danger" data-action="delete-account">회원 탈퇴 <span class="sub">${ICON.chevR}</span></div>
     </div>
 
     <p style="text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); margin:22px 0 2px; cursor:pointer; user-select:none;" data-action="easter-egg-tap">
