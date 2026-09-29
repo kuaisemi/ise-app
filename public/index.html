@@ -2761,7 +2761,7 @@ function showOtaBar(){
   const bar = document.createElement('div');
   bar.id = 'ota-bar';
   bar.className = 'update-bar';
-  bar.innerHTML = '<span>새 화면 업데이트가 준비됐어요</span><button type="button" class="update-bar-btn" data-action="ota-apply">적용</button>';
+  bar.innerHTML = '<span>새 화면 업데이트가 준비됐어요</span><button type="button" class="update-bar-btn" data-action="ota-apply">패치하기</button>';
   document.body.appendChild(bar);
 }
 async function otaApply(){
@@ -7603,7 +7603,10 @@ function updateCheckModal(loading){
     <p style="font-size:12px; color:var(--text-dim); line-height:1.6; margin:0 0 14px;">${statusText}</p>
     ${currentVersionNotesHtml()}
     <button type="button" class="btn btn-ghost btn-sm" data-action="show-patch-notes" style="width:100%; margin-bottom:8px;">${ICON.clipboard} 이전 버전 패치노트 모두 보기</button>
-    ${(isNativeApp && otaEnabled()) ? `<button type="button" class="btn btn-ghost btn-sm" data-action="ota-check" style="width:100%; margin-bottom:8px;">${ICON.download} 화면 업데이트 확인 (화면 버전 ${escapeHtml(BUILD_ID)})</button>` : ''}
+    ${(isNativeApp && otaEnabled() && !loading) ? (otaReady
+      ? `<p style="font-size:12px; color:var(--crimson); font-weight:700; margin:0 0 6px;">새 화면 업데이트가 있어요. 아래 버튼을 눌러 패치하세요.</p>
+         <button type="button" class="btn btn-primary" data-action="ota-apply" style="width:100%; margin-bottom:8px;">${ICON.download} 패치하기</button>`
+      : `<button type="button" class="btn btn-primary" data-action="ota-check" style="width:100%; margin-bottom:8px;">${ICON.download} 화면 업데이트 확인</button>`) : ''}
     ${(!loading && hasUpdate) ? `<a href="${APK_DOWNLOAD_URL}" class="btn btn-primary" style="text-decoration:none; display:block; text-align:center;">${ICON.download} 새 버전 다운로드</a>` : ''}`;
 }
 function bugReportModal(){
@@ -11376,7 +11379,7 @@ document.addEventListener('click', async (e)=>{
       // 웹은 물어볼 APK가 없으니 곧바로 결과 화면을 띄운다(로딩 단계 자체가 불필요).
       if(!isNativeApp){ openModal(updateCheckModal()); return; }
       openModal(updateCheckModal(true));
-      await checkNativeAppUpdate();
+      await Promise.all([checkNativeAppUpdate(), otaEnabled() ? otaCheck() : null]);
       openModal(updateCheckModal());
     }
     else if(a === 'send-friend-request'){ await sendFriendRequest(); }
@@ -11580,7 +11583,8 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'ota-check'){
       toast('화면 업데이트를 확인하는 중…');
       const r = await otaCheck();
-      toast({ ready:'새 화면 업데이트가 준비됐어요 — 아래 적용 버튼을 눌러주세요', latest:'이미 최신 화면이에요', pending:'방금 적용한 업데이트를 확인하는 중이에요', off:'이 앱에서는 화면 업데이트를 쓰지 않아요', busy:'이미 확인 중이에요', 'need-apk':'이 업데이트는 앱(APK)을 먼저 새로 설치해야 해요', 'failed-before':'이전에 적용에 실패한 업데이트라 건너뛰었어요' }[r] || '확인하지 못했어요. 잠시 후 다시 시도해주세요');
+      if(r === 'ready'){ openModal(updateCheckModal()); toast('새 화면 업데이트가 있어요. "패치하기"를 눌러주세요'); return; }
+      toast({ latest:'이미 최신 화면이에요', pending:'방금 적용한 업데이트를 확인하는 중이에요', off:'이 앱에서는 화면 업데이트를 쓰지 않아요', busy:'이미 확인 중이에요', 'need-apk':'이 업데이트는 앱(APK)을 먼저 새로 설치해야 해요', 'failed-before':'이전에 적용에 실패한 업데이트라 건너뛰었어요' }[r] || '확인하지 못했어요. 잠시 후 다시 시도해주세요');
     }
     else if(a === 'manage-roster'){ openModal(await rosterModal()); }
     else if(a === 'manage-gemini-keys'){ openModal(await geminiKeysModal()); }
