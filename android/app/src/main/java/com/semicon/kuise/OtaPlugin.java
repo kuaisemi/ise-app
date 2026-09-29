@@ -2,6 +2,9 @@ package com.semicon.kuise;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+
+import androidx.core.content.pm.PackageInfoCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -35,11 +38,28 @@ public class OtaPlugin extends Plugin {
     private static final String KEY_ATTEMPTS = "attempts";    // pending인 채로 앱이 시작된 횟수
     private static final String KEY_CONFIRMED = "confirmed";  // 마지막으로 정상 확인된 패치 버전
     private static final String KEY_FAILED = "failed";        // 확인이 안 돼서 되돌린 패치 버전(같은 버전을 다시 받지 않게)
+    private static final String KEY_APK = "apkVersionCode";    // 이 상태를 기록할 당시의 APK versionCode
     private static final int MAX_UNCONFIRMED_LAUNCHES = 2;
 
     /** MainActivity.onCreate()에서 super.onCreate() 전에 부른다(브리지가 저장된 경로를 읽기 전). */
     static void guardBoot(Context ctx) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+
+        // 앱(APK) 자체를 새로 설치·업데이트하면 Capacitor가 저장된 패치 경로를 스스로 비워서 APK에 든 원본
+        // 화면으로 돌아간다. 이때 옛 패치의 "확인 대기·실패" 기록이 남아 있으면 새 패치를 못 받거나
+        // 잘못 되돌리게 되므로, 앱 버전이 바뀐 것을 알아채면 기록을 함께 지운다.
+        long apk = currentVersionCode(ctx);
+        if (prefs.getLong(KEY_APK, -1L) != apk) {
+            prefs.edit()
+                .putLong(KEY_APK, apk)
+                .putString(KEY_PENDING, "")
+                .putInt(KEY_ATTEMPTS, 0)
+                .putString(KEY_CONFIRMED, "")
+                .putString(KEY_FAILED, "")
+                .apply();
+            return;
+        }
+
         String pending = prefs.getString(KEY_PENDING, "");
         if (pending.isEmpty()) return;
 
@@ -49,6 +69,15 @@ public class OtaPlugin extends Plugin {
             prefs.edit().putString(KEY_FAILED, pending).putString(KEY_PENDING, "").putInt(KEY_ATTEMPTS, 0).apply();
         } else {
             prefs.edit().putInt(KEY_ATTEMPTS, attempts).apply();
+        }
+    }
+
+    private static long currentVersionCode(Context ctx) {
+        try {
+            PackageInfo info = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0);
+            return PackageInfoCompat.getLongVersionCode(info);
+        } catch (Exception e) {
+            return -1L;
         }
     }
 
