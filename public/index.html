@@ -513,6 +513,11 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .meal-date{font-weight:800; font-size:13.5px;}
 .meal-block{margin-bottom:12px;}
 .meal-block:last-child{margin-bottom:0;}
+/* 홈 식단 카드: 다른 홈 카드(padding:8px 14px)와 좌우를 맞추고, 맨 위·맨 아래 여백만 줄인다. 아래는 마지막 줄의 줄간격 여백이 더해지므로 더 작게. */
+.home-meal{padding:18px 14px 14px !important;}
+.home-meal .meal-block .m-label{margin-bottom:3px;}
+/* 구분선 위 간격(앞 블록 아래 여백 + 구분선 위)이 겹쳐서 너무 벌어지던 것을 줄인다 */
+.home-meal .meal-block:not(:last-child){margin-bottom:8px;}
 /* 진리관/미래관 라벨이 작고 자간까지 넓어(한글엔 안 맞는 트래킹) 잘 안 읽혔다.
    크기를 키우고 자간은 좁혀서 또렷하게 읽히게 한다. */
 .meal-block .m-label{font-size:13px; font-weight:700; color:var(--amber); letter-spacing:-0.01em; margin-bottom:6px; display:flex; align-items:center; gap:5px;}
@@ -4732,7 +4737,7 @@ function renderHome(){
       const showLunch = nowMins >= 9 * 60 && nowMins < 14 * 60 + 30;
       const showDinner = nowMins >= 14 * 60 + 30;
       const row = (icon, title, color, text, hoursKey, stripPlus, divider) => `
-        <div class="meal-block"${divider ? ' style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"' : ''}>
+        <div class="meal-block"${divider ? ' style="margin-top:0; padding-top:10px; border-top:1px solid var(--border);"' : ''}>
           <div class="m-label" style="color:${color}">${icon} ${title}${mealHoursSpan(hoursKey)}</div>
           ${text
             ? `<div class="m-text" style="font-size:11.5px">${formatMealHtml(stripPlus ? stripPlusMealLines(text) : text)}</div>`
@@ -4750,7 +4755,7 @@ function renderHome(){
       }
       return `
     <div class="section-title">오늘의 학식</div>
-    <div class="card" data-action="go-meal-tab" style="cursor:pointer;">
+    <div class="card home-meal" data-action="go-meal-tab" style="cursor:pointer;">
       ${showBreakfast ? row(ICON.capHat, '진리관 학생식당 조식', 'var(--teal)', studentMeal && studentMeal.breakfast, 'student_breakfast', false, false) : ''}
       ${showLunch ? row(ICON.capHat, '진리관 학생식당 중식', 'var(--teal)', studentMeal && studentMeal.lunch, 'student_lunch', true, false) : ''}
       ${showDinner ? row(ICON.capHat, '진리관 학생식당 석식', 'var(--teal)', studentMeal && studentMeal.dinner, 'student_dinner', false, false) : ''}
