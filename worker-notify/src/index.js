@@ -383,6 +383,32 @@ async function runOnce(env) {
   const quiet = isQuietHour();
   const todayIsHoliday = isHolidayDate(holidays, kstDateStr());
   const updates = [];
+
+  // 채팅은 메시지마다 큐 항목이 생기고, 한 항목이 받는 사람 수만큼 FCM 요청을 쓴다(실행당 한도 50개).
+  // 한 사람이 1분 안에 같은 대화에 연달아 보낸 메시지는 알림을 각각 보낼 이유가 없으니(같은
+  // tag라 어차피 한 자리에서 덮어써진다) 마지막 것 하나만 보내고 나머지는 보낸 것으로 처리한다.
+  // 이미 일부 토큰에 나간 항목(cursor>0)과 채팅 메시지가 아닌 알림(공지 갱신 등)은 건드리지 않는다.
+  const coalesceKey = (it) => {
+    if (Number(it.cursor || 0) > 0) return null;
+    if (it.audience === 'user' && it.gateKey === 'chat' && it.pairId) return `chat|${it.pairId}|${it.targetUid}|${it.uid}`;
+    if (it.audience === 'councilChat' && it.category === 'councilChat') return `cc|${it.uid}`;
+    if (it.audience === 'cohortChat' && it.category === 'cohortChat') return `ch|${it.cohortYear}|${it.uid}`;
+    return null;
+  };
+  const lastIdByKey = new Map();
+  for (const it of due) { const k = coalesceKey(it); if (k) lastIdByKey.set(k, it.id); }
+  const toSend = [];
+  let coalescedCount = 0;
+  for (const it of due) {
+    const k = coalesceKey(it);
+    if (k && lastIdByKey.get(k) !== it.id) {
+      updates.push({ name: it.name, sent: true });
+      coalescedCount++;
+    } else {
+      toSend.push(it);
+    }
+  }
+
   let sentCount = 0;
   let skippedNoAudience = 0; // 대상 목록이 없어 다음 실행으로 미룬 개인 알림 수
   let repeatedCount = 0;     // 발송 후 다음 차례로 재예약된 반복 알림 수
@@ -397,7 +423,7 @@ async function runOnce(env) {
     return { name: item.name, sent: false, at: next, cursor: 0, ...extra };
   };
 
-  for (const item of due) {
+  for (const item of toSend) {
     // 예산이 바닥나면 남은 항목은 손대지 않는다. sent가 false로 남아 있으므로 다음 분에
     // 그대로 다시 조회돼서 이어서 나간다 — 이게 "누락분 재발송"이다.
     if (budget.left() <= 1) break;
@@ -506,7 +532,7 @@ async function runOnce(env) {
   if (skippedNoAudience) {
     console.warn(`[notify] shared/pushAudience가 없어 개인 알림 ${skippedNoAudience}건을 미룸 — GitHub Actions가 한 번 돌아야 생깁니다`);
   }
-  return { sent: sentCount, items: updates.length, skipped: skippedNoAudience, repeated: repeatedCount, subrequests: budget.used };
+  return { sent: sentCount, items: updates.length, skipped: skippedNoAudience, repeated: repeatedCount, coalesced: coalescedCount, subrequests: budget.used };
 }
 
 export default {
