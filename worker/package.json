@@ -1,0 +1,5 @@
+{
+  "name": "ku-ise-ocr-worker",
+  "private": true,
+  "type": "module"
+}

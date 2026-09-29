@@ -1,0 +1,8 @@
+name = "ku-ise-ocr"
+main = "src/index.js"
+compatibility_date = "2026-09-06"
+
+# 비밀값은 이 파일에 적지 않는다(이 파일은 git에 올라간다).
+# 배포 후 아래 명령으로 따로 넣는다:
+#   npx wrangler secret put GEMINI_API_KEYS   ← 키 여러 개는 쉼표로 구분해 한 줄로
+#   npx wrangler secret put FIREBASE_API_KEY  ← Firebase 웹 API 키(원래 공개되는 값)
