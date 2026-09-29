@@ -6764,7 +6764,7 @@ function renderNoticeTab(){
         return `
         <div class="list-item">
           <div class="title-line">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b>${escapeHtml(n.title)}</b></div>
-          <div class="meta">${n.anonymous ? '학생회' : fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole)} · ${fmtDateTime(n.createdAt || n.date)}</div>
+          <div class="meta">${noticeAuthorHtml(n)} · ${fmtDateTime(n.createdAt || n.date)}</div>
           <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
           ${noticeImagesHtml(n)}
           ${renderLikeUI(n, 'notice')}
@@ -6786,6 +6786,14 @@ function isAndroidClient(){ return !!isNativeApp || /Android/i.test(navigator.us
 // 공지 중 "안드로이드 사용자에게만"으로 올린 것은 안드로이드에서만 보인다. 이 표시를 모르는 옛 앱(APK)은
 // 그냥 다 보여주는데, 옛 앱은 어차피 전부 안드로이드라 의도한 대상과 같다.
 function visibleNotices(){ return live(state.notices).filter(n => !n.androidOnly || isAndroidClient()); }
+// 이름 비공개로 올린 공지: 학생에게는 "학생회"만 보이고, 학생회 안에서는 실제 작성자 이름을 함께 보여준다.
+function noticeAuthorHtml(n){
+  if(!n.anonymous) return fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole);
+  if(!isCouncil()) return '학생회';
+  const u = state.allUsers && state.allUsers[n.authorId];
+  const real = (u && u.name) || '';
+  return real ? `학생회 <span style="color:var(--text-faint);">(${escapeHtml(real)})</span>` : '학생회';
+}
 function noticeModal(n){
   const isEdit = !!n;
   const v = n || { title:'', content:'', pinned:false };
@@ -6804,13 +6812,14 @@ function noticeModal(n){
         <input type="file" id="notice-file-input" accept="image/*" multiple style="display:none;">
         <div id="notice-img-preview-box" style="margin-top:8px; display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; ${existingImgs.length?'':'display:none;'}">${noticeImgThumbsHtml(existingImgs)}</div>
       </div>
+      ${isDeveloper() ? `
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
           <label for="notice-android-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.download} 안드로이드 사용자에게만 보이기</label>
           <label class="switch"><input type="checkbox" name="androidOnly" id="notice-android-check" ${v.androidOnly ? 'checked' : ''}><span class="slider"></span></label>
         </div>
-        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 안드로이드 앱·브라우저로 보는 사람에게만 이 공지가 보여요 (아이폰·PC에는 안 보여요). 이때는 알림 발송을 하지 않아요</p>
-      </div>
+        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 안드로이드 앱·브라우저로 보는 사람에게만 이 공지가 보여요 (아이폰·PC에는 안 보여요). 이때는 알림 발송을 하지 않아요 (개발자 전용)</p>
+      </div>` : ''}
       ${isEdit ? '' : `
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
@@ -6819,13 +6828,13 @@ function noticeModal(n){
         </div>
         <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 알림을 켜둔 학생들에게 푸시가 갑니다</p>
       </div>
-      ${isDeveloper() ? `
+      ${isCouncil() ? `
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
           <label for="notice-anon-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.eyeOff} 이름 비공개로 올리기</label>
           <label class="switch"><input type="checkbox" name="anonymous" id="notice-anon-check"><span class="slider"></span></label>
         </div>
-        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 작성자 이름 대신 "학생회"로 표시돼요 (개발자 전용)</p>
+        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 학생들에게는 작성자 이름 대신 "학생회"로 보여요. 학생회 안에서는 본인 이름이 그대로 보여요</p>
       </div>` : ''}`}
       <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'공지 등록'}</button></div>
     </form>`;
@@ -7584,12 +7593,6 @@ function renderMypage(){
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ` : ''}
     </div>
-    ${isNativeApp ? `
-    <div class="card" style="margin-top:4px; padding:8px 12px;">
-      <p style="font-size:11px; color:var(--text-faint); line-height:1.5; margin:0;">
-        안드로이드 앱(APK)은 자동으로 업데이트되지 않아서, 친구와 화면·기능이 조금 다를 수 있어요.<br>사이트에 접속해서 다시 다운로드하거나, 위 "업데이트 확인"을 눌러도 새 버전을 받을 수 있어요.
-      </p>
-    </div>` : ''}
 
 
     <p style="text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); margin:22px 0 2px; cursor:pointer; user-select:none;" data-action="easter-egg-tap">
@@ -10505,11 +10508,11 @@ async function handleNoticeSubmit(fd){
       const target = latest.find(x => x.id === id);
       if(!canModify(target)){ return; }
       // 예전 단일 imageUrl 필드는 더 이상 쓰지 않으므로 수정 시 imageUrls로 정리한다.
-      next = latest.map(x => x.id === id ? { ...x, title, content, imageUrls, imageUrl:'', androidOnly: fd.get('androidOnly') === 'on', updatedAt: now() } : x);
+      next = latest.map(x => x.id === id ? { ...x, title, content, imageUrls, imageUrl:'', androidOnly: isDeveloper() ? fd.get('androidOnly') === 'on' : !!x.androidOnly, updatedAt: now() } : x);
     } else {
       // 이름 비공개는 개발자 전용 — canModify는 authorId로 판단하므로 그건 그대로 두고
       // 화면에 보이는 author/authorRole만 "학생회"로 감춘다.
-      const anonymous = isDeveloper() && fd.get('anonymous') === 'on';
+      const anonymous = isCouncil() && fd.get('anonymous') === 'on';
       next = [{
         id: id || uid(),
         title,
@@ -10519,12 +10522,12 @@ async function handleNoticeSubmit(fd){
         authorId: state.user.studentId,
         authorRole: anonymous ? null : myRole(),
         anonymous,
-        androidOnly: fd.get('androidOnly') === 'on',
+        androidOnly: isDeveloper() && fd.get('androidOnly') === 'on',
         date: todayStr(),
         pinned: false,
         likes: {},
         // 알림은 작성자가 명시적으로 체크했을 때만 발송된다(기본 꺼짐).
-        notifyPush: fd.get('sendPush') === 'on' && fd.get('androidOnly') !== 'on',
+        notifyPush: fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on'),
         createdAt: now(),
         updatedAt: now()
       }, ...latest];
@@ -10534,7 +10537,7 @@ async function handleNoticeSubmit(fd){
     closeModal();
     renderMain();
     // 안드로이드 전용 공지는 알림 대상을 플랫폼으로 가를 수 없어서(아이폰 사용자에게도 갈 수 있으므로) 알림을 보내지 않는다.
-    const pushed = !id && fd.get('sendPush') === 'on' && fd.get('androidOnly') !== 'on';
+    const pushed = !id && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on');
     if(ok && pushed){
       enqueuePush({ audience:'notice', title:'새로운 공지가 있어요', body:`제목: ${title}` });
     }
