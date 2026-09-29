@@ -436,8 +436,12 @@ async function main() {
   });
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
-    const tokens = tokensOf(u).filter((t) => tokenOwner.get(t).uid === docSnap.id);
+    let tokens = tokensOf(u).filter((t) => tokenOwner.get(t).uid === docSnap.id);
     if (!tokens.length) return;
+    // 계정당 마지막으로 등록한 기기(fcmToken) 하나에만 보낸다. Worker는 FCM v1이 멀티캐스트가
+    // 없어 토큰 하나당 외부 요청 1개를 쓰는데 실행당 50개가 한도라, 한 계정에 토큰이 여럿이면
+    // 그만큼 한도를 더 먹는다. fcmToken이 없거나 위 정리에서 밀려난 옛 데이터는 배열의 마지막 것.
+    tokens = [tokens.includes(u.fcmToken) ? u.fcmToken : tokens[tokens.length - 1]];
     const prefs = u.notifyPrefs || {};
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
     if (u.studentId && prefs.poll) pollTokensByStudentId.set(u.studentId, tokens);
