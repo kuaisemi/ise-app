@@ -497,9 +497,9 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .notify-row + .notify-row{border-top:1px solid var(--hairline);}
 .notify-row.is-off .notify-label{opacity:.45;}
 /* 환경설정 패널 공통: 제목, 섹션 제목(왼쪽 골드 막대), 이어진 알약 선택기 */
-.set-title{display:flex; align-items:center; gap:8px; margin:0 0 14px; font-size:15px; font-weight:800; letter-spacing:-0.01em;}
+.set-title{position:relative; display:flex; align-items:center; gap:8px; margin:0 0 14px; font-size:15px; font-weight:800; letter-spacing:-0.01em;}
 .set-title svg{width:17px; height:17px; color:var(--teal); flex-shrink:0;}
-.set-title .set-hint{margin-left:auto; min-width:0; font-size:10px; font-weight:500; letter-spacing:0; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right;}
+.set-title .set-hint{position:absolute; right:0; top:50%; transform:translateY(-50%); max-width:62%; min-width:0; font-size:10px; font-weight:500; letter-spacing:0; line-height:1.4; color:var(--text-faint); text-align:right;}
 .set-title .set-hint b{color:var(--text-dim); font-weight:700;}
 .set-label{display:flex; align-items:center; gap:7px; margin:0 0 9px; font-size:12px; font-weight:800; color:var(--text); letter-spacing:-0.01em;}
 .set-label::before{content:''; width:3px; height:12px; border-radius:2px; background:var(--teal); flex-shrink:0;}
@@ -896,14 +896,23 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.4.1';
+const APP_VERSION = 'Beta 0.4.0';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 174;
 const PATCH_NOTES = [
-  { version:'Beta 0.4.1', date:'2026-09-29', items:[
+  { version:'Beta 0.4.0', date:'2026-09-30', items:[
+    { title:'환경설정을 새로 다듬었어요', text:'화면 · 알림 · 위젯 탭의 디자인과 간격을 하나로 맞췄어요. 제목마다 골드 막대가 붙고, 선택 항목은 알약 모양으로 통일했어요' },
+    { title:'켜짐/꺼짐이 슬라이드 스위치로', text:'알림 · 위젯 · 친구 화면 · 시간표 표시 설정의 스위치를 눌러도 되고, 손으로 밀어도 넘어가요. 테마 · 글씨 크기 같은 선택도 칸이 미끄러지듯 움직여요' },
+    { title:'홈 화면 항목을 끌어서 순서 바꾸기', text:'홈 화면 보기 설정에서 순서 변경을 누르면 오른쪽 손잡이를 잡고 위아래로 끌어 옮길 수 있어요. 다가오는 학사일정과 다가오는 내 일정도 이제 따로 옮기고 숨길 수 있어요' },
+    { title:'오늘의 시간표 알림을 한 번에', text:'끄기 · 7시 · 8시 · 9시 중에서 하나만 고르면 돼요. 학식 알림은 진리관(학생) · 미래관(교직원)과 조식 · 중식 · 석식을 버튼으로 바로 켜고 꺼요' },
+    { title:'퍼센트는 숫자로 직접 입력', text:'위젯 투명도 · 글씨 크기, 시간표 글씨 · 크기 슬라이더 옆 칸에 숫자를 적으면 슬라이더도 함께 움직여요. 잡으면 손잡이가 커져요' },
+    { title:'MY 탭 정리', text:'개발자에게 카드가 추가기능으로 바뀌어 계정 아래로 내려갔고, 오늘 방문자는 제목 줄 오른쪽에 있어요. 환경설정은 톱니 버튼 하나로 열고 닫아요' },
+    { title:'학사일정 · 공지 · 투표 · 식단 화면 다듬기', text:'학사일정 목록의 글씨와 간격, 공지 · 투표 제목 크기, 홈 오늘의 학식 카드 간격을 정리했어요. 학사 달력의 학생회 일정 표시 스위치는 맨 아래로 내려갔어요' },
+    { title:'라이트 모드에서 새로고침 화면이 어둡게 뜨던 문제 수정', text:'새로고침할 때 나오는 불러오는 화면이 이제 고른 테마(라이트/다크)를 그대로 따라요. 라이트 모드 홈의 인사 카드 배경도 깔끔하게 바꿨어요', type:'fix' },
+    { title:'위젯에서 시간표를 열면 위쪽 ISE 로고가 사라지던 문제 수정', text:'위젯을 눌러 시간표로 들어가도 상단바가 그대로 유지돼요', type:'fix' },
     { title:'홈의 "다가오는 내 일정"을 누르면 학사 달력으로', text:'내 일정을 누르면 학사 달력이 열리고 그 일정의 날짜가 선택돼요' },
     { title:'서버 사용량을 줄여서 더 안정적으로', text:'탭을 옮길 때마다 데이터를 매번 다시 읽지 않도록 하고, 화면을 보고 있는 동안 계속 돌던 작업도 줄였어요', type:'fix' },
     { title:'이제 앱을 다시 설치하지 않아도 돼요', text:'이 버전을 한 번만 설치하면, 그 뒤로는 화면·기능이 바뀌어도 앱이 알아서 새 화면을 받아와요. 문제가 생기면 자동으로 이전 화면으로 돌아가요. MY → 추가기능 → 업데이트 확인에서 직접 받을 수도 있어요' },
@@ -3769,12 +3778,12 @@ function renderWidgetSettingsTab(){
 
     <div class="field" style="margin-bottom:10px;">
       <p class="set-label">꾸밀 위젯 고르기</p>
-      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:4px;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:2px;">
         ${WIDGET_TYPES.map(([key,label])=>{
           const active = state.widgetFontScaleTarget===key;
           return `
           <button type="button" data-action="pick-widget-font-target" data-key="${key}"
-            style="display:flex; flex-direction:column; align-items:center; gap:5px; padding:9px 4px; border-radius:var(--radius-sm); cursor:pointer; text-align:center;
+            style="display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 4px; border-radius:var(--radius-sm); cursor:pointer; text-align:center;
               border:1px solid ${active?'var(--teal)':'var(--border)'}; background:${active?'var(--teal-glow-3)':'var(--surface-2)'}; color:${active?'var(--teal)':'var(--text-dim)'};">
             <span class="widget-type-icon">${WIDGET_TYPE_ICONS[key]||ICON.chip}</span>
             <span style="font-size:9.5px; font-weight:${active?'700':'500'}; line-height:1.25;">${label}</span>
@@ -7686,7 +7695,7 @@ function renderMypage(){
 
     ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
-      <p class="set-title">${ICON.gear}<span>환경설정</span>${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<span class="set-hint">빈 곳을 길게 눌러 <b>위젯 → KU ISE</b></span>` : ''}</p>
+      <p class="set-title">${ICON.gear}<span>환경설정</span>${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span>` : ''}</p>
       <div class="subtabs" style="margin-bottom:12px;">
         <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
         <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
