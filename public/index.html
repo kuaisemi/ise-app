@@ -2694,6 +2694,22 @@ async function otaCleanup(P){
   }catch(e){ /* 폴더가 없으면 그냥 넘어간다 */ }
 }
 let otaChecking = false;
+// "화면 업데이트 확인" 버튼은 한 번 누르면 10초 동안 다시 못 누른다. 남은 초는 버튼 옆에 보여준다.
+let otaManualUntil = 0, otaCooldownTimer = null;
+const OTA_MANUAL_COOLDOWN_MS = 10000;
+function otaCooldownLeft(){ return Math.max(0, Math.ceil((otaManualUntil - Date.now()) / 1000)); }
+function otaCooldownTick(){
+  const left = otaCooldownLeft();
+  const btn = document.getElementById('ota-check-btn'), cd = document.getElementById('ota-check-cd');
+  if(btn){ if(left > 0) btn.setAttribute('disabled', ''); else btn.removeAttribute('disabled'); }
+  if(cd) cd.textContent = left > 0 ? left + '초' : '';
+  if(left <= 0 && otaCooldownTimer){ clearInterval(otaCooldownTimer); otaCooldownTimer = null; }
+}
+function startOtaCooldown(){
+  otaManualUntil = Date.now() + OTA_MANUAL_COOLDOWN_MS;
+  otaCooldownTick();
+  if(!otaCooldownTimer) otaCooldownTimer = setInterval(otaCooldownTick, 250);
+}
 let otaTryingBuild = '';
 let otaFailBuild = '', otaFailUntil = 0; // 받다가 실패한 버전과 다시 시도해도 되는 시각
 let otaReady = null; // { build, path } — 다 받아 둔, 적용만 남은 패치
@@ -7663,7 +7679,10 @@ function updateCheckModal(loading){
     ${(isNativeApp && otaEnabled() && !loading) ? (otaReady
       ? `<p style="font-size:12px; color:var(--crimson); font-weight:700; margin:0 0 6px;">새 화면 업데이트가 있어요. 아래 버튼을 눌러 패치하세요.</p>
          <button type="button" class="btn btn-primary" data-action="ota-apply" style="width:100%; margin-bottom:8px;">${ICON.download} 패치하기</button>`
-      : `<button type="button" class="btn btn-primary" data-action="ota-check" style="width:100%; margin-bottom:8px;">${ICON.download} 화면 업데이트 확인</button>`) : ''}
+      : `<div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+           <button type="button" id="ota-check-btn" class="btn btn-primary" data-action="ota-check" style="flex:1; min-width:0;"${otaCooldownLeft() > 0 ? ' disabled' : ''}>${ICON.download} 화면 업데이트 확인</button>
+           <span id="ota-check-cd" style="min-width:34px; text-align:right; font-size:12px; font-family:var(--font-mono); color:var(--text-faint);">${otaCooldownLeft() > 0 ? otaCooldownLeft() + '초' : ''}</span>
+         </div>`) : ''}
     ${(!loading && hasUpdate) ? `<a href="${APK_DOWNLOAD_URL}" class="btn btn-primary" style="text-decoration:none; display:block; text-align:center;">${ICON.download} 새 버전 다운로드</a>` : ''}`;
 }
 function bugReportModal(){
@@ -11626,6 +11645,8 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'reload-app'){ await reloadForUpdate(); }
     else if(a === 'ota-apply'){ await otaApply(); }
     else if(a === 'ota-check'){
+      if(otaCooldownLeft() > 0) return;
+      startOtaCooldown();
       toast('화면 업데이트를 확인하는 중…');
       const r = await otaCheck();
       if(r === 'ready'){ openModal(updateCheckModal()); toast('새 화면 업데이트가 있어요. "패치하기"를 눌러주세요'); return; }
