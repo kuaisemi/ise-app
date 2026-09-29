@@ -799,21 +799,19 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-// 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.2, Beta 0.4.3 …).
+// 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.4.2';
+const APP_VERSION = 'Beta 0.4.1';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 174;
 const PATCH_NOTES = [
-  { version:'Beta 0.4.2', date:'2026-09-29', items:[
+  { version:'Beta 0.4.1', date:'2026-09-29', items:[
     { title:'홈의 "다가오는 내 일정"을 누르면 학사 달력으로', text:'내 일정을 누르면 학사 달력이 열리고 그 일정의 날짜가 선택돼요' },
     { title:'서버 사용량을 줄여서 더 안정적으로', text:'탭을 옮길 때마다 데이터를 매번 다시 읽지 않도록 하고, 화면을 보고 있는 동안 계속 돌던 작업도 줄였어요', type:'fix' },
-  ]},
-  { version:'Beta 0.4.1', date:'2026-09-29', items:[
     { title:'이제 앱을 다시 설치하지 않아도 돼요', text:'이 버전을 한 번만 설치하면, 그 뒤로는 화면·기능이 바뀌어도 앱이 알아서 새 화면을 받아와요. 문제가 생기면 자동으로 이전 화면으로 돌아가요. MY → 추가기능 → 업데이트 확인에서 직접 받을 수도 있어요' },
     { title:'홈 학식을 시간대에 맞춰 보여줘요', text:'진리관은 00~09시 조식, 09~14:30 중식, 14:30~24시 석식을 한 끼씩 보여주고, 미래관 교직원 식단은 하루 종일 보여줘요. 주말·공휴일엔 숨겨요' },
     { title:'하단 탭을 다시 누르면 첫 화면으로', text:'학사정보나 학생사회에서 하단 탭을 한 번 더 누르면 학사일정·공지사항 첫 화면으로 돌아와요. 다른 탭에서 넘어올 때는 보던 화면이 그대로 유지돼요' },
