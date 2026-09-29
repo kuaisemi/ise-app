@@ -522,6 +522,9 @@ svg{vertical-align:-2px;}
 /* 아이콘이 붙은 섹션 제목(내 메모, 일정 목록 등)은 글자 기준선이 아니라 세로 가운데로 맞춘다. */
 .section-title:has(> svg){display:flex; align-items:center; gap:6px;}
 .section-title:has(> svg) > svg{margin-right:0; flex:none; display:block;}
+/* 작성 창의 스위치 줄(알림 발송·이름 비공개·안드로이드 전용 등): 아이콘 크기를 모두 같게 맞추고 글자와 가운데 정렬 */
+#notice-form .row-between label svg{width:16px; height:16px; flex:none; display:block;}
+#notice-form .row-between label{line-height:1.3;}
 .notify-row svg{width:15px; height:15px;}
 /* ICON.plus 등 아이콘은 원래 24x24로 만들어져서, "+ 작성"처럼 작은 버튼(btn-sm) 안에
    그대로 들어가면 옆의 작은 글씨에 비해 아이콘만 크게 튀어 보였다. 버튼 글씨 크기에
