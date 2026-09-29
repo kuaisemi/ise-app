@@ -1685,14 +1685,13 @@ function fmtLastSeen(ts){
 // 가입자 목록의 lastSeen(트래픽 목적의 별도 수집 없이, 이미 로그인/재접속 때마다 기록되는 값)을
 // 그대로 재사용해 "오늘 방문자/현재 접속자" 수를 추정. 새 접속을 만들 때가 아니라 반드시
 // 조용히 백그라운드에서만 갱신되어야 하며(트래픽만을 위한 목적으로 쓰기 요청을 늘리지 않음),
-// setupPresenceHeartbeat()가 몇 분마다 lastSeen을 갱신해줘서 "현재 접속자" 추정 정확도를 보정한다.
+// lastSeen은 앱을 켤 때만 기록한다(현재 접속자 표시는 없앴다).
 function getTrafficStats(){
   const users = Object.values(state.allUsers||{});
   const nowTs = now();
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
   const todayVisitors = users.filter(u=>u.lastSeen && u.lastSeen >= todayStart.getTime()).length;
-  const onlineNow = users.filter(u=>u.lastSeen && (nowTs - u.lastSeen) <= 5*60*1000).length;
-  return { todayVisitors, onlineNow };
+  return { todayVisitors };
 }
 function formatMealText(raw){
   if(!raw) return '';
@@ -1934,14 +1933,6 @@ async function mutateSharedList(name, field, mutate){
 // (빌드를 거치지 않은 public/ 원본에는 자리표시자가 그대로 남아 있어서 검사를 건너뛴다)
 const BUILD_ID = '__BUILD_ID__';
 
-let SESSION_IP = null;        // 한 번 받아온 뒤 이 세션 동안 재사용
-let SESSION_IP_LOGGED = false; // 접속 이력은 세션당 한 줄만 남긴다
-async function loadUserMeta(uidStr){
-  try{
-    const snap = await getDoc(doc(db,'userMeta',uidStr));
-    return (snap && snap.exists() && snap.data()) || null;
-  }catch(e){ return null; }   // 개발자가 아니면 규칙에 막힌다(정상)
-}
 async function getClientIp(){
   try{
     const res = await fetch('https://api.ipify.org?format=json', { cache:'no-store' });
@@ -2527,7 +2518,7 @@ function boot(){
           // 서버(udoc)에 저장된 값과 합쳐서 두 기록 중 더 최근 것을 기준으로 맞춘다.
           mergeNotifFeedStateFromServer(udoc.notifFeedState);
           await loadAllData(usersList);
-          trackUserPresence(state.user);
+          trackUserPresence(state.user, true);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
           setupPresenceHeartbeat();
           setupTimetableResizeListener();
@@ -2586,8 +2577,13 @@ const PLATFORM_LABELS = {
 };
 function platformLabel(p){ return PLATFORM_LABELS[p] || ''; }
 
-async function trackUserPresence(u){
+let presenceWrittenAt = 0;
+async function trackUserPresence(u, force){
   if(!u || !u.uid) return;
+  // 마지막 접속 시각은 앱을 켤 때(force)와, 백그라운드에 오래 있다가 돌아왔을 때(30분 넘게 지난 경우)만 기록한다.
+  // 예전엔 화면을 보는 동안 3분마다 썼다(쓰기 할당량을 사용자 수만큼 먹는다). "지금 활동중" 표시는 없앴다.
+  if(!force && Date.now() - presenceWrittenAt < 30 * 60 * 1000) return;
+  presenceWrittenAt = Date.now();
   try{
     // 본인 문서만 건드리므로 학생 계정도 규칙을 통과한다(직급을 바꾸지 않는 한 수정 허용).
     // 예전에는 학생회 전용 문서에 쓰려다 조용히 거부돼서, 학생회가 아닌 사람의 접속 기록이
@@ -2605,28 +2601,6 @@ async function trackUserPresence(u){
       ...(isNativeApp ? { androidVersionCode: ANDROID_VERSION_CODE, appVersion: APP_VERSION } : {}),
       ...(myCohortYear() ? { cohortYear: myCohortYear() } : {}),
     }, { merge:true });
-    // IP는 users 문서가 아니라 userMeta에 따로 남긴다(위 규칙 참고).
-    // 외부 조회라 3분마다 부르면 낭비여서 한 세션에 한 번만 받아 재사용한다.
-    try{
-      if(SESSION_IP === null) SESSION_IP = await getClientIp();
-      if(SESSION_IP){
-        if(SESSION_IP_LOGGED){
-          // 이번 세션 이력은 이미 남겼으니 최종 접속 시각만 갱신한다.
-          await setDoc(doc(db,'userMeta',u.uid), { lastIp: SESSION_IP, lastSeen: ts, platform }, { merge:true });
-        } else {
-          SESSION_IP_LOGGED = true;
-          // 이력은 30건까지만. 같은 IP로 12시간 안에 다시 들어온 건 같은 자리로 보고 넘긴다
-          // (재접속할 때마다 같은 줄이 쌓이면 목록이 의미 없어진다).
-          const prev = await loadUserMeta(u.uid);
-          const hist = Array.isArray(prev && prev.ipHistory) ? prev.ipHistory : [];
-          const last = hist[hist.length-1];
-          const dup = last && last.ip === SESSION_IP && (ts - (last.ts||0)) < 12*60*60*1000;
-          const nextHist = dup ? hist : [...hist, { ip: SESSION_IP, ts, platform }].slice(-30);
-          await setDoc(doc(db,'userMeta',u.uid),
-            { lastIp: SESSION_IP, lastSeen: ts, platform, ipHistory: nextHist }, { merge:true });
-        }
-      }
-    }catch(e){ console.warn('[presence] IP 기록 실패', e && e.code); }
     if(state.allUsers && state.allUsers[u.studentId]){
       state.allUsers[u.studentId] = { ...state.allUsers[u.studentId], lastSeen: ts, platform };
     }
@@ -2849,18 +2823,26 @@ function setupPresenceHeartbeat(){
     // 관리자 배지 조회를 계속 돌려서 Firestore 무료 할당량을 조용히 먹는다. 다시 보이는 순간
     // 아래 visibilitychange 핸들러가 바로 맞추므로 안 보이는 동안은 건너뛴다.
     if(document.hidden) return;
-    if(state.user){ trackUserPresence(state.user); syncMyRole(); }
+    // 접속 기록 쓰기는 하지 않는다(앱을 켤 때와 백그라운드에서 오래 있다 돌아올 때만 쓴다).
+    // 직급은 실시간 리스너(startRoleRealtimeListener)가 이미 따라가므로 여기서 다시 읽지 않는다.
     if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
     refreshChatUnseenBadge().then(refreshBellDot);
     checkForUpdate();
-  }, 3*60*1000);
+  }, 10*60*1000);
   checkForUpdate();
   // 앱을 다시 열었을 때는 3분을 기다리지 않고 바로 맞춘다. 직급이 바뀌었다는 연락을 받고
   // 앱을 켜보는 게 보통이라 이쪽이 실제로 더 자주 걸린다.
+  let resumeRefreshAt = 0;
   document.addEventListener('visibilitychange', ()=>{
     if(!document.hidden){
       checkForUpdate();
-      if(state.user){ trackUserPresence(state.user); syncMyRole(); refreshChatUnseenBadge().then(refreshBellDot); }
+      // 돌아올 때마다 다시 읽지 않고 2분에 한 번까지만. 접속 기록은 30분 넘게 나가 있었을 때만 쓴다.
+      if(state.user && Date.now() - resumeRefreshAt > 2 * 60 * 1000){
+        resumeRefreshAt = Date.now();
+        trackUserPresence(state.user);
+        syncMyRole();
+        refreshChatUnseenBadge().then(refreshBellDot);
+      }
     }
   });
 }
@@ -4117,18 +4099,26 @@ async function loadAllData(preloadedUsers){
   }catch(e){}
 }
 
-async function refreshShared(){
-  try{
-    const [cal,meals,notices,sugg,polls,recruits,users] = await Promise.all([
-      loadCalendar(), loadMeals(), loadNotices(), loadSuggestions(),
-      loadPolls(), loadRecruitments(), loadAllUsersList()
-    ]);
-    state.calendar=cal; state.meals=meals; state.notices=notices;
-    state.suggestions=sugg; state.polls=polls;
-    state.recruitmentPosts=recruits;
-    state.allUsers=users;
-    pushWidgetData(); // 식단·학사일정이 갱신됐을 수 있으므로 위젯도 같이 최신화
-  }catch(e){}
+let sharedFetchedAt = 0, usersFetchedAt = 0;
+async function refreshShared(force){
+  const t = Date.now();
+  if(force || t - sharedFetchedAt > 60 * 1000){
+    try{
+      const [cal,meals,notices,sugg,polls,recruits] = await Promise.all([
+        loadCalendar(), loadMeals(), loadNotices(), loadSuggestions(),
+        loadPolls(), loadRecruitments()
+      ]);
+      state.calendar=cal; state.meals=meals; state.notices=notices;
+    sharedFetchedAt = Date.now(); usersFetchedAt = Date.now();
+      state.suggestions=sugg; state.polls=polls;
+      state.recruitmentPosts=recruits;
+      sharedFetchedAt = Date.now();
+      pushWidgetData(); // 식단·학사일정이 갱신됐을 수 있으므로 위젯도 같이 최신화
+    }catch(e){}
+  }
+  if(force || t - usersFetchedAt > 10 * 60 * 1000){
+    try{ state.allUsers = await loadAllUsersList(); usersFetchedAt = Date.now(); }catch(e){}
+  }
 }
 
 function checkWeeklyAutoMealFetch(){
@@ -7587,7 +7577,6 @@ function renderMypage(){
       <p class="dev-card-title">${ICON.chip} 개발자에게</p>
       <div class="dev-card-stats">
         <span>오늘 방문자 <b>${traffic.todayVisitors}</b>명</span>
-        <span>현재 접속 <b>${traffic.onlineNow}</b>명</span>
       </div>
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
@@ -7797,23 +7786,6 @@ async function clearUserAudit(sid){
   if(ok) state.auditLog = next;
   refreshUserDetailBody();
   saveResultToast(ok, '삭제 기록을 지웠습니다');
-}
-
-// 접속 IP 기록 비우기. 규칙상 개발자만 이 문서를 건드릴 수 있다.
-async function clearUserIps(sid){
-  if(!isDeveloper()) return;
-  const u = (state.allUsers||{})[sid] || {};
-  if(!u.uid) return;
-  if(!await showConfirm(`${u.name||sid}님의 접속 IP 기록을 지울까요?\n(되돌릴 수 없습니다)`)) return;
-  let ok = false;
-  LAST_SAVE_ERROR = '';
-  try{
-    await setDoc(doc(db,'userMeta',u.uid), { ipHistory: [] }, { merge:true });
-    if(state.userDetail.meta) state.userDetail.meta.ipHistory = [];
-    ok = true;
-  }catch(e){ LAST_SAVE_ERROR = (e && e.code) || 'unknown'; }
-  refreshUserDetailBody();
-  saveResultToast(ok, '접속 IP 기록을 지웠습니다');
 }
 
 async function clearAuditLog(){
@@ -9317,11 +9289,8 @@ function detailRows(key, items, renderRow, emptyText){
 
 function userDetailBody(sid){
   const u = (state.allUsers||{})[sid] || {};
-  const meta = state.userDetail.meta;
   const posts = collectUserPosts(sid);
   const audits = [...(state.auditLog||[])].filter(e=>e.actorId===sid).sort((a,b)=>b.ts-a.ts);
-  const ips = (meta && Array.isArray(meta.ipHistory)) ? [...meta.ipHistory].reverse() : [];
-  const online = u.lastSeen && (now()-u.lastSeen) <= 5*60*1000;
   const dev = isDeveloper();
 
   return `
@@ -9330,10 +9299,10 @@ function userDetailBody(sid){
       <div class="meta">학번 <b style="color:var(--text);">${escapeHtml(sid)}</b> (${fmtStudentYear(sid)})</div>
       <div class="meta" style="margin-top:4px;">직급 <b style="color:var(--text);">${roleLabel(u.role||'student')}</b></div>
       <div class="meta" style="margin-top:4px;">가입일 <b style="color:var(--text);">${u.createdAt ? fmtDateTime(u.createdAt) : '알 수 없음'}</b></div>
-      <div class="meta" style="margin-top:4px;">최근 접속 ${online ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : escapeHtml(fmtLastSeen(u.lastSeen))}</div>
+      <div class="meta" style="margin-top:4px;">최근 접속 ${escapeHtml(fmtLastSeen(u.lastSeen))}</div>
       ${u.platform ? `<div class="meta" style="margin-top:4px;">기기 ${escapeHtml(platformLabel(u.platform))}</div>` : ''}
       ${u.androidVersionCode ? `<div class="meta" style="margin-top:4px;">앱 버전 <b style="color:var(--text);">${escapeHtml(appVersionLabel(u))}</b>${u.androidVersionCode < ANDROID_VERSION_CODE ? ` <span class="tag tag-amber" style="font-size:9px; padding:1px 6px;">구버전</span>` : ` <span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">최신</span>`}</div>` : `<div class="meta" style="margin-top:4px;">앱 버전 <span style="color:var(--text-faint);">웹으로만 접속 (앱 설치 기록 없음)</span></div>`}
-      ${dev ? `<div class="meta" style="margin-top:4px; font-family:var(--font-mono);">최종 접속 IP ${escapeHtml((meta && meta.lastIp) || '기록 없음')}</div>` : ''}
+
     </div>
 
     ${detailSectionHead(sid, 'posts', '작성한 공개 게시물', posts.length, 'clear-user-audit', '기록 지우기')}
@@ -9351,13 +9320,7 @@ function userDetailBody(sid){
         <div class="body" style="margin-top:2px; font-size:11.5px;">${escapeHtml(e.itemTitle||'')}</div>
         <div class="meta" style="margin-top:2px;">${fmtDateTime(e.ts)}${dev ? ' · IP ' + escapeHtml(e.ip||'알 수 없음') : ''}</div>
       </div>`, '삭제 기록이 없습니다.') : ''}
-
-    ${dev ? detailSectionHead(sid, 'ip', '접속 IP 기록', ips.length, 'clear-user-ips', '기록 지우기') : ''}
-    ${(dev && state.userDetail.open.ip) ? detailRows('ip', ips, h=>`
-      <div class="list-item" style="padding:7px 0;">
-        <div class="meta" style="font-family:var(--font-mono); color:var(--text);">${escapeHtml(h.ip||'')}</div>
-        <div class="meta" style="margin-top:2px;">${h.ts ? fmtDateTime(h.ts) : ''}${h.platform ? ' · ' + escapeHtml(platformLabel(h.platform)) : ''}</div>
-      </div>`, '접속 기록이 없습니다.') : ''}`;
+`;
 }
 
 function refreshUserDetailBody(){
@@ -9369,9 +9332,8 @@ async function userDetailModal(sid){
   const u = (state.allUsers||{})[sid] || {};
   // 다른 사람을 열었을 때만 펼침 상태와 IP 기록을 새로 받는다.
   if(state.userDetail.sid !== sid){
-    state.userDetail = { sid, meta:null, open:{posts:false, audit:false, ip:false},
-                         limit:{posts:DETAIL_PAGE, audit:DETAIL_PAGE, ip:DETAIL_PAGE} };
-    state.userDetail.meta = (isDeveloper() && u.uid) ? await loadUserMeta(u.uid) : null;
+    state.userDetail = { sid, meta:null, open:{posts:false, audit:false},
+                         limit:{posts:DETAIL_PAGE, audit:DETAIL_PAGE} };
   }
   return `
     <div class="modal-handle"></div>
@@ -9526,7 +9488,7 @@ function usersListPanel(){
                 <span class="tag ${roleLevel(u.role)>=1?'tag-crimson':'tag-blue'}" style="font-size:9px; padding:1px 6px;">${publicRoleLabel(u.role)}</span>
                 ${u.withdrawn ? `<span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">1년+ 미접속(잠김)</span>` : (u.dormant ? `<span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">6개월+ 휴면</span>` : '')}
               </div>
-              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${(u.lastSeen && (now()-u.lastSeen)<=5*60*1000) ? '<span style="color:var(--teal); font-weight:700;">● 지금 활동중</span>' : fmtLastSeen(u.lastSeen)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
+              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${fmtLastSeen(u.lastSeen)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
             </div>
             ${u.withdrawn && isPresident() ? `<button type="button" class="btn btn-ghost btn-sm" data-action="reactivate-user" data-uid="${escapeHtml(u.uid||'')}" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">잠금 해제</button>` : ''}
             <button type="button" class="btn btn-ghost btn-sm" data-action="open-assign-role" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" data-role="${escapeHtml(u.role)}" style="width:auto; max-width:110px; padding:6px 8px; font-size:11.5px; white-space:nowrap; display:flex; align-items:center; gap:3px;">${roleLabel(u.role)} ${ICON.chevDown}</button>
@@ -10297,7 +10259,7 @@ async function setRole(role){
   catch(e){ toast('권한 변경에 실패했습니다'); return false; }
   state.user.role=role;
   localSet('user_'+state.user.uid, state.user);
-  await trackUserPresence(state.user);
+  await trackUserPresence(state.user, true);
   renderApp();
   toast(role==='student' ? '재학생 권한으로 전환되었습니다' : `${roleLabel(role)} 권한이 활성화되었습니다`);
   return true;
@@ -10314,7 +10276,7 @@ async function handleCouncilVerify(fd){
       await setDoc(doc(db,'users',uidStr), { roleCode: deleteField() }, { merge:true }).catch(()=>{});
       state.user.role=role;
       localSet('user_'+uidStr, state.user);
-      await trackUserPresence(state.user);
+      await trackUserPresence(state.user, true);
       closeModal();
       renderApp();
       toast(`${roleLabel(role)} 권한이 활성화되었습니다`);
@@ -11636,7 +11598,6 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'back-to-users-list'){ openModal(usersListModal()); }
     else if(a === 'clear-user-audit'){ await clearUserAudit(el.dataset.sid); }
-    else if(a === 'clear-user-ips'){ await clearUserIps(el.dataset.sid); }
     else if(a === 'toggle-detail-sec'){
       const k = el.dataset.sec;
       state.userDetail.open[k] = !state.userDetail.open[k];
