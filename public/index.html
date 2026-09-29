@@ -6791,6 +6791,8 @@ function noticeAuthorHtml(n){
   if(!n.anonymous) return fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole);
   if(!isCouncil()) return '학생회';
   const u = state.allUsers && state.allUsers[n.authorId];
+  // 개발자가 올린 비공개 공지는 학생회 안에서도 이름을 보여주지 않는다(이미 올라간 글도 작성자 직급으로 판단).
+  if(n.hideRealName || (u && u.role === 'developer')) return '학생회';
   const real = (u && u.name) || '';
   return real ? `학생회 <span style="color:var(--text-faint);">(${escapeHtml(real)})</span>` : '학생회';
 }
@@ -6818,7 +6820,6 @@ function noticeModal(n){
           <label for="notice-android-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.download} 안드로이드 사용자에게만 보이기</label>
           <label class="switch"><input type="checkbox" name="androidOnly" id="notice-android-check" ${v.androidOnly ? 'checked' : ''}><span class="slider"></span></label>
         </div>
-        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 안드로이드 앱·브라우저로 보는 사람에게만 이 공지가 보여요 (아이폰·PC에는 안 보여요). 이때는 알림 발송을 하지 않아요 (개발자 전용)</p>
       </div>` : ''}
       ${isEdit ? '' : `
       <div style="margin:8px 0 0;">
@@ -6834,7 +6835,7 @@ function noticeModal(n){
           <label for="notice-anon-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.eyeOff} 이름 비공개로 올리기</label>
           <label class="switch"><input type="checkbox" name="anonymous" id="notice-anon-check"><span class="slider"></span></label>
         </div>
-        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 학생들에게는 작성자 이름 대신 "학생회"로 보여요. 학생회 안에서는 본인 이름이 그대로 보여요</p>
+        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 학생들에게는 작성자 이름 대신 "학생회"로 보여요. 학생회 안에서는 본인 이름이 그대로 보여요 (개발자가 올린 글은 학생회 안에서도 "학생회"로만 보여요)</p>
       </div>` : ''}`}
       <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'공지 등록'}</button></div>
     </form>`;
@@ -10522,6 +10523,7 @@ async function handleNoticeSubmit(fd){
         authorId: state.user.studentId,
         authorRole: anonymous ? null : myRole(),
         anonymous,
+        hideRealName: anonymous && isDeveloper(),
         androidOnly: isDeveloper() && fd.get('androidOnly') === 'on',
         date: todayStr(),
         pinned: false,
