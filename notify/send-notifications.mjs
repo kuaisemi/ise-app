@@ -438,17 +438,25 @@ async function main() {
     const u = docSnap.data();
     let tokens = tokensOf(u).filter((t) => tokenOwner.get(t).uid === docSnap.id);
     if (!tokens.length) return;
-    // 계정당 기기 하나에만 보낸다. 폰 브라우저·PWA·앱·PC 브라우저가 다 울리면 안 되므로
-    // 우선순위 폰 브라우저 > PWA > 앱 > PC 브라우저. 종류 기록이 없는 옛 토큰은 PWA와 같은
-    // 순위로 본다. 같은 순위끼리는 마지막으로 등록한 것(fcmToken, 없으면 배열의 마지막).
+    // 계정당 폰 하나 + PC 브라우저 하나까지만 보낸다. 폰 브라우저·PWA(아이폰)·앱(안드로이드)이
+    // 같이 울리면 안 되므로 폰 쪽은 앱 > PWA > 폰 브라우저 순으로 하나만 고른다(폰 브라우저는
+    // 앱·PWA가 없을 때의 대체 창구). PC 브라우저는 폰과 별개로 따로 울린다.
+    // 종류 기록이 없는 옛 토큰은 PWA로 본다. 같은 순위끼리는 마지막으로 등록한 것
+    // (fcmToken, 없으면 배열의 마지막).
     // Worker는 FCM v1에 멀티캐스트가 없어 토큰 하나당 외부 요청 1개(실행당 한도 50개)를
     // 쓰기 때문에, 토큰 수를 줄이는 것이 한도 관리에도 필요하다.
-    const KIND_RANK = { mobileWeb: 0, pwa: 1, apk: 2, desktop: 3 };
+    const PHONE_RANK = { apk: 0, pwa: 1, mobileWeb: 2 };
     const kinds = u.fcmTokenKinds || {};
-    const rankOf = (t) => (kinds[t] in KIND_RANK ? KIND_RANK[kinds[t]] : 1);
-    const best = Math.min(...tokens.map(rankOf));
-    const top = tokens.filter((t) => rankOf(t) === best);
-    tokens = [top.includes(u.fcmToken) ? u.fcmToken : top[top.length - 1]];
+    const kindOf = (t) => kinds[t] || 'pwa';
+    const pickBest = (list, rankOf) => {
+      if (!list.length) return null;
+      const best = Math.min(...list.map(rankOf));
+      const top = list.filter((t) => rankOf(t) === best);
+      return top.includes(u.fcmToken) ? u.fcmToken : top[top.length - 1];
+    };
+    const phonePick = pickBest(tokens.filter((t) => kindOf(t) !== 'desktop'), (t) => PHONE_RANK[kindOf(t)] ?? 1);
+    const desktopPick = pickBest(tokens.filter((t) => kindOf(t) === 'desktop'), () => 0);
+    tokens = [phonePick, desktopPick].filter(Boolean);
     const prefs = u.notifyPrefs || {};
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
     if (u.studentId && prefs.poll) pollTokensByStudentId.set(u.studentId, tokens);
