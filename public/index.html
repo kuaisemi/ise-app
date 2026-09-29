@@ -139,13 +139,14 @@ a{color:inherit;}
   background-repeat:no-repeat; background-position:right 12px center;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
 /* 시간표 글씨크기·위젯 투명도 등에 쓰는 슬라이더 — 기본 브라우저 모양 대신 앱 톤에 맞춘 트랙·손잡이. */
-input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:28px; background:transparent; cursor:pointer; margin:0; touch-action:pan-y;}
+input[type=range]{-webkit-appearance:none; appearance:none; width:100%; min-width:0; height:40px; background:transparent; cursor:pointer; margin:-6px 0; touch-action:pan-y; -webkit-tap-highlight-color:transparent; outline:none;}
 input[type=range]::-webkit-slider-runnable-track{height:6px; border-radius:999px; background:linear-gradient(to right, var(--crimson) var(--fill,0%), var(--surface-3) var(--fill,0%));}
 input[type=range]::-moz-range-track{height:6px; border-radius:999px; background:var(--surface-3);}
 input[type=range]::-moz-range-progress{height:6px; border-radius:999px; background:var(--crimson);}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:20px; height:20px; margin-top:-7px; border-radius:50%; background:#fff; border:3px solid var(--crimson); box-shadow:0 1px 4px rgba(0,0,0,0.4); transition:transform .15s, box-shadow .15s;}
 input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:#fff; border:3px solid var(--crimson); box-shadow:0 1px 4px rgba(0,0,0,0.4);}
-input[type=range]:active::-webkit-slider-thumb{transform:scale(1.4); box-shadow:0 0 0 7px rgba(var(--crimson-rgb),.22), 0 1px 4px rgba(0,0,0,0.4);}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.3); box-shadow:0 0 0 5px rgba(var(--crimson-rgb),.22), 0 1px 4px rgba(0,0,0,0.4);}
+input[type=range]:focus{outline:none;}
 .range-val{transition:transform .15s, color .15s; transform-origin:right center;}
 .range-val.big{transform:scale(1.25); color:var(--text) !important;}
 /* iOS는 비밀번호 가림문자를 안드로이드보다 작고 촘촘하게 그려서 몇 자를 쳤는지 세기 어렵다.
@@ -192,9 +193,9 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .brand-mini b{font-size:13.5px; font-weight:800;}
 .btn-settings-mini{background:transparent; border:none; padding:10px; margin:-8px -8px -8px -10px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .btn-settings-box{display:flex; align-items:center; justify-content:center; align-self:center; width:36px; height:36px; padding:0; border:none; background:transparent; color:var(--teal); cursor:pointer; flex-shrink:0;}
-.btn-settings-box svg{width:18px; height:18px; display:block; flex:none; transition:transform .25s;}
+.btn-settings-box svg{width:18px; height:18px; display:block; flex:none; transition:transform .32s cubic-bezier(.3,.7,.3,1);}
 .btn-settings-box:active{transform:scale(0.9);}
-.btn-settings-box.on svg{transform:rotate(60deg);}
+.btn-settings-box.on svg{transform:rotate(90deg);}
 .btn-settings-mini:active{color:var(--teal); transform:scale(0.9);}
 .top-actions{display:flex; align-items:center; gap:6px;}
 .btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; width:29px; height:29px; padding:0; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none;}
@@ -533,12 +534,13 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .notify-subrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 2px 2px; margin-top:0; border-top:1px solid var(--hairline);}
 .notify-subrow > span{font-size:11px; color:var(--text-dim);}
 .notify-subrow{min-height:38px; box-sizing:border-box;}
-.notify-subrow > .sub-lbl{display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text);}
-.sub-lbl svg{width:18px; height:18px; flex-shrink:0; color:var(--text-dim);}
-.sub-lbl em{font-style:normal; font-size:10.5px; color:var(--text-faint); font-family:var(--font-mono);}
-.range-val{display:inline-flex; align-items:center; gap:3px; flex-shrink:0;}
+.notify-subrow > .sub-lbl{display:flex; align-items:center; gap:8px; padding-left:25px; font-size:12px; color:var(--text);}
+.sub-lbl em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 8px;}
+.sub-cap{margin:10px 0 2px 27px; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--text-faint);}
+.sub-cap + .notify-subrow{border-top:none;}
+.range-val{display:inline-flex; align-items:center; gap:3px; flex-shrink:0; max-width:50%;}
 .range-val b{font-size:11.5px; font-weight:700; color:var(--text-dim);}
-.range-num{width:48px; box-sizing:border-box; text-align:right; font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text); background:var(--surface-3); border:1px solid var(--border); border-radius:8px; padding:5px 6px; -moz-appearance:textfield; appearance:textfield;}
+.range-num{width:4em; max-width:4em; box-sizing:border-box; text-align:right; font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text); background:var(--surface-3); border:1px solid var(--border); border-radius:8px; padding:5px 6px; -moz-appearance:textfield; appearance:textfield;}
 .range-num::-webkit-inner-spin-button, .range-num::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
 .range-num:focus{outline:none; border-color:var(--crimson);}
 .divider{height:1px; background:var(--border); margin:14px 0;}
@@ -5321,7 +5323,7 @@ function ttOptionsModal(){
       ${opts.map(([key, label]) => `
         <div class="row-between" style="margin-bottom:12px;">
           <span style="color:var(--text); font-size:11.5px;">${label}</span>
-          <button type="button" class="btn ${o[key]?'btn-primary':'btn-ghost'} btn-sm tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" style="width:auto; padding:4px 14px; font-size:11px;">${o[key]?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
         </div>`).join('')}
       <div id="tt-now-color-section" style="margin-top:6px; padding-top:12px; border-top:1px solid var(--border); ${o.currentTime ? '' : 'opacity:.4; pointer-events:none;'}">
         <div style="font-size:11.5px; font-weight:700; margin-bottom:8px; color:var(--text-dim);">현재 시간 표시선 색상</div>
@@ -5346,9 +5348,8 @@ function setupTtOptionsModalListeners(){
     btn.onclick = ()=>{
       const next = btn.dataset.checked !== '1';
       btn.dataset.checked = next ? '1' : '0';
-      btn.textContent = next ? '켜짐' : '꺼짐';
-      btn.classList.toggle('btn-primary', next);
-      btn.classList.toggle('btn-ghost', !next);
+      btn.classList.toggle('on', next);
+      btn.setAttribute('aria-checked', String(next));
       if(btn.dataset.opt==='currentTime' && colorSection){
         colorSection.style.opacity = next ? '1' : '.4';
         colorSection.style.pointerEvents = next ? 'auto' : 'none';
@@ -7746,24 +7747,26 @@ function renderMypage(){
         <span class="sub" style="display:flex; align-items:center; gap:3px; color:var(--text-faint); font-size:11.5px;">${state.mealNotifyExpanded?'접기':'더보기'} <span style="display:flex; transition:transform .15s; transform:rotate(${state.mealNotifyExpanded?'180deg':'0deg'});">${ICON.chevDown}</span></span>
       </div>
       ${state.mealNotifyExpanded ? `
+      <p class="sub-cap">지점</p>
       <div class="notify-subrow">
-        <span class="sub-lbl">${ICON.capHat} 진리관 학식 알림</span>
+        <span class="sub-lbl">진리관</span>
         <button type="button" class="tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" role="switch" aria-checked="${!!np.mealJinri}"></button>
       </div>
       <div class="notify-subrow">
-        <span class="sub-lbl">${ICON.tie} 미래관 학식 알림</span>
+        <span class="sub-lbl">미래관</span>
         <button type="button" class="tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" role="switch" aria-checked="${!!np.mealMirae}"></button>
       </div>
+      <p class="sub-cap">끼니</p>
       <div class="notify-subrow">
-        <span class="sub-lbl">${ICON.sunrise} 조식 알림 <em>7시</em></span>
+        <span class="sub-lbl">조식 <em>7시</em></span>
         <button type="button" class="tgl ${np.mealBreakfast?'on':''}" data-action="toggle-notify" data-key="mealBreakfast" role="switch" aria-checked="${!!np.mealBreakfast}"></button>
       </div>
       <div class="notify-subrow">
-        <span class="sub-lbl">${ICON.sun} 중식 알림 <em>10시 반</em></span>
+        <span class="sub-lbl">중식 <em>10시 반</em></span>
         <button type="button" class="tgl ${np.mealLunch?'on':''}" data-action="toggle-notify" data-key="mealLunch" role="switch" aria-checked="${!!np.mealLunch}"></button>
       </div>
       <div class="notify-subrow">
-        <span class="sub-lbl">${ICON.moon} 석식 알림 <em>4시 반</em></span>
+        <span class="sub-lbl">석식 <em>4시 반</em></span>
         <button type="button" class="tgl ${np.mealDinner?'on':''}" data-action="toggle-notify" data-key="mealDinner" role="switch" aria-checked="${!!np.mealDinner}"></button>
       </div>
       <p style="font-size:10px; color:var(--text-faint); margin:2px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
@@ -11614,7 +11617,13 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'logout'){ await logout(); }
     else if(a === 'reset-timetable'){ await resetTimetable(); }
     else if(a === 'set-theme'){ setThemeOverride(el.dataset.themeV); }
-    else if(a === 'toggle-mypage-settings'){ state.myPageSettingsOpen = !state.myPageSettingsOpen; renderMain(); }
+    else if(a === 'toggle-mypage-settings'){
+      // 톱니가 90도 도는 동안 기다렸다가 패널을 열고 닫는다(화면을 다시 그리면 돌아가는 모습이 끊긴다)
+      if(window.__gearBusy) return;
+      window.__gearBusy = true;
+      el.classList.toggle('on');
+      setTimeout(()=>{ state.myPageSettingsOpen = !state.myPageSettingsOpen; window.__gearBusy = false; renderMain(); }, 300);
+    }
     else if(a === 'set-font-scale'){ setFontScale(el.dataset.scaleV); }
     else if(a === 'toggle-meal-notify-expand'){ state.mealNotifyExpanded = !state.mealNotifyExpanded; renderMain(); }
     else if(a === 'toggle-notify'){
