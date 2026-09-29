@@ -785,11 +785,19 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.3';
+const APP_VERSION = 'Beta 0.3.4';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 171;
+const ANDROID_VERSION_CODE = 172;
 const PATCH_NOTES = [
+  { version:'Beta 0.3.4', date:'2026-09-29', items:[
+    { title:'학생회 채팅·학번별 채팅 기능 삭제', text:'서버 사용량을 줄이기 위해 학생회 단체 채팅과 학번별 채팅을 없앴어요. 친구와의 1:1 채팅은 그대로 쓸 수 있어요' },
+    { title:'채팅방은 최근 메시지 10개만 먼저 불러와요', text:'채팅방을 열면 최근 10개만 보이고, 위쪽의 "이전 메시지 더보기"를 누르면 20개씩 더 불러와요' },
+    { title:'연달아 보낸 채팅 알림은 한 번만', text:'같은 사람이 1분 안에 같은 대화로 여러 개를 보내면 알림은 마지막 하나만 와요' },
+    { title:'계정을 바꿔 로그인해도 예전 계정 알림이 오던 문제 수정', text:'같은 폰에서 다른 계정으로 로그인하면 예전 계정에서 켜둔 알림(예: 조식)이 계속 오던 문제를 고쳤어요. 로그아웃하면 이 기기는 그 계정의 알림 대상에서 빠져요', type:'fix' },
+    { title:'알림이 한 계정당 기기 하나로 도착', text:'폰(앱 → PWA → 폰 브라우저 순)과 컴퓨터 브라우저에 각각 하나씩만 알림이 가요. 같은 알림이 여러 기기에서 한꺼번에 울리지 않아요', type:'fix' },
+    { title:'친구 요청 알림을 눌러도 화면이 안 열리던 문제 수정', text:'친구 요청·수락 알림을 누르면 친구 화면으로 이동해요', type:'fix' },
+  ]},
   { version:'Beta 0.3.3', date:'2026-09-28', items:[
     { title:'일정 추가에서 여러 날짜 걸치는 일정 등록', text:'일정을 추가할 때 시작일과 종료일을 따로 골라 여러 날짜에 걸친 일정을 등록할 수 있어요' },
     { title:'일정 상세 펼침 화면 정리', text:'일정을 눌러 펼쳤을 때 시간·장소가 한 줄에 나란히 보이고, 메모·수정·삭제는 구분선 아래로 깔끔하게 정리됐어요' },
