@@ -798,11 +798,12 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-// 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(0.4.2, 0.4.3 …).
-// 안드로이드 앱(APK) 자체의 버전 이름은 android/app/build.gradle의 versionName이고, 이쪽은 APK를 새로 낼 때만 바뀐다.
-const APP_VERSION = '0.4.2';
-// 패치노트 항목은 'Beta 0.4.2'처럼 계열 이름이 붙어 있어서(패치노트 화면이 Beta/Alpha별로 묶는다), 숫자만 있는 APP_VERSION과 비교할 땐 계열 이름을 뗀다.
-function patchNotesFor(v){ return PATCH_NOTES.find(p => String(p.version).replace(/^(Beta|Alpha) +/, '') === v); }
+// 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.2, Beta 0.4.3 …).
+// 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
+// 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
+const APP_VERSION = 'Beta 0.4.2';
+// 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
+function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 174;
