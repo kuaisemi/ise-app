@@ -482,6 +482,12 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
    아이콘과 글자 사이 간격은 gap으로 주고, 설명은 제목 아래로 내려 두 줄로 읽히게 한다. */
 .notify-row{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 2px; font-size:11.5px; color:var(--text);}
 .notify-row + .notify-row{border-top:1px solid var(--hairline);}
+.notify-row.is-off .notify-label{opacity:.45;}
+/* 홈 화면 표시/숨김: 하나로 이어진 두 칸짜리 선택기. 표시는 골드, 숨김은 눌린 회색 칸으로 구분한다 */
+.seg-vis{display:inline-flex; align-items:center; gap:2px; padding:3px; border-radius:999px; background:var(--surface-3); border:1px solid var(--border); flex-shrink:0;}
+.seg-vis-btn{border:none; background:transparent; color:var(--text-faint); font-family:inherit; font-size:11px; font-weight:700; line-height:1; padding:6px 13px; border-radius:999px; cursor:pointer; transition:background .15s, color .15s;}
+.seg-vis-btn.on-show{background:var(--teal); color:var(--teal-ink);}
+.seg-vis-btn.on-hide{background:var(--surface); color:var(--text-dim); box-shadow:0 0 0 1px var(--border);}
 .notify-label{display:flex; align-items:center; gap:10px; min-width:0;}
 .notify-label > svg{flex-shrink:0; color:var(--text-dim);}
 .notify-label-text{display:flex; flex-direction:column; gap:3px; min-width:0;}
@@ -3018,9 +3024,9 @@ function moveHomeOrderItem(key, dir){
 // 동작을 뜻하는 두 개짜리 선택형(표시 버튼=표시로 전환, 숨김 버튼=숨김으로 전환)으로 바꿨다.
 function homePrefToggleHtml(key, hidden){
   return `
-    <div style="display:flex; gap:4px;">
-      <button type="button" class="btn ${!hidden?'btn-primary':'btn-ghost'} btn-sm" data-action="set-home-pref" data-key="${key}" data-val="0" style="width:auto; padding:4px 10px; font-size:11px;">표시</button>
-      <button type="button" class="btn ${hidden?'btn-primary':'btn-ghost'} btn-sm" data-action="set-home-pref" data-key="${key}" data-val="1" style="width:auto; padding:4px 10px; font-size:11px;">숨김</button>
+    <div class="seg-vis">
+      <button type="button" class="seg-vis-btn ${!hidden?'on-show':''}" data-action="set-home-pref" data-key="${key}" data-val="0">표시</button>
+      <button type="button" class="seg-vis-btn ${hidden?'on-hide':''}" data-action="set-home-pref" data-key="${key}" data-val="1">숨김</button>
     </div>`;
 }
 // 순서 변경 모드에서는 표시/숨김 버튼 대신 위/아래 화살표 두 개가 그 자리를 대신한다.
@@ -7481,10 +7487,8 @@ function renderMypage(){
         <p style="margin:0; font-size:11.5px; font-weight:700;">홈 화면 보기 설정</p>
         <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
       </div>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.4;">
-        ${state.homeReorderMode ? '화살표를 눌러 홈 화면에 보이는 순서를 바꿀 수 있어요.' : '홈 화면에서 필요 없는 항목만 각각 숨길 수 있어요.'}
-      </p>
-      <div class="notify-row">
+      ${state.homeReorderMode ? `<p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.4;">화살표를 눌러 홈 화면에 보이는 순서를 바꿀 수 있어요.</p>` : '<div style="height:8px;"></div>'}
+      <div class="notify-row ${(!state.homeReorderMode && hp.hideVotedPolls) ? 'is-off' : ''}">
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>${state.homeReorderMode ? '항상 맨 위에 고정돼요' : '내가 이미 참여한 투표는 목록에서 숨겨요'}</small></span></span>
         ${state.homeReorderMode ? '' : homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls)}
       </div>
@@ -7500,11 +7504,11 @@ function renderMypage(){
         // "다가오는 내 일정"은 학사일정과 한 자리(calendar)를 같이 쓰지만 숨김 여부는 따로 둔다 —
         // 순서 변경 모드에서는 화살표 두 벌을 나란히 둘 자리가 없어서 그 칸 바로 아래에만 덧붙인다.
         return `
-      <div class="notify-row">
+      <div class="notify-row ${(!state.homeReorderMode && meta.hidden) ? 'is-off' : ''}">
         <span class="notify-label">${meta.icon}<span class="notify-label-text"><b>${meta.label}</b></span></span>
         ${state.homeReorderMode ? homeOrderMoveHtml(key, i===0, i===hp.order.length-1) : homePrefToggleHtml(hideKey, meta.hidden)}
       </div>${(key==='calendar' && !state.homeReorderMode) ? `
-      <div class="notify-row">
+      <div class="notify-row ${hp.hideUpcomingMine ? 'is-off' : ''}">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>다가오는 내 일정</b><small>내가 만든 개인 일정만</small></span></span>
         ${homePrefToggleHtml('hideUpcomingMine', hp.hideUpcomingMine)}
       </div>` : ''}`;
