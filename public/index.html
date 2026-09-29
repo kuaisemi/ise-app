@@ -785,11 +785,14 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.3.4';
+const APP_VERSION = 'Beta 0.4.0';
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 172;
+const ANDROID_VERSION_CODE = 173;
 const PATCH_NOTES = [
+  { version:'Beta 0.4.0', date:'2026-09-29', items:[
+    { title:'앱 화면 업데이트를 자동으로 받아요', text:'이제 화면·기능 변경은 새 앱을 설치하지 않아도 앱이 알아서 받아와요. 새 업데이트가 준비되면 아래에 안내가 뜨고, 적용을 누르면 바로 바뀌어요. 문제가 있으면 자동으로 이전 화면으로 돌아가요' },
+  ]},
   { version:'Beta 0.3.4', date:'2026-09-29', items:[
     { title:'학생회 채팅·학번별 채팅 기능 삭제', text:'서버 사용량을 줄이기 위해 학생회 단체 채팅과 학번별 채팅을 없앴어요. 친구와의 1:1 채팅은 그대로 쓸 수 있어요' },
     { title:'채팅방은 최근 메시지 10개만 먼저 불러와요', text:'채팅방을 열면 최근 10개만 보이고, 위쪽의 "이전 메시지 더보기"를 누르면 20개씩 더 불러와요' },
@@ -2647,6 +2650,136 @@ let presenceHeartbeatStarted = false;
 // 서비스워커의 업데이트 감지를 쓰지 않는 이유: sw.js 파일 내용은 배포해도 그대로라서
 // 브라우저가 "새 서비스워커"로 보지 않는다. 그래서 매 빌드마다 값이 바뀌는 version.json을
 // 따로 둔다. APK는 index.html이 apk 안에 들어 있어 새로고침해도 그대로라 대상이 아니다.
+/* ===== 웹 패치(OTA) =====
+   이 앱은 웹 화면(index.html 묶음)을 APK 안에 넣어 두고 웹뷰로 연다. 그래서 화면만 고쳐도 매번 새 APK를
+   받아 설치해야 했다. 여기서는 서버(Firebase 호스팅)에 올라간 새 화면 묶음을 앱이 알아서 내려받아 기기에
+   저장하고, 웹뷰가 APK 안의 파일 대신 그 폴더를 열게 한다(Capacitor WebView.setServerBasePath).
+   안드로이드 코드(위젯·권한·플러그인)를 바꾸는 변경만 여전히 새 APK가 필요하다.
+
+   - 버전은 빌드 식별자(BUILD_ID, 14자리 숫자)로 비교한다. 서버 쪽 ota-manifest.json에 파일 목록과
+     각 파일의 sha256이 들어 있고, 내려받은 뒤 해시가 다르면 그 패치는 버린다.
+   - 이미 이 화면이 가진 파일(해시가 같은 것)은 서버에서 다시 받지 않고 지금 화면에서 복사한다.
+   - 패치는 다 받아 둔 뒤 사용자가 "적용"을 눌렀을 때만 전환한다(입력 중 갑자기 새로고침되지 않게).
+   - 새 패치가 깨져서 화면이 안 뜨면 네이티브(OtaPlugin)가 두 번째 시작에서 APK 원본으로 되돌린다.
+     화면이 정상적으로 뜨고 오류가 없었을 때만 스스로 "확인됨"을 알린다.
+   - OTA_BASE가 자리표시자 그대로(빌드를 거치지 않은 원본)면 통째로 꺼져 있다. */
+const OTA_BASE = '__OTA_BASE__';
+const otaBootErrors = [];
+window.addEventListener('error', (e) => { otaBootErrors.push(String((e && e.message) || 'error')); });
+window.addEventListener('unhandledrejection', (e) => { otaBootErrors.push(String((e && e.reason && e.reason.message) || 'rejection')); });
+function otaPlugins(){
+  const P = (typeof Capacitor !== 'undefined' && Capacitor.Plugins) ? Capacitor.Plugins : null;
+  return P && P.Ota && P.Filesystem && P.WebView ? P : null;
+}
+function otaEnabled(){
+  return isNativePlatformNow() && OTA_BASE.indexOf('__OTA') !== 0 && BUILD_ID.indexOf('__BUILD') !== 0 && !!otaPlugins();
+}
+function otaToBase64(buf){
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for(let i = 0; i < bytes.length; i += 0x8000){
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+async function otaSha256(buf){
+  const d = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+// 화면이 실제로 그려졌고 시작 직후 오류가 없었을 때만 이 패치를 "정상"으로 확인한다.
+async function otaConfirmBoot(){
+  if(!otaEnabled()) return;
+  try{
+    const P = otaPlugins();
+    const st = await P.Ota.state();
+    if(!st.pending || st.pending !== BUILD_ID) return;
+    const drawn = APP && APP.innerHTML.length > 500;
+    if(!drawn || otaBootErrors.length){
+      console.warn('[ota] 확인 보류 — 화면 그려짐:', drawn, '오류:', otaBootErrors.slice(0, 3));
+      return;
+    }
+    await P.Ota.confirm({ version: BUILD_ID });
+    // 지난 패치 폴더 정리 — 지금 쓰는 것만 남긴다.
+    try{
+      const list = await P.Filesystem.readdir({ path: 'ota', directory: 'DATA' });
+      for(const f of (list.files || [])){
+        const name = f.name || f;
+        if(name && name !== BUILD_ID) await P.Filesystem.rmdir({ path: 'ota/' + name, directory: 'DATA', recursive: true }).catch(()=>{});
+      }
+    }catch(e){ /* 폴더가 없으면 그냥 넘어간다 */ }
+  }catch(e){ console.warn('[ota] confirm', e); }
+}
+let otaChecking = false;
+let otaReady = null; // { build, path } — 다 받아 둔, 적용만 남은 패치
+// 새 패치가 있으면 내려받아 저장해 둔다(적용은 사용자가 누를 때). 결과를 문자열로 돌려준다.
+async function otaCheck(){
+  if(!otaEnabled()) return 'off';
+  if(otaChecking) return 'busy';
+  if(otaReady) return 'ready';
+  otaChecking = true;
+  try{
+    const P = otaPlugins();
+    const st = await P.Ota.state();
+    if(st.pending) return 'pending';   // 확인 안 된 패치가 있는 동안엔 새 패치를 받지 않는다
+    const res = await fetch(OTA_BASE + 'ota-manifest.json?t=' + Date.now(), { cache: 'no-store' });
+    if(!res.ok) return 'fail';
+    const m = await res.json();
+    if(!m || !m.build || !Array.isArray(m.files) || !m.files.length) return 'fail';
+    if(String(m.build) <= String(BUILD_ID)) return 'latest';
+    if(String(m.build) === String(st.failed)) return 'failed-before';
+    if(Number(m.minApk || 0) > ANDROID_VERSION_CODE){ state.otaNeedsApk = true; return 'need-apk'; }
+
+    // 이 화면이 이미 가진 파일의 해시 — 같으면 서버 대신 지금 화면에서 복사한다.
+    const have = {};
+    try{
+      const cr = await fetch('./ota-manifest.json?t=' + Date.now(), { cache: 'no-store' });
+      if(cr.ok){ ((await cr.json()).files || []).forEach(f => { have[f.path] = f.sha256; }); }
+    }catch(e){ /* 없으면 전부 서버에서 받는다 */ }
+
+    const dir = 'ota/' + m.build;
+    await P.Filesystem.rmdir({ path: dir, directory: 'DATA', recursive: true }).catch(()=>{});
+    for(const f of m.files){
+      const src = (have[f.path] === f.sha256) ? ('./' + f.path) : (OTA_BASE + f.path + '?v=' + m.build);
+      const r = await fetch(src, { cache: 'no-store' });
+      if(!r.ok) throw new Error('다운로드 실패 ' + f.path + ' ' + r.status);
+      const buf = await r.arrayBuffer();
+      if(await otaSha256(buf) !== f.sha256) throw new Error('해시 불일치 ' + f.path);
+      await P.Filesystem.writeFile({ path: dir + '/' + f.path, directory: 'DATA', data: otaToBase64(buf), recursive: true });
+    }
+    await P.Filesystem.writeFile({ path: dir + '/ota-manifest.json', directory: 'DATA', data: btoa(unescape(encodeURIComponent(JSON.stringify(m)))), recursive: true });
+    const uri = await P.Filesystem.getUri({ path: dir, directory: 'DATA' });
+    otaReady = { build: String(m.build), path: String(uri.uri).replace(/^file:\/\//, '') };
+    showOtaBar();
+    return 'ready';
+  }catch(e){
+    console.warn('[ota] check', e);
+    return 'fail';
+  }finally{ otaChecking = false; }
+}
+function showOtaBar(){
+  if(document.getElementById('ota-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'ota-bar';
+  bar.className = 'update-bar';
+  bar.innerHTML = '<span>새 화면 업데이트가 준비됐어요</span><button type="button" class="update-bar-btn" data-action="ota-apply">적용</button>';
+  document.body.appendChild(bar);
+}
+async function otaApply(){
+  if(!otaReady || !otaEnabled()) return;
+  const P = otaPlugins();
+  try{
+    await P.Ota.arm({ version: otaReady.build, path: otaReady.path });   // 대기 표시 + 다음 시작에도 이 폴더를 쓰도록 저장
+    await P.WebView.setServerBasePath({ path: otaReady.path });           // 웹뷰가 새 폴더로 다시 열린다
+  }catch(e){
+    console.warn('[ota] apply', e);
+    toast('업데이트를 적용하지 못했어요');
+  }
+}
+if(isNativePlatformNow()){
+  setTimeout(otaConfirmBoot, 8000);
+  setTimeout(otaCheck, 15000);
+}
+
 let updateBannerShown = false;
 function isNativePlatformNow(){
   return typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
@@ -7470,6 +7603,7 @@ function updateCheckModal(loading){
     <p style="font-size:12px; color:var(--text-dim); line-height:1.6; margin:0 0 14px;">${statusText}</p>
     ${currentVersionNotesHtml()}
     <button type="button" class="btn btn-ghost btn-sm" data-action="show-patch-notes" style="width:100%; margin-bottom:8px;">${ICON.clipboard} 이전 버전 패치노트 모두 보기</button>
+    ${(isNativeApp && otaEnabled()) ? `<button type="button" class="btn btn-ghost btn-sm" data-action="ota-check" style="width:100%; margin-bottom:8px;">${ICON.download} 화면 업데이트 확인 (화면 버전 ${escapeHtml(BUILD_ID)})</button>` : ''}
     ${(!loading && hasUpdate) ? `<a href="${APK_DOWNLOAD_URL}" class="btn btn-primary" style="text-decoration:none; display:block; text-align:center;">${ICON.download} 새 버전 다운로드</a>` : ''}`;
 }
 function bugReportModal(){
@@ -11442,6 +11576,12 @@ document.addEventListener('click', async (e)=>{
       refreshUserDetailBody();
     }
     else if(a === 'reload-app'){ await reloadForUpdate(); }
+    else if(a === 'ota-apply'){ await otaApply(); }
+    else if(a === 'ota-check'){
+      toast('화면 업데이트를 확인하는 중…');
+      const r = await otaCheck();
+      toast({ ready:'새 화면 업데이트가 준비됐어요 — 아래 적용 버튼을 눌러주세요', latest:'이미 최신 화면이에요', pending:'방금 적용한 업데이트를 확인하는 중이에요', off:'이 앱에서는 화면 업데이트를 쓰지 않아요', busy:'이미 확인 중이에요', 'need-apk':'이 업데이트는 앱(APK)을 먼저 새로 설치해야 해요', 'failed-before':'이전에 적용에 실패한 업데이트라 건너뛰었어요' }[r] || '확인하지 못했어요. 잠시 후 다시 시도해주세요');
+    }
     else if(a === 'manage-roster'){ openModal(await rosterModal()); }
     else if(a === 'manage-gemini-keys'){ openModal(await geminiKeysModal()); }
     else if(a === 'change-password'){ openModal(changePasswordModal()); }

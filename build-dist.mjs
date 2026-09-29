@@ -16,6 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { minify } from 'terser';
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([a-zA-Z]:)/, '$1');
@@ -70,6 +71,8 @@ async function processSwJs() {
 function copyDir(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    // .playwright-mcp 같은 점(.)으로 시작하는 작업 폴더가 dist·APK에 딸려 들어가지 않게 건너뛴다.
+    if (entry.name.startsWith('.')) continue;
     const s = path.join(src, entry.name);
     const d = path.join(dest, entry.name);
     if (entry.isDirectory()) copyDir(s, d);
@@ -96,6 +99,43 @@ function injectBuildId(html, buildId) {
   return html.replace(re, `const BUILD_ID = "${buildId}";`);
 }
 
+// 웹 패치(OTA) — public/index.html의 OTA_BASE 자리표시자에 패치를 받을 주소를 넣는다. 환경변수
+// OTA_BASE를 주지 않은 빌드는 자리표시자가 그대로 남아서 앱의 패치 기능이 통째로 꺼진다(기본).
+function injectOtaBase(html, base) {
+  const re = /const OTA_BASE = ["'][^"']*["'];/;
+  if (!re.test(html)) throw new Error('OTA_BASE 자리표시자를 못 찾음 — public/index.html이 바뀌었는지 확인');
+  return base ? html.replace(re, `const OTA_BASE = "${base}";`) : html;
+}
+
+// 패치로 내려받을 파일 목록과 각 파일의 sha256. 앱이 받은 뒤 해시를 다시 계산해서 다르면 버린다.
+// 앱 안에서 안 쓰는 큰 파일(e1.png)은 목록에서 뺀다(APK에는 그대로 들어간다).
+const OTA_EXCLUDE = new Set(['ota-manifest.json', 'version.json', 'e1.png']);
+function listFiles(dir, base = '') {
+  const out = [];
+  for (const entry of fs.readdirSync(path.join(dir, base), { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue;
+    const rel = base ? base + '/' + entry.name : entry.name;
+    if (entry.isDirectory()) out.push(...listFiles(dir, rel));
+    else if (!OTA_EXCLUDE.has(rel)) out.push(rel);
+  }
+  return out.sort();
+}
+function apkVersionCode() {
+  const g = fs.readFileSync(path.join(ROOT, 'android', 'app', 'build.gradle'), 'utf8');
+  const m = /versionCode\s+(\d+)/.exec(g);
+  return m ? Number(m[1]) : 0;
+}
+function writeOtaManifest(buildId) {
+  const files = listFiles(OUT_DIR).map((p) => {
+    const buf = fs.readFileSync(path.join(OUT_DIR, p));
+    return { path: p, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') };
+  });
+  const minApk = Number(process.env.OTA_MIN_APK) || apkVersionCode();
+  const manifest = { build: buildId, minApk, files };
+  fs.writeFileSync(path.join(OUT_DIR, 'ota-manifest.json'), JSON.stringify(manifest) + '\n', 'utf8');
+  return manifest;
+}
+
 async function main() {
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   copyDir(SRC_DIR, OUT_DIR);
@@ -104,11 +144,15 @@ async function main() {
 
   let strippedHtml = await processIndexHtml();
   strippedHtml = injectBuildId(strippedHtml, buildId);
+  strippedHtml = injectOtaBase(strippedHtml, process.env.OTA_BASE || '');
   fs.writeFileSync(path.join(OUT_DIR, 'index.html'), strippedHtml, 'utf8');
   fs.writeFileSync(path.join(OUT_DIR, 'version.json'), JSON.stringify({ build: buildId }) + '\n', 'utf8');
 
   const strippedSw = await processSwJs();
   fs.writeFileSync(path.join(OUT_DIR, 'sw.js'), strippedSw, 'utf8');
+
+  const manifest = writeOtaManifest(buildId);
+  console.log(`ota-manifest.json — 파일 ${manifest.files.length}개, minApk ${manifest.minApk}, OTA ${process.env.OTA_BASE ? '켬 (' + process.env.OTA_BASE + ')' : '끔'}`);
 
   const beforeSize = fs.statSync(path.join(SRC_DIR, 'index.html')).size;
   const afterSize = fs.statSync(path.join(OUT_DIR, 'index.html')).size;

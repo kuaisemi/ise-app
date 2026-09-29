@@ -31,6 +31,9 @@ public class MainActivity extends BridgeActivity {
         // 웹에서 홈 화면 위젯으로 데이터를 넘길 통로.
         // registerPlugin은 super.onCreate() 전에 불러야 브리지가 만들어질 때 함께 등록된다.
         registerPlugin(WidgetBridgePlugin.class);
+        registerPlugin(OtaPlugin.class);
+        // 웹 패치가 깨져서 화면이 안 뜨는 경우를 위한 되돌리기 — 브리지가 저장된 패치 경로를 읽기 전에 해야 한다.
+        OtaPlugin.guardBoot(this);
         super.onCreate(savedInstanceState);
         disableAlgorithmicDarkening();
         setupStatusBar();
