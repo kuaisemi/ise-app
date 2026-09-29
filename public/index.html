@@ -3732,7 +3732,7 @@ function colorPickerModal(id, hex, title){
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   const WIDGET_TYPE_ICONS = {
-    timetable: ICON.grid, nextClass: ICON.bell, week: ICON.weekBars, meal: ICON.bowl,
+    timetable: ICON.grid, nextClass: ICON.bell, week: ICON.weekBars, meal: ICON.utensils,
     schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendarWideIcon, date: ICON.todayCal,
   };
   return `
@@ -4440,6 +4440,7 @@ const ICON = {
   // (24 viewBox / currentColor / round cap)으로 그려서 테마 색과 글씨 크기를 그대로 따라간다.
   ballot:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M8 10V3h8v7"/><path d="M10.5 6.5h3"/></svg>`,
   bowl:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M2.5 21h19"/><path d="M9 7c0-1 1-1.4 1-2.5S9 3 9 3M14.5 7c0-1 1-1.4 1-2.5S14.5 3 14.5 3"/></svg>`,
+  utensils:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
   bell:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 8-2.5 8h17S18 15 18 8.5"/><path d="M13.7 20.5a2 2 0 0 1-3.4 0"/></svg>`,
   capHat:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4z"/><path d="M6 11v4.5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V11"/></svg>`,
   tie:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2h5l-1.2 3.5h-2.6z"/><path d="M10.7 5.5 8.5 14 12 22l3.5-8-2.2-8.5"/></svg>`,
@@ -5309,18 +5310,18 @@ function ttOptionsModal(){
     <div class="modal-title">화면 표시 설정<button data-action="close-modal">${ICON.close}</button></div>
     <div class="card" style="padding:14px;" id="tt-opts-panel">
       <div style="margin-bottom:16px;">
-        <div class="row-between" style="margin-bottom:8px;">
-          <span style="color:var(--text); font-size:11.5px; font-weight:600;">글씨 크기</span>
-          <span id="tt-font-scale-label" style="font-family:var(--font-mono); font-size:11.5px; color:var(--teal);">${Math.round(fontScale*100)}%</span>
+        <p class="set-label sm">글씨 크기</p>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="range" id="tt-font-scale-slider" min="0.7" max="1.6" step="0.01" value="${fontScale}" style="flex:1;">
+          <span class="range-val"><input type="number" id="tt-font-scale-label" class="range-num" inputmode="numeric" min="70" max="160" value="${Math.round(fontScale*100)}"><b>%</b></span>
         </div>
-        <input type="range" id="tt-font-scale-slider" min="0.7" max="1.6" step="0.05" value="${fontScale}" style="width:100%;">
       </div>
       <div style="margin-bottom:16px;">
-        <div class="row-between" style="margin-bottom:8px;">
-          <span style="color:var(--text); font-size:11.5px; font-weight:600;">시간표 크기</span>
-          <span id="tt-row-scale-label" style="font-family:var(--font-mono); font-size:11.5px; color:var(--teal);">${Math.round(rowScale*100)}%</span>
+        <p class="set-label sm">시간표 크기</p>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="range" id="tt-row-scale-slider" min="0.6" max="1" step="0.01" value="${rowScale}" style="flex:1;">
+          <span class="range-val"><input type="number" id="tt-row-scale-label" class="range-num" inputmode="numeric" min="60" max="100" value="${Math.round(rowScale*100)}"><b>%</b></span>
         </div>
-        <input type="range" id="tt-row-scale-slider" min="0.6" max="1" step="0.05" value="${rowScale}" style="width:100%;">
         <p style="font-size:10px; color:var(--text-faint); margin:4px 2px 0; line-height:1.5;">화면에 꽉 차게 나오는 크기가 100%예요. 스크롤 없이 보이는 한도 안에서만 줄일 수 있어요.</p>
         <p id="tt-row-scale-warn" style="font-size:10px; color:var(--amber); margin:4px 2px 0; line-height:1.5; ${rowScale<=0.8?'':'display:none;'}">⚠ 너무 많이 줄이면 글자가 잘리거나 깨질 수 있어요.</p>
       </div>
@@ -5372,7 +5373,13 @@ function setupTtOptionsModalListeners(){
   const fontSlider = document.getElementById('tt-font-scale-slider');
   const fontLabel = document.getElementById('tt-font-scale-label');
   if(fontSlider && fontLabel){
-    fontSlider.oninput = ()=>{ fontLabel.textContent = Math.round(parseFloat(fontSlider.value)*100)+'%'; };
+    fontSlider.oninput = ()=>{ fontLabel.value = Math.round(parseFloat(fontSlider.value)*100); };
+    fontLabel.onchange = ()=>{
+      let v = parseInt(fontLabel.value, 10); if(isNaN(v)) v = Math.round(parseFloat(fontSlider.value)*100);
+      v = Math.max(70, Math.min(160, v)); fontLabel.value = v; fontSlider.value = v/100;
+      fontSlider.dispatchEvent(new Event('input', { bubbles:true }));
+    };
+    fontLabel.onkeydown = (e)=>{ if(e.key === 'Enter') fontLabel.blur(); };
   }
   const rowSlider = document.getElementById('tt-row-scale-slider');
   const rowLabel = document.getElementById('tt-row-scale-label');
@@ -5380,9 +5387,15 @@ function setupTtOptionsModalListeners(){
   if(rowSlider && rowLabel){
     rowSlider.oninput = ()=>{
       const v = parseFloat(rowSlider.value);
-      rowLabel.textContent = Math.round(v*100)+'%';
+      rowLabel.value = Math.round(v*100);
       if(rowWarn) rowWarn.style.display = v<=0.8 ? '' : 'none';
     };
+    rowLabel.onchange = ()=>{
+      let v = parseInt(rowLabel.value, 10); if(isNaN(v)) v = Math.round(parseFloat(rowSlider.value)*100);
+      v = Math.max(60, Math.min(100, v)); rowLabel.value = v; rowSlider.value = v/100;
+      rowSlider.dispatchEvent(new Event('input', { bubbles:true }));
+    };
+    rowLabel.onkeydown = (e)=>{ if(e.key === 'Enter') rowLabel.blur(); };
   }
 }
 function applyTtOptions(){
@@ -7696,7 +7709,7 @@ function renderMypage(){
         const meta = {
           timetable: { icon:ICON.grid,     label:'오늘의 시간표', hidden:hp.hideTodayTimetable },
           recruits:  { icon:ICON.doc,      label:'구인글',       hidden:hp.hideRecruits },
-          meal:      { icon:ICON.bowl,     label:'오늘의 학식',   hidden:hp.hideTodayMeal },
+          meal:      { icon:ICON.utensils, label:'오늘의 학식',   hidden:hp.hideTodayMeal },
           shuttle:   { icon:ICON.bus,      label:'셔틀버스',      hidden:hp.hideShuttle },
           calendar:  { icon:ICON.calendar, label:'다가오는 학사일정', hidden:hp.hideUpcomingCalendar },
           mine:      { icon:ICON.calendarMy, label:'다가오는 내 일정', sub:'내가 만든 개인 일정만', hidden:hp.hideUpcomingMine },
@@ -7740,18 +7753,18 @@ function renderMypage(){
         <button type="button" class="tgl ${np.timetable?'on':''}" data-action="toggle-notify" data-key="timetable" role="switch" aria-checked="${!!np.timetable}" ${isNativeApp?'':'disabled'}></button>
       </div>
       ${np.timetable && isNativeApp ? `
-      <div class="notify-subrow">
+      <div class="notify-subrow" style="border-top:none; padding:0 2px 10px;">
         <span class="sub-lbl" style="flex-shrink:0;">알림 시각</span>
         <div class="seg-group sm"><span class="seg-thumb" style="--n:3; --i:${Math.max(0, [7,8,9].indexOf(np.timetableHour))};"></span>
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetableHour===h?'on':''}" data-action="set-notify-hour" data-hour="${h}">${h}시</button>`).join('')}
         </div>
       </div>` : ''}
       <div class="notify-row" style="border-top:1px solid var(--hairline); padding-bottom:8px;">
-        <span class="notify-label">${ICON.bowl}<span class="notify-label-text"><b>학식</b><small>지점·끼니별로 따로 설정</small></span></span>
+        <span class="notify-label">${ICON.utensils}<span class="notify-label-text"><b>학식</b></span></span>
       </div>
       <div class="chip-row" style="--cols:2;">
-        <button type="button" class="chip-tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" aria-pressed="${!!np.mealJinri}">진리관</button>
-        <button type="button" class="chip-tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" aria-pressed="${!!np.mealMirae}">미래관</button>
+        <button type="button" class="chip-tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" aria-pressed="${!!np.mealJinri}">진리관<em>학생</em></button>
+        <button type="button" class="chip-tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" aria-pressed="${!!np.mealMirae}">미래관<em>교직원</em></button>
       </div>
       <div class="chip-row" style="--cols:3;">
         <button type="button" class="chip-tgl ${np.mealBreakfast?'on':''}" data-action="toggle-notify" data-key="mealBreakfast" aria-pressed="${!!np.mealBreakfast}">조식<em>7시</em></button>
