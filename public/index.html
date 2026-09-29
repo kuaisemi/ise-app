@@ -4602,10 +4602,9 @@ function setupTimetableResizeListener(){
 function renderHome(){
   const di = todayDayIndex();
   const todays = di>=0 ? state.timetable.filter(c=>c.day===di).sort((a,b)=>a.start-b.start) : [];
-  // 홈 학식 카드: 낮 12시 전까지는 오늘의 조식·중식을, 12시부터는 내일의 조식·중식을 보여준다.
-  // 중간에 "운영 종료"로 사라지는 구간이 없다(석식은 홈에서 뺐다). 진리관·미래관 모두 같은 날짜 기준.
-  const mealAfterNoon = new Date().getHours() >= 12;
-  const mealDate = mealAfterNoon ? addDays(todayStr(), 1) : todayStr();
+  // 홈 학식 카드: 밤 12시(00:00)를 기준으로 날짜가 바뀌어 그날의 식단을 보여준다. 중간에 "운영 종료"로
+  // 사라지는 구간이 없고(석식은 홈에서 뺐다), 진리관·미래관 모두 같은 날짜 기준이다.
+  const mealDate = todayStr();
   const mealDay = state.meals[mealDate] || {};
   const studentMeal = mealDay.student || null;
   const staffMeal = mealDay.staff || null;
@@ -4676,12 +4675,12 @@ function renderHome(){
       // 주말은 식당을 안 하니 카드를 숨긴다.
       const wd = new Date(mealDate+'T00:00:00').getDay();
       if(wd===0 || wd===6) return '';
-      // 오늘이 공휴일이면 12시 이후로는 카드를 숨긴다(내일 식단을 미리 보여줄 이유가 없다).
-      if(mealAfterNoon && isHolidayDate(todayStr())) return '';
+      // 공휴일에는 식당을 안 하니 카드를 숨긴다.
+      if(isHolidayDate(mealDate)) return '';
       // 진리관은 시간 루틴대로 항상 한 끼만 보여준다(조식·중식이 동시에 나오지 않는다):
-      //   12시~자정 → 내일의 조식 / 자정~9시 → 오늘의 조식 / 9시~12시 → 오늘의 중식
+      //   00:00~09:00 → 조식 / 09:00~24:00 → 중식
       const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
-      const showBreakfast = mealAfterNoon || nowMins < 9 * 60;
+      const showBreakfast = nowMins < 9 * 60;
       const showLunch = !showBreakfast;
       const row = (icon, title, color, text, hoursKey, stripPlus, divider) => `
         <div class="meal-block"${divider ? ' style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"' : ''}>
@@ -4695,13 +4694,13 @@ function renderHome(){
       const hasAnyMeal = !!(studentMeal && ((showBreakfast && studentMeal.breakfast) || (showLunch && studentMeal.lunch))) || !!(staffMeal && staffMeal.lunch);
       if(!hasAnyMeal){
         return `
-    <div class="section-title">${mealAfterNoon ? '내일의 학식' : '오늘의 학식'}</div>
+    <div class="section-title">오늘의 학식</div>
     <div class="card" data-action="go-meal-tab" style="cursor:pointer;">
       <div class="m-text" style="font-size:11.5px; color:var(--text-faint);">식단 정보가 아직 올라오지 않았어요.</div>
     </div>`;
       }
       return `
-    <div class="section-title">${mealAfterNoon ? '내일의 학식' : '오늘의 학식'}</div>
+    <div class="section-title">오늘의 학식</div>
     <div class="card" data-action="go-meal-tab" style="cursor:pointer;">
       ${showBreakfast ? row(ICON.capHat, '진리관 학생식당 조식', 'var(--teal)', studentMeal && studentMeal.breakfast, 'student_breakfast', false, false) : ''}
       ${showLunch ? row(ICON.capHat, '진리관 학생식당 중식', 'var(--teal)', studentMeal && studentMeal.lunch, 'student_lunch', true, false) : ''}
