@@ -317,7 +317,6 @@ async function purgeOldTombstones() {
 // 접수 시점에 최근 대화를 별도로 복사해 남겨둔다), 계속 쌓아두면 문서 수만 늘어난다.
 // chats/{pairId}/messages 서브컬렉션이 계정 쌍마다 따로 있어서, 하나씩 돌지 않고
 // collectionGroup으로 전체 메시지 컬렉션을 한 번에 훑는다.
-// 학생회·학번별 채팅과 같은 7일로 통일한다(예전엔 24시간이었다).
 const FRIEND_CHAT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 async function purgeOldChatMessages() {
   const cutoff = Date.now() - FRIEND_CHAT_TTL_MS;
@@ -331,46 +330,6 @@ async function purgeOldChatMessages() {
     await batch.commit();
   }
   console.log(`[chatPurge] 7일 지난 메시지 ${docs.length}건 삭제`);
-}
-
-// 학생회 채팅은 친구 채팅(24시간)보다 길게, 7일치를 보관한 뒤 지운다 — 방이 하나뿐이라
-// collectionGroup이 아니라 컬렉션을 바로 조회한다.
-const COUNCIL_CHAT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-async function purgeOldCouncilChatMessages() {
-  const cutoff = Date.now() - COUNCIL_CHAT_TTL_MS;
-  const snap = await db.collection('councilChatMessages').where('createdAt', '<', cutoff).get();
-  if (snap.empty) return;
-  const batchSize = 400;
-  const docs = snap.docs;
-  for (let i = 0; i < docs.length; i += batchSize) {
-    const batch = db.batch();
-    docs.slice(i, i + batchSize).forEach((d) => batch.delete(d.ref));
-    await batch.commit();
-  }
-  console.log(`[councilChatPurge] 7일 지난 메시지 ${docs.length}건 삭제`);
-}
-
-// cohortChats/{yy} 부모 문서는 실제로 만든 적이 없어(메시지만 서브컬렉션에 addDoc으로 쌓임)
-// db.collection('cohortChats').get()으로는 하나도 안 잡힌다("유령 부모" — 필드값 없는 문서 경로는
-// 컬렉션 목록에 안 뜬다). 그래서 있을 법한 학번 범위를 직접 돌면서 확인한다.
-async function purgeOldCohortChatMessages() {
-  const cutoff = Date.now() - COUNCIL_CHAT_TTL_MS;
-  const d = kstNow();
-  const ay = d.getUTCMonth() >= 1 ? d.getUTCFullYear() : d.getUTCFullYear() - 1;
-  const latestY2 = ay % 100;
-  for (let y = 21; y <= latestY2; y++) {
-    const yy = String(y).padStart(2, '0');
-    const snap = await db.collection('cohortChats').doc(yy).collection('messages').where('createdAt', '<', cutoff).get();
-    if (snap.empty) continue;
-    const batchSize = 400;
-    const docs = snap.docs;
-    for (let i = 0; i < docs.length; i += batchSize) {
-      const batch = db.batch();
-      docs.slice(i, i + batchSize).forEach((dd) => batch.delete(dd.ref));
-      await batch.commit();
-    }
-    console.log(`[cohortChatPurge] ${yy}학번 7일 지난 메시지 ${docs.length}건 삭제`);
-  }
 }
 
 async function main() {
@@ -413,9 +372,6 @@ async function main() {
   const pollTokensByStudentId = new Map(); // 투표 알림(prefs.poll 켠 사람)을 학번별로 묶어둔 것 — 그 투표에 아직 투표 안 한 사람만 골라 보낼 때 씀
   const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
   const chatOkUids = new Set(); // 채팅 알림을 켜둔 사람만
-  const cohortChatOkUids = new Set(); // 학번별 채팅 알림을 켜둔 사람만 (학번 구분 없이 하나로)
-  const councilChatTokens = []; // 학생회 채팅 알림을 켠 학생회 구성원 토큰 (즉시 발송용)
-  const cohortChatByYear = {}; // { '24': [tokens...] } — 학번별 채팅 알림을 켠 그 학번 사람들
   const tokenToUid = new Map();
   // 같은 기기에서 계정을 바꿔 로그인하면 그 기기 토큰이 여러 계정 문서에 남는다. 그대로 두면
   // 예전 계정이 켜둔 알림(예: 조식)이 지금 로그인한 계정 설정과 무관하게 그 폰으로 온다.
@@ -462,7 +418,6 @@ async function main() {
     if (u.studentId && prefs.poll) pollTokensByStudentId.set(u.studentId, tokens);
     tokensByUid.set(docSnap.id, tokens);
     if (prefs.chat) chatOkUids.add(docSnap.id);
-    if (prefs.cohortChat) cohortChatOkUids.add(docSnap.id);
     mealPrefsByUid.set(docSnap.id, {
       jinri: !!prefs.mealJinri,
       mirae: !!prefs.mealMirae,
@@ -478,12 +433,6 @@ async function main() {
       if (prefs.night) nightOkTokens.add(t);
       if (u.role === 'developer' || u.role === 'president') bugAlertTokens.push(t);
       if (u.role && u.role !== 'student') councilAlertTokens.push(t);
-      if (prefs.councilChat && u.role && u.role !== 'student') councilChatTokens.push(t);
-      // 학번별 채팅은 방이 학번마다 따로 있어서, 토큰도 그 학번 배열에만 넣는다.
-      if (prefs.cohortChat && u.cohortYear) {
-        if (!cohortChatByYear[u.cohortYear]) cohortChatByYear[u.cohortYear] = [];
-        cohortChatByYear[u.cohortYear].push(t);
-      }
     }
   });
   // 학식 알림 수신 대상: 지점(진리관/미래관)과 끼니(조식/중식/석식)를 둘 다 켠 사람만.
@@ -707,8 +656,6 @@ async function main() {
   await purgeGhostAuthAccounts(authUsers);
   await purgeOrphanedDirectoryAndFriendLinks(authUsers);
   await purgeOldChatMessages();
-  await purgeOldCouncilChatMessages();
-  await purgeOldCohortChatMessages();
   await processInactiveAccounts(usersSnap);
 
   // 만료/무효 토큰 정리 — 배열에서 해당 토큰만 빼고, 단일 필드는 그 토큰일 때만 지운다.
@@ -784,10 +731,6 @@ async function main() {
       recruit: alive(tokensBy.recruit),
       bugAlert: alive(bugAlertTokens),
       councilAlert: alive(councilAlertTokens),
-      // 학생회 채팅 — 방이 하나뿐이라 배열 하나로 충분하다.
-      councilChat: alive(councilChatTokens),
-      // 학번별 채팅 — 방이 학번마다 따로 있어서 학번별 배열로 쪼갠다.
-      cohortChat: Object.fromEntries(Object.entries(cohortChatByYear).map(([y, t]) => [y, alive(t)])),
       // 채팅처럼 "특정 한 사람"에게 보내는 알림(audience:'user')은 그 사람이 해당 알림
       // 종류를 켰는지를 uid 목록으로 따로 남겨서 Worker가 확인한다(친구 채팅용).
       chatOkUids: [...chatOkUids],

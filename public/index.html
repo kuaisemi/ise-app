@@ -2536,7 +2536,7 @@ function boot(){
           // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
           const np = getNotifyPrefs();
           syncNotifyPrefsToServer(np);
-          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.mealJinri || np.mealMirae || np.chat || np.councilChat)) ensurePushToken();
+          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.mealJinri || np.mealMirae || np.chat)) ensurePushToken();
           scheduleTimetableReminders();
           pushWidgetData();
           setupWidgetDeepLink();
@@ -2762,15 +2762,13 @@ function getNotifyPrefs(){
     recruit: localGet('notif_recruit', false),
     night: localGet('notif_night', false),
     chat: localGet('notif_chat', true),
-    councilChat: localGet('notif_councilChat', true),
-    cohortChat: localGet('notif_cohortChat', false),
     timetable: localGet('notif_timetable', false),
     timetableHour: localGet('notif_timetableHour', 8),
   };
 }
 // 서버(GitHub Actions)가 "누구에게 보낼지" 알아야 하는 항목만 Firestore에도 저장한다.
 // 시간표 알림은 기기 로컬 알림이라 서버가 알 필요 없음.
-const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'mealJinri', 'mealMirae', 'mealBreakfast', 'mealLunch', 'mealDinner', 'recruit', 'night', 'chat', 'councilChat', 'cohortChat'];
+const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'mealJinri', 'mealMirae', 'mealBreakfast', 'mealLunch', 'mealDinner', 'recruit', 'night', 'chat'];
 async function setNotifyPref(key, value){
   localSet('notif_'+key, value);
   if(SERVER_NOTIFY_KEYS.includes(key) && state.user){
@@ -2970,8 +2968,6 @@ function routeNotificationTap(category, data){
   else if(category==='meal'){ state.view='info'; state.infoTab='meal'; renderShell(); }
   else if(category==='timetable'){ state.view='timetable'; renderShell(); }
   else if(category==='chat'){ openFriendChatByPairId(data && data.pairId); }
-  else if(category==='councilChat' || category==='councilChatNotice'){ openSocialTab().then(openCouncilChat); }
-  else if(category==='cohortChat'){ if(data && data.cohortYear) openSocialTab().then(()=>openCohortChat(data.cohortYear)); }
   else if(category==='friend' || category==='friendRequest'){ openSocialTab(); }
   else if(category==='suggestion'){ state.view='council'; state.councilTab='suggestion'; renderShell(); }
 }
@@ -2982,13 +2978,6 @@ function isViewingChat(category, data){
   if(!(state.view === 'council' && state.councilTab === 'social')) return false;
   if(category === 'chat'){
     return state.friendsUI.screen === 'detail' && !!data && state.friendsUI.activePairId === data.pairId;
-  }
-  if(category === 'councilChat'){
-    return state.friendsUI.screen === 'councilChat';
-  }
-  if(category === 'cohortChat'){
-    return state.friendsUI.screen === 'cohortChat' && !!state.cohortChatUI && !!data
-      && String(state.cohortChatUI.year) === String(data.cohortYear);
   }
   return false;
 }
@@ -7660,38 +7649,17 @@ function chatMoreBtnHtml(key, shown){
   if(shown < chatLimitFor(key)) return '';
   return `<button type="button" data-action="chat-load-more" data-chat="${escapeHtml(key)}" style="align-self:center; background:none; border:1px solid var(--border); color:var(--text-dim); font-size:11px; border-radius:12px; padding:3px 10px; cursor:pointer;">이전 메시지 더보기</button>`;
 }
-// 단체 채팅은 새 메시지가 올 때마다 읽음 기록 문서를 읽고(getDoc) 내 읽음 시각을 쓴다(setDoc).
-// 방을 열어둔 사람마다 메시지 하나에 읽기 1·쓰기 1씩 붙어서 할당량을 빨리 먹으므로, 같은 방에서
-// 15초 안에는 이전 결과를 재사용하고 쓰기도 건너뛴다(읽음 표시가 최대 15초 늦어질 뿐이다).
-const chatMetaCache = {}; // 방 키 -> { at, data }
-const chatReadWriteAt = {}; // 방 키 -> 마지막으로 읽음 시각을 쓴 시각
-async function chatMetaCached(key, loader){
-  const c = chatMetaCache[key];
-  if(c && Date.now() - c.at < 15000) return c.data;
-  let data = {};
-  try{ const snap = await loader(); data = snap.exists() ? snap.data() : {}; }catch(e){}
-  chatMetaCache[key] = { at: Date.now(), data };
-  return data;
-}
-function chatMarkRead(key, writer){
-  if(Date.now() - (chatReadWriteAt[key]||0) < 15000) return;
-  chatReadWriteAt[key] = Date.now();
-  writer().catch(()=>{});
-}
-function chatForgetRoom(prefix){
-  [chatLimitState, chatMetaCache, chatReadWriteAt].forEach(o => Object.keys(o).forEach(k => { if(k.startsWith(prefix)) delete o[k]; }));
-}
+function chatForgetRoom(prefix){ Object.keys(chatLimitState).forEach(k => { if(k.startsWith(prefix)) delete chatLimitState[k]; }); }
 let friendChatUnsub = null;
 function stopFriendChatListener(){
   if(friendChatUnsub){ friendChatUnsub(); friendChatUnsub = null; }
   chatForgetRoom('friend:');
 }
-// 소셜 탭을 벗어나면 실시간 리스너(친구 목록·1:1 채팅·학생회 채팅)를 전부 끊는다 —
+// 소셜 탭을 벗어나면 실시간 리스너(친구 목록·1:1 채팅)를 전부 끊는다 —
 // 안 보이는 화면을 위해 계속 Firestore 리스너를 띄워두지 않기 위함.
 function teardownSocialTab(){
   stopFriendLinksListener();
   stopFriendChatListener();
-  stopCouncilChatListener();
 }
 
 state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, editMode:false, data:{incoming:[], outgoing:[], friends:[]} };
@@ -7715,7 +7683,6 @@ function moveFriendOrder(pairId, dir){
   localSet('friend_order', ids);
   refreshFriendsModalBody();
 }
-state.councilChatUI = { hasUnseen:false, notice:null };
 
 // 학번으로 서로를 찾을 수 있게 내 항목을 공개 명단에 올려둔다(이미 있어도 덮어써서 무해).
 // 친구 화면을 열 때만 하면 "상대가 그 화면을 먼저 열어봐야만" 검색되는 이상한 제약이 생기므로,
@@ -7744,8 +7711,6 @@ function renderSocialTab(){
 function friendsModalBody(){
   if(state.friendsUI.screen === 'detail') return friendDetailBody();
   if(state.friendsUI.screen === 'nickname') return friendNicknameBody();
-  if(state.friendsUI.screen === 'councilChat') return councilChatBody();
-  if(state.friendsUI.screen === 'cohortChat') return cohortChatBody();
   return friendListBody();
 }
 function refreshFriendsModalBody(){
@@ -7835,7 +7800,6 @@ async function applyFriendLinksSnapshot(snap){
   state.friendsUI.data = { incoming, outgoing, friends };
   state.unseenChatPairIds = unseenPairIds;
   state.hasUnseenChat = unseenPairIds.size > 0;
-  if(isCouncil()) await refreshCouncilChatUnseen();
   refreshBellDot();
   // 채팅 상세 화면(friendDetailBody)에 있을 때는 이 리스너가 매번(메시지 주고받을 때마다
   // lastMessageAt이 바뀌므로) 전체를 다시 그리지 않게 한다 — 그렇지 않으면 입력창·키보드가
@@ -7861,55 +7825,9 @@ async function refreshFriendsData(){
   await startFriendLinksListener();
 }
 
-// 학생회 채팅방을 열어보지 않아도 "새 메시지 있음" 점을 보여주기 위해, 친구 목록을
-// 새로고침할 때마다 최근 메시지 한 건만 가볍게 확인한다(전체를 구독하지 않음).
-async function refreshCouncilChatUnseen(){
-  try{
-    const q = query(collection(db,'councilChatMessages'), orderBy('createdAt','desc'), limit(1));
-    const snap = await getDocs(q);
-    if(snap.empty){ state.councilChatUI.hasUnseen = false; return; }
-    const last = snap.docs[0].data();
-    const seenAt = localGet('councilchat_seen', 0);
-    state.councilChatUI.hasUnseen = last.senderUid !== state.user.uid && (last.createdAt||0) > seenAt;
-  }catch(e){ /* 학생회 아니면 규칙상 애초에 못 읽음 — 조용히 무시 */ }
-}
-
 function friendListBody(){
   const { incoming, friends } = state.friendsUI.data;
   return `
-    ${isCouncil() ? `
-    <div class="card" style="padding:8px 12px; margin-bottom:12px;">
-      <div class="list-item" style="cursor:pointer; padding:8px 0;" data-action="open-council-chat">
-        <div class="row-between">
-          <div><b style="font-size:13.5px;">학생회</b><div class="meta">학생회 전체 단체 채팅</div></div>
-          <span style="display:flex; align-items:center; gap:6px;">
-            ${state.councilChatUI.hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
-            <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
-          </span>
-        </div>
-      </div>
-    </div>
-    ` : ''}
-
-    ${myCohortYear() ? `
-    <div class="card" style="padding:8px 12px; margin-bottom:12px;">
-      <div class="list-item" style="cursor:pointer; padding:8px 0;" data-action="open-cohort-chat" data-year="${escapeHtml(myCohortYear())}">
-        <div class="row-between">
-          <div><b style="font-size:13.5px;">${escapeHtml(myCohortYear())}학번</b><div class="meta">같은 학번끼리 단체 채팅</div></div>
-          <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
-        </div>
-      </div>
-      ${isVicePlus() ? `
-      <div class="divider" style="margin:2px 0;"></div>
-      <div class="list-item" style="cursor:pointer; padding:8px 0;" data-action="open-cohort-chat-picker">
-        <div class="row-between">
-          <div><b style="font-size:12.5px; color:var(--text-dim);">다른 학번 채팅방 보기</b></div>
-          <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
-        </div>
-      </div>` : ''}
-    </div>
-    ` : ''}
-
     ${incoming.length ? `
     <div class="section-title">받은 친구 요청 (${incoming.length})</div>
     <div class="card" style="padding:14px 12px; margin-bottom:12px;">
@@ -8027,28 +7945,6 @@ function friendDetailBody(){
 function setupFriendsModalListeners(){
   const addInput = document.getElementById('friend-add-input');
   if(addInput) addInput.addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequest(); });
-
-  if(state.friendsUI.screen === 'councilChat'){
-    stopCouncilChatListener();
-    openCouncilChatListener();
-    const ccInput = document.getElementById('council-chat-input');
-    const ccSend = document.getElementById('council-chat-send');
-    const send = () => sendCouncilChatMessage();
-    if(ccSend) ccSend.onclick = send;
-    if(ccInput) ccInput.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
-    return;
-  }
-
-  if(state.friendsUI.screen === 'cohortChat'){
-    stopCohortChatListener();
-    openCohortChatListener();
-    const chInput = document.getElementById('cohort-chat-input');
-    const chSend = document.getElementById('cohort-chat-send');
-    const chSendFn = () => sendCohortChatMessage();
-    if(chSend) chSend.onclick = chSendFn;
-    if(chInput) chInput.addEventListener('keydown', e => { if(e.key==='Enter') chSendFn(); });
-    return;
-  }
 
   if(state.friendsUI.screen !== 'detail') return;
 
@@ -8198,566 +8094,8 @@ function openFriendDetail(uid, name, pairId){
 }
 function friendsBackToList(){
   stopFriendChatListener();
-  stopCouncilChatListener();
-  stopCohortChatListener();
   state.friendsUI.screen = 'list';
   refreshFriendsModalBody();
-}
-
-/* ===== 학생회(국장 이상) 단체 채팅 =====
- * 방이 하나뿐이라 pairId 없이 top-level councilChatMessages 컬렉션 하나를 그대로 쓴다.
- * "몇 명이 읽었는지"는 shared/councilChatReads에 사람마다 마지막으로 이 화면을 열어본
- * 시각을 남겨두고, 메시지 시각보다 나중에 연 사람 수를 세어서 계산한다.
- * 메시지는 7일 뒤 notify/send-notifications.mjs가 자동으로 지운다.
- */
-let councilChatUnsub = null;
-function stopCouncilChatListener(){
-  if(councilChatUnsub){ councilChatUnsub(); councilChatUnsub = null; }
-  chatForgetRoom('council');
-}
-// 개발자 계정은 실제 학생회 소속이 아니라 앱 관리용으로 발급된 권한이라, 학생회
-// 목록·읽음 인원 수 계산 어디에도 포함하지 않는다(채팅방 접근 권한과는 별개).
-function councilMemberList(){
-  return Object.values(state.allUsers||{}).filter(u=>u.role && u.role!=='student' && u.role!=='developer');
-}
-// 카톡 채팅방 상단 공지처럼, 학생회 채팅에도 고정 공지 하나를 둘 수 있게 한다.
-async function loadCouncilChatNotice(){
-  try{
-    const snap = await getDoc(doc(db,'shared','councilChatNotice'));
-    return (snap.exists() && snap.data()) || null;
-  }catch(e){ console.error('[loadCouncilChatNotice]', e); return null; }
-}
-async function openCouncilChat(){
-  stopFriendChatListener();
-  state.friendsUI.screen = 'councilChat';
-  localSet('councilchat_seen', now());
-  state.councilChatUI.hasUnseen = false;
-  state.councilChatUI.notice = await loadCouncilChatNotice();
-  try{
-    // 점 표기 경로로 써야 같은 문서 안 다른 사람 키·내 clearedAt을 안 건드리고
-    // lastReadAt만 갱신된다 (필드 전체를 덮어쓰면 merge:true여도 clearedAt이 날아감).
-    await setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: now() }, { merge:true });
-  }catch(e){}
-  refreshFriendsModalBody();
-}
-function councilChatNoticeModal(){
-  const text = (state.councilChatUI.notice && state.councilChatUI.notice.text) || '';
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title">학생회 채팅 공지<button data-action="close-modal">${ICON.close}</button></div>
-    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">채팅방 맨 위에 고정으로 보여줄 공지예요. 비워두고 저장하면 공지가 사라져요.</p>
-    <form id="council-chat-notice-form">
-      <div class="field"><textarea name="text" style="min-height:90px" maxlength="200" placeholder="예: 이번주 금요일 회의 6시">${escapeHtml(text)}</textarea></div>
-      <div class="modal-actions" style="display:flex; gap:8px;">
-        ${text ? `<button type="button" class="btn btn-ghost" data-action="clear-council-chat-notice">공지 지우기</button>` : ''}
-        <button type="submit" class="btn btn-primary">저장</button>
-      </div>
-    </form>`;
-}
-async function handleCouncilChatNoticeSubmit(fd){
-  const text = (fd.get('text')||'').trim();
-  try{
-    await setDoc(doc(db,'shared','councilChatNotice'), { text, updatedBy: state.user.uid, updatedByName: state.user.name, updatedAt: now() });
-    if(text) enqueuePush({ audience:'councilChat', category:'councilChatNotice', title:'새로운 공지가 있어요', body:`학생회 채팅: ${text.slice(0,80)}` });
-    state.councilChatUI.notice = text ? { text, updatedByName: state.user.name, updatedAt: now() } : null;
-    closeModal();
-    refreshFriendsModalBody();
-  }catch(e){
-    console.error('[handleCouncilChatNoticeSubmit]', e);
-    toast('저장에 실패했어요 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-async function clearCouncilChatNotice(){
-  try{
-    await setDoc(doc(db,'shared','councilChatNotice'), { text:'', updatedBy: state.user.uid, updatedByName: state.user.name, updatedAt: now() });
-    state.councilChatUI.notice = null;
-    closeModal();
-    refreshFriendsModalBody();
-  }catch(e){
-    console.error('[clearCouncilChatNotice]', e);
-    toast('삭제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-function councilFriendStatus(uid){
-  if(uid === state.user.uid) return 'me';
-  const { friends, outgoing, incoming } = state.friendsUI.data;
-  if(friends.some(f=>f.uid===uid)) return 'friend';
-  if(outgoing.some(f=>f.uid===uid)) return 'outgoing';
-  if(incoming.some(f=>f.uid===uid)) return 'incoming';
-  return 'none';
-}
-function councilMemberRowHtml(m){
-  const st = councilFriendStatus(m.uid);
-  const statusHtml = st==='me' ? `<span style="font-size:10.5px; color:var(--text-faint);">나</span>`
-    : st==='friend' ? `<span class="tag tag-dim" style="font-size:9.5px;">친구</span>`
-    : st==='outgoing' ? `<span style="font-size:10.5px; color:var(--text-faint);">요청됨</span>`
-    : st==='incoming' ? `<span style="font-size:10.5px; color:var(--text-faint);">요청 받음</span>`
-    : `<button type="button" class="btn btn-ghost btn-sm" data-action="add-friend-from-council" data-uid="${escapeHtml(m.uid)}" data-sid="${escapeHtml(m.studentId)}" data-name="${escapeHtml(m.name)}" style="width:auto; padding:3px 8px; font-size:10px;">친구 추가</button>`;
-  return `
-  <div class="list-item">
-    <div class="row-between">
-      <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-        <b style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(m.name)}</b>
-        <span class="tag tag-crimson" style="flex-shrink:0;">${publicRoleLabel(m.role)}</span>
-      </div>
-      ${statusHtml}
-    </div>
-  </div>`;
-}
-// 몇 명이 보일지는 고정 개수 대신 기기 화면 비율(vh)에 맞추고, 넘치는 만큼만 스크롤한다.
-function councilMembersModal(){
-  const members = councilMemberList().sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${ICON.person} 학생회 목록 (${members.length})</span><button data-action="close-modal">${ICON.close}</button></div>
-    <div style="max-height:60vh; overflow-y:auto;">
-      ${members.length ? members.map(councilMemberRowHtml).join('') : `<div class="empty"><p>학생회 구성원이 없습니다.</p></div>`}
-    </div>`;
-}
-function councilChatBody(){
-  const members = councilMemberList().sort((a,b)=>roleLevel(b.role)-roleLevel(a.role));
-  const np = getNotifyPrefs();
-  return `
-    <div style="display:flex; align-items:center; gap:6px; margin-bottom:14px;">
-      <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
-      <b style="font-size:15px; flex:1;">학생회 채팅</b>
-      <button type="button" data-action="open-council-members" style="background:none; border:none; display:inline-flex; align-items:center; gap:3px; color:var(--text-dim); font-size:11.5px; cursor:pointer; padding:4px; flex-shrink:0;">
-        학생회 목록 (${members.length}) <span style="display:flex;">${ICON.chevDown}</span>
-      </button>
-    </div>
-
-    <div class="row-between" style="margin-bottom:2px;">
-      <div class="section-title" style="margin:0;">채팅</div>
-      <div style="display:flex; gap:6px;">
-        <button type="button" class="btn ${np.councilChat?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-council-chat-notify" style="width:auto; padding:3px 8px; font-size:10px;">채팅 알림 ${np.councilChat?'켜짐':'꺼짐'}</button>
-        ${isPresident() ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-council-chat-all" style="width:auto; padding:3px 8px; font-size:10px;">채팅 삭제(학생회장용)</button>` : ''}
-        <button type="button" class="btn btn-ghost btn-sm" data-action="clear-council-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
-      </div>
-    </div>
-    <p style="font-size:10px; color:var(--text-faint); margin:0 2px 8px;">7일 뒤 채팅이 삭제돼요.</p>
-
-    ${state.councilChatUI.notice && state.councilChatUI.notice.text ? `
-    <div class="card" style="padding:8px 12px; margin-bottom:10px; cursor:pointer;" data-action="open-council-chat-notice-edit">
-      <div class="row-between">
-        <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-          <span class="tag tag-crimson" style="flex-shrink:0;">공지</span>
-          <span style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(state.councilChatUI.notice.text)}</span>
-        </div>
-        <span style="color:var(--text-dim); display:flex; flex-shrink:0;">${ICON.chevR}</span>
-      </div>
-    </div>
-    ` : isCouncil() ? `
-    <button type="button" class="btn btn-ghost btn-sm" data-action="open-council-chat-notice-edit" style="width:100%; margin-bottom:10px;">+ 공지 작성하기</button>
-    ` : ''}
-
-    <div class="card" style="padding:12px;">
-      <div id="council-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <input type="text" id="council-chat-input" placeholder="메시지 입력…" maxlength="2000"
-          style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
-        <button type="button" class="btn btn-primary btn-sm" id="council-chat-send" style="width:auto;">전송</button>
-      </div>
-    </div>
-  `;
-}
-async function sendFriendRequestFromCouncil(targetUid, targetSid, targetName){
-  if(targetUid === state.user.uid) return;
-  try{
-    const pid = friendPairKey(state.user.uid, targetUid);
-    const existing = await getDoc(doc(db,'friendLinks',pid));
-    if(existing.exists()){
-      toast('이미 친구이거나 요청이 오간 사이예요');
-      return;
-    }
-    await setDoc(doc(db,'friendLinks',pid), {
-      uids: [state.user.uid, targetUid].sort(),
-      names: { [state.user.uid]: state.user.name, [targetUid]: targetName },
-      studentIds: { [state.user.uid]: state.user.studentId, [targetUid]: targetSid },
-      createdBy: state.user.uid,
-      requestedBy: state.user.uid,
-      status: 'pending',
-      createdAt: Date.now(),
-    });
-    enqueuePush({ audience:'user', targetUid, category:'friendRequest', title:'새 친구 요청이 왔어요', body:`${state.user.name}님이 친구 요청을 보냈어요` });
-    toast(`${targetName}님에게 친구 요청을 보냈어요`);
-    await refreshFriendsData();
-    if(state.friendsUI.screen === 'councilChat') refreshFriendsModalBody();
-  }catch(e){
-    toast('실패했어요 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-async function clearCouncilChat(){
-  if(!await showConfirm('내 화면에서 학생회 채팅을 지울까요?\n(다른 사람 화면에는 그대로 남아요)')) return;
-  const ts = now();
-  try{
-    await setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: ts, [state.user.uid+'.clearedAt']: ts }, { merge:true });
-  }catch(e){ toast('실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
-  const el = document.getElementById('council-chat-log');
-  if(el) el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`;
-  toast('채팅을 지웠어요');
-}
-// "채팅 지우기"는 내 화면에서만 안 보이게 하는 것과 달리, 이건 모두의 화면에서 실제로
-// 지운다 — 학생회장만 쓸 수 있는 진짜 삭제.
-async function deleteAllCouncilChatMessages(){
-  if(!isPresident()) return;
-  if(!await showConfirm('학생회 채팅을 모두에게서 완전히 삭제할까요?\n(되돌릴 수 없습니다)')) return;
-  try{
-    const snap = await getDocs(collection(db,'councilChatMessages'));
-    const docs = snap.docs;
-    const batchSize = 400;
-    for(let i=0; i<docs.length; i+=batchSize){
-      const batch = writeBatch(db);
-      docs.slice(i, i+batchSize).forEach(d=>batch.delete(d.ref));
-      await batch.commit();
-    }
-    toast('학생회 채팅을 전부 삭제했어요');
-  }catch(e){
-    toast('삭제 실패 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-function openCouncilChatListener(){
-  const log = document.getElementById('council-chat-log');
-  if(!log) return;
-  log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
-  const totalMembers = councilMemberList().length;
-  const q = query(collection(db,'councilChatMessages'), orderBy('createdAt','desc'), limit(chatLimitFor('council')));
-  councilChatUnsub = onSnapshot(q, async (snap) => {
-    if(state.friendsUI.screen !== 'councilChat') return;
-    const reads = await chatMetaCached('council', () => getDoc(doc(db,'shared','councilChatReads')));
-    const el = document.getElementById('council-chat-log');
-    if(!el) return;
-    // "채팅 지우기"는 메시지를 실제로 지우지 않고 내 쪽 기준 시각(clearedAt)만 남긴다 —
-    // 다른 사람에게는 그대로 보이고, 나만 이 시각 이전 메시지를 걸러서 안 본다.
-    const myReadInfo = reads[state.user.uid] || {};
-    const myClearedAt = myReadInfo.clearedAt || 0;
-    const docs = snap.docs.slice().reverse().filter(d => (d.data().createdAt||0) > myClearedAt);
-    if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = chatMoreBtnHtml('council', snap.size) + docs.map(d=>{
-      const m = d.data();
-      const mine = m.senderUid === state.user.uid;
-      const readCount = Object.entries(reads).filter(([uid,info])=>uid!==m.senderUid && ((info&&info.lastReadAt)||0) >= (m.createdAt||0)).length;
-      const readTag = mine ? `<div style="font-size:9px; opacity:.6; margin-top:2px;">${readCount}/${Math.max(0,totalMembers-1)}명 읽음</div>` : '';
-      return `<div style="max-width:78%; align-self:${mine?'flex-end':'flex-start'};">
-        ${mine ? '' : `<div style="font-size:9.5px; color:var(--text-faint); margin:0 2px 2px;">${escapeHtml(m.senderName||'')}${m.senderRole?` · ${escapeHtml(publicRoleLabel(m.senderRole))}`:''}</div>`}
-        <div style="padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div></div>
-        ${readTag}
-      </div>`;
-    }).join('');
-    el.scrollTop = el.scrollHeight;
-    // 내가 채팅방을 열어본 채로 새 메시지가 도착한 경우도 "읽음"으로 계속 갱신한다.
-    chatMarkRead('council', () => setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }));
-  }, (err) => {
-    console.error('[council-chat]', err);
-    const el = document.getElementById('council-chat-log');
-    if(el) el.innerHTML = `<div class="empty"><p>채팅을 불러오지 못했어요.</p></div>`;
-  });
-}
-const councilChatRateState = { sendTimes: [], blockedUntil: 0 };
-function councilChatRateLimited(){
-  const t = Date.now();
-  if(councilChatRateState.blockedUntil && t < councilChatRateState.blockedUntil){
-    toast('메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.');
-    return true;
-  }
-  councilChatRateState.sendTimes = councilChatRateState.sendTimes.filter(x => t - x < 10000);
-  councilChatRateState.sendTimes.push(t);
-  if(councilChatRateState.sendTimes.length > 7){
-    councilChatRateState.blockedUntil = t + 3000;
-    councilChatRateState.sendTimes = [];
-    toast('메시지를 너무 빠르게 보내고 있어요. 3초만 기다려주세요.');
-    return true;
-  }
-  return false;
-}
-async function sendCouncilChatMessage(){
-  const input = document.getElementById('council-chat-input');
-  const text = (input && input.value || '').trim();
-  if(!text) return;
-  if(utf8ByteLength(text) > COUNCIL_CHAT_MAX_BYTES){ toast(`메시지가 너무 길어요 (최대 ${COUNCIL_CHAT_MAX_BYTES}바이트)`); return; }
-  if(councilChatRateLimited()) return;
-  input.value = '';
-  try{
-    await addDoc(collection(db,'councilChatMessages'), {
-      senderUid: state.user.uid, senderName: state.user.name, senderRole: myRole(), text, createdAt: Date.now(),
-    });
-    enqueuePush({ audience:'councilChat', category:'councilChat', title:'학생회 채팅', body:`${state.user.name}: ${text}` });
-  }catch(e){
-    console.error(e);
-    toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-
-/* ===== 학번별 채팅 =====
- * 학생회 채팅과 같은 구조지만 멤버 자격이 "그 학번(cohortYear)"으로 자동 결정된다(따로 가입
- * 절차가 없음). 부회장 이상은 자기 학번 방 + 다른 학번 방도 전부 들어가 볼 수 있다(사고
- * 파악·운영 목적) — 그래서 목록에는 "내 학번" 카드 하나만 두고, 그 사람들에게만 "다른 학번
- * 채팅방 보기"를 추가로 보여준다.
- */
-function cohortYearList(){
-  const latest = currentAdmissionYear2();
-  const start = 21; // 이 앱이 쓰이기 시작한 학번대 — 그 이전 학번은 방을 안 보여준다.
-  const years = [];
-  for(let y=start; y<=latest; y++) years.push(String(y).padStart(2,'0'));
-  return years;
-}
-function cohortChatPickerModal(){
-  const mine = myCohortYear();
-  const years = cohortYearList().filter(y=>y!==mine);
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">학번별 채팅방</span><button data-action="close-modal">${ICON.close}</button></div>
-    <div style="max-height:60vh; overflow-y:auto;">
-      ${years.length ? years.map(y=>`
-        <div class="list-item" style="cursor:pointer;" data-action="open-cohort-chat" data-year="${y}">
-          <div class="row-between"><b style="font-size:13px;">${y}학번</b><span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span></div>
-        </div>`).join('') : `<div class="empty"><p>표시할 학번이 없습니다.</p></div>`}
-    </div>`;
-}
-// 직급은 안 보여준다("직급 가리기") — studentDirectory는 {studentId, name}만 있어서
-// 애초에 직급을 넘겨받지도 않는다. 이름 가나다순 정렬.
-async function loadCohortMembers(year){
-  try{
-    const snap = await getDocs(collection(db,'studentDirectory'));
-    return snap.docs
-      .map(d=>d.data())
-      .filter(u=>u.studentId && u.studentId.length>=4 && u.studentId.slice(2,4)===year)
-      .sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-  }catch(e){ console.error('[loadCohortMembers]', e); return []; }
-}
-function cohortMembersModal(year, members){
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${escapeHtml(year)}학번 학생 목록 (${members.length})</span><button data-action="close-modal">${ICON.close}</button></div>
-    <div style="max-height:60vh; overflow-y:auto;">
-      ${members.length ? members.map(m=>`<div class="list-item"><b style="font-size:13px;">${escapeHtml(m.name||'')}</b></div>`).join('') : `<div class="empty"><p>등록된 사람이 없습니다.</p></div>`}
-    </div>`;
-}
-async function openCohortChat(year){
-  if(!year) return;
-  const mine = myCohortYear();
-  if(year !== mine && !isVicePlus()){ toast('내 학번 채팅방만 볼 수 있어요'); return; }
-  stopFriendChatListener();
-  stopCouncilChatListener();
-  closeModal();
-  state.friendsUI.screen = 'cohortChat';
-  state.cohortChatUI = { year };
-  try{
-    await setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: now() }, { merge:true });
-  }catch(e){}
-  refreshFriendsModalBody();
-}
-function cohortChatBody(){
-  const year = state.cohortChatUI && state.cohortChatUI.year;
-  const np = getNotifyPrefs();
-  return `
-    <div style="display:flex; align-items:center; gap:6px; margin-bottom:14px;">
-      <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
-      <b style="font-size:15px; flex:1;">${escapeHtml(year)}학번 채팅</b>
-      <button type="button" data-action="open-cohort-members" data-year="${escapeHtml(year)}" style="background:none; border:none; color:var(--text-dim); font-size:11.5px; cursor:pointer; padding:4px; flex-shrink:0;">
-        학생 목록
-      </button>
-    </div>
-
-    <div class="row-between" style="margin-bottom:2px;">
-      <div class="section-title" style="margin:0;">채팅</div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-        <button type="button" class="btn ${np.cohortChat?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-cohort-chat-notify" style="width:auto; padding:3px 8px; font-size:10px;">채팅 알림 ${np.cohortChat?'켜짐':'꺼짐'}</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-action="report-cohort-message" data-year="${escapeHtml(year)}" data-uid="" data-name="" style="width:auto; padding:3px 8px; font-size:10px;">신고</button>
-        ${isPresident() ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-cohort-chat-all" style="width:auto; padding:3px 8px; font-size:10px;">채팅 삭제(학생회장용)</button>` : ''}
-        <button type="button" class="btn btn-ghost btn-sm" data-action="clear-cohort-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
-      </div>
-    </div>
-    <p style="font-size:10px; color:var(--text-faint); margin:0 2px 8px;">7일 뒤 채팅이 삭제돼요.</p>
-    <div class="card" style="padding:12px;">
-      <div id="cohort-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <input type="text" id="cohort-chat-input" placeholder="메시지 입력…" maxlength="2000"
-          style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
-        <button type="button" class="btn btn-primary btn-sm" id="cohort-chat-send" style="width:auto;">전송</button>
-      </div>
-    </div>`;
-}
-let cohortChatUnsub = null;
-function stopCohortChatListener(){ if(cohortChatUnsub){ cohortChatUnsub(); cohortChatUnsub=null; } chatForgetRoom('cohort:'); }
-async function toggleCohortChatNotify(){
-  const cur = getNotifyPrefs();
-  await setNotifyPref('cohortChat', !cur.cohortChat);
-  if(state.friendsUI.screen === 'cohortChat') refreshFriendsModalBody();
-}
-async function clearCohortChat(){
-  const year = state.cohortChatUI && state.cohortChatUI.year;
-  if(!year) return;
-  if(!await showConfirm('내 화면에서 이 채팅을 지울까요?\n(다른 사람 화면에는 그대로 남아요)')) return;
-  const ts = now();
-  try{
-    await setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: ts, [state.user.uid+'.clearedAt']: ts }, { merge:true });
-  }catch(e){ toast('실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')'); return; }
-  const el = document.getElementById('cohort-chat-log');
-  if(el) el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`;
-  toast('채팅을 지웠어요');
-}
-async function deleteAllCohortChatMessages(){
-  const year = state.cohortChatUI && state.cohortChatUI.year;
-  if(!isPresident() || !year) return;
-  if(!await showConfirm(`${year}학번 채팅을 모두에게서 완전히 삭제할까요?\n(되돌릴 수 없습니다)`)) return;
-  try{
-    const snap = await getDocs(collection(db,'cohortChats',year,'messages'));
-    const docs = snap.docs;
-    const batchSize = 400;
-    for(let i=0;i<docs.length;i+=batchSize){
-      const batch = writeBatch(db);
-      docs.slice(i,i+batchSize).forEach(d=>batch.delete(d.ref));
-      await batch.commit();
-    }
-    toast('학번 채팅을 전부 삭제했어요');
-  }catch(e){
-    toast('삭제 실패 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-function openCohortChatListener(){
-  const year = state.cohortChatUI && state.cohortChatUI.year;
-  const log = document.getElementById('cohort-chat-log');
-  if(!log || !year) return;
-  log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
-  const q = query(collection(db,'cohortChats',year,'messages'), orderBy('createdAt','desc'), limit(chatLimitFor('cohort:'+year)));
-  cohortChatUnsub = onSnapshot(q, async (snap) => {
-    if(!(state.friendsUI.screen === 'cohortChat' && state.cohortChatUI && state.cohortChatUI.year===year)) return;
-    const reads = await chatMetaCached('cohort:'+year, () => getDoc(doc(db,'cohortChatMeta',year)));
-    const el = document.getElementById('cohort-chat-log');
-    if(!el) return;
-    const myClearedAt = (reads[state.user.uid]||{}).clearedAt || 0;
-    const docs = snap.docs.slice().reverse().filter(d => (d.data().createdAt||0) > myClearedAt);
-    if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = chatMoreBtnHtml('cohort:'+year, snap.size) + docs.map(d=>{
-      const m = d.data();
-      const mine = m.senderUid === state.user.uid;
-      const actions = [];
-      if(!mine) actions.push(`<button type="button" data-action="report-cohort-message" data-year="${escapeHtml(year)}" data-uid="${escapeHtml(m.senderUid)}" data-name="${escapeHtml(m.senderName||'')}" style="background:none; border:none; color:var(--text-faint); font-size:9px; cursor:pointer; padding:0;">신고</button>`);
-      if(isPresident()) actions.push(`<button type="button" data-action="delete-cohort-message" data-year="${escapeHtml(year)}" data-mid="${escapeHtml(d.id)}" style="background:none; border:none; color:var(--text-faint); font-size:9px; cursor:pointer; padding:0;">삭제</button>`);
-      return `<div style="max-width:78%; align-self:${mine?'flex-end':'flex-start'};">
-        ${mine ? '' : `<div style="font-size:9.5px; color:var(--text-faint); margin:0 2px 2px;">${escapeHtml(m.senderName||'')}</div>`}
-        <div style="padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div></div>
-        ${actions.length ? `<div style="display:flex; gap:8px; margin-top:2px; justify-content:${mine?'flex-end':'flex-start'};">${actions.join('')}</div>` : ''}
-      </div>`;
-    }).join('');
-    el.scrollTop = el.scrollHeight;
-    chatMarkRead('cohort:'+year, () => setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }));
-  }, (err) => {
-    console.error('[cohort-chat]', err);
-    const el = document.getElementById('cohort-chat-log');
-    if(el) el.innerHTML = `<div class="empty"><p>채팅을 불러오지 못했어요.</p></div>`;
-  });
-}
-const cohortChatRateState = { sendTimes: [], blockedUntil: 0 };
-function cohortChatRateLimited(){
-  const t = Date.now();
-  if(cohortChatRateState.blockedUntil && t < cohortChatRateState.blockedUntil){
-    toast('메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.');
-    return true;
-  }
-  cohortChatRateState.sendTimes = cohortChatRateState.sendTimes.filter(x => t - x < 10000);
-  cohortChatRateState.sendTimes.push(t);
-  if(cohortChatRateState.sendTimes.length > 7){
-    cohortChatRateState.blockedUntil = t + 3000;
-    cohortChatRateState.sendTimes = [];
-    toast('메시지를 너무 빠르게 보내고 있어요. 3초만 기다려주세요.');
-    return true;
-  }
-  return false;
-}
-async function sendCohortChatMessage(){
-  if(blockIfSuspended()) return;
-  const year = state.cohortChatUI && state.cohortChatUI.year;
-  const input = document.getElementById('cohort-chat-input');
-  const text = (input && input.value || '').trim();
-  if(!text || !year) return;
-  if(utf8ByteLength(text) > COUNCIL_CHAT_MAX_BYTES){ toast(`메시지가 너무 길어요 (최대 ${COUNCIL_CHAT_MAX_BYTES}바이트)`); return; }
-  if(cohortChatRateLimited()) return;
-  input.value = '';
-  try{
-    await addDoc(collection(db,'cohortChats',year,'messages'), {
-      senderUid: state.user.uid, senderName: state.user.name, text, createdAt: Date.now(),
-    });
-    enqueuePush({ audience:'cohortChat', cohortYear:year, category:'cohortChat', title:`${year}학번 채팅`, body:`${state.user.name}: ${text}` });
-  }catch(e){
-    console.error(e);
-    toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-async function deleteCohortMessage(year, msgId){
-  if(!await showConfirm('이 메시지를 삭제할까요?')) return;
-  try{
-    await deleteDoc(doc(db,'cohortChats',year,'messages',msgId));
-    toast('삭제했어요');
-  }catch(e){
-    console.error(e);
-    toast('삭제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-
-/* ----- 학번별 채팅 신고 (기존 채팅 신고함 파이프라인 재사용) ----- */
-function reportCohortMessageModal(year, targetUid, targetName){
-  const hasTarget = !!targetUid;
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">채팅 신고하기</span><button data-action="close-modal">${ICON.close}</button></div>
-    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">
-      ${hasTarget ? `<b>${escapeHtml(targetName)}</b>님을 ` : ''}[${escapeHtml(year)}학번] 채팅에서 신고해요. 최근 대화 내용이 신고 내역에 함께 남아요.
-    </p>
-    <form id="report-cohort-chat-form" data-year="${escapeHtml(year)}" data-uid="${escapeHtml(targetUid)}" data-name="${escapeHtml(targetName)}">
-      ${!hasTarget ? `<div class="field"><label>신고 대상 학번</label><input type="text" name="targetSid" required inputmode="numeric" placeholder="신고할 사람의 학번"></div>` : ''}
-      <div class="field"><label>신고 사유</label><textarea name="reason" style="min-height:100px" required placeholder="어떤 내용이 문제였는지 적어주세요"></textarea></div>
-      <div class="modal-actions"><button type="submit" class="btn btn-danger">신고 접수</button></div>
-    </form>`;
-}
-async function handleReportCohortChatSubmit(fd){
-  const form = document.getElementById('report-cohort-chat-form');
-  const year = form.dataset.year;
-  let targetUid = form.dataset.uid, targetName = form.dataset.name;
-  const reason = (fd.get('reason')||'').trim();
-  if(!reason){ toast('신고 사유를 입력해주세요'); return; }
-  if(!targetUid){
-    const targetSid = (fd.get('targetSid')||'').trim();
-    if(!targetSid){ toast('신고 대상 학번을 입력해주세요'); return; }
-    try{
-      const dq = query(collection(db,'studentDirectory'), where('studentId','==',targetSid));
-      const dsnap = await getDocs(dq);
-      if(dsnap.empty){ toast('해당 학번을 찾을 수 없어요'); return; }
-      targetUid = dsnap.docs[0].id;
-      targetName = dsnap.docs[0].data().name || targetSid;
-    }catch(e){ toast('학번 조회에 실패했어요'); return; }
-  }
-  const btn = document.querySelector('#report-cohort-chat-form button[type=submit]');
-  if(btn) btn.disabled = true;
-  try{
-    let fullMessages = [];
-    try{
-      const q = query(collection(db,'cohortChats',year,'messages'), orderBy('createdAt','desc'), limit(500));
-      const snap = await getDocs(q);
-      fullMessages = snap.docs.map(d=>{
-        const m = d.data();
-        return { senderName: m.senderName || (m.senderUid===state.user.uid?state.user.name:targetName), text: m.text, createdAt: m.createdAt };
-      }).reverse();
-    }catch(e){}
-    const recentMessages = fullMessages.slice(-20).map(m=>`${m.senderName}: ${m.text}`);
-    const report = {
-      id: uid(), createdAt: now(), status:'접수',
-      reporterId: state.user.studentId, reporterName: state.user.name,
-      targetUid, targetName,
-      pairId: 'cohort:'+year, reason,
-      recentMessages, fullMessages,
-    };
-    const latest = await loadShared('chatReports', {list:[]});
-    const next = [report, ...(latest.list||[])].slice(0,300);
-    const ok = await saveShared('chatReports', {list: next});
-    closeModal();
-    saveResultToast(ok, '신고가 접수됐어요. 학생회가 확인할게요.');
-  }catch(e){
-    console.error('[handleReportCohortChatSubmit]', e);
-    toast('신고 접수에 실패했어요');
-  }finally{
-    if(btn) btn.disabled = false;
-  }
 }
 
 async function unfriend(){
@@ -8888,7 +8226,6 @@ function renderFriendTimetableGrid(slots, semKey){
 
 function utf8ByteLength(s){ return new TextEncoder().encode(s||'').length; }
 const FRIEND_CHAT_MAX_BYTES = 1500;
-const COUNCIL_CHAT_MAX_BYTES = 2000;
 
 function fmtChatTime(ts){
   const d = new Date(ts||Date.now());
@@ -10529,8 +9866,6 @@ document.addEventListener('submit', async (e)=>{
     'gemini-keys-form': handleGeminiKeysSubmit,
     'report-friend-chat-form': handleReportFriendChatSubmit,
     'suspend-user-form': handleSuspendUserSubmit,
-    'council-chat-notice-form': handleCouncilChatNoticeSubmit,
-    'report-cohort-chat-form': handleReportCohortChatSubmit,
     'nickname-form': handleNicknameSubmit,
   };
   const fn = HANDLERS[formId];
@@ -11675,7 +11010,7 @@ document.addEventListener('click', async (e)=>{
   // 필요합니다"만 뜨고 있었다. 실제 권한 판단은 deleteEvent() 안에서 작성자/직급으로 한다.
   const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
-  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail','delete-council-chat-all','user-sort','toggle-user-sort'];
+  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail','user-sort','toggle-user-sort'];
   if(councilOnly.includes(a) && !isCouncil()){ toast('학생회 권한이 필요한 기능입니다'); return; }
   if(pollOnly.includes(a) && !canPoll()){ toast('국장 이상 권한이 필요한 기능입니다'); return; }
   if(presidentOnly.includes(a) && !isPresident()){ toast('학생회장 권한이 필요한 기능입니다'); return; }
@@ -11814,8 +11149,6 @@ document.addEventListener('click', async (e)=>{
       chatLimitState[key] = chatLimitFor(key) + CHAT_PAGE_MORE;
       // 그 방의 리스너만 다시 열어 더 많이 읽는다(stop*를 거치면 늘린 개수가 초기화되므로 직접 끊는다).
       if(key.startsWith('friend:') && friendChatUnsub){ friendChatUnsub(); friendChatUnsub = null; openFriendChatListener(state.friendsUI.activePairId, state.friendsUI.activeUid); }
-      else if(key === 'council' && councilChatUnsub){ councilChatUnsub(); councilChatUnsub = null; openCouncilChatListener(); }
-      else if(key.startsWith('cohort:') && cohortChatUnsub){ cohortChatUnsub(); cohortChatUnsub = null; openCohortChatListener(); }
     }
     else if(a === 'go-meal-tab'){ state.view = 'info'; state.infoTab = 'meal'; renderShell(); }
     else if(a === 'open-assign-role'){ openModal(assignRoleModal(el.dataset.sid, el.dataset.name, el.dataset.role)); }
@@ -11908,22 +11241,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'accept-friend-request'){ await acceptFriendRequest(el.dataset.pair); }
     else if(a === 'decline-friend-request'){ await declineFriendRequest(el.dataset.pair); }
     else if(a === 'open-friend-detail'){ openFriendDetail(el.dataset.uid, el.dataset.name, el.dataset.pair); }
-    else if(a === 'open-council-chat'){ await openCouncilChat(); }
-    else if(a === 'open-council-chat-notice-edit'){ if(isCouncil()) openModal(councilChatNoticeModal()); }
-    else if(a === 'clear-council-chat-notice'){ await clearCouncilChatNotice(); }
-    else if(a === 'open-cohort-chat'){ await openCohortChat(el.dataset.year); }
-    else if(a === 'open-cohort-chat-picker'){ if(isVicePlus()) openModal(cohortChatPickerModal()); }
-    else if(a === 'open-cohort-members'){ openModal(cohortMembersModal(el.dataset.year, await loadCohortMembers(el.dataset.year))); }
     else if(a === 'reactivate-user'){ await reactivateUser(el.dataset.uid, el.dataset.sid, el.dataset.name); }
-    else if(a === 'toggle-cohort-chat-notify'){ await toggleCohortChatNotify(); }
-    else if(a === 'clear-cohort-chat'){ await clearCohortChat(); }
-    else if(a === 'delete-cohort-chat-all'){ await deleteAllCohortChatMessages(); }
-    else if(a === 'delete-cohort-message'){ await deleteCohortMessage(el.dataset.year, el.dataset.mid); }
-    else if(a === 'report-cohort-message'){ openModal(reportCohortMessageModal(el.dataset.year, el.dataset.uid, el.dataset.name)); }
-    else if(a === 'add-friend-from-council'){ await sendFriendRequestFromCouncil(el.dataset.uid, el.dataset.sid, el.dataset.name); }
-    else if(a === 'clear-council-chat'){ await clearCouncilChat(); }
-    else if(a === 'delete-council-chat-all'){ await deleteAllCouncilChatMessages(); }
-    else if(a === 'open-council-members'){ openModal(councilMembersModal()); }
     else if(a === 'open-add-friend'){ openModal(addFriendModal()); setupAddFriendModalListeners(); }
     else if(a === 'toggle-friends-edit-mode'){
       state.friendsUI.editMode = !state.friendsUI.editMode;
@@ -11931,11 +11249,6 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'delete-friend-direct'){ await deleteFriendDirect(el.dataset.pair, el.dataset.name); }
     else if(a === 'move-friend-order'){ moveFriendOrder(el.dataset.pair, Number(el.dataset.dir)); }
-    else if(a === 'toggle-council-chat-notify'){
-      const cur = getNotifyPrefs();
-      await setNotifyPref('councilChat', !cur.councilChat);
-      if(state.friendsUI.screen === 'councilChat') refreshFriendsModalBody();
-    }
     else if(a === 'friends-back'){ friendsBackToList(); }
     else if(a === 'friends-back-to-detail'){ state.friendsUI.screen = 'detail'; refreshFriendsModalBody(); }
     else if(a === 'set-friend-nickname'){ state.friendsUI.screen = 'nickname'; refreshFriendsModalBody(); }

@@ -315,53 +315,6 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // 학생회(국장 이상 전체) 단체 채팅방 — 1:1 친구 채팅과 달리 방이 하나뿐이라 최상위
-    // 컬렉션에 바로 둔다. 7일 지난 메시지는 notify/send-notifications.mjs가 자동 삭제한다.
-    match /councilChatMessages/{msgId} {
-      allow read: if isCouncil();
-      allow create: if isCouncil() && !isChatSuspended()
-        && request.resource.data.senderUid == request.auth.uid
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
-        && request.resource.data.keys().hasOnly(['senderUid', 'senderName', 'senderRole', 'text', 'createdAt']);
-      allow update: if false;
-      // 개별 메시지 삭제는 없음(자동 정리 전용) — 전체 삭제만 학생회장이 할 수 있다.
-      allow delete: if isPresident();
-    }
-    // 학생회 채팅을 "몇 명이 읽었는지" 계산하기 위한 사람별 마지막 열람 시각.
-    // 본인 키만 쓸 수 있다 — 남의 열람 시각을 조작해 읽음 표시를 속일 수 없게.
-    // 학생회 채팅 상단 고정 공지(카톡 채팅방 공지 같은 것) — 한 개짜리 문서, 학생회 이상만.
-    match /shared/councilChatNotice {
-      allow read, write: if isCouncil();
-    }
-    match /shared/councilChatReads {
-      allow read: if isCouncil();
-      allow create: if isCouncil() && request.resource.data.keys().hasOnly([request.auth.uid]);
-      allow update: if isCouncil()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([request.auth.uid]);
-    }
-
-    // 학번별 채팅 — 가입 절차 없이 users/{uid}.cohortYear가 같은 사람끼리 자동으로 한 방.
-    // 부회장 이상(부회장·회장·개발자)은 사고 파악·운영 목적으로 모든 학번 방을 볼 수 있다.
-    match /cohortChats/{yy}/messages/{msgId} {
-      allow read: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus());
-      allow create: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus()) && !isChatSuspended()
-        && request.resource.data.senderUid == request.auth.uid
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
-        && request.resource.data.keys().hasOnly(['senderUid', 'senderName', 'text', 'createdAt']);
-      allow update: if false;
-      allow delete: if isPresident();
-    }
-    // 학번별 채팅의 "몇 명이 읽었는지 · 내 화면에서 언제 지웠는지" — 학생회 채팅과 같은 구조.
-    match /cohortChatMeta/{yy} {
-      allow read: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus());
-      allow create: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus())
-        && request.resource.data.keys().hasOnly([request.auth.uid]);
-      allow update: if isSignedIn() && (cohortYearOf(request.auth.uid) == yy || isVicePlus())
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([request.auth.uid]);
-    }
-
     // 개인 메모장 — 본인 것만 읽고 쓸 수 있다. 공용 문서(shared/*)와 달리 사용자별로
     // 문서가 나뉘어 있어서 1MiB 문서 한도도 사람당 따로 적용된다.
     match /memos/{uid} {
@@ -451,10 +404,8 @@ service cloud.firestore {
           || (request.resource.data.audience == 'recruit') 
           || (request.resource.data.audience == 'bugAlert')
           || (request.resource.data.audience == 'councilAlert')
-          || (request.resource.data.audience == 'cohortChat')
           || (request.resource.data.audience == 'notice' && isCouncil())
           || (request.resource.data.audience == 'poll' && isDirectorPlus())
-          || (request.resource.data.audience == 'councilChat' && isCouncil())
           || (request.resource.data.audience == 'all' && isCouncil())
         );
     }

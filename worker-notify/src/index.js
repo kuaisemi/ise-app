@@ -282,16 +282,6 @@ async function fsCommitUpdates(env, token, updates, budget) {
    (토픽 구독은 GitHub Actions 쪽에서 firebase-admin의 subscribeToTopic으로 해둔다) */
 const TOPIC_ALL = 'ise_all';       // 전체
 const TOPIC_NIGHT = 'ise_night';   // 야간 알림에 동의한 사람만
-// 그룹 채팅(councilChat/cohortChat)의 토큰 배열은 "누구 건지" uid를 안 들고 있어서,
-// audience.byUid(uid → 토큰들)를 뒤집어 토큰 → uid 역방향 조회표를 즉석에서 만든다.
-// 이미 읽은 사람을 걸러낼 때만 필요해서, 그때마다 만들어도 부담 없는 크기(전교생 규모)다.
-function tokenOwner(audience) {
-  const m = {};
-  for (const [uid, toks] of Object.entries((audience && audience.byUid) || {})) {
-    for (const t of toks) m[t] = uid;
-  }
-  return m;
-}
 function tapData(item) {
   const out = {};
   if (item.pairId) out.pairId = item.pairId;
@@ -307,8 +297,6 @@ function tapData(item) {
 // 채팅이 아닌 알림(공지·투표 등)은 각각 다른 내용이라 대체되면 안 되므로 tag를 안 준다.
 function notificationTag(item) {
   if (item.pairId) return `chat_${item.pairId}`;
-  if (item.audience === 'councilChat') return 'councilChat';
-  if (item.audience === 'cohortChat' && item.cohortYear) return `cohortChat_${item.cohortYear}`;
   return null;
 }
 async function fcmSend(env, token, target, title, body, category, budget, extraData, tag) {
@@ -391,8 +379,6 @@ async function runOnce(env) {
   const coalesceKey = (it) => {
     if (Number(it.cursor || 0) > 0) return null;
     if (it.audience === 'user' && it.gateKey === 'chat' && it.pairId) return `chat|${it.pairId}|${it.targetUid}|${it.uid}`;
-    if (it.audience === 'councilChat' && it.category === 'councilChat') return `cc|${it.uid}`;
-    if (it.audience === 'cohortChat' && it.category === 'cohortChat') return `ch|${it.cohortYear}|${it.uid}`;
     return null;
   };
   const lastIdByKey = new Map();
@@ -434,6 +420,13 @@ async function runOnce(env) {
       continue;
     }
 
+    // 학생회·학번별 채팅은 기능이 없어졌다. 옛 버전 앱이 아직 큐에 넣을 수 있으니 보내지 않고
+    // 처리 완료로 넘긴다(아래 else 분기로 떨어지면 보낸 사람 본인에게 가버린다).
+    if (item.audience === 'councilChat' || item.audience === 'cohortChat') {
+      updates.push({ name: item.name, sent: true });
+      continue;
+    }
+
     if (item.audience === 'all') {
       // 전교생 발송 — 토픽 하나로 끝난다. 야간에는 동의자 토픽으로 대상을 좁힌다.
       const topic = quiet ? TOPIC_NIGHT : TOPIC_ALL;
@@ -462,14 +455,6 @@ async function runOnce(env) {
     if (item.audience === 'user') {
       const gateOk = !item.gateKey || (audience[item.gateKey + 'OkUids'] || []).includes(item.targetUid);
       tokens = gateOk ? (audience.byUid && audience.byUid[item.targetUid]) || [] : [];
-    } else if (item.audience === 'cohortChat') {
-      // 학번별 채팅 — 그 학번 방의 구독자 배열만 골라 쓴다. 그룹 채팅이라 보낸 사람
-      // 본인은 빼야 한다(자기가 방금 보낸 메시지 알림을 자기가 또 받을 이유가 없다).
-      const own = (audience.byUid && audience.byUid[item.uid]) || [];
-      tokens = ((audience.cohortChat && audience.cohortChat[item.cohortYear]) || []).filter((t) => !own.includes(t));
-    } else if (item.audience === 'councilChat') {
-      const own = (audience.byUid && audience.byUid[item.uid]) || [];
-      tokens = (audience.councilChat || []).filter((t) => !own.includes(t));
     } else if (['notice', 'poll', 'recruit', 'bugAlert', 'councilAlert'].includes(item.audience)) {
       // 이 글을 쓴 사람이 그 카테고리 알림도 켜둔 경우(예: 학생회가 공지 알림도 구독 중),
       // 자기가 방금 올린 글의 알림을 자기도 받는 걸 막는다.
@@ -486,20 +471,6 @@ async function runOnce(env) {
       const link = await fsGetDoc(env, token, `friendLinks/${item.pairId}`, budget);
       const seenAt = link && link.lastSeenAt && link.lastSeenAt[item.targetUid];
       if (seenAt && seenAt >= item.at) tokens = [];
-    } else if (item.audience === 'councilChat' && tokens.length) {
-      const reads = await fsGetDoc(env, token, 'shared/councilChatReads', budget);
-      const owner = tokenOwner(audience);
-      tokens = tokens.filter((t) => {
-        const seenAt = reads && reads[owner[t]] && reads[owner[t]].lastReadAt;
-        return !(seenAt && seenAt >= item.at);
-      });
-    } else if (item.audience === 'cohortChat' && tokens.length) {
-      const reads = await fsGetDoc(env, token, `cohortChatMeta/${item.cohortYear}`, budget);
-      const owner = tokenOwner(audience);
-      tokens = tokens.filter((t) => {
-        const seenAt = reads && reads[owner[t]] && reads[owner[t]].lastReadAt;
-        return !(seenAt && seenAt >= item.at);
-      });
     }
 
     if (!tokens.length) {
