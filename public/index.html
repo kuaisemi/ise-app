@@ -6791,6 +6791,7 @@ function isAndroidClient(){ return !!isNativeApp || /Android/i.test(navigator.us
 function visibleNotices(){ return live(state.notices).filter(n => !n.androidOnly || isAndroidClient()); }
 // 이름 비공개로 올린 공지: 학생에게는 "학생회"만 보이고, 학생회 안에서는 실제 작성자 이름을 함께 보여준다.
 function noticeAuthorHtml(n){
+  if(n.displayAs === 'developer') return '개발자';
   if(!n.anonymous) return fmtAuthorBadge(n.author||'학생회', n.authorId, n.authorRole);
   if(!isCouncil()) return '학생회';
   const u = state.allUsers && state.allUsers[n.authorId];
@@ -6832,13 +6833,21 @@ function noticeModal(n){
         </div>
         <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 알림을 켜둔 학생들에게 푸시가 갑니다</p>
       </div>
-      ${isCouncil() ? `
+      ${isDeveloper() ? `
+      <div style="margin:8px 0 0;">
+        <div class="row-between" style="gap:10px;">
+          <span style="color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.eyeOff} 작성자 표시</span>
+          <div style="display:flex; gap:16px;">
+            <label style="margin:0; cursor:pointer; color:var(--text); font-size:12px; display:flex; align-items:center; gap:5px;"><input type="radio" name="displayAs" value="council" checked style="width:auto; margin:0; accent-color:var(--crimson);"> 학생회</label>
+            <label style="margin:0; cursor:pointer; color:var(--text); font-size:12px; display:flex; align-items:center; gap:5px;"><input type="radio" name="displayAs" value="developer" style="width:auto; margin:0; accent-color:var(--crimson);"> 개발자</label>
+          </div>
+        </div>
+      </div>` : isCouncil() ? `
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
           <label for="notice-anon-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.eyeOff} 이름 비공개로 올리기</label>
           <label class="switch"><input type="checkbox" name="anonymous" id="notice-anon-check"><span class="slider"></span></label>
         </div>
-        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 학생들에게는 작성자 이름 대신 "학생회"로 보여요. 학생회 안에서는 본인 이름이 그대로 보여요</p>
       </div>` : ''}`}
       <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'공지 등록'}</button></div>
     </form>`;
@@ -10516,17 +10525,19 @@ async function handleNoticeSubmit(fd){
     } else {
       // 이름 비공개는 개발자 전용 — canModify는 authorId로 판단하므로 그건 그대로 두고
       // 화면에 보이는 author/authorRole만 "학생회"로 감춘다.
-      const anonymous = isCouncil() && fd.get('anonymous') === 'on';
+      const displayAs = isDeveloper() ? (fd.get('displayAs') === 'developer' ? 'developer' : 'council') : '';
+      const anonymous = isDeveloper() ? true : (isCouncil() && fd.get('anonymous') === 'on');
       next = [{
         id: id || uid(),
         title,
         content,
         imageUrls,
-        author: anonymous ? '학생회' : state.user.name,
+        author: anonymous ? (displayAs === 'developer' ? '개발자' : '학생회') : state.user.name,
         authorId: state.user.studentId,
         authorRole: anonymous ? null : myRole(),
         anonymous,
-        hideRealName: anonymous && isDeveloper(),
+        hideRealName: isDeveloper(),
+        displayAs,
         androidOnly: isDeveloper() && fd.get('androidOnly') === 'on',
         date: todayStr(),
         pinned: false,
