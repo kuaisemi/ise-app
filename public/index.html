@@ -2677,6 +2677,10 @@ function setupPresenceHeartbeat(){
   if(presenceHeartbeatStarted) return;
   presenceHeartbeatStarted = true;
   setInterval(()=>{
+    // 화면이 안 보이는 탭·앱(백그라운드 PWA, 열어만 둔 PC 탭)은 3분마다 접속 기록 쓰기와 친구 목록·
+    // 관리자 배지 조회를 계속 돌려서 Firestore 무료 할당량을 조용히 먹는다. 다시 보이는 순간
+    // 아래 visibilitychange 핸들러가 바로 맞추므로 안 보이는 동안은 건너뛴다.
+    if(document.hidden) return;
     if(state.user){ trackUserPresence(state.user); syncMyRole(); }
     if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
     refreshChatUnseenBadge().then(refreshBellDot);
@@ -2688,7 +2692,7 @@ function setupPresenceHeartbeat(){
   document.addEventListener('visibilitychange', ()=>{
     if(!document.hidden){
       checkForUpdate();
-      if(state.user){ trackUserPresence(state.user); syncMyRole(); }
+      if(state.user){ trackUserPresence(state.user); syncMyRole(); refreshChatUnseenBadge().then(refreshBellDot); }
     }
   });
 }
@@ -7645,9 +7649,42 @@ async function clearAuditLog(){
  */
 function friendPairKey(a, b){ return a < b ? `${a}_${b}` : `${b}_${a}`; }
 
+// 채팅방을 열 때 처음 읽는 메시지 수. 예전엔 200개를 한꺼번에 읽어서 방을 열 때마다 읽기 할당량을
+// 200씩 썼다(Firestore 무료 한도는 하루 5만 읽기). 최근 10개만 읽고, 더 보고 싶을 때만 20개씩
+// 늘린다. 최신순(desc)으로 읽어서 화면에는 뒤집어 그린다.
+const CHAT_PAGE = 10;
+const CHAT_PAGE_MORE = 20;
+const chatLimitState = {}; // 방 키 -> 현재 읽는 개수
+const chatLimitFor = (key) => chatLimitState[key] || CHAT_PAGE;
+function chatMoreBtnHtml(key, shown){
+  if(shown < chatLimitFor(key)) return '';
+  return `<button type="button" data-action="chat-load-more" data-chat="${escapeHtml(key)}" style="align-self:center; background:none; border:1px solid var(--border); color:var(--text-dim); font-size:11px; border-radius:12px; padding:3px 10px; cursor:pointer;">이전 메시지 더보기</button>`;
+}
+// 단체 채팅은 새 메시지가 올 때마다 읽음 기록 문서를 읽고(getDoc) 내 읽음 시각을 쓴다(setDoc).
+// 방을 열어둔 사람마다 메시지 하나에 읽기 1·쓰기 1씩 붙어서 할당량을 빨리 먹으므로, 같은 방에서
+// 15초 안에는 이전 결과를 재사용하고 쓰기도 건너뛴다(읽음 표시가 최대 15초 늦어질 뿐이다).
+const chatMetaCache = {}; // 방 키 -> { at, data }
+const chatReadWriteAt = {}; // 방 키 -> 마지막으로 읽음 시각을 쓴 시각
+async function chatMetaCached(key, loader){
+  const c = chatMetaCache[key];
+  if(c && Date.now() - c.at < 15000) return c.data;
+  let data = {};
+  try{ const snap = await loader(); data = snap.exists() ? snap.data() : {}; }catch(e){}
+  chatMetaCache[key] = { at: Date.now(), data };
+  return data;
+}
+function chatMarkRead(key, writer){
+  if(Date.now() - (chatReadWriteAt[key]||0) < 15000) return;
+  chatReadWriteAt[key] = Date.now();
+  writer().catch(()=>{});
+}
+function chatForgetRoom(prefix){
+  [chatLimitState, chatMetaCache, chatReadWriteAt].forEach(o => Object.keys(o).forEach(k => { if(k.startsWith(prefix)) delete o[k]; }));
+}
 let friendChatUnsub = null;
 function stopFriendChatListener(){
   if(friendChatUnsub){ friendChatUnsub(); friendChatUnsub = null; }
+  chatForgetRoom('friend:');
 }
 // 소셜 탭을 벗어나면 실시간 리스너(친구 목록·1:1 채팅·학생회 채팅)를 전부 끊는다 —
 // 안 보이는 화면을 위해 계속 Firestore 리스너를 띄워두지 않기 위함.
@@ -8176,6 +8213,7 @@ function friendsBackToList(){
 let councilChatUnsub = null;
 function stopCouncilChatListener(){
   if(councilChatUnsub){ councilChatUnsub(); councilChatUnsub = null; }
+  chatForgetRoom('council');
 }
 // 개발자 계정은 실제 학생회 소속이 아니라 앱 관리용으로 발급된 권한이라, 학생회
 // 목록·읽음 인원 수 계산 어디에도 포함하지 않는다(채팅방 접근 권한과는 별개).
@@ -8382,23 +8420,19 @@ function openCouncilChatListener(){
   if(!log) return;
   log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
   const totalMembers = councilMemberList().length;
-  const q = query(collection(db,'councilChatMessages'), orderBy('createdAt'), limit(200));
+  const q = query(collection(db,'councilChatMessages'), orderBy('createdAt','desc'), limit(chatLimitFor('council')));
   councilChatUnsub = onSnapshot(q, async (snap) => {
     if(state.friendsUI.screen !== 'councilChat') return;
-    let reads = {};
-    try{
-      const rSnap = await getDoc(doc(db,'shared','councilChatReads'));
-      reads = rSnap.exists() ? rSnap.data() : {};
-    }catch(e){}
+    const reads = await chatMetaCached('council', () => getDoc(doc(db,'shared','councilChatReads')));
     const el = document.getElementById('council-chat-log');
     if(!el) return;
     // "채팅 지우기"는 메시지를 실제로 지우지 않고 내 쪽 기준 시각(clearedAt)만 남긴다 —
     // 다른 사람에게는 그대로 보이고, 나만 이 시각 이전 메시지를 걸러서 안 본다.
     const myReadInfo = reads[state.user.uid] || {};
     const myClearedAt = myReadInfo.clearedAt || 0;
-    const docs = snap.docs.filter(d => (d.data().createdAt||0) > myClearedAt);
+    const docs = snap.docs.slice().reverse().filter(d => (d.data().createdAt||0) > myClearedAt);
     if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = docs.map(d=>{
+    el.innerHTML = chatMoreBtnHtml('council', snap.size) + docs.map(d=>{
       const m = d.data();
       const mine = m.senderUid === state.user.uid;
       const readCount = Object.entries(reads).filter(([uid,info])=>uid!==m.senderUid && ((info&&info.lastReadAt)||0) >= (m.createdAt||0)).length;
@@ -8411,7 +8445,7 @@ function openCouncilChatListener(){
     }).join('');
     el.scrollTop = el.scrollHeight;
     // 내가 채팅방을 열어본 채로 새 메시지가 도착한 경우도 "읽음"으로 계속 갱신한다.
-    setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }).catch(()=>{});
+    chatMarkRead('council', () => setDoc(doc(db,'shared','councilChatReads'), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }));
   }, (err) => {
     console.error('[council-chat]', err);
     const el = document.getElementById('council-chat-log');
@@ -8544,7 +8578,7 @@ function cohortChatBody(){
     </div>`;
 }
 let cohortChatUnsub = null;
-function stopCohortChatListener(){ if(cohortChatUnsub){ cohortChatUnsub(); cohortChatUnsub=null; } }
+function stopCohortChatListener(){ if(cohortChatUnsub){ cohortChatUnsub(); cohortChatUnsub=null; } chatForgetRoom('cohort:'); }
 async function toggleCohortChatNotify(){
   const cur = getNotifyPrefs();
   await setNotifyPref('cohortChat', !cur.cohortChat);
@@ -8585,20 +8619,16 @@ function openCohortChatListener(){
   const log = document.getElementById('cohort-chat-log');
   if(!log || !year) return;
   log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
-  const q = query(collection(db,'cohortChats',year,'messages'), orderBy('createdAt'), limit(200));
+  const q = query(collection(db,'cohortChats',year,'messages'), orderBy('createdAt','desc'), limit(chatLimitFor('cohort:'+year)));
   cohortChatUnsub = onSnapshot(q, async (snap) => {
     if(!(state.friendsUI.screen === 'cohortChat' && state.cohortChatUI && state.cohortChatUI.year===year)) return;
-    let reads = {};
-    try{
-      const rSnap = await getDoc(doc(db,'cohortChatMeta',year));
-      reads = rSnap.exists() ? rSnap.data() : {};
-    }catch(e){}
+    const reads = await chatMetaCached('cohort:'+year, () => getDoc(doc(db,'cohortChatMeta',year)));
     const el = document.getElementById('cohort-chat-log');
     if(!el) return;
     const myClearedAt = (reads[state.user.uid]||{}).clearedAt || 0;
-    const docs = snap.docs.filter(d => (d.data().createdAt||0) > myClearedAt);
+    const docs = snap.docs.slice().reverse().filter(d => (d.data().createdAt||0) > myClearedAt);
     if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = docs.map(d=>{
+    el.innerHTML = chatMoreBtnHtml('cohort:'+year, snap.size) + docs.map(d=>{
       const m = d.data();
       const mine = m.senderUid === state.user.uid;
       const actions = [];
@@ -8611,7 +8641,7 @@ function openCohortChatListener(){
       </div>`;
     }).join('');
     el.scrollTop = el.scrollHeight;
-    setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }).catch(()=>{});
+    chatMarkRead('cohort:'+year, () => setDoc(doc(db,'cohortChatMeta',year), { [state.user.uid+'.lastReadAt']: now() }, { merge:true }));
   }, (err) => {
     console.error('[cohort-chat]', err);
     const el = document.getElementById('cohort-chat-log');
@@ -8882,7 +8912,7 @@ function openFriendChatListener(pairId, otherUid){
   const log = document.getElementById('friend-chat-log');
   if(!log) return;
   log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
-  const q = query(collection(db,'chats',pairId,'messages'), orderBy('createdAt'), limit(200));
+  const q = query(collection(db,'chats',pairId,'messages'), orderBy('createdAt','desc'), limit(chatLimitFor('friend:'+pairId)));
   friendChatUnsub = onSnapshot(q, (snap) => {
     if(state.friendsUI.activePairId !== pairId) return; // 이미 다른 친구로 넘어간 뒤 도착한 응답
     const el = document.getElementById('friend-chat-log');
@@ -8890,9 +8920,9 @@ function openFriendChatListener(pairId, otherUid){
     // "채팅 비우기"는 메시지를 실제로 지우지 않고 내 쪽 기준 시각(myClearedAt)만 남긴다 —
     // 상대방에게는 그대로 보이고, 나만 이 시각 이전 메시지를 걸러서 안 본다.
     const myClearedAt = state.friendsUI.myClearedAt || 0;
-    const docs = snap.docs.filter(d => (d.data().createdAt||0) > myClearedAt);
+    const docs = snap.docs.slice().reverse().filter(d => (d.data().createdAt||0) > myClearedAt);
     if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = docs.map((d,i)=>{
+    el.innerHTML = chatMoreBtnHtml('friend:'+pairId, snap.size) + docs.map((d,i)=>{
       const m = d.data();
       const mine = m.senderUid === state.user.uid;
       // 날짜가 바뀌는 지점마다 가운데 구분선을 넣는다 (카카오톡처럼).
@@ -11779,6 +11809,14 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'go-my-tab'){ state.view = 'mypage'; renderShell(); }
     else if(a === 'go-calendar-tab'){ state.view = 'info'; state.infoTab = 'examCal'; renderShell(); }
     else if(a === 'go-shuttle-tab'){ state.view = 'info'; state.infoTab = 'shuttle'; renderShell(); }
+    else if(a === 'chat-load-more'){
+      const key = el.dataset.chat || '';
+      chatLimitState[key] = chatLimitFor(key) + CHAT_PAGE_MORE;
+      // 그 방의 리스너만 다시 열어 더 많이 읽는다(stop*를 거치면 늘린 개수가 초기화되므로 직접 끊는다).
+      if(key.startsWith('friend:') && friendChatUnsub){ friendChatUnsub(); friendChatUnsub = null; openFriendChatListener(state.friendsUI.activePairId, state.friendsUI.activeUid); }
+      else if(key === 'council' && councilChatUnsub){ councilChatUnsub(); councilChatUnsub = null; openCouncilChatListener(); }
+      else if(key.startsWith('cohort:') && cohortChatUnsub){ cohortChatUnsub(); cohortChatUnsub = null; openCohortChatListener(); }
+    }
     else if(a === 'go-meal-tab'){ state.view = 'info'; state.infoTab = 'meal'; renderShell(); }
     else if(a === 'open-assign-role'){ openModal(assignRoleModal(el.dataset.sid, el.dataset.name, el.dataset.role)); }
     else if(a === 'pick-role'){
