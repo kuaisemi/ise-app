@@ -139,11 +139,15 @@ a{color:inherit;}
   background-repeat:no-repeat; background-position:right 12px center;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
 /* 시간표 글씨크기·위젯 투명도 등에 쓰는 슬라이더 — 기본 브라우저 모양 대신 앱 톤에 맞춘 트랙·손잡이. */
-input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:20px; background:transparent; cursor:pointer; margin:0;}
-input[type=range]::-webkit-slider-runnable-track{height:5px; border-radius:999px; background:var(--surface-3);}
-input[type=range]::-moz-range-track{height:5px; border-radius:999px; background:var(--surface-3);}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:18px; height:18px; margin-top:-6.5px; border-radius:50%; background:var(--crimson); border:2.5px solid var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.35);}
-input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--crimson); border:2.5px solid var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.35);}
+input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:28px; background:transparent; cursor:pointer; margin:0; touch-action:pan-y;}
+input[type=range]::-webkit-slider-runnable-track{height:6px; border-radius:999px; background:linear-gradient(to right, var(--crimson) var(--fill,0%), var(--surface-3) var(--fill,0%));}
+input[type=range]::-moz-range-track{height:6px; border-radius:999px; background:var(--surface-3);}
+input[type=range]::-moz-range-progress{height:6px; border-radius:999px; background:var(--crimson);}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:20px; height:20px; margin-top:-7px; border-radius:50%; background:#fff; border:3px solid var(--crimson); box-shadow:0 1px 4px rgba(0,0,0,0.4); transition:transform .15s, box-shadow .15s;}
+input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:#fff; border:3px solid var(--crimson); box-shadow:0 1px 4px rgba(0,0,0,0.4);}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.4); box-shadow:0 0 0 7px rgba(var(--crimson-rgb),.22), 0 1px 4px rgba(0,0,0,0.4);}
+.range-val{transition:transform .15s, color .15s; transform-origin:right center;}
+.range-val.big{transform:scale(1.25); color:var(--text) !important;}
 /* iOS는 비밀번호 가림문자를 안드로이드보다 작고 촘촘하게 그려서 몇 자를 쳤는지 세기 어렵다.
    자간만 아주 살짝 벌린다. 자간은 placeholder에도 걸리므로 거기서만 원래대로 되돌린다.
    더 벌리려면 0.12em을 키우면 된다. */
@@ -500,18 +504,23 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .seg-vis:not(.is-hide) .o-show{color:#fff;}
 .seg-vis.is-hide .o-hide{color:var(--text-dim);}
 /* 알림 켜짐/꺼짐: 같은 방식의 슬라이드 스위치 */
-.tgl{position:relative; width:44px; height:26px; padding:0; border-radius:999px; border:1px solid var(--border); background:var(--surface-3); cursor:pointer; flex-shrink:0; transition:background .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
-.tgl::after{content:''; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:var(--text-faint); transition:transform .24s cubic-bezier(.3,.7,.3,1), background .22s;}
+.tgl{position:relative; width:44px; height:22px; padding:0; border-radius:999px; border:1px solid var(--border); background:var(--surface-3); cursor:pointer; flex-shrink:0; transition:background .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
+.tgl::after{content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--text-faint); transition:transform .24s cubic-bezier(.3,.7,.3,1), background .22s;}
 .tgl.on{background:var(--crimson); border-color:var(--crimson);}
-.tgl.on::after{transform:translateX(18px); background:#fff;}
+.tgl.on::after{transform:translateX(22px); background:#fff;}
 .tgl[disabled]{opacity:.4; pointer-events:none;}
+.tgl.sm{width:34px; height:20px;}
+.tgl.sm::after{width:14px; height:14px;}
+.tgl.sm.on::after{transform:translateX(14px);}
+.seg-group.sm{width:156px; flex-shrink:0;}
+.seg-group.sm button{font-size:11.5px; padding:7px 0;}
 /* 홈 화면 보기 설정 줄 간격 + 끌어서 순서 바꾸기 */
-.notify-row.hp-row{padding:6px 2px;}
+.notify-row.hp-row{padding:5px 2px; min-height:40px; box-sizing:border-box;}
 /* 손으로 잡고 밀 수 있게: 세로 스크롤만 브라우저에 맡기고 가로 움직임은 우리가 받는다 */
-.seg-vis, .tgl, .seg-group{touch-action:pan-y;}
+.seg-vis, .tgl, .seg-group, .switch{touch-action:pan-y;}
 .home-order-row{position:relative; background:var(--surface); transition:transform .18s;}
 .home-order-row.dragging{transition:none; z-index:6; background:var(--surface-2); box-shadow:0 6px 18px rgba(0,0,0,.35); border-radius:12px;}
-.home-drag-handle{display:flex; align-items:center; justify-content:center; width:44px; height:32px; color:var(--text-faint); cursor:grab; touch-action:none; flex-shrink:0;}
+.home-drag-handle{display:flex; align-items:center; justify-content:center; width:44px; height:30px; color:var(--text-faint); cursor:grab; touch-action:none; flex-shrink:0;}
 .set-label.sm{font-size:11.5px; margin-bottom:7px;}
 .set-label.sm::before{height:10px;}
 .notify-label{display:flex; align-items:center; gap:10px; min-width:0;}
@@ -521,8 +530,17 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .notify-label-text small{font-size:9.5px; color:var(--text-faint); line-height:1.4;}
 .notify-toggle{width:auto; flex-shrink:0; padding:6px 13px; font-size:11.5px;}
 .notify-toggle[disabled]{opacity:.4;}
-.notify-subrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 2px 2px; margin-top:2px; border-top:1px solid var(--hairline);}
+.notify-subrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 2px 2px; margin-top:0; border-top:1px solid var(--hairline);}
 .notify-subrow > span{font-size:11px; color:var(--text-dim);}
+.notify-subrow{min-height:38px; box-sizing:border-box;}
+.notify-subrow > .sub-lbl{display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text);}
+.sub-lbl svg{width:18px; height:18px; flex-shrink:0; color:var(--text-dim);}
+.sub-lbl em{font-style:normal; font-size:10.5px; color:var(--text-faint); font-family:var(--font-mono);}
+.range-val{display:inline-flex; align-items:center; gap:3px; flex-shrink:0;}
+.range-val b{font-size:11.5px; font-weight:700; color:var(--text-dim);}
+.range-num{width:48px; box-sizing:border-box; text-align:right; font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text); background:var(--surface-3); border:1px solid var(--border); border-radius:8px; padding:5px 6px; -moz-appearance:textfield; appearance:textfield;}
+.range-num::-webkit-inner-spin-button, .range-num::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
+.range-num:focus{outline:none; border-color:var(--crimson);}
 .divider{height:1px; background:var(--border); margin:14px 0;}
 .link-row{display:flex; align-items:center; justify-content:space-between; padding:15px 2px; font-size:13.5px; font-weight:500; cursor:pointer; color:var(--text); transition:opacity .1s;}
 .link-row:active{opacity:.55;}
@@ -3054,11 +3072,8 @@ function moveHomeOrderItem(key, dir){
 // 라벨에서는 "이 버튼을 누르면 뭐가 될까"로 헷갈린다는 피드백을 받아, 버튼 자체가 곧 그
 // 동작을 뜻하는 두 개짜리 선택형(표시 버튼=표시로 전환, 숨김 버튼=숨김으로 전환)으로 바꿨다.
 function homePrefToggleHtml(key, hidden){
-  // 어느 쪽을 눌러도 반대쪽으로 넘어가는 스위치. 누르면 화면을 다시 그리지 않고 그 자리에서 칸만 미끄러뜨린다.
-  return `
-    <div class="seg-vis ${hidden?'is-hide':''}" data-action="toggle-home-pref" data-key="${key}" role="switch" aria-checked="${!hidden}">
-      <span class="seg-vis-thumb"></span><span class="seg-vis-opt o-show">표시</span><span class="seg-vis-opt o-hide">숨김</span>
-    </div>`;
+    // 알림 탭과 같은 슬라이드 스위치: 켜짐 = 홈 화면에 표시, 꺼짐 = 숨김
+  return `<button type="button" class="tgl ${!hidden?'on':''}" data-action="toggle-home-pref" data-key="${key}" role="switch" aria-checked="${!hidden}" title="홈 화면에 표시"></button>`;
 }
 // 순서 변경 모드에서는 표시/숨김 버튼 대신 위/아래 화살표 두 개가 그 자리를 대신한다.
 // 맨 위 항목은 위로, 맨 아래 항목은 아래로 더 못 가게 그 화살표를 비활성화한다.
@@ -3074,6 +3089,15 @@ if(!window.__segSlideBound){
   document.addEventListener('click', (e)=>{
     // 손으로 밀어서 바꾼 직후에 뒤따라오는 진짜 클릭은 버린다(이미 바꿨으므로 또 바꾸면 되돌아간다)
     if(Date.now() < (window.__suppressClickUntil || 0)){ e.stopPropagation(); e.preventDefault(); return; }
+    // 위젯 설정의 켜짐/꺼짐 스위치: 먼저 미끄러뜨리고 0.24초 뒤에 원래 동작을 실행한다
+    const tg = e.target.closest && e.target.closest('.tgl[data-action^="toggle-widget-"]');
+    if(tg){
+      if(tg.dataset.slid){ delete tg.dataset.slid; return; }
+      e.stopPropagation(); e.preventDefault();
+      tg.classList.toggle('on');
+      setTimeout(()=>{ tg.dataset.slid = '1'; tg.click(); }, 240);
+      return;
+    }
     const btn = e.target.closest && e.target.closest('.seg-group button');
     if(!btn) return;
     if(btn.dataset.slid){ delete btn.dataset.slid; return; }   // 애니메이션 뒤에 다시 보낸 클릭 — 그대로 통과
@@ -3096,7 +3120,7 @@ if(!window.__swipeBound){
     return Math.max(0, Math.min(n-1, Math.floor((x - r.left - 3) / ((r.width - 6) / n))));
   };
   document.addEventListener('pointerdown', (e)=>{
-    const c = e.target.closest && e.target.closest('.seg-vis, .tgl, .seg-group');
+    const c = e.target.closest && e.target.closest('.seg-vis, .tgl, .seg-group, .switch');
     if(!c || c.hasAttribute('disabled')) return;
     st = { c, x:e.clientX, id:e.pointerId, moved:false, idx:-1 };
   }, true);
@@ -3136,11 +3160,29 @@ if(!window.__swipeBound){
     } else if(c.classList.contains('tgl')){
       const wantOn = dx > 0;
       if(wantOn !== c.classList.contains('on')) c.click();
+    } else if(c.classList.contains('switch')){
+      const inp = c.querySelector('input[type="checkbox"]');
+      if(inp && inp.checked !== (dx > 0)) inp.click();
     }
     window.__suppressClickUntil = Date.now() + 500;
   };
   document.addEventListener('pointerup', finish, true);
   document.addEventListener('pointercancel', finish, true);
+}
+// 슬라이더의 채워진 구간(--fill) 계산. 색 고르는 색상바(.cp-hue)는 제외한다.
+if(!window.__rangeFillBound){
+  window.__rangeFillBound = true;
+  const sync = (el)=>{ const mn = parseFloat(el.min) || 0, mx = parseFloat(el.max) || 100; el.style.setProperty('--fill', (((parseFloat(el.value) - mn) / (mx - mn)) * 100) + '%'); };
+  document.addEventListener('input', (e)=>{ const t = e.target; if(t && t.type === 'range' && !t.classList.contains('cp-hue')) sync(t); }, true);
+  // 잡고 있는 동안 옆의 퍼센트 숫자도 커진다
+  const bigOn = (e)=>{ const t = e.target; if(t && t.type === 'range'){ const v = t.parentElement && t.parentElement.querySelector('.range-val'); if(v) v.classList.add('big'); } };
+  const bigOff = ()=>{ document.querySelectorAll('.range-val.big').forEach(v=>v.classList.remove('big')); };
+  document.addEventListener('pointerdown', bigOn, true);
+  document.addEventListener('pointerup', bigOff, true);
+  document.addEventListener('pointercancel', bigOff, true);
+  const syncAll = ()=>document.querySelectorAll('input[type=range]:not(.cp-hue)').forEach(sync);
+  const start = ()=>{ syncAll(); new MutationObserver(syncAll).observe(document.body, { childList:true, subtree:true }); };
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 }
 function setupHomeReorderDrag(){
   document.querySelectorAll('.home-drag-handle').forEach(h=>{
@@ -3750,59 +3792,59 @@ function renderWidgetSettingsTab(){
         <div class="field" style="margin-bottom:12px;">
           <p class="set-label sm">투명도 <span style="color:var(--text-faint); font-weight:400;">(카드 배경만)</span></p>
           <div style="display:flex; align-items:center; gap:10px;">
-            <input type="range" id="widget-opacity" min="20" max="100" step="4" value="${w.opacity}" style="flex:1;">
-            <span id="widget-opacity-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${w.opacity}%</span>
+            <input type="range" id="widget-opacity" min="20" max="100" step="1" value="${w.opacity}" style="flex:1;">
+            <span class="range-val"><input type="number" id="widget-opacity-val" class="range-num" inputmode="numeric" min="20" max="100" value="${w.opacity}"><b>%</b></span>
           </div>
         </div>
 
         <div class="field" style="margin-bottom:${key==='date'||key==='calendar'?'12px':'2px'};">
-          <label>글씨 크기</label>
+          <p class="set-label sm">글씨 크기</p>
           <div style="display:flex; align-items:center; gap:10px;">
-            <input type="range" id="widget-font-scale" min="80" max="150" step="5" value="${Math.round(w.fontScale*100)}" style="flex:1;">
-            <span id="widget-font-scale-val" style="font-size:11.5px; color:var(--text-dim); font-family:var(--font-mono); min-width:38px; text-align:right;">${Math.round(w.fontScale*100)}%</span>
+            <input type="range" id="widget-font-scale" min="80" max="150" step="1" value="${Math.round(w.fontScale*100)}" style="flex:1;">
+            <span class="range-val"><input type="number" id="widget-font-scale-val" class="range-num" inputmode="numeric" min="80" max="150" value="${Math.round(w.fontScale*100)}"><b>%</b></span>
           </div>
         </div>
 
         ${key==='date' ? `
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>오늘 학사일정 표시</b><small>날짜 아래에 간략히 보여줘요</small></span></span>
-          <button type="button" class="btn ${w.dateShowEvents?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-date-events">${w.dateShowEvents?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.dateShowEvents?'on':''}" data-action="toggle-widget-date-events" role="switch" aria-checked="${!!w.dateShowEvents}"></button>
         </div>` : ''}
 
         ${(key==='calendar'||key==='calendarWide') ? `
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>오늘 할 일 표시</b><small>내가 직접 적어둔 메모만 (학사일정 아님)</small></span></span>
-          <button type="button" class="btn ${w.calendarShowMemo?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-memo">${w.calendarShowMemo?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.calendarShowMemo?'on':''}" data-action="toggle-widget-calendar-memo" role="switch" aria-checked="${!!w.calendarShowMemo}"></button>
         </div>` : ''}
 
         ${key==='calendarWide' ? `
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>학사일정 표시</b><small>오늘 일정 목록에 학사일정 포함</small></span></span>
-          <button type="button" class="btn ${w.calendarShowOfficial?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-official">${w.calendarShowOfficial?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.calendarShowOfficial?'on':''}" data-action="toggle-widget-calendar-official" role="switch" aria-checked="${!!w.calendarShowOfficial}"></button>
         </div>
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>학생회 일정 표시</b><small>오늘 일정 목록에 학생회 일정 포함</small></span></span>
-          <button type="button" class="btn ${w.calendarShowCouncil?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-calendar-council">${w.calendarShowCouncil?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.calendarShowCouncil?'on':''}" data-action="toggle-widget-calendar-council" role="switch" aria-checked="${!!w.calendarShowCouncil}"></button>
         </div>` : ''}
 
         ${key==='week' ? `
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>수업 시간 표시</b><small>각 수업 칸에 몇시~몇시인지 표시. 칸이 좁으면 자동으로 생략돼요</small></span></span>
-          <button type="button" class="btn ${w.weekShowTime?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-time">${w.weekShowTime?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.weekShowTime?'on':''}" data-action="toggle-widget-week-time" role="switch" aria-checked="${!!w.weekShowTime}"></button>
         </div>
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>강의실 표시</b><small>칸이 좁으면 자동으로 생략돼요</small></span></span>
-          <button type="button" class="btn ${w.weekShowRoom?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-week-room">${w.weekShowRoom?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.weekShowRoom?'on':''}" data-action="toggle-widget-week-room" role="switch" aria-checked="${!!w.weekShowRoom}"></button>
         </div>` : ''}
 
         ${key==='meal' ? `
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>진리관 표시</b><small>학생식당 (조식·중식·석식)</small></span></span>
-          <button type="button" class="btn ${w.mealShowJinri?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-meal-jinri">${w.mealShowJinri?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.mealShowJinri?'on':''}" data-action="toggle-widget-meal-jinri" role="switch" aria-checked="${!!w.mealShowJinri}"></button>
         </div>
         <div class="notify-row" style="padding:8px 2px;">
           <span class="notify-label"><span class="notify-label-text"><b>미래관 표시</b><small>교직원식당 (중식만 운영)</small></span></span>
-          <button type="button" class="btn ${w.mealShowMirae?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-widget-meal-mirae">${w.mealShowMirae?'켜짐':'꺼짐'}</button>
+          <button type="button" class="tgl ${w.mealShowMirae?'on':''}" data-action="toggle-widget-meal-mirae" role="switch" aria-checked="${!!w.mealShowMirae}"></button>
         </div>` : ''}
       </div>`;
     })()}`;
@@ -4770,20 +4812,33 @@ function renderMain(){
 
 // 위젯 투명도 슬라이더는 화면을 다시 그릴 때마다 새로 만들어지므로 여기서 매번 연결한다.
 // 드래그 중에는 숫자만 갱신하고, 손을 뗐을 때(change) 저장 + 위젯 갱신을 한 번만 한다.
+// 슬라이더와 옆의 숫자 칸을 서로 묶는다. 슬라이더를 움직이면 숫자가 따라가고, 숫자를 직접 적으면
+// 범위 안으로 맞춰서 슬라이더도 같이 움직인다. 저장 + 위젯 갱신은 손을 떼거나 입력을 마쳤을 때 한 번만 한다.
+function bindRangeAndNumber(slider, num, apply){
+  slider.oninput = ()=>{ if(num) num.value = slider.value; };
+  slider.onchange = ()=>apply(parseInt(slider.value, 10));
+  if(!num) return;
+  num.onchange = ()=>{
+    const mn = parseInt(slider.min, 10), mx = parseInt(slider.max, 10);
+    let v = parseInt(num.value, 10);
+    if(isNaN(v)) v = parseInt(slider.value, 10);
+    v = Math.max(mn, Math.min(mx, v));
+    num.value = v; slider.value = v;
+    slider.dispatchEvent(new Event('input', { bubbles:true }));   // 채워진 구간도 갱신
+    apply(v);
+  };
+  num.onkeydown = (e)=>{ if(e.key === 'Enter') num.blur(); };
+}
 function setupWidgetOpacitySlider(){
   const slider = document.getElementById('widget-opacity');
   if(!slider) return;
-  const label = document.getElementById('widget-opacity-val');
-  slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
-  slider.onchange = ()=>{ setWidgetSetting(state.widgetFontScaleTarget, { opacity: parseInt(slider.value,10) }); };
+  bindRangeAndNumber(slider, document.getElementById('widget-opacity-val'), v=>setWidgetSetting(state.widgetFontScaleTarget, { opacity: v }));
 }
 
 function setupWidgetFontScaleSlider(){
   const slider = document.getElementById('widget-font-scale');
   if(!slider) return;
-  const label = document.getElementById('widget-font-scale-val');
-  slider.oninput = ()=>{ if(label) label.textContent = slider.value + '%'; };
-  slider.onchange = ()=>{ setWidgetSetting(state.widgetFontScaleTarget, { fontScale: parseInt(slider.value,10)/100 }); };
+  bindRangeAndNumber(slider, document.getElementById('widget-font-scale-val'), v=>setWidgetSetting(state.widgetFontScaleTarget, { fontScale: v/100 }));
 }
 
 function setupNowTimer(){
@@ -7037,9 +7092,10 @@ function noticeModal(n){
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
           <span style="color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.eyeOff} 작성자 표시</span>
-          <div style="display:flex; gap:16px;">
-            <label style="margin:0; cursor:pointer; color:var(--text); font-size:12px; display:flex; align-items:center; gap:5px;"><input type="radio" name="displayAs" value="council" checked style="width:auto; margin:0; accent-color:var(--crimson);"> 학생회</label>
-            <label style="margin:0; cursor:pointer; color:var(--text); font-size:12px; display:flex; align-items:center; gap:5px;"><input type="radio" name="displayAs" value="developer" style="width:auto; margin:0; accent-color:var(--crimson);"> 개발자</label>
+          <input type="hidden" name="displayAs" value="council">
+          <div class="seg-group sm" style="width:140px;"><span class="seg-thumb" style="--n:2; --i:0;"></span>
+            <button type="button" class="on" data-action="notice-display-as" data-val="council">학생회</button>
+            <button type="button" data-action="notice-display-as" data-val="developer">개발자</button>
           </div>
         </div>
       </div>` : isCouncil() ? `
@@ -7589,18 +7645,6 @@ function renderMypage(){
       ${isCouncil() ? `<button type="button" class="btn btn-ghost btn-sm" style="position:absolute; bottom:7px; right:9px; width:auto; padding:3px 11px; border-radius:999px; font-size:9.5px; color:var(--danger); border-color:rgba(var(--danger-rgb),0.35);" data-action="revoke-council">권한 해제</button>` : ''}
     </div>
 
-    ${isRawDeveloper() ? `
-    <div class="card" style="margin-top:10px; background:var(--teal-glow-3);">
-      <p class="icon-inline" style="margin:0 0 2px; font-size:12.5px; font-weight:700; color:var(--teal);">${state.previewAsRole ? `${ICON.eye} ${roleLabel(state.previewAsRole)} 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
-      <p style="margin:0 0 10px; font-size:11.5px; color:var(--text-faint); line-height:1.4;">다른 직급 사람 눈에 보이는 화면을 직급별로 그대로 미리 볼 수 있어요</p>
-      <div style="display:flex; gap:5px; flex-wrap:wrap;">
-        ${PREVIEW_ROLES.map(r=>`
-          <button type="button" class="btn ${state.previewAsRole===r?'btn-primary':'btn-ghost'} btn-sm" style="width:auto; padding:5px 10px; font-size:11px;" data-action="set-preview-role" data-role="${r}">${roleLabel(r)}</button>
-        `).join('')}
-        ${state.previewAsRole ? `<button type="button" class="btn btn-ghost btn-sm" style="width:auto; padding:5px 10px; font-size:11px; color:var(--crimson);" data-action="set-preview-role" data-role="">개발자로 복귀</button>` : ''}
-      </div>
-    </div>` : ''}
-
     ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
       <p class="set-title">${ICON.gear}<span>환경설정</span></p>
@@ -7638,7 +7682,7 @@ function renderMypage(){
         <p class="set-label" style="margin:0;">홈 화면 보기 설정</p>
         <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
       </div>
-      ${state.homeReorderMode ? `<p style="font-size:10.5px; color:var(--text-faint); margin:0 0 4px; line-height:1.4;">오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.</p>` : '<div style="height:2px;"></div>'}
+      <div style="height:2px;"></div>
       <div class="notify-row hp-row ${(!state.homeReorderMode && hp.hideVotedPolls) ? 'is-off' : ''}">
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>${state.homeReorderMode ? '항상 맨 위에 고정돼요' : '내가 이미 참여한 투표는 목록에서 숨겨요'}</small></span></span>
         ${state.homeReorderMode ? '' : homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls)}
@@ -7662,6 +7706,7 @@ function renderMypage(){
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         학생회 공지는 등록된 공지가 있을 때만 자동으로 나타나요.
       </p>
+      ${state.homeReorderMode ? `<p style="font-size:10.5px; color:var(--text-faint); margin:4px 2px 0; line-height:1.55;">순서 변경 중이에요. 오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.</p>` : ''}
       ` : ''}
 
       ${state.settingsTab==='notify' ? `
@@ -7692,8 +7737,8 @@ function renderMypage(){
       ${np.timetable && isNativeApp ? `
       <div class="notify-subrow">
         <span style="flex-shrink:0;">알림 시각</span>
-        <div style="display:flex; gap:5px; flex-shrink:0;">
-          ${[7,8,9].map(h=>`<button type="button" class="btn ${np.timetableHour===h?'btn-primary':'btn-ghost'} btn-sm" data-action="set-notify-hour" data-hour="${h}" style="width:auto; padding:4px 11px; font-size:11.5px;">${h}시</button>`).join('')}
+        <div class="seg-group sm"><span class="seg-thumb" style="--n:3; --i:${Math.max(0, [7,8,9].indexOf(np.timetableHour))};"></span>
+          ${[7,8,9].map(h=>`<button type="button" class="${np.timetableHour===h?'on':''}" data-action="set-notify-hour" data-hour="${h}">${h}시</button>`).join('')}
         </div>
       </div>` : ''}
       <div class="notify-row" style="cursor:pointer;" data-action="toggle-meal-notify-expand">
@@ -7702,23 +7747,23 @@ function renderMypage(){
       </div>
       ${state.mealNotifyExpanded ? `
       <div class="notify-subrow">
-        <span>진리관 학식 알림</span>
+        <span class="sub-lbl">${ICON.capHat} 진리관 학식 알림</span>
         <button type="button" class="tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" role="switch" aria-checked="${!!np.mealJinri}"></button>
       </div>
       <div class="notify-subrow">
-        <span>미래관 학식 알림</span>
+        <span class="sub-lbl">${ICON.tie} 미래관 학식 알림</span>
         <button type="button" class="tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" role="switch" aria-checked="${!!np.mealMirae}"></button>
       </div>
       <div class="notify-subrow">
-        <span>조식 알림 (7시)</span>
+        <span class="sub-lbl">${ICON.sunrise} 조식 알림 <em>7시</em></span>
         <button type="button" class="tgl ${np.mealBreakfast?'on':''}" data-action="toggle-notify" data-key="mealBreakfast" role="switch" aria-checked="${!!np.mealBreakfast}"></button>
       </div>
       <div class="notify-subrow">
-        <span>중식 알림 (10시 반)</span>
+        <span class="sub-lbl">${ICON.sun} 중식 알림 <em>10시 반</em></span>
         <button type="button" class="tgl ${np.mealLunch?'on':''}" data-action="toggle-notify" data-key="mealLunch" role="switch" aria-checked="${!!np.mealLunch}"></button>
       </div>
       <div class="notify-subrow">
-        <span>석식 알림 (4시 반)</span>
+        <span class="sub-lbl">${ICON.moon} 석식 알림 <em>4시 반</em></span>
         <button type="button" class="tgl ${np.mealDinner?'on':''}" data-action="toggle-notify" data-key="mealDinner" role="switch" aria-checked="${!!np.mealDinner}"></button>
       </div>
       <p style="font-size:10px; color:var(--text-faint); margin:2px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
@@ -7798,6 +7843,18 @@ function renderMypage(){
       ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ` : ''}
     </div>
+
+    ${isRawDeveloper() ? `
+    <div class="card" style="margin-top:22px; background:var(--teal-glow-3);">
+      <p class="icon-inline" style="margin:0 0 2px; font-size:12.5px; font-weight:700; color:var(--teal);">${state.previewAsRole ? `${ICON.eye} ${roleLabel(state.previewAsRole)} 화면 미리보기 중` : `${ICON.chip} 개발자 화면`}</p>
+      <p style="margin:0 0 10px; font-size:11.5px; color:var(--text-faint); line-height:1.4;">다른 직급 사람 눈에 보이는 화면을 직급별로 그대로 미리 볼 수 있어요</p>
+      <div style="display:flex; gap:5px; flex-wrap:wrap;">
+        ${PREVIEW_ROLES.map(r=>`
+          <button type="button" class="btn ${state.previewAsRole===r?'btn-primary':'btn-ghost'} btn-sm" style="width:auto; padding:3px 10px; font-size:11px;" data-action="set-preview-role" data-role="${r}">${roleLabel(r)}</button>
+        `).join('')}
+        ${state.previewAsRole ? `<button type="button" class="btn btn-ghost btn-sm" style="width:auto; padding:3px 10px; font-size:11px; color:var(--crimson);" data-action="set-preview-role" data-role="">개발자로 복귀</button>` : ''}
+      </div>
+    </div>` : ''}
 
     <p style="text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); margin:22px 0 2px; cursor:pointer; user-select:none;" data-action="easter-egg-tap">
       KU ISE-지능형반도체공학과 앱 - ${APP_VERSION}
@@ -8284,7 +8341,7 @@ function friendDetailBody(){
     <div class="row-between" style="margin-bottom:6px;">
       <div class="section-title" style="margin:0;">시간표</div>
       <div style="display:flex; align-items:center; gap:10px;">
-        <button type="button" class="btn ${shareOn?'btn-primary':'btn-ghost'} btn-sm notify-toggle" id="friend-share-toggle" data-on="${shareOn?'1':'0'}" style="width:auto; padding:3px 8px; font-size:10px;" title="이 친구에게 내 시간표 공개">공개 ${shareOn?'켜짐':'꺼짐'}</button>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="font-size:10.5px; color:var(--text-dim);">시간표 공개</span><button type="button" class="tgl sm ${shareOn?'on':''}" id="friend-share-toggle" data-on="${shareOn?'1':'0'}" role="switch" title="이 친구에게 내 시간표 공개"></button></span>
         <button type="button" data-action="toggle-friend-tt-collapse" style="background:none; border:none; display:flex; align-items:center; gap:3px; color:var(--text-dim); font-size:10.5px; cursor:pointer; padding:2px;">
           ${ttCollapsed ? '펼치기' : '접기'}
           <span style="display:flex; transition:transform .15s; transform:rotate(${ttCollapsed ? '0deg' : '180deg'});">${ICON.chevDown}</span>
@@ -8302,7 +8359,7 @@ function friendDetailBody(){
       <div style="display:flex; gap:6px;">
         <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; padding:3px 8px; font-size:10px;">채팅 신고</button>
         <button type="button" class="btn btn-ghost btn-sm" data-action="clear-friend-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
-        <button type="button" class="btn ${chatMuted?'btn-ghost':'btn-primary'} btn-sm notify-toggle" id="friend-mute-toggle" data-on="${chatMuted?'0':'1'}" style="width:auto; padding:3px 8px; font-size:10px;" title="이 친구 채팅 알림만 끄기">알림 ${chatMuted?'꺼짐':'켜짐'}</button>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="font-size:10.5px; color:var(--text-dim);">채팅 알림</span><button type="button" class="tgl sm ${chatMuted?'':'on'}" id="friend-mute-toggle" data-on="${chatMuted?'0':'1'}" role="switch" title="이 친구 채팅 알림만 끄기"></button></span>
       </div>
     </div>
     <div class="card" style="padding:12px;">
@@ -8334,9 +8391,7 @@ function setupFriendsModalListeners(){
     shareToggle.disabled = false;
     if(ok){
       shareToggle.dataset.on = newOn ? '1' : '0';
-      shareToggle.textContent = newOn ? '공개 켜짐' : '공개 꺼짐';
-      shareToggle.classList.toggle('btn-primary', newOn);
-      shareToggle.classList.toggle('btn-ghost', !newOn);
+      shareToggle.classList.toggle('on', newOn);
     }
   });
 
@@ -8350,9 +8405,7 @@ function setupFriendsModalListeners(){
     muteToggle.disabled = false;
     if(ok){
       muteToggle.dataset.on = newNotifyOn ? '1' : '0';
-      muteToggle.textContent = newNotifyOn ? '알림 켜짐' : '알림 꺼짐';
-      muteToggle.classList.toggle('btn-primary', newNotifyOn);
-      muteToggle.classList.toggle('btn-ghost', !newNotifyOn);
+      muteToggle.classList.toggle('on', newNotifyOn);
     }
   });
 
@@ -11571,10 +11624,14 @@ document.addEventListener('click', async (e)=>{
       await Promise.all([setNotifyPref(key, !cur[key]), new Promise(r=>setTimeout(r, 240))]);
       renderMain();
     }
+    else if(a === 'notice-display-as'){
+      const f = el.closest('form'), inp = f && f.querySelector('input[name="displayAs"]');
+      if(inp) inp.value = el.dataset.val;
+    }
     else if(a === 'toggle-home-pref'){
-      const hidden = !el.classList.contains('is-hide');
+      const hidden = el.classList.contains('on');   // 지금 켜져(표시) 있으면 누른 뒤에는 숨김
       setHomePref(el.dataset.key, hidden);
-      el.classList.toggle('is-hide', hidden);
+      el.classList.toggle('on', !hidden);
       el.setAttribute('aria-checked', String(!hidden));
       const row = el.closest('.notify-row'); if(row) row.classList.toggle('is-off', hidden);
     }
