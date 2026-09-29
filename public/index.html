@@ -4677,11 +4677,13 @@ function renderHome(){
       if(wd===0 || wd===6) return '';
       // 공휴일에는 식당을 안 하니 카드를 숨긴다.
       if(isHolidayDate(mealDate)) return '';
-      // 진리관은 시간 루틴대로 항상 한 끼만 보여준다(조식·중식이 동시에 나오지 않는다):
-      //   00:00~09:00 → 조식 / 09:00~24:00 → 중식
+      // 진리관은 시간 루틴대로 항상 한 끼만 보여준다(끼니가 동시에 나오지 않는다):
+      //   00:00~09:00 조식 / 09:00~14:30 중식 / 14:30~24:00 석식
+      // 미래관 교직원식당(중식만 운영)은 하루 종일(00~24시) 계속 보여준다.
       const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
       const showBreakfast = nowMins < 9 * 60;
-      const showLunch = !showBreakfast;
+      const showLunch = nowMins >= 9 * 60 && nowMins < 14 * 60 + 30;
+      const showDinner = nowMins >= 14 * 60 + 30;
       const row = (icon, title, color, text, hoursKey, stripPlus, divider) => `
         <div class="meal-block"${divider ? ' style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"' : ''}>
           <div class="m-label" style="color:${color}">${icon} ${title}${mealHoursSpan(hoursKey)}</div>
@@ -4691,7 +4693,7 @@ function renderHome(){
         </div>`;
       // 그날 식단이 통째로 아직 안 올라온 경우(예: 일요일 낮에 보는 월요일 식단은 월요일 10시 이후에 올라온다)
       // 세 줄 다 "정보가 없습니다"로 채우지 않고 한 줄로 안내한다.
-      const hasAnyMeal = !!(studentMeal && ((showBreakfast && studentMeal.breakfast) || (showLunch && studentMeal.lunch))) || !!(staffMeal && staffMeal.lunch);
+      const hasAnyMeal = !!(studentMeal && ((showBreakfast && studentMeal.breakfast) || (showLunch && studentMeal.lunch) || (showDinner && studentMeal.dinner))) || !!(staffMeal && staffMeal.lunch);
       if(!hasAnyMeal){
         return `
     <div class="section-title">오늘의 학식</div>
@@ -4704,6 +4706,7 @@ function renderHome(){
     <div class="card" data-action="go-meal-tab" style="cursor:pointer;">
       ${showBreakfast ? row(ICON.capHat, '진리관 학생식당 조식', 'var(--teal)', studentMeal && studentMeal.breakfast, 'student_breakfast', false, false) : ''}
       ${showLunch ? row(ICON.capHat, '진리관 학생식당 중식', 'var(--teal)', studentMeal && studentMeal.lunch, 'student_lunch', true, false) : ''}
+      ${showDinner ? row(ICON.capHat, '진리관 학생식당 석식', 'var(--teal)', studentMeal && studentMeal.dinner, 'student_dinner', false, false) : ''}
       ${row(ICON.tie, '미래관 교직원식당 중식', 'var(--amber)', staffMeal && staffMeal.lunch, 'staff_lunch', true, true)}
     </div>`;
     })(),
