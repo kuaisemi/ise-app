@@ -187,6 +187,10 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 [data-theme="light"] .brand-mini .mark{color:var(--crimson);}
 .brand-mini b{font-size:13.5px; font-weight:800;}
 .btn-settings-mini{background:transparent; border:none; padding:10px; margin:-8px -8px -8px -10px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.btn-settings-box{display:flex; align-items:center; justify-content:center; align-self:center; width:32px; height:32px; padding:0; border:1px solid var(--teal-glow-4); border-radius:9px; background:var(--teal-glow-2); color:var(--teal); cursor:pointer; flex-shrink:0;}
+.btn-settings-box svg{width:16px; height:16px; display:block; flex:none;}
+.btn-settings-box:active{transform:scale(0.92);}
+.btn-settings-box.on{background:var(--teal); border-color:var(--teal); color:var(--teal-ink);}
 .btn-settings-mini:active{color:var(--teal); transform:scale(0.9);}
 .top-actions{display:flex; align-items:center; gap:6px;}
 .btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; width:29px; height:29px; padding:0; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none;}
@@ -3770,7 +3774,15 @@ function applyWidgetDeepLink(target){
     renderShell();
   } else if(target === 'timetable'){
     state.view = 'timetable';
-    renderShell();
+    // renderShell()로 상단바까지 다시 그리면 시간표 전용 상단바(ISE 로고 없음)로 굳어져서
+    // 다른 탭으로 옮겨도 로고가 없는 채로 남는다. 하단 탭을 누른 것과 똑같이 본문만 바꾼다.
+    if(document.getElementById('main-content')){
+      if(typeof closeModal === 'function') closeModal();
+      document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
+      renderMain();
+    } else {
+      renderShell();
+    }
   } else if(target === 'meal'){
     state.view = 'info';
     state.infoTab = 'meal';
@@ -7405,7 +7417,7 @@ function renderMypage(){
         <p style="margin:0; font-size:11px; color:var(--text-dim); font-family:var(--font-mono);">${escapeHtml(state.user.studentId)} (${fmtStudentYear(state.user.studentId)})</p>
         <span class="role-badge ${myRole()}" style="margin-top:5px; display:inline-block; cursor:pointer; user-select:none;" data-action="role-badge-tap">${roleLabel(myRole())}</span>
       </div>
-      <button type="button" class="btn-settings-mini" data-action="toggle-mypage-settings" title="화면 설정">${ICON.gear}</button>
+      <button type="button" class="btn-settings-box${state.myPageSettingsOpen?' on':''}" data-action="toggle-mypage-settings" title="환경설정">${ICON.gear}</button>
       ${isCouncil() ? `<button type="button" class="btn btn-ghost btn-sm" style="position:absolute; bottom:7px; right:9px; width:auto; padding:3px 11px; border-radius:999px; font-size:9.5px; color:var(--danger); border-color:rgba(var(--danger-rgb),0.35);" data-action="revoke-council">권한 해제</button>` : ''}
     </div>
 
