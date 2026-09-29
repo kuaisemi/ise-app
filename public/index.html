@@ -7553,7 +7553,7 @@ function renderMypage(){
         안드로이드 앱(APK)은 자동으로 업데이트되지 않아서, 친구와 화면·기능이 조금 다를 수 있어요.<br>사이트에 접속해서 다시 다운로드하거나, 위 "업데이트 확인"을 눌러도 새 버전을 받을 수 있어요.
       </p>
     </div>` : ''}
-    ${isPresident() ? `<p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">공지·투표·건의·구인글·학생회 게시글·버그 제보·학사일정 중 삭제된 지 24시간 지난 항목을 완전히 지워요. 이 정리는 서버에서 약 5분마다 자동으로도 돌아가요.</p>` : ''}
+    ${isPresident() ? `<p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">공지·투표·건의·구인글·학생회 게시글·버그 제보·학사일정 중 삭제된 지 24시간 지난 항목을 완전히 지워요. 이 정리는 서버에서 약 1시간마다 자동으로도 돌아가요.</p>` : ''}
 
     <p style="text-align:center; font-size:9.5px; color:var(--text-faint); font-family:var(--font-mono); margin:22px 0 2px; cursor:pointer; user-select:none;" data-action="easter-egg-tap">
       KU ISE-지능형반도체공학과 앱 - ${APP_VERSION}
@@ -11417,7 +11417,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'download-crime-suspicion-log'){ await downloadCrimeSuspicionLog(el.dataset.id); }
     else if(a === 'purge-tombstones'){
-      if(!await showConfirm('삭제된 지 24시간 지난 게시물을 지금 완전히 지울까요?\n(어차피 서버에서 약 5분마다 자동으로도 정리돼요)', { danger:false, okLabel:'정리하기' })) return;
+      if(!await showConfirm('삭제된 지 24시간 지난 게시물을 지금 완전히 지울까요?\n(어차피 서버에서 약 1시간마다 자동으로도 정리돼요)', { danger:false, okLabel:'정리하기' })) return;
       const removed = await purgeOldTombstonesNow();
       renderMain();
       toast(removed ? `${removed}건 정리했습니다` : '정리할 게시물이 없습니다');
