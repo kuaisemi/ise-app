@@ -28,7 +28,11 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: npm run fetch
+      # 위 갱신(크롤링)이 실패해도 알림 발송은 돌아야 한다 — 학교 사이트가 잠깐 죽었다고
+      # 식단·투표 알림과 수신자 목록(pushAudience) 갱신까지 같이 멈추면 안 된다.
+      # 잡 자체는 갱신 실패 때문에 여전히 실패로 표시된다.
       - name: Send notifications
+        if: ${{ !cancelled() }}
         working-directory: notify
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

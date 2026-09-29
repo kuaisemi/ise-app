@@ -417,9 +417,26 @@ async function main() {
   const councilChatTokens = []; // 학생회 채팅 알림을 켠 학생회 구성원 토큰 (즉시 발송용)
   const cohortChatByYear = {}; // { '24': [tokens...] } — 학번별 채팅 알림을 켠 그 학번 사람들
   const tokenToUid = new Map();
+  // 같은 기기에서 계정을 바꿔 로그인하면 그 기기 토큰이 여러 계정 문서에 남는다. 그대로 두면
+  // 예전 계정이 켜둔 알림(예: 조식)이 지금 로그인한 계정 설정과 무관하게 그 폰으로 온다.
+  // 토큰마다 "주인"을 한 계정으로 정한다: 그 계정의 현재 토큰(fcmToken)인 쪽이 우선이고,
+  // 그래도 같으면 가장 최근에 등록한(fcmTokenUpdatedAt) 계정.
+  const tokensOf = (u) => [...new Set([...(u.fcmTokens || []), ...(u.fcmToken ? [u.fcmToken] : [])])];
+  const tokenOwner = new Map(); // token -> { uid, current, at }
   usersSnap.forEach((docSnap) => {
     const u = docSnap.data();
-    const tokens = [...new Set([...(u.fcmTokens || []), ...(u.fcmToken ? [u.fcmToken] : [])])];
+    const at = Number(u.fcmTokenUpdatedAt) || 0;
+    for (const t of tokensOf(u)) {
+      const cand = { uid: docSnap.id, current: u.fcmToken === t ? 1 : 0, at };
+      const prev = tokenOwner.get(t);
+      if (!prev || cand.current > prev.current || (cand.current === prev.current && cand.at > prev.at)) {
+        tokenOwner.set(t, cand);
+      }
+    }
+  });
+  usersSnap.forEach((docSnap) => {
+    const u = docSnap.data();
+    const tokens = tokensOf(u).filter((t) => tokenOwner.get(t).uid === docSnap.id);
     if (!tokens.length) return;
     const prefs = u.notifyPrefs || {};
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
@@ -695,6 +712,32 @@ async function main() {
     }
     await batch.commit();
     console.log(`만료된 토큰 ${invalidTokens.size}개 정리 완료`);
+  }
+
+  // 다른 계정이 주인이 된 토큰은 예전 계정 문서에서 지운다. 주인이 그 토큰을 "현재 토큰"으로
+  // 확실히 갖고 있을 때만 지운다(등록 시각 기록이 없는 옛 데이터끼리의 다툼은 건드리지 않는다).
+  {
+    const stale = new Map(); // uid -> [tokens]
+    usersSnap.forEach((docSnap) => {
+      const u = docSnap.data();
+      for (const t of tokensOf(u)) {
+        const owner = tokenOwner.get(t);
+        if (owner.uid === docSnap.id || !owner.current || !owner.at) continue;
+        if (!stale.has(docSnap.id)) stale.set(docSnap.id, []);
+        stale.get(docSnap.id).push(t);
+      }
+    });
+    if (stale.size) {
+      const batch = db.batch();
+      for (const [uid, tokens] of stale) {
+        const cur = usersSnap.docs.find((d) => d.id === uid).data();
+        const update = { fcmTokens: FieldValue.arrayRemove(...tokens) };
+        if (tokens.includes(cur.fcmToken)) update.fcmToken = FieldValue.delete();
+        batch.update(db.collection('users').doc(uid), update);
+      }
+      await batch.commit();
+      console.log(`다른 계정으로 넘어간 토큰 정리: ${stale.size}개 계정`);
+    }
   }
 
   // Cloudflare Worker가 쓸 수신 대상 캐시를 남긴다.

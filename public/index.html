@@ -674,6 +674,7 @@ import {
   deleteDoc,
   deleteField,
   arrayUnion,
+  arrayRemove,
   runTransaction,
   query,
   where,
@@ -2535,7 +2536,7 @@ function boot(){
           // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
           const np = getNotifyPrefs();
           syncNotifyPrefsToServer(np);
-          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.meal || np.chat || np.councilChat)) ensurePushToken();
+          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.mealJinri || np.mealMirae || np.chat || np.councilChat)) ensurePushToken();
           scheduleTimetableReminders();
           pushWidgetData();
           setupWidgetDeepLink();
@@ -2893,12 +2894,30 @@ function ensurePushToken(){
 async function saveFcmToken(token, opts={}){
   if(!token || !state.user) return false;
   try{
+    // fcmTokenUpdatedAt: 같은 기기에서 계정을 바꿔 로그인하면 토큰이 두 계정 문서에 다 남을 수 있다.
+    // 서버가 그중 "마지막에 등록한 계정"을 골라 그 계정 설정대로만 보내도록 등록 시각을 같이 남긴다.
+    const stamp = { fcmTokenUpdatedAt: Date.now() };
     const data = opts.replaceAll
-      ? { fcmTokens: [token], fcmToken: token }
-      : { fcmTokens: arrayUnion(token), fcmToken: token };
+      ? { fcmTokens: [token], fcmToken: token, ...stamp }
+      : { fcmTokens: arrayUnion(token), fcmToken: token, ...stamp };
     await setDoc(doc(db,'users',state.user.uid), data, { merge:true });
+    localSet('fcm_token_local', token); // 로그아웃 때 이 기기 토큰만 정확히 빼기 위해 기억
     return true;
   }catch(e){ console.warn('[fcm-save]', e); return false; }
+}
+// 로그아웃하는 계정에서 이 기기 토큰을 뺀다. 안 빼면 이 폰이 계속 그 계정의 알림 설정대로
+// (예: 로그아웃한 계정이 켜둔 조식 알림) 알림을 받는다. signOut 전에 불러야 쓰기 권한이 있다.
+async function releasePushTokenForLogout(uid){
+  pushTokenPromise = null; // 다음에 로그인한 계정이 새로 토큰을 등록할 수 있게 캐시를 비운다
+  const token = localGet('fcm_token_local', null);
+  if(!uid || !token) return;
+  try{
+    const ref = doc(db,'users',uid);
+    const snap = await getDoc(ref);
+    const update = { fcmTokens: arrayRemove(token) };
+    if(snap.exists() && snap.data().fcmToken === token) update.fcmToken = deleteField();
+    await updateDoc(ref, update);
+  }catch(e){ console.warn('[fcm-release]', e); }
 }
 
 async function registerPushToken(){
@@ -10663,6 +10682,7 @@ async function handleSignup(fd){
 async function logout(){
   if(!await showConfirm('로그아웃 하시겠습니까?')) return;
   if(myRoleUnsub){ myRoleUnsub(); myRoleUnsub=null; } // 다음 사람 로그인 뒤에도 내 리스너가 계속 도는 일이 없게
+  await releasePushTokenForLogout(state.user && state.user.uid);
   state.user=null;
   state.memos={}; // 개인 메모가 다음 로그인 사용자에게 잠깐이라도 보이지 않게 비운다
   await signOut(auth).catch(()=>{});
