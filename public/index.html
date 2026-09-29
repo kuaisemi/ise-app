@@ -2739,7 +2739,6 @@ async function otaCheck(opts){
     await P.Filesystem.writeFile({ path: dir + '/ota-manifest.json', directory: 'DATA', data: btoa(unescape(encodeURIComponent(JSON.stringify(m)))), recursive: true });
     const uri = await P.Filesystem.getUri({ path: dir, directory: 'DATA' });
     otaReady = { build: String(m.build), path: String(uri.uri).replace(/^file:\/\//, '') };
-    showOtaBar();
     if(opts && opts.auto){
       // 사용자가 누르지 않아도 되게: 받아 둔 패치를 "다음 시작 때 열 화면"으로 미리 등록해 두고,
       // 앱이 화면 밖에 나가 있는 중이면 지금 바로 전환한다(보고 있는 화면이 갑자기 새로고침되지 않게).
@@ -2752,14 +2751,6 @@ async function otaCheck(opts){
     console.warn('[ota] check', e);
     return 'fail';
   }finally{ otaChecking = false; }
-}
-function showOtaBar(){
-  if(document.getElementById('ota-bar')) return;
-  const bar = document.createElement('div');
-  bar.id = 'ota-bar';
-  bar.className = 'update-bar';
-  bar.innerHTML = '<span>새 화면 업데이트가 준비됐어요</span><button type="button" class="update-bar-btn" data-action="ota-apply">패치하기</button>';
-  document.body.appendChild(bar);
 }
 async function otaApply(){
   if(!otaReady || !otaEnabled()) return;
@@ -4687,11 +4678,11 @@ function renderHome(){
       if(wd===0 || wd===6) return '';
       // 오늘이 공휴일이면 12시 이후로는 카드를 숨긴다(내일 식단을 미리 보여줄 이유가 없다).
       if(mealAfterNoon && isHolidayDate(todayStr())) return '';
-      // 진리관은 예전 시간 루틴을 지킨다: 12시 전에는 오전 9시 전까지 조식, 그 뒤엔 중식 한 끼만.
-      // 12시부터는 내일 하루치(조식·중식)를 함께 보여준다.
+      // 진리관은 시간 루틴대로 항상 한 끼만 보여준다(조식·중식이 동시에 나오지 않는다):
+      //   12시~자정 → 내일의 조식 / 자정~9시 → 오늘의 조식 / 9시~12시 → 오늘의 중식
       const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
       const showBreakfast = mealAfterNoon || nowMins < 9 * 60;
-      const showLunch = mealAfterNoon || nowMins >= 9 * 60;
+      const showLunch = !showBreakfast;
       const row = (icon, title, color, text, hoursKey, stripPlus, divider) => `
         <div class="meal-block"${divider ? ' style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"' : ''}>
           <div class="m-label" style="color:${color}">${icon} ${title}${mealHoursSpan(hoursKey)}</div>
