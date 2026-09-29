@@ -4742,7 +4742,7 @@ function renderHome(){
     <div class="section-title" style="margin-top:${hp.hideUpcomingCalendar?'0':'12px'};">다가오는 내 일정</div>
     <div class="card" style="padding:8px 14px;">
       ${upcomingMine.map(ev=>`
-        <div class="row-between upcoming-row" style="padding:6px 0; gap:8px; min-width:0;">
+        <div class="row-between upcoming-row" data-action="go-my-event" data-date="${ev.startDate > todayStr() ? ev.startDate : todayStr()}" style="padding:6px 0; gap:8px; min-width:0; cursor:pointer;">
           <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1; flex-wrap:nowrap;">
             <span style="width:9px; height:9px; border-radius:50%; background:${ev.color||'var(--blue)'}; display:inline-block; flex-shrink:0;"></span>
             <b class="one-line" style="font-size:12px;">${escapeHtml(ev.title)}</b>
@@ -11351,6 +11351,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'go-notice-tab'){ state.view = 'council'; state.councilTab = 'notice'; renderShell(); }
     else if(a === 'go-my-tab'){ state.view = 'mypage'; renderShell(); }
     else if(a === 'go-calendar-tab'){ state.view = 'info'; state.infoTab = 'examCal'; renderShell(); }
+    // 홈의 "다가오는 내 일정": 학사 달력을 열고 그 일정의 날짜(진행 중인 일정은 오늘)를 선택해 둔다.
+    else if(a === 'go-my-event'){
+      const d = el.dataset.date || todayStr();
+      state.selectedExamDate = d; state.calendarMonth = d.slice(0,7);
+      state.view = 'info'; state.infoTab = 'examCal'; renderShell();
+    }
     else if(a === 'go-shuttle-tab'){ state.view = 'info'; state.infoTab = 'shuttle'; renderShell(); }
     else if(a === 'chat-load-more'){
       const key = el.dataset.chat || '';
