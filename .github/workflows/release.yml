@@ -8,6 +8,7 @@ name: Release APK
 #
 # 쓰는 법: releases/ku-ise-Beta_0.0.0.apk 를 새 APK로 바꿔 커밋·푸시한 뒤
 #   git tag v175 && git push origin v175
+# 같은 태그를 다시 올리면(APK를 고쳐서 다시 낼 때) 릴리즈를 새로 만들지 않고 파일과 제목만 교체한다.
 
 on:
   push:
@@ -22,17 +23,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create release and attach APK
+      - name: Create or update release and attach APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           VERSION_NAME=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
           BUILD=${GITHUB_REF_NAME#v}
+          TITLE="${VERSION_NAME} (build ${BUILD})"
           cp releases/ku-ise-Beta_0.0.0.apk app-release.apk
-          gh release create "$GITHUB_REF_NAME" \
-            app-release.apk \
-            releases/ku-ise-Beta_0.0.0.apk \
-            --title "${VERSION_NAME} (build ${BUILD})" \
-            --notes "${VERSION_NAME} (build ${BUILD})" \
-            --latest
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" app-release.apk releases/ku-ise-Beta_0.0.0.apk --clobber
+            gh release edit "$GITHUB_REF_NAME" --title "$TITLE" --latest
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              app-release.apk \
+              releases/ku-ise-Beta_0.0.0.apk \
+              --title "$TITLE" \
+              --notes "$TITLE" \
+              --latest
+          fi
