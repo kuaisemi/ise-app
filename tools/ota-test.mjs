@@ -149,5 +149,15 @@ for (const [label, opt, want] of [
   r = await t6.sandbox.__ota.otaCheck({ auto: true });
   ok(r === 'ready' && t6.calls.some(c => c[0] === 'arm'), '화면 밖: 등록됨');
 }
+// 7) 실패한 버전은 10분 동안 다시 받지 않는다
+{
+  console.log('7) 실패 후 물러서기');
+  const t7 = run({ serverManifest: newer, serverFiles, localManifest: null, otaState: { pending: '', failed: '' }, buildId: '20260101000000', tamper: 'index.html' });
+  const r1 = await t7.sandbox.__ota.otaCheck({ auto: true });
+  const netBefore = t7.calls.filter(c => c[0] === 'net').length;
+  const r2 = await t7.sandbox.__ota.otaCheck({ auto: true });
+  ok(r1 === 'fail' && r2 === 'fail', '두 번 다 fail');
+  ok(t7.calls.filter(c => c[0] === 'net').length === netBefore, '두 번째는 파일을 다시 받지 않음');
+}
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);
