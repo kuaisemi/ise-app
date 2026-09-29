@@ -2738,7 +2738,8 @@ async function otaCheck(opts){
     const dir = 'ota/' + m.build;
     await P.Filesystem.rmdir({ path: dir, directory: 'DATA', recursive: true }).catch(()=>{});
     for(const f of m.files){
-      const src = (have[f.path] === f.sha256) ? ('./' + f.path) : (OTA_BASE + f.path + '?v=' + m.build);
+      // f.src가 있으면 그 위치에서 받는다(파일 경로와 서버 위치가 다를 때 — 예: 되돌리기 시험용 패치를 웹 사이트 본체와 분리해 둘 때).
+      const src = (have[f.path] === f.sha256) ? ('./' + f.path) : (OTA_BASE + (f.src || f.path) + '?v=' + m.build);
       const r = await fetch(src, { cache: 'no-store' });
       if(!r.ok) throw new Error('다운로드 실패 ' + f.path + ' ' + r.status);
       const buf = await r.arrayBuffer();

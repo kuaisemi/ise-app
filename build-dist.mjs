@@ -99,8 +99,16 @@ function injectBuildId(html, buildId) {
   return html.replace(re, `const BUILD_ID = "${buildId}";`);
 }
 
-// 웹 패치(OTA) — public/index.html의 OTA_BASE 자리표시자에 패치를 받을 주소를 넣는다. 환경변수
-// OTA_BASE를 주지 않은 빌드는 자리표시자가 그대로 남아서 앱의 패치 기능이 통째로 꺼진다(기본).
+// 웹 패치(OTA) — public/index.html의 OTA_BASE 자리표시자에 패치를 받을 주소를 넣는다.
+// 기본은 운영 사이트다. 예전엔 환경변수를 안 주면 패치 기능이 꺼진 화면이 만들어졌는데, 그걸 그대로 배포하면
+// 그 화면을 받은 앱은 그 뒤로 패치를 받을 수 없게 되므로(스스로 끈 화면이라) 실수로 끄는 일이 없게 기본을 켰다.
+// 시험용 채널을 쓰려면 OTA_BASE=<채널 주소>, 일부러 끄려면 OTA_BASE=off.
+const DEFAULT_OTA_BASE = 'https://ku-ise-d95ee.web.app/';
+function resolveOtaBase() {
+  const v = process.env.OTA_BASE;
+  if (v === 'off') return '';
+  return v || DEFAULT_OTA_BASE;
+}
 function injectOtaBase(html, base) {
   const re = /const OTA_BASE = ["'][^"']*["'];/;
   if (!re.test(html)) throw new Error('OTA_BASE 자리표시자를 못 찾음 — public/index.html이 바뀌었는지 확인');
@@ -144,7 +152,7 @@ async function main() {
 
   let strippedHtml = await processIndexHtml();
   strippedHtml = injectBuildId(strippedHtml, buildId);
-  strippedHtml = injectOtaBase(strippedHtml, process.env.OTA_BASE || '');
+  strippedHtml = injectOtaBase(strippedHtml, resolveOtaBase());
   fs.writeFileSync(path.join(OUT_DIR, 'index.html'), strippedHtml, 'utf8');
   fs.writeFileSync(path.join(OUT_DIR, 'version.json'), JSON.stringify({ build: buildId }) + '\n', 'utf8');
 
@@ -152,7 +160,7 @@ async function main() {
   fs.writeFileSync(path.join(OUT_DIR, 'sw.js'), strippedSw, 'utf8');
 
   const manifest = writeOtaManifest(buildId);
-  console.log(`ota-manifest.json — 파일 ${manifest.files.length}개, minApk ${manifest.minApk}, OTA ${process.env.OTA_BASE ? '켬 (' + process.env.OTA_BASE + ')' : '끔'}`);
+  console.log(`ota-manifest.json — 파일 ${manifest.files.length}개, minApk ${manifest.minApk}, OTA ${resolveOtaBase() ? '켬 (' + resolveOtaBase() + ')' : '끔'}`);
 
   const beforeSize = fs.statSync(path.join(SRC_DIR, 'index.html')).size;
   const afterSize = fs.statSync(path.join(OUT_DIR, 'index.html')).size;
