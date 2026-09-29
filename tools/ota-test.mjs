@@ -19,7 +19,7 @@ function run({ serverManifest, serverFiles, localManifest, otaState, buildId, ta
   const sandbox = {
     console,
     window: { addEventListener() {} },
-    document: { getElementById: () => null, createElement: () => ({ set innerHTML(v) {}, className: '', id: '' }), body: { appendChild() {} } },
+    document: { addEventListener() {}, activeElement: null, hidden: false, getElementById: () => null, createElement: () => ({ set innerHTML(v) {}, className: '', id: '' }), body: { appendChild() {} } },
     APP: { innerHTML: 'x'.repeat(600) },
     BUILD_ID: buildId,
     ANDROID_VERSION_CODE: 173,
@@ -27,7 +27,7 @@ function run({ serverManifest, serverFiles, localManifest, otaState, buildId, ta
     toast: (m) => calls.push(['toast', m]),
     isNativePlatformNow: () => true,
     crypto: crypto.webcrypto,
-    btoa, atob, unescape, encodeURIComponent, Uint8Array, JSON, Date, Array, String, Number, Promise, Error, setTimeout: () => 0,
+    btoa, atob, unescape, encodeURIComponent, Uint8Array, JSON, Date, Array, String, Number, Promise, Error, setTimeout: (fn, ms) => { if (typeof fn === 'function' && (ms || 0) <= 1000) Promise.resolve().then(fn); return 0; }, setInterval: () => 0,
     Capacitor: {
       Plugins: {
         Ota: {
@@ -129,6 +129,25 @@ for (const [label, opt, want] of [
   t = run({ serverManifest: manifest, serverFiles, localManifest: null, otaState: { pending: 'OTHER', failed: '' }, buildId: 'B1' });
   await t.sandbox.__ota.otaConfirmBoot();
   ok(!t.calls.some(c => c[0] === 'confirm'), '다른 버전이면 confirm 안 함');
+}
+// 6) 자동 모드: 받아 두면 다음 시작 때 열 화면으로 등록(arm)하고, 전환은 otaTrySwitch가 안전할 때 한다
+{
+  console.log('6) 자동 모드');
+  const mk = (hidden) => {
+    const t6 = run({ serverManifest: newer, serverFiles, localManifest: null, otaState: { pending: '', failed: '' }, buildId: '20260101000000' });
+    t6.sandbox.document.hidden = hidden;
+    return t6;
+  };
+  let t6 = mk(false);
+  let r = await t6.sandbox.__ota.otaCheck({ auto: true });
+  ok(r === 'ready', 'ready (' + r + ')');
+  ok(t6.calls.some(c => c[0] === 'arm'), 'arm 호출(다음 시작에 열 화면 등록)');
+  await new Promise(res => setTimeout(res, 50));
+  await t6.sandbox.__ota.otaApply();
+  ok(t6.calls.some(c => c[0] === 'setServerBasePath'), 'otaApply로 화면 전환');
+  t6 = mk(true);
+  r = await t6.sandbox.__ota.otaCheck({ auto: true });
+  ok(r === 'ready' && t6.calls.some(c => c[0] === 'arm'), '화면 밖: 등록됨');
 }
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);
