@@ -22,7 +22,7 @@ function run({ serverManifest, serverFiles, localManifest, otaState, buildId, ta
     document: { addEventListener() {}, activeElement: null, hidden: false, getElementById: () => null, createElement: () => ({ set innerHTML(v) {}, className: '', id: '' }), body: { appendChild() {} } },
     APP: { innerHTML: 'x'.repeat(600) },
     BUILD_ID: buildId,
-    ANDROID_VERSION_CODE: 173,
+    ANDROID_VERSION_CODE: manifest.minApk, // 지금 dist가 요구하는 APK 버전과 같은 앱으로 시험한다
     state: {},
     toast: (m) => calls.push(['toast', m]),
     isNativePlatformNow: () => true,
