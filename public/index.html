@@ -536,8 +536,12 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .notify-subrow{min-height:38px; box-sizing:border-box;}
 .notify-subrow > .sub-lbl{display:flex; align-items:center; gap:8px; padding-left:25px; font-size:12px; color:var(--text);}
 .sub-lbl em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 8px;}
-.sub-cap{margin:10px 0 2px 27px; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--text-faint);}
+.sub-cap{margin:12px 0 0 27px; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--text-faint);}
 .sub-cap + .notify-subrow{border-top:none;}
+.chip-row{display:grid; grid-template-columns:repeat(var(--cols,2), 1fr); gap:6px; margin:6px 0 4px 27px;}
+.chip-tgl{border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; line-height:1.2; padding:9px 4px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .22s, color .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
+.chip-tgl em{font-style:normal; font-size:10px; font-weight:600; opacity:.8; margin-left:5px;}
+.chip-tgl.on{background:var(--crimson); border-color:var(--crimson); color:#fff;}
 .range-val{display:inline-flex; align-items:center; gap:3px; flex-shrink:0; max-width:50%;}
 .range-val b{font-size:11.5px; font-weight:700; color:var(--text-dim);}
 .range-num{width:4em; max-width:4em; box-sizing:border-box; text-align:right; font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text); background:var(--surface-3); border:1px solid var(--border); border-radius:8px; padding:5px 6px; -moz-appearance:textfield; appearance:textfield;}
@@ -7748,28 +7752,17 @@ function renderMypage(){
       </div>
       ${state.mealNotifyExpanded ? `
       <p class="sub-cap">지점</p>
-      <div class="notify-subrow">
-        <span class="sub-lbl">진리관</span>
-        <button type="button" class="tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" role="switch" aria-checked="${!!np.mealJinri}"></button>
-      </div>
-      <div class="notify-subrow">
-        <span class="sub-lbl">미래관</span>
-        <button type="button" class="tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" role="switch" aria-checked="${!!np.mealMirae}"></button>
+      <div class="chip-row" style="--cols:2;">
+        <button type="button" class="chip-tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" aria-pressed="${!!np.mealJinri}">진리관</button>
+        <button type="button" class="chip-tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" aria-pressed="${!!np.mealMirae}">미래관</button>
       </div>
       <p class="sub-cap">끼니</p>
-      <div class="notify-subrow">
-        <span class="sub-lbl">조식 <em>7시</em></span>
-        <button type="button" class="tgl ${np.mealBreakfast?'on':''}" data-action="toggle-notify" data-key="mealBreakfast" role="switch" aria-checked="${!!np.mealBreakfast}"></button>
+      <div class="chip-row" style="--cols:3;">
+        <button type="button" class="chip-tgl ${np.mealBreakfast?'on':''}" data-action="toggle-notify" data-key="mealBreakfast" aria-pressed="${!!np.mealBreakfast}">조식<em>7시</em></button>
+        <button type="button" class="chip-tgl ${np.mealLunch?'on':''}" data-action="toggle-notify" data-key="mealLunch" aria-pressed="${!!np.mealLunch}">중식<em>10시 반</em></button>
+        <button type="button" class="chip-tgl ${np.mealDinner?'on':''}" data-action="toggle-notify" data-key="mealDinner" aria-pressed="${!!np.mealDinner}">석식<em>4시 반</em></button>
       </div>
-      <div class="notify-subrow">
-        <span class="sub-lbl">중식 <em>10시 반</em></span>
-        <button type="button" class="tgl ${np.mealLunch?'on':''}" data-action="toggle-notify" data-key="mealLunch" role="switch" aria-checked="${!!np.mealLunch}"></button>
-      </div>
-      <div class="notify-subrow">
-        <span class="sub-lbl">석식 <em>4시 반</em></span>
-        <button type="button" class="tgl ${np.mealDinner?'on':''}" data-action="toggle-notify" data-key="mealDinner" role="switch" aria-checked="${!!np.mealDinner}"></button>
-      </div>
-      <p style="font-size:10px; color:var(--text-faint); margin:2px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
+      <p style="font-size:10px; color:var(--text-faint); margin:12px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
       ` : ''}
       <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">
         ${isNativeApp ? '공지 · 투표 · 학식 알림은 앱을 꺼둬도 도착해요.' : '브라우저에서는 공지 · 투표 · 학식 알림을 받을 수 있어요.'}
