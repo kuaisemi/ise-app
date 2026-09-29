@@ -798,11 +798,20 @@ function geminiError(res, data){
 }
 
 const APP = document.getElementById('app');
-const APP_VERSION = 'Beta 0.4.1';
+// 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(0.4.2, 0.4.3 …).
+// 안드로이드 앱(APK) 자체의 버전 이름은 android/app/build.gradle의 versionName이고, 이쪽은 APK를 새로 낼 때만 바뀐다.
+const APP_VERSION = '0.4.2';
+// 패치노트 항목은 'Beta 0.4.2'처럼 계열 이름이 붙어 있어서(패치노트 화면이 Beta/Alpha별로 묶는다), 숫자만 있는 APP_VERSION과 비교할 땐 계열 이름을 뗀다.
+function patchNotesFor(v){ return PATCH_NOTES.find(p => String(p.version).replace(/^(Beta|Alpha) +/, '') === v); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 174;
 const PATCH_NOTES = [
+  { version:'Beta 0.4.2', date:'2026-09-29', items:[
+    { title:'홈의 "다가오는 내 일정"을 누르면 학사 달력으로', text:'내 일정을 누르면 학사 달력이 열리고 그 일정의 날짜가 선택돼요' },
+    { title:'서버 사용량을 줄여서 더 안정적으로', text:'탭을 옮길 때마다 데이터를 매번 다시 읽지 않도록 하고, 화면을 보고 있는 동안 계속 돌던 작업도 줄였어요', type:'fix' },
+    { title:'공지 이름 비공개를 학생회 전체가 쓸 수 있어요', text:'공지를 올릴 때 이름 비공개를 켜면 학생들에게는 "학생회"로 보이고, 학생회 안에서는 작성자 이름이 그대로 보여요', admin:true },
+  ]},
   { version:'Beta 0.4.1', date:'2026-09-29', items:[
     { title:'이제 앱을 다시 설치하지 않아도 돼요', text:'이 버전을 한 번만 설치하면, 그 뒤로는 화면·기능이 바뀌어도 앱이 알아서 새 화면을 받아와요. 문제가 생기면 자동으로 이전 화면으로 돌아가요. MY → 개발자에게 → 업데이트 확인에서 직접 받을 수도 있어요' },
     { title:'홈 학식을 시간대에 맞춰 보여줘요', text:'진리관은 00~09시 조식, 09~14:30 중식, 14:30~24시 석식을 한 끼씩 보여주고, 미래관 교직원 식단은 하루 종일 보여줘요. 주말·공휴일엔 숨겨요' },
@@ -4283,7 +4292,7 @@ let patchPopupShownThisLoad = false;
 // 펼치면 처음 보는 사람에게는 읽을 게 너무 많아서, 이번 버전에 뭐가 생겼는지 제목만
 // 추려서 보여주고 자세한 내용은 "자세히 보기"로 넘긴다.
 function showWebPatchPopup(){
-  const entry = PATCH_NOTES.find(p => p.version === APP_VERSION);
+  const entry = patchNotesFor(APP_VERSION);
   const items = entry ? entry.items.filter(patchNoteItemVisible) : [];
   if(!items.length) return;
   const root = document.body; // APK 설치 안내 팝업(showApkInstallPopup)과 같은 방식으로 붙인다
@@ -7614,7 +7623,7 @@ function renderMypage(){
 // 지금 버전에서 무엇이 바뀌었는지 — PATCH_NOTES의 맨 앞(=현재 버전) 항목만 뽑아 목록으로.
 // 전체 패치노트는 따로 있으므로 여기서는 "이번 버전"만 보여준다.
 function currentVersionNotesHtml(){
-  const entry = PATCH_NOTES.find(p => p.version === APP_VERSION);
+  const entry = patchNotesFor(APP_VERSION);
   const items = entry ? entry.items.filter(patchNoteItemVisible) : [];
   if(!items.length) return '';
   return `
