@@ -438,10 +438,17 @@ async function main() {
     const u = docSnap.data();
     let tokens = tokensOf(u).filter((t) => tokenOwner.get(t).uid === docSnap.id);
     if (!tokens.length) return;
-    // 계정당 마지막으로 등록한 기기(fcmToken) 하나에만 보낸다. Worker는 FCM v1이 멀티캐스트가
-    // 없어 토큰 하나당 외부 요청 1개를 쓰는데 실행당 50개가 한도라, 한 계정에 토큰이 여럿이면
-    // 그만큼 한도를 더 먹는다. fcmToken이 없거나 위 정리에서 밀려난 옛 데이터는 배열의 마지막 것.
-    tokens = [tokens.includes(u.fcmToken) ? u.fcmToken : tokens[tokens.length - 1]];
+    // 계정당 기기 하나에만 보낸다. 폰 브라우저·PWA·앱·PC 브라우저가 다 울리면 안 되므로
+    // 우선순위 폰 브라우저 > PWA > 앱 > PC 브라우저. 종류 기록이 없는 옛 토큰은 PWA와 같은
+    // 순위로 본다. 같은 순위끼리는 마지막으로 등록한 것(fcmToken, 없으면 배열의 마지막).
+    // Worker는 FCM v1에 멀티캐스트가 없어 토큰 하나당 외부 요청 1개(실행당 한도 50개)를
+    // 쓰기 때문에, 토큰 수를 줄이는 것이 한도 관리에도 필요하다.
+    const KIND_RANK = { mobileWeb: 0, pwa: 1, apk: 2, desktop: 3 };
+    const kinds = u.fcmTokenKinds || {};
+    const rankOf = (t) => (kinds[t] in KIND_RANK ? KIND_RANK[kinds[t]] : 1);
+    const best = Math.min(...tokens.map(rankOf));
+    const top = tokens.filter((t) => rankOf(t) === best);
+    tokens = [top.includes(u.fcmToken) ? u.fcmToken : top[top.length - 1]];
     const prefs = u.notifyPrefs || {};
     if (u.studentId) tokensByStudentId.set(u.studentId, tokens);
     if (u.studentId && prefs.poll) pollTokensByStudentId.set(u.studentId, tokens);

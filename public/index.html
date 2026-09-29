@@ -2891,12 +2891,22 @@ function ensurePushToken(){
 // 브라우저 토큰이 계속 남아있어서 알림이 두 군데(브라우저+앱)로 다 가고, 브라우저 쪽 알림을
 // 누르면 앱이 아니라 브라우저가 열려버린다. 그래서 네이티브 앱 토큰이 등록되면 그 시점부터는
 // 그 기기의 알림 창구를 앱 하나로 좁히기 위해 이전 토큰들을 정리하고 새 토큰으로 교체한다.
+// 이 토큰이 어느 창구인지. 한 사람이 폰 브라우저·PWA·앱·PC 브라우저를 다 쓰면 전부 울리므로,
+// 서버가 우선순위(mobileWeb > pwa > apk > desktop)로 하나만 골라 보낼 때 이 값을 본다.
+function pushTokenKind(){
+  const native = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+  if(native) return 'apk';
+  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  if(!mobile) return 'desktop';
+  const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  return standalone ? 'pwa' : 'mobileWeb';
+}
 async function saveFcmToken(token, opts={}){
   if(!token || !state.user) return false;
   try{
     // fcmTokenUpdatedAt: 같은 기기에서 계정을 바꿔 로그인하면 토큰이 두 계정 문서에 다 남을 수 있다.
     // 서버가 그중 "마지막에 등록한 계정"을 골라 그 계정 설정대로만 보내도록 등록 시각을 같이 남긴다.
-    const stamp = { fcmTokenUpdatedAt: Date.now() };
+    const stamp = { fcmTokenUpdatedAt: Date.now(), fcmTokenKinds: { [token]: pushTokenKind() } };
     const data = opts.replaceAll
       ? { fcmTokens: [token], fcmToken: token, ...stamp }
       : { fcmTokens: arrayUnion(token), fcmToken: token, ...stamp };
