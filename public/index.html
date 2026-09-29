@@ -24,6 +24,15 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* 첫 화면(불러오는 중)부터 앱에서 고른 테마를 쓰도록, 본문이 그려지기 전에 먼저 정한다 */
+(function(){ try{
+  var v = localStorage.getItem('ku_ise_theme_override') || localStorage.getItem('ku_ies_theme_override');
+  var t = v ? JSON.parse(v) : 'dark';
+  if(t === 'system') t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+}catch(e){} })();
+</script>
 <style>
 :root, [data-theme="dark"]{
   color-scheme: dark;      /* 구형 파서용 폴백 */
@@ -89,10 +98,8 @@ a{color:inherit;}
 .boot .chip-spin{animation:spin 1.4s linear infinite; color:#8C1D2B;}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 .boot p{color:rgba(255,255,255,0.6); font-size:11.5px;}
-@media (prefers-color-scheme: light){
-  .boot{background:#fff; color-scheme:light;}
-  .boot p{color:rgba(0,0,0,0.55);}
-}
+[data-theme="light"] .boot{background:#fff; color-scheme:light;}
+[data-theme="light"] .boot p{color:rgba(0,0,0,0.55);}
 
 .auth-wrap{min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding:calc(32px + var(--safe-top)) 24px calc(32px + var(--safe-bottom)); position:relative; z-index:1;}
 .brand{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
@@ -237,6 +244,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px;}
 .card + .card{margin-top:10px;}
 .hero-greet{background:linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%); border:1px solid var(--border); border-radius:var(--radius-lg); padding:15px; position:relative; overflow:hidden;}
+[data-theme="light"] .hero-greet{background:var(--surface);}
 .hero-greet .greet-name{font-size:16px; font-weight:800; margin:0 0 3px;}
 .hero-greet .greet-sub{font-size:11.5px; color:var(--text-dim); margin:0;}
 .hero-trace{position:absolute; right:-10px; top:-10px; opacity:.4; color:var(--teal);}
@@ -531,6 +539,9 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .home-order-row.dragging{transition:none; z-index:6; background:var(--surface-2); box-shadow:0 6px 18px rgba(0,0,0,.35); border-radius:12px;}
 .home-drag-handle{display:flex; align-items:center; justify-content:center; width:44px; height:30px; color:var(--text-faint); cursor:grab; touch-action:none; flex-shrink:0;}
 .set-label.sm{font-size:11.5px; margin-bottom:7px;}
+.set-label.sm.tight{margin-bottom:0;}
+.pick-box{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:11px 14px !important; margin-top:2px;}
+.pick-box:active{background:var(--surface-3);}
 .set-label.sm::before{height:10px;}
 .notify-label{display:flex; align-items:center; gap:10px; min-width:0;}
 .notify-label > svg{flex-shrink:0; color:var(--text-dim);}
@@ -546,8 +557,11 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .sub-lbl em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 8px;}
 .sub-cap{margin:12px 0 0 27px; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--text-faint);}
 .sub-cap + .notify-subrow{border-top:none;}
-.notify-row.meal-head{padding:8px 2px 4px; min-height:0;}
-.notify-row.meal-head .notify-label > svg{transform:translateY(1px);}
+.meal-wrap{display:flex; align-items:flex-start; gap:10px; padding:10px 2px 2px; border-top:1px solid var(--hairline);}
+.meal-ico{flex:none; display:flex; align-items:center; justify-content:center; width:21px; margin-top:6px; color:var(--text-dim);}
+.meal-body{flex:1; min-width:0;}
+.meal-title{margin:0 0 6px; font-size:11.5px; font-weight:600; line-height:1.2; color:var(--text);}
+.meal-body .chip-row{margin:0 0 6px;}
 .chip-row{display:grid; grid-template-columns:repeat(var(--cols,2), 1fr); gap:6px; margin:0 0 6px 27px;}
 .chip-tgl{border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; line-height:1.2; padding:5px 4px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .22s, color .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
 .chip-tgl em{font-style:normal; font-size:10px; font-weight:600; opacity:.8; margin-left:5px;}
@@ -3748,8 +3762,8 @@ function renderWidgetSettingsTab(){
   return `
     <div class="field" style="margin-bottom:12px;">
       <p class="set-label">대표 시간표</p>
-      <div class="link-row" data-action="open-primary-timetable" style="padding:8px 0;">
-        <span style="font-size:12px;">${escapeHtml(widgetPrimaryLabel())}</span> <span class="sub">${ICON.chevR}</span>
+      <div class="link-row pick-box" data-action="open-primary-timetable">
+        <span style="font-size:12px; font-weight:600;">${escapeHtml(widgetPrimaryLabel())}</span> <span class="sub">${ICON.chevR}</span>
       </div>
     </div>
 
@@ -3802,7 +3816,7 @@ function renderWidgetSettingsTab(){
         </div>
 
         <div class="field" style="margin-bottom:12px;">
-          <p class="set-label sm">투명도 <span style="color:var(--text-faint); font-weight:400;">(카드 배경만)</span></p>
+          <p class="set-label sm tight">투명도 <span style="color:var(--text-faint); font-weight:400;">(카드 배경만)</span></p>
           <div style="display:flex; align-items:center; gap:10px;">
             <input type="range" id="widget-opacity" min="20" max="100" step="1" value="${w.opacity}" style="flex:1;">
             <span class="range-val"><input type="number" id="widget-opacity-val" class="range-num" inputmode="numeric" min="20" max="100" value="${w.opacity}"><b>%</b></span>
@@ -3810,7 +3824,7 @@ function renderWidgetSettingsTab(){
         </div>
 
         <div class="field" style="margin-bottom:${key==='date'||key==='calendar'?'12px':'2px'};">
-          <p class="set-label sm">글씨 크기</p>
+          <p class="set-label sm tight">글씨 크기</p>
           <div style="display:flex; align-items:center; gap:10px;">
             <input type="range" id="widget-font-scale" min="80" max="150" step="1" value="${Math.round(w.fontScale*100)}" style="flex:1;">
             <span class="range-val"><input type="number" id="widget-font-scale-val" class="range-num" inputmode="numeric" min="80" max="150" value="${Math.round(w.fontScale*100)}"><b>%</b></span>
@@ -7762,9 +7776,10 @@ function renderMypage(){
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
         </div>
       </div>
-      <div class="notify-row meal-head" style="border-top:1px solid var(--hairline);">
-        <span class="notify-label">${ICON.utensils}<span class="notify-label-text"><b>학식</b></span></span>
-      </div>
+      <div class="meal-wrap">
+        <span class="meal-ico">${ICON.utensils}</span>
+        <div class="meal-body">
+      <p class="meal-title">학식</p>
       <div class="chip-row" style="--cols:2;">
         <button type="button" class="chip-tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" aria-pressed="${!!np.mealJinri}">진리관<em>학생</em></button>
         <button type="button" class="chip-tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" aria-pressed="${!!np.mealMirae}">미래관<em>교직원</em></button>
@@ -7773,6 +7788,8 @@ function renderMypage(){
         <button type="button" class="chip-tgl ${np.mealBreakfast?'on':''}" data-action="toggle-notify" data-key="mealBreakfast" aria-pressed="${!!np.mealBreakfast}">조식<em>7시</em></button>
         <button type="button" class="chip-tgl ${np.mealLunch?'on':''}" data-action="toggle-notify" data-key="mealLunch" aria-pressed="${!!np.mealLunch}">중식<em>10시 반</em></button>
         <button type="button" class="chip-tgl ${np.mealDinner?'on':''}" data-action="toggle-notify" data-key="mealDinner" aria-pressed="${!!np.mealDinner}">석식<em>4시 반</em></button>
+      </div>
+        </div>
       </div>
       <p style="font-size:10px; color:var(--text-faint); margin:8px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
       <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">
