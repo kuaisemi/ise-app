@@ -1830,6 +1830,18 @@ const SCHED_COLORS = [
   {name:'red', hex:'#E71D36'}, {name:'orange', hex:'#FF8A1F'}, {name:'yellow', hex:'#FFD23F'},
   {name:'green', hex:'#2EC46A'}, {name:'blue', hex:'#3A7BFF'}, {name:'purple', hex:'#8338EC'}, {name:'black', hex:'#1B1B1F'},
 ];
+// 수업 기본 색: 흰 글씨가 잘 보이는 예쁜 10가지. 수업 추가 화면에는 앞의 7가지를 보여 주고, 사진 인식·새 수업의 기본색은 겹치지 않게 무작위로 고른다.
+const CLASS_PALETTE = ['#E71D36','#FF7A1A','#F5A524','#2EC46A','#2EC4B6','#3A7BFF','#8338EC','#E056A0','#5B5BD6','#6B7A8F'];
+const CLASS_SWATCH_COUNT = 7;
+function shuffledArr(arr){ const a = arr.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// 새 수업의 기본색: 시간표에서 아직 안 쓴 색 중에서 무작위(다 썼으면 아무거나)
+function randomClassColor(){
+  const shown = CLASS_PALETTE.slice(0, CLASS_SWATCH_COUNT);
+  const used = new Set((state.timetable || []).map(c=>String(c.color || '').toLowerCase()));
+  const free = shown.filter(h=>!used.has(h.toLowerCase()));
+  const pool = free.length ? free : shown;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 const BUILDINGS = ['가속기ICT융합관','과학기술1관','과학기술2관','농심국제관','산학협력관','미래관','공공정책관','석원경상관'];
 
 const state = {
@@ -6459,7 +6471,7 @@ function renderSlotHtml(slot, index, total){
 
 function classModal(cls){
   const isEdit = !!cls;
-  let slots = [], subject = '', professor = '', color = COLORS[0].hex, textColor = '#FFFFFF', groupId = '';
+  let slots = [], subject = '', professor = '', color = randomClassColor(), textColor = '#FFFFFF', groupId = '';
   if(cls){
     groupId = cls.groupId || cls.id;
     subject = cls.subject || ''; professor = cls.professor || ''; color = cls.color || COLORS[0].hex;
@@ -6483,8 +6495,8 @@ function classModal(cls){
         <div class="field" style="flex:1.4;">
           <label>배경 색상</label>
           <div class="swatches" id="class-swatches-wrap">
-            ${COLORS.map(col => `<div class="swatch ${col.hex.toLowerCase() === color.toLowerCase() ? 'selected' : ''}" data-action="pick-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === color.toLowerCase() ? '✓' : ''}</div>`).join('')}
-            ${inlineColorSwatchHtml('classcolor', color, !COLORS.some(c=>c.hex.toLowerCase()===color.toLowerCase()))}
+            ${CLASS_PALETTE.slice(0, CLASS_SWATCH_COUNT).map(hex => ({hex})).map(col => `<div class="swatch ${col.hex.toLowerCase() === color.toLowerCase() ? 'selected' : ''}" data-action="pick-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === color.toLowerCase() ? '✓' : ''}</div>`).join('')}
+            ${inlineColorSwatchHtml('classcolor', color, !CLASS_PALETTE.slice(0, CLASS_SWATCH_COUNT).some(h=>h.toLowerCase()===color.toLowerCase()))}
           </div>
         </div>
         <div class="field" style="flex:0.8;">
@@ -11276,9 +11288,11 @@ function setupOcrModalListeners(){
       const list=state.ocrParsedClasses.filter((_,i)=>idxs.includes(i));
       if(list.length===0){ toast('선택된 수업이 없습니다'); return; }
       const next=[]; const map=new Map(); let ci=0;
+      // 같은 과목(시간대가 여러 개여도 한 수업)은 한 색으로 묶고, 과목마다 다른 색을 무작위로 준다(앞 7가지를 먼저, 최대 10가지)
+      const ocrPalette = [...shuffledArr(CLASS_PALETTE.slice(0, CLASS_SWATCH_COUNT)), ...shuffledArr(CLASS_PALETTE.slice(CLASS_SWATCH_COUNT))];
       list.forEach(c=>{
         const key=(c.subject||'').trim();
-        if(!map.has(key)){ map.set(key,{ groupId:'grp_'+uid(), color:COLORS[ci%COLORS.length].hex }); ci++; }
+        if(!map.has(key)){ map.set(key,{ groupId:'grp_'+uid(), color:ocrPalette[ci%ocrPalette.length] }); ci++; }
         const g=map.get(key);
         next.push({ id:uid(), groupId:g.groupId, day:c.day, start:c.start, end:c.end, subject:c.subject, professor:c.professor||'', room:c.room||'', color:g.color, textColor:'#FFFFFF' });
       });
