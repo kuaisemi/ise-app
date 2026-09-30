@@ -1007,13 +1007,19 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.0';
+const APP_VERSION = 'Beta 0.5.1';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 174;
 const PATCH_NOTES = [
+  { version:'Beta 0.5.1', date:'2026-09-30', items:[
+    { title:'친구에게 콕 찌르기', text:'소셜의 친구 이름 옆에서 주먹을 눌러 콕 찌를 수 있어요. 한 번 찌르면 상대가 찌를 때까지는 다시 못 찌르고, 상대가 나를 찌르면 검지손가락으로 바뀌어요. 친구 목록을 열거나 새로고침할 때 반영되고 알림은 가지 않아요' },
+    { title:'친구 1:1 채팅을 없앴어요', text:'서버 사용량을 줄이기 위해 채팅과 채팅 알림 설정을 없앴어요. 친구 화면에서는 시간표를 더 크게 볼 수 있어요' },
+    { title:'MY 탭 관리 메뉴 정리', text:'학생회 · 학생회장 · 개발자 전용 메뉴를 구분선으로 나눴어요. 전체 가입자 목록은 열기 전에 한 번 확인하고, AI 인식 키와 삭제된 게시물 정리는 개발자에게만 보여요' },
+    { title:'서버를 덜 쓰도록 개선', text:'오늘 방문자 수를 문서 하나로 세고, 가입자 전체 목록은 필요할 때만 불러와요. 가입자 목록에서는 눌러서 상세로 들어가야 접속 시각이 보여요' },
+  ]},
   { version:'Beta 0.5.0', date:'2026-09-30', items:[
     { title:'프로필 아이콘을 바꿀 수 있어요', text:'MY 탭에서 이름 옆 아이콘을 누르면 반도체 · 트랜지스터 · 램 · 안경 · 하트 · 별 등 80여 종의 아이콘과 이모지를 고르고, 아이콘 색과 배경 색도 정할 수 있어요. 내 계정에 저장돼서 다른 기기에서도 같아요' },
     { title:'32x32 도트로 직접 그려요', text:'"내 그림"의 + 칸이나 새로 그리기를 누르면 별도 그림판이 열려요. 펜 · 지우개 · 채우기 · 되돌리기와 1~8px 펜 굵기를 지원하고, 그림은 3개까지 보관해요' },
