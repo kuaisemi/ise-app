@@ -9431,7 +9431,7 @@ function settingsDetailHead(tab){
   return `<div class="st-dhead"><span class="st-ic" style="background:${m.color};">${m.icon()}</span><span class="st-txt"><b>${m.label}</b><small>${m.desc}</small></span></div>`;
 }
 // 섹션 제목(예전 설정 카드 스타일): 굵은 제목 + 카드
-function settingsOldHead(tab){ const m = SETTINGS_SECTIONS[tab]; return m ? `<p class="set-title st-sect"><span>${m.label}</span></p>` : ''; }
+function settingsOldHead(tab){ return ''; }
 function settingsSectionHtml(tab){
   const themeOv = getThemeOverride();
   const fontPct = getFontPct();
@@ -9573,15 +9573,19 @@ function settingsAccountHtml(){
 function settingsPanelHtml(){
   const prev = state.settingsTab;
   const tabs = ['display','notify'].concat(isIOSDevice() ? [] : ['widget']);
+  const cur = tabs.includes(prev) ? prev : 'display';
   try{
-    return settingsAccountHtml() + tabs.map(t=>{ state.settingsTab = t; return `<section class="st-sec" id="st-sec-${t}">${settingsSectionHtml(t)}</section>`; }).join('');
+    state.settingsTab = cur;
+    const bar = `<div class="subtabs">${tabs.map(t=>`<div class="subtab ${cur===t?'active':''}" data-action="settings-tab" data-tab="${t}">${SETTINGS_SECTIONS[t].label}</div>`).join('')}</div>`;
+    return settingsAccountHtml() + bar + `<section class="st-sec" id="st-sec-${cur}">${settingsSectionHtml(cur)}</section>`;
   } finally { state.settingsTab = prev; }
 }
 // 새 HTML과 지금 화면을 비교해서 달라진 곳만 고친다(통째로 갈아끼우면 스위치·선택기 애니메이션이 끊기고 깜빡인다).
 function morphChildren(dst, src){
   const sk = Array.from(src.childNodes);
+  const dk = Array.from(dst.childNodes).filter(x=>!(x.nodeType === 1 && x.classList.contains('subtab-thumb')));
   for(let i=0;i<sk.length;i++){
-    const n = sk[i], d = dst.childNodes[i];
+    const n = sk[i], d = dk[i];
     if(!d){ dst.appendChild(n.cloneNode(true)); continue; }
     if(d.nodeType !== n.nodeType || d.nodeName !== n.nodeName){ dst.replaceChild(n.cloneNode(true), d); continue; }
     if(n.nodeType !== 1){ if(d.nodeValue !== n.nodeValue) d.nodeValue = n.nodeValue; continue; }
@@ -9590,7 +9594,7 @@ function morphChildren(dst, src){
     Array.from(n.attributes).forEach(a=>{ if(d.getAttribute(a.name) !== a.value) d.setAttribute(a.name, a.value); });
     morphChildren(d, n);
   }
-  while(dst.childNodes.length > sk.length) dst.removeChild(dst.lastChild);
+  for(let i=sk.length;i<dk.length;i++) dst.removeChild(dk[i]);
 }
 function openSettingsPage(opts){
   if(!state.user || document.getElementById('settings-page')) return;
