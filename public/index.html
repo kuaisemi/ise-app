@@ -383,7 +383,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-less{grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border:1px dashed var(--border); border-radius:12px; background:transparent; color:var(--text-dim); font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;}
 .av-less svg{width:16px; height:16px;}
 .av-slots{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;}
-.av-slot{position:relative; height:44px; border:1px solid var(--border); background:var(--surface-2); border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-faint); font-size:20px; -webkit-tap-highlight-color:transparent;}
+.av-slot{position:relative; height:58px; border:1px solid var(--border); background:var(--surface-2); border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-faint); font-size:20px; -webkit-tap-highlight-color:transparent;}
 .av-slot.empty{border-style:dashed;}
 .av-slot.selected{border-color:var(--crimson);}
 .av-slot-del{position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%; border:none; background:var(--surface-3); color:var(--text); font-size:14px; line-height:1; padding:0; cursor:pointer;}
@@ -394,6 +394,13 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-half .set-label{margin-bottom:8px;}
 .swatches.av-swatches.av-four{display:grid; grid-template-columns:repeat(4, 1fr); justify-items:center; align-items:center; gap:2px; flex-wrap:nowrap;}
 .av-four .swatch{width:30px; height:30px;}
+.av-duo.av-duo-px{grid-template-columns:3fr 7fr;}
+.av-duo-px .av-swatches.av-four{grid-template-columns:repeat(2, 1fr); gap:8px 2px;}
+.av-editor{margin-top:14px; padding-top:14px; border-top:1px solid var(--hairline);}
+.av-in{animation:av-in .28s cubic-bezier(.3,.7,.3,1) both;}
+.av-out{animation:av-out .18s ease both;}
+@keyframes av-in{from{opacity:0; transform:translateY(-8px);}to{opacity:1; transform:none;}}
+@keyframes av-out{from{opacity:1; transform:none;}to{opacity:0; transform:translateY(-8px);}}
 .av-tools{display:flex; gap:6px; align-items:center; margin-bottom:10px;}
 .px-wrap{position:relative; width:100%; max-width:320px; margin:0 auto; aspect-ratio:1/1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; overflow:hidden;}
 .px-wrap canvas{display:block; width:100%; height:100%; image-rendering:pixelated; touch-action:none;}
@@ -8277,7 +8284,7 @@ function avStyle(av){
   return st;
 }
 
-let avMore = { icon:false, emoji:false }, avSlotSel = -1;
+let avMore = { icon:false, emoji:false }, avSlotSel = -1, avEditor = false, avEditorAnim = false, avBrush = 1;
 const AV_PX_SIZES = { s:['작게', 190], m:['보통', 260], l:['크게', 320] };
 function avPxSizeKey(){ const k = localGet('avatar_px_size', 'm'); return AV_PX_SIZES[k] ? k : 'm'; }
 let avDraft = null, avTab = 'icon', avPx = [], avPxColor = '#000000', avPxTool = 'pen', avPxUndo = [];
@@ -8347,11 +8354,28 @@ function avSlotsHtml(){
   for(let i = 0; i < 3; i++){
     const sl = slots[i];
     cells += sl
-      ? '<div class="av-slot '+(avSlotSel === i ? 'selected' : '')+'" data-action="av-slot-load" data-i="'+i+'">'+pxSvg(sl, 32)+'<button type="button" class="av-slot-del" data-action="av-slot-del" data-i="'+i+'" title="삭제">×</button></div>'
-      : '<div class="av-slot empty" data-action="av-slot-fill" data-i="'+i+'" title="현재 그림을 여기에 저장">+</div>';
+      ? '<div class="av-slot '+(avSlotSel === i && avEditor ? 'selected' : '')+'" data-action="av-slot-load" data-i="'+i+'" title="눌러서 편집">'+pxSvg(sl, 40)+'<button type="button" class="av-slot-del" data-action="av-slot-del" data-i="'+i+'" title="삭제">×</button></div>'
+      : '<div class="av-slot empty" data-action="av-slot-fill" data-i="'+i+'" title="눌러서 새로 그리기">+</div>';
   }
-  // 왼쪽 반: 내 그림(최대 3개). 오른쪽 반의 배경 색과 한 줄에 나란히 놓인다.
-  return '<div class="av-half"><div class="row-between" style="margin-bottom:8px;"><p class="set-label sm" style="margin:0;" title="최대 3개">내 그림</p><button type="button" class="btn btn-ghost btn-sm" data-action="av-slot-save" style="width:auto; padding:3px 9px; font-size:10px;">저장</button></div><div class="av-slots">'+cells+'</div></div>';
+  return '<div class="av-half"><div class="row-between" style="margin-bottom:8px;"><p class="set-label sm" style="margin:0;">내 그림 <span class="opt-hint" style="display:inline; margin-left:4px;">최대 3개</span></p><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-new" style="width:auto; padding:3px 9px; font-size:10px;">새로 그리기</button></div><div class="av-slots">'+cells+'</div></div>';
+}
+function avEditorHtml(){
+  const bi = Math.max(0, [1,2,3].indexOf(avBrush));
+  return '<div class="av-editor '+(avEditorAnim ? 'av-in' : '')+'" id="av-editor">'
+    + '<div class="av-tools"><button type="button" class="btn btn-sm '+(avPxTool === 'pen' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="pen">펜</button>'
+    + '<button type="button" class="btn btn-sm '+(avPxTool === 'erase' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="erase">지우개</button>'
+    + '<button type="button" class="btn btn-sm '+(avPxTool === 'fill' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="fill">채우기</button>'
+    + '<span style="flex:1;"></span><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-undo">되돌리기</button><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-clear">비우기</button></div>'
+    + '<div class="row-between" style="margin-bottom:10px;"><p class="set-label sm" style="margin:0;">펜 굵기</p><div class="seg-group sm" style="width:132px;"><span class="seg-thumb" style="--n:3; --i:'+bi+';"></span>'
+    + [1,2,3].map(n=>'<button type="button" class="'+(avBrush === n ? 'on' : '')+'" data-action="av-brush" data-n="'+n+'">'+n+'px</button>').join('')
+    + '</div></div>'
+    + '<div class="px-wrap" style="max-width:'+AV_PX_SIZES[avPxSizeKey()][1]+'px;"><canvas id="av-canvas" width="32" height="32"></canvas><div class="px-grid"></div></div>'
+    + '<div class="row-between" style="margin-top:12px;"><p class="set-label sm" style="margin:0;">그리는 색</p><button type="button" class="btn btn-ghost btn-sm" id="av-px-size-btn" data-action="av-px-size" style="width:auto; padding:4px 10px; font-size:10.5px;">캔버스 '+AV_PX_SIZES[avPxSizeKey()][0]+'</button></div>'
+    + '<div class="swatches av-swatches" id="px-palette">' + PX_PALETTE.map(h=>'<button type="button" class="swatch '+(avPxColor.toLowerCase() === h.toLowerCase() ? 'selected' : '')+'" data-action="av-px-color" data-hex="'+h+'" style="background:'+h+'; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>').join('')
+    + inlineColorSwatchHtml('pxcolor', avPxColor, !PX_PALETTE.some(h=>h.toLowerCase() === avPxColor.toLowerCase())) + '</div>'
+    + inlineColorPanelHtml('pxcolor', avPxColor)
+    + '<div class="modal-actions" style="gap:8px; margin-top:14px;"><button type="button" class="btn btn-ghost btn-sm" data-action="av-editor-close" style="flex:1;">접기</button><button type="button" class="btn btn-teal btn-sm" data-action="av-slot-store" style="flex:2;">내 그림에 저장</button></div>'
+    + '</div>';
 }
 function avSlotSaveTo(i){
   if(!avPx.some(Boolean)){ toast('먼저 그림을 그려 주세요'); return; }
@@ -8371,15 +8395,10 @@ function renderAvBody(){
   } else if(avTab === 'emoji'){
     html = avGridBlock('emoji') + bgRow;
   } else {
-    html = '<div class="av-tools"><button type="button" class="btn btn-sm '+(avPxTool === 'pen' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="pen">펜</button>'
-      + '<button type="button" class="btn btn-sm '+(avPxTool === 'erase' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="erase">지우개</button>'
-      + '<button type="button" class="btn btn-sm '+(avPxTool === 'fill' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="fill">채우기</button>'
-      + '<span style="flex:1;"></span><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-undo">되돌리기</button><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-clear">비우기</button></div>'
-      + '<div class="px-wrap" style="max-width:'+AV_PX_SIZES[avPxSizeKey()][1]+'px;"><canvas id="av-canvas" width="32" height="32"></canvas><div class="px-grid"></div></div>'
-      + '<div class="row-between" style="margin-top:12px;"><p class="set-label sm" style="margin:0;">그리는 색</p><button type="button" class="btn btn-ghost btn-sm" id="av-px-size-btn" data-action="av-px-size" style="width:auto; padding:4px 10px; font-size:10.5px;">캔버스 '+AV_PX_SIZES[avPxSizeKey()][0]+'</button></div>'
-      + '<div class="swatches av-swatches" id="px-palette">' + PX_PALETTE.map(h=>'<button type="button" class="swatch '+(avPxColor.toLowerCase() === h.toLowerCase() ? 'selected' : '')+'" data-action="av-px-color" data-hex="'+h+'" style="background:'+h+'; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>').join('')
-      + inlineColorSwatchHtml('pxcolor', avPxColor, !PX_PALETTE.some(h=>h.toLowerCase() === avPxColor.toLowerCase())) + '</div>'
-      + inlineColorPanelHtml('pxcolor', avPxColor) + '<div class="av-duo">' + avSlotsHtml() + bgHalf + '</div>' + avPanelHtml('bg', avDraft.bg);
+    const showEd = avEditor;
+    html = '<div class="av-duo av-duo-px">' + bgHalf + avSlotsHtml() + '</div>' + avPanelHtml('bg', avDraft.bg)
+      + (showEd ? avEditorHtml() : '<p class="opt-hint" style="margin-top:12px; text-align:center;">위의 "내 그림" 칸이나 "새로 그리기"를 누르면 그림판이 열려요.</p>');
+    avEditorAnim = false;
   }
   body.innerHTML = html;
   const tabs = document.getElementById('av-tabs');
@@ -8388,7 +8407,7 @@ function renderAvBody(){
     const th = tabs.querySelector('.seg-thumb'); if(th) th.style.setProperty('--i', String(order.indexOf(avTab)));
     tabs.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on', order[i] === avTab));
   }
-  if(avTab === 'pixel') setupAvCanvas();
+  if(avTab === 'pixel' && avEditor) setupAvCanvas();
   updateAvPreview();
 }
 function avPxDraw(){
@@ -8414,7 +8433,14 @@ function setupAvCanvas(){
     const x = Math.floor((e.clientX - r.left) / r.width * 32), y = Math.floor((e.clientY - r.top) / r.height * 32);
     return (x < 0 || y < 0 || x > 31 || y > 31) ? -1 : y * 32 + x;
   };
-  const put = (i)=>{ avPx[i] = avPxTool === 'erase' ? '' : avPxColor; };
+  const put = (i)=>{
+    const v = avPxTool === 'erase' ? '' : avPxColor, n = avBrush, off = Math.floor((n - 1) / 2);
+    const x = i % 32, y = (i / 32) | 0;
+    for(let dy = 0; dy < n; dy++) for(let dx = 0; dx < n; dx++){
+      const xx = x - off + dx, yy = y - off + dy;
+      if(xx >= 0 && xx < 32 && yy >= 0 && yy < 32) avPx[yy * 32 + xx] = v;
+    }
+  };
   const line = (a, b)=>{   // 손가락이 빨리 움직여도 빈틈 없이 이어서 칠한다
     let x0 = a % 32, y0 = (a / 32) | 0; const x1 = b % 32, y1 = (b / 32) | 0;
     const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
@@ -12467,8 +12493,20 @@ document.addEventListener('click', async (e)=>{
       const ex = document.getElementById('av-extra-' + k); if(ex) ex.style.display = avMore[k] ? '' : 'none';
       const sw = document.querySelector('.av-swap[data-k="' + k + '"]'); if(sw) sw.innerHTML = avMore[k] ? avCellsHtml(k, avN(k) - 1, avN(k)) : avMoreBtn(k);
     }
-    else if(a === 'av-slot-load'){ const sl = avSlots()[Number(el.dataset.i)]; if(sl){ avPxUndo.push(avPx.slice()); avPx = pxDecode(sl); avSlotSel = Number(el.dataset.i); renderAvBody(); } }
-    else if(a === 'av-slot-fill'){ avSlotSaveTo(Number(el.dataset.i)); }
+    else if(a === 'av-slot-load'){ const sl = avSlots()[Number(el.dataset.i)]; if(sl){ avPxUndo = []; avPx = pxDecode(sl); avSlotSel = Number(el.dataset.i); avEditor = true; avEditorAnim = true; renderAvBody(); } }
+    else if(a === 'av-slot-fill'){ avPx = new Array(1024).fill(''); avPxUndo = []; avSlotSel = Number(el.dataset.i); avEditor = true; avEditorAnim = true; renderAvBody(); }
+    else if(a === 'av-px-new'){ avPx = new Array(1024).fill(''); avPxUndo = []; avSlotSel = -1; avEditor = true; avEditorAnim = true; renderAvBody(); }
+    else if(a === 'av-brush'){ avBrush = Number(el.dataset.n) || 1; renderAvBody(); }
+    else if(a === 'av-slot-store'){
+      if(!avPx.some(Boolean)){ toast('먼저 그림을 그려 주세요'); return; }
+      const slots = avSlots(); let i = avSlotSel >= 0 ? avSlotSel : slots.findIndex(x=>!x);
+      if(i < 0){ toast('3칸이 모두 찼어요. 덮어쓸 칸을 눌러 고른 뒤 저장해 주세요'); return; }
+      avSlotSaveTo(i);
+    }
+    else if(a === 'av-editor-close'){
+      const ed = document.getElementById('av-editor');
+      if(ed){ ed.classList.add('av-out'); setTimeout(()=>{ avEditor = false; renderAvBody(); }, 180); } else { avEditor = false; renderAvBody(); }
+    }
     else if(a === 'av-slot-save'){
       const slots = avSlots(); let i = slots.findIndex(x=>!x);
       if(i < 0) i = avSlotSel;
