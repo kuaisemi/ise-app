@@ -5165,7 +5165,7 @@ function refreshCdLeft(){ return Math.max(0, Math.ceil((Number(localGet('refresh
 let refreshCdTimer = null;
 function refreshCdTick(){
   const left = refreshCdLeft();
-  document.querySelectorAll('.btn-top-refresh').forEach(btn=>{
+  document.querySelectorAll('.btn-top-refresh[data-action="global-refresh"]').forEach(btn=>{
     if(left > 0){ btn.classList.add('cooling'); btn.innerHTML = '<span class="rf-n">' + left + '</span>'; }
     else if(btn.classList.contains('cooling')){ btn.classList.remove('cooling'); btn.innerHTML = ICON.refresh; }
   });
