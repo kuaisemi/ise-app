@@ -8087,7 +8087,13 @@ function replyModal(s){
       <input type="hidden" name="itemId" value="${s.id}">
       <div class="field"><label>건의 내용</label><div style="background:var(--surface-2); padding:10px; border-radius:8px; font-size:11.5px; color:var(--text-dim); line-height:1.5;">${escapeHtml(s.content)}</div></div>
       <div class="field"><label>답변 내용</label><textarea name="answer" style="min-height:120px" required placeholder="공식 답변 내용을 작성하세요">${escapeHtml(s.answer||'')}</textarea></div>
-      <div class="checkline"><input type="checkbox" name="isPrivate" id="reply-priv-check" ${s.isPrivate?'checked':''}> <label for="reply-priv-check" style="margin:0; cursor:pointer;">비공개 답변 (작성자에게만 노출)</label></div>
+      <div class="row-between" style="gap:12px; margin-bottom:14px; padding:12px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:14px;">
+        <label for="reply-priv-check" style="margin:0; cursor:pointer; min-width:0;">
+          <span style="display:block; font-size:12.5px; font-weight:700; color:var(--text);">비공개 답변</span>
+          <span style="display:block; font-size:10.5px; color:var(--text-faint); margin-top:3px; line-height:1.4;">건의를 올린 사람에게만 보여요</span>
+        </label>
+        <label class="switch"><input type="checkbox" name="isPrivate" id="reply-priv-check" ${s.isPrivate?'checked':''}><span class="slider"></span></label>
+      </div>
       <div class="modal-actions" style="display:flex; gap:6px;">
         ${s.answer ? `<button type="button" class="btn btn-danger" style="flex:1;" data-action="cancel-suggestion-answer" data-id="${s.id}">답변 취소</button>` : ''}
         <button type="submit" class="btn btn-primary" style="flex:1;">답변 완료</button>
