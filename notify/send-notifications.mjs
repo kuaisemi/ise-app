@@ -335,7 +335,7 @@ async function purgeOldChatMessages() {
 async function main() {
   // friendLinks·councilChatNotice는 예전엔 여기서 매번 통째로 읽었는데(친구요청/학생회 공지
   // 감지용), 그 감지 로직 자체가 Worker로 옮겨가면서 더 이상 안 쓰여서 읽기를 아예 없앴다.
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap, usersSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
@@ -343,7 +343,6 @@ async function main() {
     db.collection('shared').doc('suggestions').get(),
     db.collection('shared').doc('recruitments').get(),
     db.collection('shared').doc('notifyState').get(),
-    db.collection('users').get(),
   ]);
 
   // 앱은 삭제를 tombstone(deleted:true)으로 처리하므로 반드시 걸러내야 한다.
@@ -359,6 +358,48 @@ async function main() {
   const sentMealKeys = new Set(st.sentMealKeys || []);
   const notifiedOrgMsg = new Set(st.notifiedOrgMsgIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
+
+  // ---- 가입자 전체 읽기를 생략해도 되는 실행인지 판단 ----
+  // 이 크론이 가입자 전체를 읽는 건 "누구에게 보낼지"를 정하기 위해서다. 정해진 시각에 보낼 알림(식단·투표·새 버전)이
+  // 없고 수신자 명단(pushAudience)이 최근(100분 이내)에 갱신됐으면, 가입자를 읽지 않고 가벼운 정리만 하고 끝낸다.
+  // 그 결과 하루 24번 읽던 것이 대략 절반 이하로 줄고, 알림이 나가야 하는 시각에는 예전과 똑같이 읽고 보낸다.
+  {
+    const todayPre = kstDateStr();
+    const activePollsPre = polls.filter((p) => isPollActive(p) && p.notifyPush);
+    const pollRemindDue = activePollsPre.length > 0 && lastPollReminderDate !== todayPre && isDue(20, 0);
+    const endingSoonPre = activePollsPre.some((p) => {
+      if (warnedPollEnd.has(p.id)) return false;
+      const end = pollEndsAt(p);
+      if (!end) return false;
+      const m = (end.getTime() - Date.now()) / 60000;
+      return m > 0 && m <= 90;
+    });
+    const slotsPre = [
+      { k: 'breakfast', h: 7, m: 0, g: 240, cafes: ['jinri'] },
+      { k: 'lunch', h: 10, m: 30, g: 60, cafes: ['jinri', 'mirae'] },
+      { k: 'dinner', h: 16, m: 30, g: 60, cafes: ['jinri'] },
+    ];
+    const mealDuePre = slotsPre.some((s) => s.cafes.some((cf) => {
+      const dayMeals = mealsByDate[todayPre];
+      const tm = dayMeals && dayMeals[cf === 'jinri' ? 'student' : 'staff'];
+      if (!tm) return false;
+      if (sentMealKeys.has(`${todayPre}_${cf}_${s.k}`)) return false;
+      if (!isDue(s.h, s.m, s.g)) return false;
+      return !!String(tm[s.k] || '').trim();
+    }));
+    const versionDuePre = isDue(12, 0);
+    const audienceStale = Date.now() - Number(st.usersReadAt || 0) > 100 * 60 * 1000;
+    const heavyHour = new Date(Date.now() + 9 * 3600 * 1000).getUTCHours() === 4;
+    const forced = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch';
+    if (!(pollRemindDue || endingSoonPre || mealDuePre || versionDuePre || audienceStale || heavyHour || forced)) {
+      console.log('보낼 정시 알림 없음 · 수신자 명단 최신 — 가입자 읽기를 생략하고 정리만 하고 종료');
+      await purgeOldTombstones();
+      await purgePendingAuthDeletes();
+      await processPendingAuthReactivations();
+      return;
+    }
+  }
+  const usersSnap = await db.collection('users').get();
 
   // 카테고리별 수신 대상 토큰 수집.
   // 한 사람이 폰 앱 + PC 브라우저를 같이 쓸 수 있어 토큰은 배열(fcmTokens)로 관리한다.
@@ -669,6 +710,7 @@ async function main() {
       notifiedOrgMsgIds: [...notifiedOrgMsg, ...newOrgMsgSentIds].slice(-KEEP_IDS),
       warnedPollEndIds: [...warnedPollEnd, ...endingSoon.map((p) => p.id)].slice(-KEEP_IDS),
       sentMealKeys: [...sentMealKeys, ...newMealKeys].slice(-30),
+      usersReadAt: Date.now(),
       updatedAt: Date.now(),
       ...nextState,
     },
