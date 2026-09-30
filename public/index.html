@@ -9652,7 +9652,7 @@ function settingsOldHead(tab){
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
   if(tab === 'display') return '<p class="st-cap">테마</p>';
   if(tab === 'notify') return '<p class="st-cap">소식</p>';
-  if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<div class="st-note">${ICON.info || ''}<span>핸드폰 홈 화면의 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가해요</span></div><p class="st-cap">대표 시간표</p>`;
+  if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<p class="st-cap">대표 시간표<span class="fs-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러 위젯 → KU ISE에서 추가해요</span></p>`;
   return '';
 }
 function settingsSectionHtml(tab){
