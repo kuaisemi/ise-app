@@ -390,7 +390,12 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-now-line{position:absolute; left:21px; right:0; height:2px; opacity:.55; z-index:8; box-shadow:0 0 8px currentColor; pointer-events:none;}
 .tt-options-trigger{width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:5px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:11.5px; font-weight:700; cursor:pointer;}
 
-.tt-fab{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:#fff; border:none; display:flex; align-items:center; justify-content:center; box-shadow:none; cursor:pointer; transition:transform .15s;}
+.tt-fab{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:#fff; border:none; display:flex; align-items:center; justify-content:center; box-shadow:none; cursor:pointer; transition:transform .32s cubic-bezier(.3,.7,.3,1), opacity .25s; touch-action:none; -webkit-tap-highlight-color:transparent;}
+.tt-fab-wrap.docked .tt-fab{transform:translateX(42px); opacity:.92;}
+.tt-fab svg{transition:opacity .32s cubic-bezier(.3,.7,.3,1);}
+.tt-fab::before{content:''; position:absolute; left:8px; top:50%; width:7px; height:7px; border-left:2.5px solid #fff; border-bottom:2.5px solid #fff; transform:translateY(-50%) rotate(45deg); border-radius:1px; opacity:0; transition:opacity .32s cubic-bezier(.3,.7,.3,1);}
+.tt-fab-wrap.docked .tt-fab svg{opacity:0;}
+.tt-fab-wrap.docked .tt-fab::before{opacity:.95;}
 @media (max-width:480px){ .tt-fab{right:18px;} }
 .tt-fab-wrap.open .tt-fab{transform:rotate(45deg);}
 /* + 버튼을 누르면 "직접 추가"로 바로 들어가던 걸, 사진 인식도 같이 고를 수 있게
@@ -1637,7 +1642,7 @@ const state = {
   allUsers: {}, roster: {}, ocrParsedClasses: [],
   ttOpts: { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B', bgColor:'', gridColor:'' },
   editingPollVoteId: null, nowTimer: null, shuttleTimer: null,
-  activeUserListTab: 'all', captureMode: false, ttFabOpen: false,
+  activeUserListTab: 'all', captureMode: false, ttFabOpen: false, ttFabDocked: false,
   previewAsRole: null, // 개발자가 미리보기 중인 직급('student'|'council'|'director'|'vice'|'president'), 안 켰으면 null
   myPageSettingsOpen: false,
   settingsTab: 'display',
@@ -2618,6 +2623,7 @@ function boot(){
   state.showCouncilEvents = localGet('cal_show_council', true);
   state.showAcademicEvents = localGet('cal_show_academic', true);
   state.ttOpts = { ...state.ttOpts, ...(localGet('tt_display_opts',{})||{}) };
+  state.ttFabDocked = !!localGet('tt_fab_docked', false);
   try{
     onAuthStateChanged(auth, async (fbUser)=>{
       booted = true;
@@ -5569,7 +5575,7 @@ function renderTimetable(isCapture=false){
         </div>
       </div>
     `}
-    <div class="tt-fab-wrap ${state.ttFabOpen?'open':''}">
+    <div class="tt-fab-wrap ${state.ttFabOpen?'open':''}${state.ttFabDocked?' docked':''}">
       ${state.ttFabOpen ? ttFabOptionsHtml() : ''}
       <button type="button" class="tt-fab" data-action="toggle-tt-fab">${ICON.plus}</button>
     </div>
@@ -5589,6 +5595,47 @@ function ttFabOptionsHtml(){
 }
 // + 버튼 메뉴는 시간표 전체를 다시 그리지 않고 버튼 주변만 바꾼다.
 // (다시 그리면 시간표가 잠깐 깜빡이고, 칸 크기를 다시 맞추느라 위아래로 출렁였다.)
+// + 버튼을 오른쪽 가장자리로 밀어 넣으면 끄트머리만 남고(캡처할 때 시간표를 가리지 않게), 다시 끌어당기거나 눌러서 꺼낼 수 있다.
+const TT_FAB_DOCK = 42;   // 버튼 폭(52) + 오른쪽 여백(18) - 남길 끄트머리(28). 너무 얇으면 안드로이드 가장자리 뒤로가기 제스처와 겹쳐 잡기 어렵다
+function setTtFabDock(dock){
+  state.ttFabDocked = !!dock;
+  localSet('tt_fab_docked', state.ttFabDocked);
+  if(state.ttFabDocked && state.ttFabOpen) setTtFab(false);
+  const wrap = document.querySelector('.tt-fab-wrap');
+  if(wrap) wrap.classList.toggle('docked', state.ttFabDocked);
+}
+if(!window.__fabDragBound){
+  window.__fabDragBound = true;
+  let d = null;
+  document.addEventListener('pointerdown', (e)=>{
+    const b = e.target.closest && e.target.closest('.tt-fab'); if(!b) return;
+    const wrap = b.closest('.tt-fab-wrap');
+    const zoom = parseFloat(getComputedStyle(wrap).zoom) || 1;   // 글씨 크기 배율의 반대로 줄여 놓은 영역이라 손가락 이동량도 맞춰 준다
+    d = { b, x:e.clientX, y:e.clientY, id:e.pointerId, moved:false, base: state.ttFabDocked ? TT_FAB_DOCK : 0, cur: state.ttFabDocked ? TT_FAB_DOCK : 0, zoom };
+  }, true);
+  document.addEventListener('pointermove', (e)=>{
+    if(!d || e.pointerId !== d.id) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if(!d.moved){
+      if(Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)){ d = null; return; }
+      if(Math.abs(dx) > 8){ d.moved = true; d.b.style.transition = 'none'; }
+    }
+    if(d && d.moved){
+      d.cur = Math.max(0, Math.min(TT_FAB_DOCK, d.base + dx / d.zoom));
+      d.b.style.transform = 'translateX(' + d.cur + 'px)';
+    }
+  }, true);
+  const endFab = (e)=>{
+    if(!d || e.pointerId !== d.id) return;
+    const { b, moved, cur } = d; d = null;
+    if(!moved) return;
+    b.style.transition = ''; b.style.transform = '';
+    window.__suppressClick = { el: b, until: Date.now() + 500 };
+    setTtFabDock(cur > TT_FAB_DOCK / 2);
+  };
+  document.addEventListener('pointerup', endFab, true);
+  document.addEventListener('pointercancel', endFab, true);
+}
 function setTtFab(open){
   state.ttFabOpen = !!open;
   const wrap = document.querySelector('.tt-fab-wrap');
@@ -12324,7 +12371,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'change-password'){ openModal(changePasswordModal()); }
     else if(a === 'delete-account'){ openModal(deleteAccountModal()); }
     else if(a === 'kick-member'){ openModal(kickMemberModal(el.dataset.sid, el.dataset.name)); }
-    else if(a === 'toggle-tt-fab'){ setTtFab(!state.ttFabOpen); }
+    else if(a === 'toggle-tt-fab'){ if(state.ttFabDocked){ setTtFabDock(false); } else { setTtFab(!state.ttFabOpen); } }
     else if(a === 'close-tt-fab'){ setTtFab(false); }
     else if(a === 'add-class'){ setTtFab(false); openModal(classModal(null)); setupClassModalListeners(); }
     else if(a === 'edit-class'){ const c = state.timetable.find(x => x.id === el.dataset.id); if(c){ openModal(classModal(c)); setupClassModalListeners(); } }
