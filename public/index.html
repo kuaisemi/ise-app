@@ -1505,7 +1505,7 @@ const PATCH_NOTES = [
 const DAYS = ['월','화','수','목','금'];
 const TIME_START = 540;
 const TIME_END   = 1320;
-const TIMETABLE_VISIBLE_END = 1080;
+const TIMETABLE_VISIBLE_END = 1200;   // 시간표가 최소한 보여 주는 끝 시각(20시). 수업이 더 늦게 끝나면 그 시각(최대 22시)까지 늘어난다
 const TIMETABLE_GRID_STEP = 15;
 // 한눈에 보려고 스크롤을 계속 내려야 한다는 피드백을 받아 15→12→10으로 줄였다 —
 // 글자 크기(.tt-block 안 폰트)는 그대로 두고 칸 높이(여백)만 줄여서, 글씨는 안 작아지고
@@ -5986,13 +5986,10 @@ function fitTimetableGrid(){
   const available = viewportH - navHeight - wrapTop - bottomMargin - footerReserve;
   if(available <= 60) return; // 화면이 너무 작아 계산이 이상해지면 기본값(CSS 68vh)을 그대로 둔다
   const headerPx = 24;
-  // 칸 높이는 "9시~21시" 기준(48칸)으로 계산한 값이 최대치다 — 수업이 21시 전에 끝나는
-  // 날은 이 크기 그대로 쓰고(그래서 아래로 빈 공간이 남을 수 있다), 21시를 넘는 수업이
-  // 있어서 칸이 48개보다 더 필요해지면 그만큼 칸을 더 촘촘하게(작게) 줄여서 스크롤 없이
-  // 다 들어오게 한다 — 잘라내지 않고 압축한다.
-  const baselineRows = Math.ceil((21*60 - TIME_START) / TIMETABLE_GRID_STEP);
-  const actualRows = parseInt(grid.dataset.rows||'0', 10) || baselineRows;
-  const effectiveRows = Math.max(baselineRows, actualRows);
+  // 칸 높이는 "지금 그려진 칸 수"로 남는 높이를 나눠서 정한다 — 그래서 최소 끝 시각(20시)일 때는 칸이 조금 더 크게 화면을 딱 채우고
+  // (아래에 빈 공간이 남지 않는다), 수업이 더 늦게 끝나 칸이 늘어나면 그만큼 촘촘해져서 언제나 스크롤 없이 한 화면에 들어온다.
+  const actualRows = parseInt(grid.dataset.rows||'0', 10) || Math.ceil((TIMETABLE_VISIBLE_END - TIME_START) / TIMETABLE_GRID_STEP);
+  const effectiveRows = actualRows;
   const maxSafeRowPx = Math.max(8, (available - headerPx) / effectiveRows);
   // "시간표 크기" 설정(화면 표시 설정)은 이 화면-꽉-채움 크기를 100%로 보고, 그보다
   // 작게(0.6~1.0배)만 줄일 수 있게 한다 — 100%가 이미 스크롤 없이 들어가는 최대치라,
