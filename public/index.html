@@ -1651,36 +1651,10 @@ function canModify(item){
 }
 
 /* ===== 경고 · 정지 권한 ===== */
-// 직급별 최대 정지 기간(일). 부회장·회장·개발자는 영구 정지까지 가능.
-function maxSuspendDays(role){
-  const lvl = roleLevel(role);
-  if(lvl >= 3) return Infinity;
-  if(lvl === 2) return 7;
-  if(lvl === 1) return 2;
-  return 0;
-}
 // 나보다 직급이 낮은 사람에게만 경고·정지를 줄 수 있다(동급·상급은 불가).
 function canDiscipline(targetRole){ return myLevel() > roleLevel(targetRole || 'student'); }
 // 경고 "삭제"는 더 무거운 조치라 부회장 이상만.
 function isVicePlus(){ return myLevel() >= 3; }
-// 경고·정지 기능은 없앴다: 어떤 계정도 정지 상태로 취급하지 않는다(예전에 걸린 값이 서버에 남아 있어도 무시).
-function isSuspendedNow(u){ return false; }
-// 정지 중이면 토스트로 안내하고 true를 돌려준다 — 호출부에서 그대로 return에 쓴다.
-function blockIfSuspended(){
-  if(!isSuspendedNow(state.user)) return false;
-  const s = state.user.suspension;
-  toast('정지 중이라 이용할 수 없어요' + (s.reason ? ` (${s.reason})` : ''));
-  return true;
-}
-// 정지 기간이 이미 지났으면(영구 제외) 본인이 스스로 풀 수 있다 — 로그인 시 한 번 시도.
-async function clearExpiredSuspensionIfAny(){
-  const s = state.user && state.user.suspension;
-  if(!s || s.permanent || typeof s.until !== 'number' || s.until > Date.now()) return;
-  try{
-    await updateDoc(doc(db,'users',state.user.uid), { suspension: null, suspActive: false });
-    state.user.suspension = null;
-  }catch(e){ console.error('[clearExpiredSuspensionIfAny]', e); }
-}
 
 const CATS = [
   {key:'academic', label:'학사', tag:'tag-blue'},
@@ -2794,7 +2768,6 @@ function boot(){
             suspension: udoc.suspension || null,
             warnings: udoc.warnings || [],
           };
-          clearExpiredSuspensionIfAny();
           // 알림 목록의 "읽음/지움" 상태를 기기 로컬(localStorage)에만 두면, 앱을 지우고 새로
           // 깔거나 다른 기기로 바꿨을 때 이미 확인한 알림이 다시 나타난다. 로그인할 때
           // 서버(udoc)에 저장된 값과 합쳐서 두 기록 중 더 최근 것을 기준으로 맞춘다.
@@ -2810,7 +2783,6 @@ function boot(){
           setupTimetableResizeListener();
           startRoleRealtimeListener();
           if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
-          refreshChatUnseenBadge().then(refreshBellDot);
           setupForegroundMessageListener();
           // 첫 실행 안내(runNotificationOnboarding)를 아직 안 본 기기에서는 여기서 권한창을 띄우지 않는다.
           // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
@@ -3128,7 +3100,6 @@ function setupPresenceHeartbeat(){
     // 접속 기록 쓰기는 하지 않는다(앱을 켤 때와 백그라운드에서 오래 있다 돌아올 때만 쓴다).
     // 직급은 실시간 리스너(startRoleRealtimeListener)가 이미 따라가므로 여기서 다시 읽지 않는다.
     if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
-    refreshChatUnseenBadge().then(refreshBellDot);
     checkForUpdate();
   }, 10*60*1000);
   checkForUpdate();
@@ -3143,7 +3114,6 @@ function setupPresenceHeartbeat(){
         resumeRefreshAt = Date.now();
         trackUserPresence(state.user);
         syncMyRole();
-        refreshChatUnseenBadge().then(refreshBellDot);
       }
     }
   });
@@ -3176,16 +3146,6 @@ function startRoleRealtimeListener(){
     if(!snap.exists() || !state.user) return;
     const data = snap.data();
     const fresh = ROLES[data.role] ? data.role : 'student';
-    const wasSuspended = isSuspendedNow(state.user);
-    state.user.suspension = data.suspension || null;
-    state.user.warnings = data.warnings || [];
-    if(!wasSuspended && isSuspendedNow(state.user)){
-      renderApp();
-      toast(`정지 처리되었습니다${state.user.suspension.reason?` (${state.user.suspension.reason})`:''}`);
-    } else if(wasSuspended && !isSuspendedNow(state.user)){
-      renderApp();
-      toast('정지가 해제되었습니다');
-    }
     if(fresh === state.user.role) return;
     state.user.role = fresh;
     localSet('user_'+state.user.uid, state.user);
@@ -3775,22 +3735,10 @@ function routeNotificationTap(category, data){
   else if(category==='friend' || category==='friendRequest'){ openSocialTab(); }
   else if(category==='suggestion'){ state.view='council'; state.councilTab='suggestion'; renderShell(); }
 }
-// 앱을 보고 있는 중에 그 알림이 가리키는 화면(채팅방)을 이미 보고 있으면,
-// 이미 실시간으로 보이는 내용이라 굳이 다시 울려서 알릴 필요가 없다.
-function isViewingChat(category, data){
-  if(typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
-  if(!(state.view === 'council' && state.councilTab === 'social')) return false;
-  if(category === 'chat'){
-    return state.friendsUI.screen === 'detail' && !!data && state.friendsUI.activePairId === data.pairId;
-  }
-  return false;
-}
 // 포그라운드(앱을 보고 있는 중)로 온 알림은 OS가 알아서 소리·진동을 내주지 않으므로,
 // 기기 로컬 알림을 즉시(0초 뒤) 예약해 실제 알림처럼 소리/진동/배너가 뜨게 만든다.
-// 단, 지금 그 채팅방을 보고 있는 중이면(위 isViewingChat) 이미 실시간으로 보이므로 건너뛴다.
 let fgAlertSeq = 900000;
 async function fireForegroundAlert(title, body, category, data){
-  if(isViewingChat(category, data)) return;
   try{
     const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
     if(isNative){
@@ -4446,45 +4394,6 @@ state.latestAndroidVersionCode = null; // 네이티브 APK 업데이트 확인 �
 state.hasUnseenChat = false;
 state.unseenChatPairIds = new Set(); // 친구 목록에서 "이 사람한테 새 채팅 왔음" 점 표시용
 state.unseenChatDetails = []; // 알림 목록에 "OO님의 메시지"로 각각 띄우기 위한 정보 (pairId·보낸사람 이름·시각)
-async function refreshChatUnseenBadge(){
-  // 채팅 기능을 없앴다: 서버 읽기 없이 항상 '안 읽은 채팅 없음'으로 둔다.
-  state.hasUnseenChat = false; state.unseenChatPairIds = new Set(); state.unseenChatDetails = [];
-  return;
-  if(!state.user) return;
-  try{
-    const q = query(collection(db,'friendLinks'), where('uids','array-contains', state.user.uid));
-    const snap = await getDocs(q);
-    let unseen = false;
-    const pairIds = new Set();
-    const pending = [];
-    snap.forEach(d=>{
-      const data = d.data();
-      if(!data.lastMessageAt || data.lastMessageBy === state.user.uid) return;
-      // 지금 그 친구랑 채팅 화면을 보고 있으면 이미 읽은 것이니 알림으로 안 쌓는다.
-      if(state.friendsUI.screen==='detail' && state.friendsUI.activePairId===d.id) return;
-      // 읽음 여부는 friendLinks.lastSeenAt(서버, 기기·플랫폼 공용)을 우선 보고, 아직 그 값이
-      // 없는 예전 기록은 기기 로컬 캐시로 대체한다 — 없으면 항상 "안 읽음"으로 보이기 때문.
-      const seenAt = (data.lastSeenAt && data.lastSeenAt[state.user.uid]) || localGet('chat_seen_'+d.id, 0);
-      if(data.lastMessageAt > seenAt){
-        unseen = true; pairIds.add(d.id);
-        const senderName = (data.names && data.names[data.lastMessageBy]) || '친구';
-        pending.push({ pairId:d.id, senderUid:data.lastMessageBy, senderName, ts:data.lastMessageAt });
-      }
-    });
-    // 알림 목록에서 "눌러서 확인하세요" 대신 실제 마지막 메시지를 바로 보여주기 위해,
-    // 안 읽은 대화마다 마지막 메시지 하나만 따로 가져온다 (안 읽은 대화 수만큼만 조회).
-    const details = await Promise.all(pending.map(async p=>{
-      try{
-        const msnap = await getDocs(query(collection(db,'chats',p.pairId,'messages'), orderBy('createdAt','desc'), limit(1)));
-        const preview = msnap.empty ? '' : String(msnap.docs[0].data().text||'').slice(0,80);
-        return { ...p, preview };
-      }catch(e){ return { ...p, preview:'' }; }
-    }));
-    state.hasUnseenChat = unseen;
-    state.unseenChatPairIds = pairIds;
-    state.unseenChatDetails = details;
-  }catch(e){ console.warn('[chatUnseen]', e); }
-}
 function getDismissedNotifIds(){ return localGet('notif_feed_dismissed', []); }
 // 로그인할 때 한 번, 서버에 저장돼 있던 지난 지움·읽음 기록을 이 기기 기록과 합친다.
 // (기기 로컬 기록만 있던 예전 상태에서도 그냥 그대로 두면 되므로 마이너스가 되는 방향은 없다.)
@@ -4557,14 +4466,6 @@ function getNotificationFeed(){
   const nowTs = now();
   if(isDirectorPlus() && b.signupInquiries>0) items.push({ id:'admin_signup_'+b.signupInquiries, ts:nowTs, icon:ICON.person, title:'가입 승인 대기', body:`${b.signupInquiries}건 확인이 필요해요`, action:'open-signup-inquiries' });
   if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
-  if(isCouncil() && b.chatReports>0) items.push({ id:'admin_chat_'+b.chatReports, ts:nowTs-2, icon:ICON.inbox, title:'채팅 신고', body:`처리 안 된 신고 ${b.chatReports}건`, action:'open-chat-report-inbox' });
-  (state.unseenChatDetails||[]).forEach(cd=>{
-    // id에 시각(ts)까지 넣어야, 이 메시지를 지운 뒤 그 친구가 새 메시지를 또 보내면(= ts가
-    // 바뀌면) 새 알림으로 다시 뜬다. pairId만 쓰면 한 번 지운 뒤로 그 친구 알림이 영영 안 떴다.
-    const id = 'chat_unseen_'+cd.pairId+'_'+(cd.ts||0);
-    if(dismissed.has(id)) return;
-    items.push({ id, ts:cd.ts||nowTs-3, icon:ICON.person, title:`${cd.senderName}님의 메시지`, body:cd.preview||'눌러서 대화를 확인해보세요', action:'open-friend-chat', pairId:cd.pairId });
-  });
   visibleNotices().forEach(n=>{
     const ts = n.createdAt || (n.date ? new Date(n.date+'T00:00:00').getTime() : 0);
     const id = 'notice_'+n.id;
@@ -9130,25 +9031,10 @@ function friendPairKey(a, b){ return a < b ? `${a}_${b}` : `${b}_${a}`; }
 // 채팅방을 열 때 처음 읽는 메시지 수. 예전엔 200개를 한꺼번에 읽어서 방을 열 때마다 읽기 할당량을
 // 200씩 썼다(Firestore 무료 한도는 하루 5만 읽기). 최근 10개만 읽고, 더 보고 싶을 때만 20개씩
 // 늘린다. 최신순(desc)으로 읽어서 화면에는 뒤집어 그린다.
-const CHAT_PAGE = 10;
-const CHAT_PAGE_MORE = 20;
-const chatLimitState = {}; // 방 키 -> 현재 읽는 개수
-const chatLimitFor = (key) => chatLimitState[key] || CHAT_PAGE;
-function chatMoreBtnHtml(key, shown){
-  if(shown < chatLimitFor(key)) return '';
-  return `<button type="button" data-action="chat-load-more" data-chat="${escapeHtml(key)}" style="align-self:center; background:none; border:1px solid var(--border); color:var(--text-dim); font-size:11px; border-radius:12px; padding:3px 10px; cursor:pointer;">이전 메시지 더보기</button>`;
-}
-function chatForgetRoom(prefix){ Object.keys(chatLimitState).forEach(k => { if(k.startsWith(prefix)) delete chatLimitState[k]; }); }
-let friendChatUnsub = null;
-function stopFriendChatListener(){
-  if(friendChatUnsub){ friendChatUnsub(); friendChatUnsub = null; }
-  chatForgetRoom('friend:');
-}
 // 소셜 탭을 벗어나면 실시간 리스너(친구 목록·1:1 채팅)를 전부 끊는다 —
 // 안 보이는 화면을 위해 계속 Firestore 리스너를 띄워두지 않기 위함.
 function teardownSocialTab(){
   stopFriendLinksListener();
-  stopFriendChatListener();
 }
 
 state.friendsUI = { screen:'list', activeUid:'', activeName:'', activePairId:'', myShareOn:true, editMode:false, data:{incoming:[], outgoing:[], friends:[]} };
@@ -9290,10 +9176,7 @@ async function applyFriendLinksSnapshot(snap){
   state.unseenChatPairIds = unseenPairIds;
   state.hasUnseenChat = false;
   refreshBellDot();
-  // 채팅 상세 화면(friendDetailBody)에 있을 때는 이 리스너가 매번(메시지 주고받을 때마다
-  // lastMessageAt이 바뀌므로) 전체를 다시 그리지 않게 한다 — 그렇지 않으면 입력창·키보드가
-  // 매번 초기화되고 스크롤이 맨 위로 튀었다. 채팅 로그 자체는 openFriendChatListener가
-  // 따로 실시간으로 갱신하므로 여기서 다시 그릴 필요가 없다.
+  // 친구 상세 화면은 이 리스너가 다시 그리지 않게 한다(보고 있던 화면이 튀지 않도록).
   if(state.friendsUI.screen !== 'detail') refreshFriendsModalBody();
 }
 function startFriendLinksListener(){
@@ -9347,7 +9230,6 @@ function friendListBody(){
       // 보여주고 나머지는 이 박스 안에서 스크롤 — 몇 명인지는 화면 크기에 따라 달라진다.
       return `<div class="card" style="padding:14px 12px; max-height:60vh; overflow-y:auto;">
         ${sorted.map((f,i)=>{
-          const hasUnseen = state.unseenChatPairIds && state.unseenChatPairIds.has(f.pairId);
           const sp = '';
           if(state.friendsUI.editMode){
             return `
@@ -9534,19 +9416,6 @@ async function declineFriendRequest(pairId){
   await refreshFriendsData();
 }
 
-// 알림(인앱 목록·푸시 둘 다)에서 "OO님의 메시지"를 눌렀을 때 바로 그 친구와의 채팅으로
-// 들어간다. 소셜 탭이 아예 안 열려 있는 상태(예: 알림 눌러서 막 들어온 경우)에서도 동작하도록
-// 먼저 소셜 탭을 열어 친구 목록을 받아온 뒤 그 안에서 이 pairId를 찾는다.
-async function openFriendChatByPairId(pairId){
-  if(!state.user || !pairId) return;
-  const otherUid = pairId.split('_').find(u=>u!==state.user.uid);
-  if(!otherUid) return;
-  await openSocialTab();
-  const rec = (state.friendsUI.data.friends||[]).find(f=>f.pairId===pairId);
-  const name = (rec && (rec.nickname||rec.name)) || '친구';
-  openFriendDetail(otherUid, name, pairId);
-  setupFriendsModalListeners();
-}
 const friendAvatarCache = {};
 async function loadFriendAvatar(uid){
   const hit = friendAvatarCache[uid];
@@ -9564,7 +9433,6 @@ function friendAvatarBadge(av){
   return '<span class="fr-av" style="'+avStyle(a)+'">'+avInner(a, 16)+'</span>';
 }
 function openFriendDetail(uid, name, pairId){
-  stopFriendChatListener();
   const rec = state.friendsUI.data.friends.find(f=>f.pairId===pairId);
   state.friendsUI.screen = 'detail';
   state.friendsUI.activeUid = uid;
@@ -9579,11 +9447,9 @@ function openFriendDetail(uid, name, pairId){
   // friendLinks에도 내 쪽 읽음 시각을 남긴다 — 기기 로컬에만 두면 다른 기기·플랫폼으로
   // 로그인했을 때 이미 읽은 메시지도 계속 "안 읽음"으로 보이는 문제가 있었다.
   updateDoc(doc(db,'friendLinks',pairId), { ['lastSeenAt.'+state.user.uid]: now() }).catch(()=>{});
-  refreshChatUnseenBadge().then(refreshBellDot); // 다른 친구한테서 온 안 읽은 메시지는 남아있을 수 있으니 다시 계산
   refreshFriendsModalBody();
 }
 function friendsBackToList(){
-  stopFriendChatListener();
   state.friendsUI.screen = 'list';
   refreshFriendsModalBody();
 }
@@ -9667,7 +9533,10 @@ function sharePendingGet(){
 }
 function shareQueue(pairId, on){
   const p = sharePendingGet() || { uid: state.user.uid, due: Date.now() + SHARE_DELAY, map: {} };
-  p.map[pairId] = on;
+  const f = ((state.friendsUI.data && state.friendsUI.data.friends) || []).find(x=>x.pairId === pairId);
+  // 서버에 이미 있는 값으로 되돌려 놓았으면 보낼 게 없으니 대기에서 뺀다(전부 빠지면 타이머도 끈다)
+  if(f && f.shareServer === on) delete p.map[pairId]; else p.map[pairId] = on;
+  if(!Object.keys(p.map).length){ localSet('share_pending', null); clearTimeout(sharePendingTimer); return; }
   localSet('share_pending', p);
   shareSchedule();
 }
@@ -9700,22 +9569,6 @@ function toggleShareTimetable(on){
   shareQueue(state.friendsUI.activePairId, on);
   toast((on ? '이 친구에게 시간표를 공개해요' : '이 친구에게 시간표를 숨겨요') + '\n10분 뒤 반영돼요');
   return true;
-}
-// 이 친구 채팅만 콕 집어 알림을 끈다 (전체 "채팅 알림" 설정은 그대로 두고, 이 대화만 예외).
-async function toggleChatMute(on){
-  try{
-    await updateDoc(doc(db,'friendLinks',state.friendsUI.activePairId), {
-      ['mutedBy.'+state.user.uid]: on,
-    });
-    state.friendsUI.chatMuted = on;
-    const rec = state.friendsUI.data.friends.find(f=>f.pairId===state.friendsUI.activePairId);
-    if(rec) rec.muted = on;
-    toast(on ? '이 친구 채팅 알림을 껐어요' : '이 친구 채팅 알림을 켰어요');
-    return true;
-  }catch(e){
-    toast('변경 실패 (' + (e.code||'알 수 없음') + ')');
-    return false;
-  }
 }
 
 async function loadFriendTimetableCard(uid){
@@ -9791,498 +9644,14 @@ function renderFriendTimetableGrid(slots, semKey, gridH){
     </div>`;
 }
 
-function utf8ByteLength(s){ return new TextEncoder().encode(s||'').length; }
-const FRIEND_CHAT_MAX_BYTES = 1500;
 
-function fmtChatTime(ts){
-  const d = new Date(ts||Date.now());
-  const h = d.getHours(), m = d.getMinutes();
-  const ampm = h < 12 ? '오전' : '오후';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${ampm} ${h12}:${String(m).padStart(2,'0')}`;
-}
-function fmtChatDateDivider(ts){
-  const d = new Date(ts||Date.now());
-  const wd = ['일','월','화','수','목','금','토'][d.getDay()];
-  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${wd})`;
-}
-function sameMinute(ts1, ts2){
-  const a = new Date(ts1||0), b = new Date(ts2||0);
-  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate()
-    && a.getHours()===b.getHours() && a.getMinutes()===b.getMinutes();
-}
 
-function openFriendChatListener(pairId, otherUid){
-  const log = document.getElementById('friend-chat-log');
-  if(!log) return;
-  log.innerHTML = `<div class="empty"><p>불러오는 중…</p></div>`;
-  const q = query(collection(db,'chats',pairId,'messages'), orderBy('createdAt','desc'), limit(chatLimitFor('friend:'+pairId)));
-  friendChatUnsub = onSnapshot(q, (snap) => {
-    if(state.friendsUI.activePairId !== pairId) return; // 이미 다른 친구로 넘어간 뒤 도착한 응답
-    const el = document.getElementById('friend-chat-log');
-    if(!el) return;
-    // "채팅 비우기"는 메시지를 실제로 지우지 않고 내 쪽 기준 시각(myClearedAt)만 남긴다 —
-    // 상대방에게는 그대로 보이고, 나만 이 시각 이전 메시지를 걸러서 안 본다.
-    const myClearedAt = state.friendsUI.myClearedAt || 0;
-    const docs = snap.docs.slice().reverse().filter(d => (d.data().createdAt||0) > myClearedAt);
-    if(!docs.length){ el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`; return; }
-    el.innerHTML = chatMoreBtnHtml('friend:'+pairId, snap.size) + docs.map((d,i)=>{
-      const m = d.data();
-      const mine = m.senderUid === state.user.uid;
-      // 날짜가 바뀌는 지점마다 가운데 구분선을 넣는다 (카카오톡처럼).
-      const prev = i>0 ? docs[i-1].data() : null;
-      const showDateDivider = !prev || new Date(m.createdAt||0).toDateString() !== new Date(prev.createdAt||0).toDateString();
-      const dividerHtml = showDateDivider ? `<div style="text-align:center; margin:10px 0 4px; font-size:10.5px; color:var(--text-faint);">${fmtChatDateDivider(m.createdAt)}</div>` : '';
-      // 같은 사람이 같은 분(分)에 연달아 보낸 메시지는 마지막 것에만 시간을 보여준다.
-      const next = i<docs.length-1 ? docs[i+1].data() : null;
-      const groupedWithNext = next && next.senderUid===m.senderUid && sameMinute(m.createdAt, next.createdAt);
-      const timeHtml = groupedWithNext ? '' : `<div style="font-size:9px; opacity:.75; margin-top:2px;">${fmtChatTime(m.createdAt)}</div>`;
-      return `${dividerHtml}<div style="max-width:78%; padding:7px 10px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word; align-self:${mine?'flex-end':'flex-start'}; background:${mine?'var(--crimson)':'var(--surface-2)'}; color:${mine?'#fff':'var(--text)'};">${escapeHtml(m.text)}${timeHtml}</div>`;
-    }).join('');
-    el.scrollTop = el.scrollHeight;
-  }, (err) => {
-    console.error('[friend-chat]', err);
-    const el = document.getElementById('friend-chat-log');
-    if(el) el.innerHTML = `<div class="empty"><p>채팅을 불러오지 못했어요.</p></div>`;
-  });
-}
 
-// 짧은 시간에 메시지를 7개 넘게 연달아 보내면(도배) 3초 동안 전송을 막는다.
-// 최근 전송 시각만 배열로 들고 있다가, 7번째가 10초 안에 몰려 있으면 걸린 걸로 본다.
-function friendChatRateLimited(){
-  const ui = state.friendsUI;
-  const t = Date.now();
-  if(ui.chatBlockedUntil && t < ui.chatBlockedUntil){
-    toast('메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.');
-    return true;
-  }
-  ui.sendTimes = (ui.sendTimes || []).filter(x => t - x < 10000);
-  ui.sendTimes.push(t);
-  if(ui.sendTimes.length > 7){
-    ui.chatBlockedUntil = t + 3000;
-    ui.sendTimes = [];
-    toast('메시지를 너무 빠르게 보내고 있어요. 3초만 기다려주세요.');
-    return true;
-  }
-  return false;
-}
-async function sendFriendChatMessage(){
-  if(blockIfSuspended()) return;
-  const input = document.getElementById('friend-chat-input');
-  const text = (input && input.value || '').trim();
-  if(!text) return;
-  if(utf8ByteLength(text) > FRIEND_CHAT_MAX_BYTES){ toast(`메시지가 너무 길어요 (최대 ${FRIEND_CHAT_MAX_BYTES}바이트)`); return; }
-  if(friendChatRateLimited()) return;
-  input.value = '';
-  // 전송 버튼을 누르면 포커스가 버튼으로 넘어가면서 키보드가 닫히고, 그 순간 화면(모달 시트)
-  // 높이가 다시 커지면서 스크롤이 맨 위로 튀어 보이는 문제가 있었다. 입력창에 포커스를
-  // 그대로 유지해서 키보드가 안 닫히게 한다 (연속으로 메시지 보낼 때도 자연스러움).
-  input.focus();
-  const pairId = state.friendsUI.activePairId;
-  try{
-    await addDoc(collection(db,'chats',pairId,'messages'), {
-      senderUid: state.user.uid, text, createdAt: Date.now(),
-    });
-    // 상대가 채팅을 안 열어봐도 알림 벨에서 "새 채팅 있음"을 볼 수 있게, 마지막 메시지
-    // 시각·보낸 사람만 가볍게 같이 남긴다(메시지 본문 자체는 안 넣음).
-    updateDoc(doc(db,'friendLinks',pairId), {
-      lastMessageAt: now(), lastMessageBy: state.user.uid,
-    }).catch(()=>{});
-    // 즉시 푸시는 메시지 전송을 기다리게 하지 않는다(입력 반응이 느려지면 안 됨).
-    // 상대가 이 채팅만 콕 집어 꺼둔 경우(mutedBy)는 한 번 더 읽어서 걸러낸다 — 일반 채팅
-    // 알림은 켜뒀어도 특정 친구만 무음으로 해둔 사람에게 억지로 보내면 안 되기 때문.
-    (async ()=>{
-      const otherUid = pairId.split('_').find(u=>u!==state.user.uid);
-      if(!otherUid) return;
-      try{
-        const linkSnap = await getDoc(doc(db,'friendLinks',pairId));
-        const muted = linkSnap.exists() && linkSnap.data().mutedBy && linkSnap.data().mutedBy[otherUid];
-        if(muted) return;
-      }catch(e){ /* 못 읽으면 그냥 보낸다 — 안 보내는 쪽보다는 안전 */ }
-      enqueuePush({ audience:'user', targetUid:otherUid, gateKey:'chat', pairId, category:'chat',
-        title:`${state.user.name}님의 메시지`, body:text });
-    })();
-  }catch(e){
-    console.error(e);
-    toast('전송 실패 (' + (e.code||'알 수 없음') + ')');
-  }
-}
 
-async function clearFriendChat(){
-  if(!await showConfirm('내 화면에서 이 채팅을 지울까요?\n(상대방 화면에는 그대로 남아요)')) return;
-  const pairId = state.friendsUI.activePairId;
-  const ts = now();
-  try{
-    await updateDoc(doc(db,'friendLinks',pairId), { ['clearedAt.'+state.user.uid]: ts });
-    state.friendsUI.myClearedAt = ts;
-    const rec = state.friendsUI.data.friends.find(f=>f.pairId===pairId);
-    if(rec) rec.clearedAt = { ...(rec.clearedAt||{}), [state.user.uid]: ts };
-    const el = document.getElementById('friend-chat-log');
-    if(el) el.innerHTML = `<div class="empty"><p>아직 메시지가 없어요. 먼저 인사해보세요!</p></div>`;
-    toast('채팅을 지웠어요');
-  }catch(e){
-    console.error('[clearFriendChat]', e);
-    toast('지우기에 실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')');
-  }
-}
 
 /* ===== 채팅 신고 ===== */
-function reportFriendChatModal(){
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">채팅 신고하기</span><button data-action="close-modal">${ICON.close}</button></div>
-    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">
-      <b>${escapeHtml(state.friendsUI.activeName)}</b>님과의 채팅을 학생회에 신고해요. 최근 메시지 내용이 신고 내역에 함께 남아요.
-    </p>
-    <form id="report-friend-chat-form">
-      <div class="field"><label>신고 사유</label><textarea name="reason" style="min-height:100px" required placeholder="어떤 내용이 문제였는지 적어주세요"></textarea></div>
-      <div class="modal-actions"><button type="submit" class="btn btn-danger">신고 접수</button></div>
-    </form>`;
-}
-async function handleReportFriendChatSubmit(fd){
-  const reason = (fd.get('reason')||'').trim();
-  if(!reason){ toast('신고 사유를 입력해주세요'); return; }
-  const btn = document.querySelector('#report-friend-chat-form button[type=submit]');
-  if(btn) btn.disabled = true;
-  try{
-    // 신고 맥락으로 최근 메시지를 같이 남긴다(정말 문제였는지 학생회가 판단할 수 있게).
-    // "범죄 의심" 상세 확인·다운로드에 쓸 수 있도록 최대 500개까지는 전문(fullMessages)으로도
-    // 같이 저장해 둔다 — 학생회는 chats/{pairId}를 직접 읽을 권한이 없어서(당사자만 읽을 수
-    // 있음, 채팅 사생활 보호), 신고 시점에 신고자 클라이언트가 이렇게 스냅샷을 남겨야만 한다.
-    let recentMessages = [];
-    let fullMessages = [];
-    try{
-      const q = query(collection(db,'chats',state.friendsUI.activePairId,'messages'), orderBy('createdAt','desc'), limit(500));
-      const snap = await getDocs(q);
-      fullMessages = snap.docs.map(d=>{
-        const m = d.data();
-        return { senderName: m.senderUid===state.user.uid?state.user.name:state.friendsUI.activeName, text: m.text, createdAt: m.createdAt };
-      }).reverse();
-      recentMessages = fullMessages.slice(-20).map(m=>`${m.senderName}: ${m.text}`);
-    }catch(e){}
 
-    const report = {
-      id: uid(), createdAt: now(), status:'접수',
-      reporterId: state.user.studentId, reporterName: state.user.name,
-      targetUid: state.friendsUI.activeUid, targetName: state.friendsUI.activeName,
-      pairId: state.friendsUI.activePairId, reason,
-      recentMessages, fullMessages,
-    };
-    const latest = await loadShared('chatReports', {list:[]});
-    const next = [report, ...(latest.list||[])].slice(0,300);
-    const ok = await saveShared('chatReports', {list: next});
-    closeModal();
-    saveResultToast(ok, '신고가 접수됐어요. 학생회가 확인할게요.');
-  }catch(e){
-    console.error(e);
-    toast('신고 접수에 실패했어요');
-  }finally{
-    if(btn) btn.disabled = false;
-  }
-}
 
-function chatReportInboxModal(){
-  const list = [...((state.chatReports&&state.chatReports.list)||[])].sort((a,b)=>b.createdAt-a.createdAt);
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${ICON.flag} 채팅 신고함</span><button data-action="close-modal">${ICON.close}</button></div>
-    <div style="max-height:64vh; overflow-y:auto;">
-      ${list.length ? list.map(r=>`
-        <div class="card" style="margin-bottom:10px;">
-          <div class="row-between" style="margin-bottom:4px;">
-            <b style="font-size:12px;">${escapeHtml(r.reporterName)} → ${escapeHtml(r.targetName)}</b>
-            <span class="tag ${r.status==='해결'?'tag-blue':'tag-amber'}">${escapeHtml(r.status||'접수')}</span>
-          </div>
-          <div class="meta" style="margin-bottom:6px;">${escapeHtml(r.reporterId||'')} · ${fmtDateTime(r.createdAt)}</div>
-          <div class="body" style="margin-bottom:8px;">${escapeHtml(r.reason)}</div>
-          ${(r.recentMessages&&r.recentMessages.length) ? `
-          <div style="background:var(--surface-2); border-radius:8px; padding:8px 10px; margin-bottom:8px; font-size:11px; color:var(--text-dim); max-height:140px; overflow-y:auto; line-height:1.6;">
-            ${r.recentMessages.map(m=>escapeHtml(m)).join('<br>')}
-          </div>` : ''}
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn btn-ghost btn-sm" data-action="toggle-chat-report-status" data-id="${r.id}">${r.status==='해결'?'접수로 되돌리기':'해결로 표시'}</button>
-            <button class="btn btn-ghost btn-sm" data-action="open-suspend-user" data-uid="${escapeHtml(r.targetUid)}" data-name="${escapeHtml(r.targetName)}" data-report="${escapeHtml(r.id)}">경고 · 정지 주기</button>
-            <button class="btn btn-ghost btn-sm" data-action="open-crime-suspicion" data-id="${r.id}">범죄 의심</button>
-            <button class="btn btn-danger btn-sm" data-action="delete-chat-report" data-id="${r.id}">삭제</button>
-          </div>
-        </div>`).join('') : `<div class="empty"><p>접수된 신고가 없습니다.</p></div>`}
-    </div>`;
-}
-async function markChatReportResolved(id){
-  const latest = await loadShared('chatReports', {list:[]});
-  const next = (latest.list||[]).map(r => r.id===id ? {...r, status:'해결'} : r);
-  await saveShared('chatReports', {list: next});
-  state.chatReports = {list: next};
-}
-async function toggleChatReportStatus(id){
-  const latest = await loadShared('chatReports', {list:[]});
-  const next = (latest.list||[]).map(r => r.id===id ? {...r, status: r.status==='해결'?'접수':'해결'} : r);
-  const ok = await saveShared('chatReports', {list: next});
-  state.chatReports = {list: next};
-  if(document.querySelector('.modal-sheet')) openModal(chatReportInboxModal());
-  saveResultToast(ok, '상태가 변경되었습니다');
-}
-async function deleteChatReport(id){
-  if(!await showConfirm('이 신고를 삭제할까요?')) return;
-  const latest = await loadShared('chatReports', {list:[]});
-  const next = (latest.list||[]).filter(r => r.id!==id);
-  const ok = await saveShared('chatReports', {list: next});
-  state.chatReports = {list: next};
-  if(document.querySelector('.modal-sheet')) openModal(chatReportInboxModal());
-  saveResultToast(ok, '삭제했습니다');
-}
-
-/* ===== 경고 · 정지 (학생회 이상) =====
- * users/{uid} 문서에 suspension(정지 상세)과 warnings(경고 이력)을 둔다.
- * 직급별 상한(학생회 2일 · 국장 7일 · 부회장 이상 영구)은 firestore.rules에서도
- * 다시 검사해서, 클라이언트를 우회해도 상한을 넘길 수 없게 한다.
- */
-async function fetchUserBrief(targetUid){
-  try{
-    const snap = await getDoc(doc(db,'users',targetUid));
-    return snap.exists() ? { uid: targetUid, ...snap.data() } : null;
-  }catch(e){ console.error('[fetchUserBrief]', e); return null; }
-}
-
-function suspendActionModal(targetUid, targetName, reportId){
-  const cap = maxSuspendDays(myRole());
-  const capLabel = cap === Infinity ? '영구 정지까지' : `최대 ${cap}일까지`;
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${escapeHtml(targetName)}님 경고 · 정지</span><button data-action="close-modal">${ICON.close}</button></div>
-    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">
-      내 직급(${escapeHtml(roleLabel(myRole()))})으로는 ${capLabel} 정지를 줄 수 있어요. 정지 기간을 0으로 두면 정지 없이 경고만 기록돼요. 사유는 필수예요.
-    </p>
-    <form id="suspend-user-form" data-uid="${escapeHtml(targetUid)}" data-name="${escapeHtml(targetName)}" data-report="${escapeHtml(reportId||'')}">
-      <div class="field"><label>사유</label><textarea name="reason" style="min-height:80px" required placeholder="경고 · 정지 사유를 적어주세요"></textarea></div>
-      <div class="field">
-        <label>정지 기간</label>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="suspend-days-input" name="days" placeholder="0" style="width:2.4em; flex:none; padding:8px 4px; text-align:center;" />
-          <span style="font-size:12px; color:var(--text-dim);">일</span>
-          ${cap===Infinity ? `<button type="button" class="btn btn-ghost btn-sm suspend-day-chip" data-days="permanent" style="width:auto; padding:6px 13px; border-radius:99px; margin-left:4px;">영구</button>` : ''}
-        </div>
-        <input type="checkbox" name="permanent" style="display:none;" />
-      </div>
-      <div class="modal-actions">
-        <button type="submit" class="btn btn-danger">적용</button>
-      </div>
-    </form>`;
-}
-function setupSuspendActionModalListeners(){
-  const form = document.getElementById('suspend-user-form');
-  if(!form) return;
-  const daysInput = form.querySelector('#suspend-days-input');
-  const permInput = form.querySelector('input[name="permanent"]');
-  const chips = Array.from(form.querySelectorAll('.suspend-day-chip'));
-  const selectChip = (btn)=>{
-    chips.forEach(c=>c.classList.remove('btn-primary'));
-    chips.forEach(c=>c.classList.add('btn-ghost'));
-    if(btn){ btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary'); }
-  };
-  chips.forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      selectChip(btn);
-      if(btn.dataset.days === 'permanent'){
-        if(permInput) permInput.checked = true;
-        daysInput.value = '';
-      }else{
-        if(permInput) permInput.checked = false;
-        daysInput.value = btn.dataset.days;
-      }
-    });
-  });
-  if(daysInput){
-    daysInput.addEventListener('input', ()=>{
-      // 숫자만 입력되게: 직접 타이핑할 때마다 숫자가 아닌 글자는 바로 지운다.
-      const clean = daysInput.value.replace(/[^0-9]/g, '');
-      if(clean !== daysInput.value) daysInput.value = clean;
-      selectChip(null);
-      if(permInput) permInput.checked = false;
-    });
-  }
-}
-async function handleSuspendUserSubmit(fd){
-  const form = document.getElementById('suspend-user-form');
-  const targetUid = form.dataset.uid, targetName = form.dataset.name, reportId = form.dataset.report;
-  const reason = (fd.get('reason')||'').trim();
-  const permanent = fd.get('permanent') === 'on';
-  const days = Number(fd.get('days')||0);
-  if(!reason){ toast('사유를 입력해주세요'); return; }
-
-  const target = await fetchUserBrief(targetUid);
-  if(!target){ toast('대상 사용자를 찾을 수 없어요'); return; }
-  if(!canDiscipline(target.role)){ toast('내 직급으로는 이 사람에게 조치할 수 없어요'); return; }
-
-  const cap = maxSuspendDays(myRole());
-  if(permanent && cap !== Infinity){ toast('내 직급으로는 영구 정지를 줄 수 없어요'); return; }
-  if(!permanent && days > 0 && days > cap){ toast(`내 직급으로는 최대 ${cap}일까지만 정지할 수 있어요`); return; }
-  // 경고가 무한정 쌓이지 않게, 대상 한 명당 총 경고 개수를 제한한다(누가 줬는지와 무관하게).
-  const MAX_WARNINGS_PER_TARGET = 3;
-  if(!permanent && days <= 0 && (target.warnings||[]).length >= MAX_WARNINGS_PER_TARGET){
-    toast(`이미 경고 ${MAX_WARNINGS_PER_TARGET}회를 받은 사람이에요. 더 줄 거면 정지로 조치해주세요.`);
-    return;
-  }
-
-  const btn = document.querySelector('#suspend-user-form button[type=submit]');
-  if(btn) btn.disabled = true;
-  try{
-    if(!permanent && days <= 0){
-      await updateDoc(doc(db,'users',targetUid), {
-        warnings: arrayUnion({ id: uid(), ts: now(), byUid: state.user.uid, byName: state.user.name, byRole: myRole(), reason }),
-        hasWarnings: true,
-      });
-      toast(`${targetName}님에게 경고를 기록했어요`);
-    }else{
-      const suspension = {
-        reason, permanent: !!permanent,
-        until: permanent ? null : (Date.now() + days*24*60*60*1000),
-        days: permanent ? null : days,
-        byUid: state.user.uid, byName: state.user.name, byRole: myRole(),
-        ts: now(),
-      };
-      await updateDoc(doc(db,'users',targetUid), { suspension, suspActive: true });
-      toast(`${targetName}님을 ${permanent?'영구':days+'일'} 정지했어요`);
-    }
-    // 신고함에서 조치한 거라면, 처리된 신고니까 자동으로 "해결"로 넘겨준다.
-    if(reportId) await markChatReportResolved(reportId);
-    closeModal();
-  }catch(e){
-    console.error('[handleSuspendUserSubmit]', e);
-    toast('처리에 실패했어요 (' + (e.code||'알 수 없음') + ')');
-  }finally{
-    if(btn) btn.disabled = false;
-  }
-}
-async function liftSuspension(targetUid, targetName){
-  const target = await fetchUserBrief(targetUid);
-  if(target && !canDiscipline(target.role)){ toast('내 직급으로는 이 사람의 정지를 풀 수 없어요'); return; }
-  if(!await showConfirm(`${targetName}님의 정지를 지금 풀까요?`, {danger:false, okLabel:'해제'})) return;
-  try{
-    await updateDoc(doc(db,'users',targetUid), { suspension: null, suspActive: false });
-    toast(`${targetName}님의 정지를 해제했어요`);
-    if(document.querySelector('.modal-sheet')) openModal(suspensionListModal(await loadDisciplineList()));
-  }catch(e){
-    console.error('[liftSuspension]', e);
-    toast('해제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-async function loadDisciplineList(){
-  try{
-    const [suspSnap, warnSnap] = await Promise.all([
-      getDocs(query(collection(db,'users'), where('suspActive','==',true))),
-      getDocs(query(collection(db,'users'), where('hasWarnings','==',true))),
-    ]);
-    const map = new Map();
-    suspSnap.docs.forEach(d=>map.set(d.id, {uid:d.id, ...d.data()}));
-    warnSnap.docs.forEach(d=>{ if(!map.has(d.id)) map.set(d.id, {uid:d.id, ...d.data()}); });
-    return Array.from(map.values()).filter(u => isSuspendedNow(u) || (u.warnings&&u.warnings.length));
-  }catch(e){ console.error('[loadDisciplineList]', e); return []; }
-}
-function fmtSuspendRemaining(s){
-  if(s.permanent) return '영구 정지';
-  const days = Math.max(1, Math.ceil((s.until - Date.now())/(24*60*60*1000)));
-  return `${days}일 남음`;
-}
-function suspensionListModal(list){
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${ICON.ban} 경고 · 정지 목록</span><button data-action="close-modal">${ICON.close}</button></div>
-    <div style="max-height:64vh; overflow-y:auto;">
-      ${list.length ? list.map(u=>{
-        const susp = isSuspendedNow(u) ? u.suspension : null;
-        const warnings = u.warnings || [];
-        return `
-        <div class="card" style="margin-bottom:10px;">
-          <div class="row-between" style="margin-bottom:4px;">
-            <b style="font-size:12px;">${susp?ICON.ban+' ':''}${escapeHtml(u.name||'')} <span class="meta">(${escapeHtml(roleLabel(u.role))})</span></b>
-            ${susp ? `<span class="tag tag-red">${fmtSuspendRemaining(susp)}</span>` : `<span class="tag tag-amber">경고 ${warnings.length}건</span>`}
-          </div>
-          ${susp ? `
-          <div class="meta" style="margin-bottom:6px;">${escapeHtml(susp.byName||'')}(${escapeHtml(roleLabel(susp.byRole||''))}) · ${fmtDateTime(susp.ts)}</div>
-          <div class="body" style="margin-bottom:8px;">${escapeHtml(susp.reason||'')}</div>
-          ${canDiscipline(u.role) ? `<button class="btn btn-ghost btn-sm" data-action="lift-suspension" data-uid="${escapeHtml(u.uid)}" data-name="${escapeHtml(u.name||'')}">정지 해제</button>` : ''}
-          ` : ''}
-          ${warnings.length ? `
-          <div style="background:var(--surface-2); border-radius:8px; padding:8px 10px; font-size:11px; color:var(--text-dim); line-height:1.7; margin-top:${susp?'8px':'0'};">
-            ${warnings.slice().reverse().slice(0,5).map(w=>`
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:2px;">
-                <span>· ${escapeHtml(w.reason||'')} <span class="meta">(${fmtDateTime(w.ts)})</span></span>
-                ${isVicePlus() ? `<button class="btn btn-ghost btn-sm" style="width:auto; flex-shrink:0; padding:2px 9px; font-size:10px;" data-action="delete-warning" data-uid="${escapeHtml(u.uid)}" data-name="${escapeHtml(u.name||'')}" data-wid="${escapeHtml(w.id)}">삭제</button>` : ''}
-              </div>`).join('')}
-          </div>` : ''}
-        </div>`;
-      }).join('') : `<div class="empty"><p>경고 · 정지 기록이 없습니다.</p></div>`}
-    </div>`;
-}
-async function deleteWarning(targetUid, targetName, warningId){
-  if(!await showConfirm(`${targetName}님의 이 경고를 삭제할까요?`, {danger:false, okLabel:'삭제'})) return;
-  const target = await fetchUserBrief(targetUid);
-  if(!target){ toast('대상 사용자를 찾을 수 없어요'); return; }
-  const nextWarnings = (target.warnings||[]).filter(w=>w.id!==warningId);
-  try{
-    await updateDoc(doc(db,'users',targetUid), { warnings: nextWarnings, hasWarnings: nextWarnings.length>0 });
-    toast('경고를 삭제했어요');
-    if(document.querySelector('.modal-sheet')) openModal(suspensionListModal(await loadDisciplineList()));
-  }catch(e){
-    console.error('[deleteWarning]', e);
-    toast('삭제에 실패했어요 (' + (e.code||'알 수 없음') + ')');
-  }
-}
-
-/* ===== 범죄 의심 신고 상세 (대화 전문 확인 · 다운로드) =====
- * IP는 포함하지 않는다 — userMeta의 접속 IP는 개발자 전용으로 계속 막아둔다.
- * 신고 접수 시점에 함께 저장해 둔 fullMessages(최대 500개)를 그대로 보여준다.
- */
-function crimeSuspicionModal(report){
-  const msgs = report.fullMessages || [];
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${ICON.flag} 대화 전문 확인</span><button data-action="close-modal">${ICON.close}</button></div>
-    <p style="font-size:11.5px; color:var(--text-dim); margin:0 0 10px; line-height:1.6;">
-      범죄가 의심될 때 증거로 쓸 수 있도록, 신고 접수 시점의 채팅 기록(최대 500개, 시각 포함)을 내려받을 수 있어요. IP 정보는 포함하지 않습니다.
-    </p>
-    <div style="max-height:50vh; overflow-y:auto; background:var(--surface-2); border-radius:8px; padding:8px 10px; font-size:11px; line-height:1.7; margin-bottom:10px;">
-      ${msgs.length ? msgs.map(m=>`<div style="margin-bottom:6px;"><b>${escapeHtml(m.senderName)}</b> <span class="meta">${fmtDateTime(m.createdAt)}</span><br>${escapeHtml(m.text)}</div>`).join('') : '<div class="empty"><p>저장된 대화 기록이 없습니다.</p></div>'}
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" data-action="download-crime-suspicion-log" data-id="${escapeHtml(report.id)}" ${msgs.length?'':'disabled'}>대화 전문 다운로드 (.txt)</button>
-    </div>`;
-}
-async function downloadCrimeSuspicionLog(reportId){
-  const report = ((state.chatReports&&state.chatReports.list)||[]).find(r=>r.id===reportId);
-  const msgs = (report && report.fullMessages) || [];
-  if(!msgs.length){ toast('내려받을 대화가 없어요'); return; }
-  const lines = msgs.map(m=>`[${fmtDateTime(m.createdAt)}] ${m.senderName}: ${m.text}`);
-  const content = lines.join('\n');
-  const filename = `chatlog_${(report.reporterName||'')}_${(report.targetName||'')}.txt`;
-
-  // downloadCSV와 같은 이유: 안드로이드 앱(WebView) 안에서는 <a download> 클릭이 무시된다.
-  // 네이티브에서는 Filesystem으로 기기에 실제 파일을 쓰고 Share 시트로 저장/공유하게 한다.
-  if(isNativePlatformNow() && typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.Filesystem){
-    try{
-      const FS = Capacitor.Plugins.Filesystem;
-      await FS.writeFile({ path: filename, data: content, directory: 'CACHE', encoding: 'utf8' });
-      const { uri } = await FS.getUri({ path: filename, directory: 'CACHE' });
-      if(Capacitor.Plugins.Share){
-        await Capacitor.Plugins.Share.share({ title: filename, url: uri, dialogTitle: '대화 전문 저장/공유' });
-      } else {
-        toast('파일을 저장했어요 (기기 저장소)');
-      }
-    }catch(e){
-      console.error('[downloadCrimeSuspicionLog] 네이티브 저장 실패', e);
-      toast('저장에 실패했습니다 (' + ((e && e.message) || '알 수 없음') + ')');
-    }
-    return;
-  }
-
-  const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 2000);
-}
 
 /* ===== 가입 승인 대기함 (국장 이상) =====
  * 회원가입 때 명단과 안 맞은 사람이 "학생회에 문의 넣기"를 누르면 여기 쌓인다.
@@ -11026,7 +10395,6 @@ function setupModalDragToDismiss(overlay){
   handle.addEventListener('mousedown', onStart);
 }
 function closeModal(){
-  stopFriendChatListener(); // 채팅 모달을 열어둔 채 닫으면 리스너가 안 끊겨 계속 읽기가 쌓인다
   const ov=document.getElementById('modal-overlay');
   if(!ov) return;
   ov.classList.remove('open');
@@ -11075,7 +10443,6 @@ function toast(msg){
 /* ===== 따봉 토글 핸들러 ===== */
 async function handleToggleLike(type, id){
   if(!state.user){ toast('로그인이 필요합니다'); return; }
-  if(blockIfSuspended()) return;
   const sid = state.user.studentId;
   const uName = state.user.name;
 
@@ -11421,8 +10788,6 @@ document.addEventListener('submit', async (e)=>{
     'kick-member-form': handleKickMemberSubmit,
     'roster-form': handleRosterSubmit,
     'gemini-keys-form': handleGeminiKeysSubmit,
-    'report-friend-chat-form': handleReportFriendChatSubmit,
-    'suspend-user-form': handleSuspendUserSubmit,
     'nickname-form': handleNicknameSubmit,
   };
   const fn = HANDLERS[formId];
@@ -12744,12 +12109,6 @@ document.addEventListener('click', async (e)=>{
       state.view = 'info'; state.infoTab = 'examCal'; renderShell();
     }
     else if(a === 'go-shuttle-tab'){ state.view = 'info'; state.infoTab = 'shuttle'; renderShell(); }
-    else if(a === 'chat-load-more'){
-      const key = el.dataset.chat || '';
-      chatLimitState[key] = chatLimitFor(key) + CHAT_PAGE_MORE;
-      // 그 방의 리스너만 다시 열어 더 많이 읽는다(stop*를 거치면 늘린 개수가 초기화되므로 직접 끊는다).
-      if(key.startsWith('friend:') && friendChatUnsub){ friendChatUnsub(); friendChatUnsub = null; openFriendChatListener(state.friendsUI.activePairId, state.friendsUI.activeUid); }
-    }
     else if(a === 'go-meal-tab'){ state.view = 'info'; state.infoTab = 'meal'; renderShell(); }
     else if(a === 'open-assign-role'){ openModal(assignRoleModal(el.dataset.sid, el.dataset.name, el.dataset.role)); }
     else if(a === 'pick-role'){
@@ -12898,7 +12257,6 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
     else if(a === 'open-friends'){ closeModal(); await openSocialTab(); }
-    else if(a === 'open-friend-chat'){ closeModal(); await openFriendChatByPairId(el.dataset.pairId); }
     else if(a === 'open-update-check'){
       // 웹은 물어볼 APK가 없으니 곧바로 결과 화면을 띄운다(로딩 단계 자체가 불필요).
       if(!isNativeApp){ openModal(updateCheckModal()); return; }
@@ -12923,23 +12281,9 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'set-friend-nickname'){ state.friendsUI.screen = 'nickname'; refreshFriendsModalBody(); }
     else if(a === 'toggle-friend-tt-collapse'){ state.friendsUI.ttCollapsed = !state.friendsUI.ttCollapsed; refreshFriendsModalBody(); }
     else if(a === 'unfriend'){ await unfriend(); }
-    else if(a === 'open-report-friend'){ openModal(reportFriendChatModal()); }
-    else if(a === 'clear-friend-chat'){ await clearFriendChat(); }
-    else if(a === 'open-chat-report-inbox'){ state.chatReports = await loadShared('chatReports', {list:[]}); openModal(chatReportInboxModal()); }
     else if(a === 'open-signup-inquiries'){ state.signupInquiries = await loadSignupInquiries().catch(()=>[]); openModal(signupInquiriesModal()); }
     else if(a === 'approve-signup-inquiry'){ await approveSignupInquiry(el.dataset.uid); }
     else if(a === 'reject-signup-inquiry'){ await rejectSignupInquiry(el.dataset.uid); }
-    else if(a === 'toggle-chat-report-status'){ await toggleChatReportStatus(el.dataset.id); }
-    else if(a === 'delete-chat-report'){ await deleteChatReport(el.dataset.id); }
-    else if(a === 'open-suspend-user'){ openModal(suspendActionModal(el.dataset.uid, el.dataset.name, el.dataset.report||'')); setupSuspendActionModalListeners(); }
-    else if(a === 'lift-suspension'){ await liftSuspension(el.dataset.uid, el.dataset.name); }
-    else if(a === 'delete-warning'){ await deleteWarning(el.dataset.uid, el.dataset.name, el.dataset.wid); }
-    else if(a === 'open-suspension-list'){ openModal(suspensionListModal(await loadDisciplineList())); }
-    else if(a === 'open-crime-suspicion'){
-      const r = ((state.chatReports&&state.chatReports.list)||[]).find(x=>x.id===el.dataset.id);
-      if(r) openModal(crimeSuspicionModal(r));
-    }
-    else if(a === 'download-crime-suspicion-log'){ await downloadCrimeSuspicionLog(el.dataset.id); }
     else if(a === 'purge-tombstones'){
       if(!await showConfirm('삭제된 게시물을 지금 완전히 지울까요?', { danger:false, okLabel:'정리하기' })) return;
       const removed = await purgeOldTombstonesNow();
