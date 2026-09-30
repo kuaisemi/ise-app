@@ -372,22 +372,34 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .ttl-chip{flex:0 0 auto; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); border-radius:999px; padding:7px 13px; font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .2s, color .2s, border-color .2s;}
 .ttl-chip.on{background:var(--crimson); border-color:var(--crimson); color:#fff;}
 .ttl-dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--teal); margin-left:6px; vertical-align:middle;}
-.ttl-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:58vh; overflow-y:auto; padding:2px;}
-.ttl-card{position:relative; background:var(--surface-2); border:1.5px solid var(--border); border-radius:16px; padding:8px 8px 10px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s, border-color .2s;}
-.ttl-card:active{transform:scale(.97);}
-.ttl-card.active{border-color:var(--teal);}
-.ttl-mini{position:relative; height:74px; border-radius:10px; background:var(--surface-3); overflow:hidden; margin-bottom:8px;}
-.ttl-mini i{position:absolute; border-radius:2px; opacity:.92;}
-.ttl-name{display:block; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 2px;}
-.ttl-card small{display:block; font-size:10px; color:var(--text-dim); padding:0 2px; margin-top:2px;}
-.ttl-badge{position:absolute; top:13px; left:13px; font-size:9px; font-weight:800; color:#1A0F14; background:var(--teal); border-radius:8px; padding:2px 6px; z-index:2;}
-.ttl-del{position:absolute; top:13px; right:13px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(0,0,0,.5); color:#fff; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; z-index:2;}
-.ttl-del svg{width:12px; height:12px;}
-.ttl-new{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; border-style:dashed; min-height:132px; color:var(--text-dim);}
-.ttl-new b{font-size:11.5px;}
-.ttl-plus{width:34px; height:34px; border-radius:12px; background:rgba(224,172,85,.14); color:var(--teal); display:flex; align-items:center; justify-content:center;}
-.ttl-plus svg{width:18px; height:18px;}
-.ttl-grid .tt-list-add-input-row{grid-column:1 / -1;}
+.ttl-list{display:flex; flex-direction:column; gap:8px; max-height:58vh; overflow-y:auto; padding:2px;}
+.ttl-row{display:flex; align-items:center; gap:12px; padding:12px 12px; background:var(--surface-2); border:1.5px solid var(--border); border-radius:16px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s, border-color .2s, background .2s;}
+.ttl-row:active{transform:scale(.985); background:var(--surface-3);}
+.ttl-row.active{border-color:var(--teal); background:rgba(224,172,85,.08);}
+.ttl-radio{width:20px; height:20px; border-radius:50%; border:1.5px solid var(--border-light); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; transition:background .2s, border-color .2s;}
+.ttl-radio svg{width:12px; height:12px;}
+.ttl-row.active .ttl-radio{background:var(--crimson); border-color:var(--crimson);}
+.ttl-row-main{flex:1; min-width:0;}
+.ttl-row-main b{display:block; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.ttl-row-main small{display:block; font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+.ttl-dots{display:flex; gap:3px; flex-shrink:0;}
+.ttl-dots i{width:8px; height:8px; border-radius:50%; display:block;}
+.ttl-del{width:26px; height:26px; border-radius:50%; border:none; background:transparent; color:var(--text-faint); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; flex-shrink:0;}
+.ttl-del:active{background:var(--surface-3); color:var(--danger);}
+.ttl-del svg{width:14px; height:14px;}
+.ttl-more{display:flex; align-items:center; justify-content:center; gap:5px; padding:10px; font-size:11.5px; font-weight:700; color:var(--text-dim); cursor:pointer; border-radius:12px; -webkit-tap-highlight-color:transparent;}
+.ttl-more:active{background:var(--surface-2);}
+.ttl-more-chev{display:flex; transition:transform .25s;}
+.ttl-add{display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; border:1.5px dashed var(--border-light); border-radius:16px; font-size:12px; font-weight:700; color:var(--teal); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
+.ttl-add:active{background:var(--surface-2);}
+.ttl-add-ic{width:22px; height:22px; border-radius:8px; background:rgba(224,172,85,.16); display:flex; align-items:center; justify-content:center;}
+.ttl-add-ic svg{width:14px; height:14px;}
+.ttl-add-form{display:flex; align-items:center; gap:8px; padding:8px 8px 8px 12px; background:var(--surface-2); border:1.5px solid var(--teal); border-radius:16px;}
+.ttl-add-input{flex:1; min-width:0; background:transparent; border:none; outline:none; color:var(--text); font-size:13px; font-family:var(--font-display); padding:6px 0;}
+.ttl-add-ok{border:none; background:var(--crimson); color:#fff; border-radius:12px; padding:8px 14px; font-size:12px; font-weight:800; cursor:pointer; flex-shrink:0;}
+.ttl-add-ok:active{transform:scale(.95);}
+.ttl-add-cancel{width:28px; height:28px; border-radius:50%; border:none; background:var(--surface-3); color:var(--text-dim); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; flex-shrink:0;}
+.ttl-add-cancel svg{width:14px; height:14px;}
 .tt-list-add-input{flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--text); font-family:var(--font-display);}
 
 .tt-card-container{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;}
@@ -413,10 +425,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .opt-two .swatch.line-default{font-size:8px;}
 .opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px;}
 /* 스위치로 켜고 끄는 하위 줄: 높이가 0 ↔ 실제 높이로 부드럽게 바뀌고, 살짝 위에서 내려오며 나타난다 */
-.opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s cubic-bezier(.3,.7,.3,1), opacity .24s ease;}
-.opt-collapse.open{grid-template-rows:1fr; opacity:1;}
-.opt-collapse-in{overflow:hidden; min-height:0; transform:translateY(-8px); transition:transform .32s cubic-bezier(.3,.7,.3,1);}
-.opt-collapse.open .opt-collapse-in{transform:none;}
+.opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .38s cubic-bezier(.4,0,.2,1), opacity .2s ease;}
+.opt-collapse.open{grid-template-rows:1fr; opacity:1; transition:grid-template-rows .5s cubic-bezier(.22,1,.36,1), opacity .4s ease .06s;}
+.opt-collapse-in{overflow:hidden; min-height:0; transform:translateY(-12px); transition:transform .38s cubic-bezier(.4,0,.2,1); contain:layout paint;}
+.opt-collapse.open .opt-collapse-in{transform:none; transition:transform .5s cubic-bezier(.22,1,.36,1);}
 .opt-sub .swatches{gap:5px;}
 .opt-sub .swatch{width:24px; height:24px; font-size:10px;}
 .mypage-avatar.av-edit{position:relative; cursor:pointer; -webkit-tap-highlight-color:transparent; overflow:visible;}
@@ -10302,39 +10314,46 @@ function semesterPickerModal(){
 
 // 이미지3 스타일: 학기별로 그 안의 이름 있는 시간표들을 전부 보여주는 관리 화면
 // 시간표 목록: 위쪽 칩으로 학기를 고르면 그 학기의 시간표들이 미리보기 카드로 나온다(지난 학기가 많아도 복잡하지 않다).
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && e.target && e.target.classList && e.target.classList.contains('ttl-add-input')){
+    e.preventDefault();
+    const ok = document.querySelector('.ttl-add-ok'); if(ok) ok.click();
+  }
+});
 function ttListSem(){
   const keys = sortedSemesterKeys();
   if(keys.includes(state.ttListSem)) return state.ttListSem;
   return keys.includes(state.activeSemester) ? state.activeSemester : (keys[0] || null);
 }
 function ttChipLabel(k){ return semesterLabel(k).replace(/^20/, ''); }
-// 한 시간표의 주간 모양을 작게 그린 미리보기(월~금, 9시~21시)
-function ttMiniHtml(slots){
-  const blocks = (slots || []).map(c=>{
-    const d = Number(c.day);
-    if(!(d >= 0 && d < 5)) return '';
-    const top = Math.max(0, (c.start - TIME_START) / 720 * 100);
-    const h = Math.max(4, Math.min((c.end - c.start) / 720 * 100, 100 - top));
-    return `<i style="left:${d*20+1}%; width:18%; top:${top}%; height:${h}%; background:${escapeHtml(c.color || '#888')};"></i>`;
-  }).join('');
-  return `<div class="ttl-mini">${blocks}</div>`;
-}
+const TT_LIST_LIMIT = 3;
 function ttListBody(k){
   const variants = k ? semesterVariants(k) : [];
-  return variants.map((v,i)=>{
-    const act = k === state.activeSemester && i === state.activeVariant;
+  const expanded = !!((state.ttListMore || {})[k]);
+  // 접혀 있을 때는 앞의 3개만 보이는데, 지금 쓰는 시간표가 그 뒤에 있으면 3번째 자리에 함께 보여 준다
+  let idxs = variants.map((_, i)=>i);
+  if(!expanded && variants.length > TT_LIST_LIMIT){
+    const actIdx = (k === state.activeSemester) ? (state.activeVariant || 0) : -1;
+    idxs = idxs.slice(0, TT_LIST_LIMIT);
+    if(actIdx >= TT_LIST_LIMIT) idxs[TT_LIST_LIMIT - 1] = actIdx;
+  }
+  const rows = idxs.map(i=>{
+    const v = variants[i];
+    const act = k === state.activeSemester && i === (state.activeVariant || 0);
+    const dots = [...new Set((v.slots || []).map(c=>c.color).filter(Boolean))].slice(0, 4).map(c=>`<i style="background:${escapeHtml(c)};"></i>`).join('');
     return `
-    <div class="ttl-card ${act ? 'active' : ''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
-      ${act ? '<span class="ttl-badge">사용 중</span>' : ''}
+    <div class="ttl-row ${act ? 'active' : ''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
+      <span class="ttl-radio">${act ? ICON.tick : ''}</span>
+      <span class="ttl-row-main"><b>${escapeHtml(v.name)}</b><small>${(v.slots || []).length}개 수업</small></span>
+      <span class="ttl-dots">${dots}</span>
       <button type="button" class="ttl-del" data-action="delete-variant" data-key="${k}" data-idx="${i}" title="삭제">${ICON.close}</button>
-      ${ttMiniHtml(v.slots)}
-      <b class="ttl-name">${escapeHtml(v.name)}</b>
-      <small>${v.slots.length}개 수업</small>
     </div>`;
-  }).join('') + `
-    <div class="ttl-card ttl-new" data-action="show-add-variant-input" data-key="${k}">
-      <span class="ttl-plus">${ICON.plus}</span><b>새 시간표</b>
-    </div>`;
+  }).join('');
+  const more = variants.length > TT_LIST_LIMIT
+    ? `<div class="ttl-more" data-action="tt-list-more" data-key="${k}">${expanded ? '접기' : `더보기 · ${variants.length - TT_LIST_LIMIT}개`}<span class="ttl-more-chev" style="transform:rotate(${expanded ? 180 : 0}deg);">${ICON.chevDown}</span></div>`
+    : '';
+  return rows + more + `
+    <div class="ttl-add" data-action="show-add-variant-input" data-key="${k}"><span class="ttl-add-ic">${ICON.plus}</span>새 시간표 만들기</div>`;
 }
 function timetableListModal(){
   const keys = sortedSemesterKeys();
@@ -10347,7 +10366,7 @@ function timetableListModal(){
     <div class="ttl-chips" id="ttl-chips">
       ${keys.map(k=>`<button type="button" class="ttl-chip ${k===sel?'on':''}" data-action="tt-list-sem" data-key="${k}">${ttChipLabel(k)}${k===cur?'<i class="ttl-dot"></i>':''}</button>`).join('')}
     </div>
-    <div class="ttl-grid" id="ttl-body">${ttListBody(sel)}</div>`;
+    <div class="ttl-list" id="ttl-body">${ttListBody(sel)}</div>`;
 }
 function renameVariantModal(){
   return `
@@ -12719,7 +12738,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'open-semester-picker'){ openModal(semesterPickerModal()); }
     else if(a === 'open-timetable-list'){
-      state.ttListSem = null; openModal(timetableListModal());
+      state.ttListSem = null; state.ttListMore = {}; openModal(timetableListModal());
       const on = document.querySelector('.ttl-chip.on'); if(on) on.scrollIntoView({ inline:'center', block:'nearest' });
     }
     else if(a === 'tt-list-sem'){
@@ -12746,12 +12765,25 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'show-add-variant-input'){
       const key = el.dataset.key;
-      el.outerHTML = `<div class="tt-list-add-input-row">
-        <input type="text" class="tt-list-add-input" placeholder="시간표 이름 (예: 임시, 복수전공)" maxlength="12">
-        <button type="button" class="btn btn-primary btn-sm" style="width:auto;" data-action="confirm-add-variant" data-key="${key}">추가</button>
+      el.outerHTML = `<div class="ttl-add-form">
+        <input type="text" class="tt-list-add-input ttl-add-input" placeholder="시간표 이름 (예: 임시, 복수전공)" maxlength="12">
+        <button type="button" class="ttl-add-ok" data-action="confirm-add-variant" data-key="${key}">추가</button>
+        <button type="button" class="ttl-add-cancel" data-action="cancel-add-variant" data-key="${key}" title="취소">${ICON.close}</button>
       </div>`;
+      const form = document.querySelector('.ttl-add-form');
+      if(form){ try{ form.animate([{ opacity:0, transform:'translateY(6px) scale(.98)' }, { opacity:1, transform:'none' }], { duration:260, easing:'cubic-bezier(.22,1,.36,1)' }); }catch(_){} }
       const input = document.querySelector('.tt-list-add-input');
       if(input) input.focus();
+    }
+    else if(a === 'cancel-add-variant'){
+      const body = document.getElementById('ttl-body');
+      if(body) body.innerHTML = ttListBody(el.dataset.key);
+    }
+    else if(a === 'tt-list-more'){
+      const k = el.dataset.key;
+      state.ttListMore = { ...(state.ttListMore || {}), [k]: !((state.ttListMore || {})[k]) };
+      const body = document.getElementById('ttl-body');
+      if(body){ body.innerHTML = ttListBody(k); try{ body.animate([{ opacity:.4 }, { opacity:1 }], { duration:220, easing:'ease-out' }); }catch(_){} }
     }
     else if(a === 'confirm-add-variant'){
       const key = el.dataset.key;
