@@ -6011,6 +6011,9 @@ function fitTimetableGrid(){
   const rowPx = Math.max(8, maxSafeRowPx * userScale);
   grid.style.setProperty('--tt-row-h', rowPx+'px');
   wrap.style.maxHeight = (scrollable && userScale > 1) ? 'none' : available+'px';
+  // 시간표 위에서 손가락을 위아래로 끌 때 페이지가 스크롤되도록: 시간표 상자의 overscroll-behavior:contain이 위아래 스크롤을 뒤 페이지로 넘기지 않아서
+  // 스크롤 허용으로 100%보다 크게 볼 때는 auto로 풀어 준다
+  wrap.style.overscrollBehavior = (scrollable && userScale > 1) ? 'auto' : '';
   // 칸 높이가 바뀌었으니 "지금" 표시하는 빨간 줄 위치도 새 칸 높이에 맞춰 다시 계산한다.
   const nowLine = grid.querySelector('.tt-now-line');
   if(nowLine){
