@@ -9393,7 +9393,7 @@ function renderMypage(){
       <span class="dev-card-visitors">오늘 방문자 <b id="today-visitors">${traffic.todayVisitors}</b>명</span>
     </div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
-      <div class="link-row mys-report" data-action="open-bug-report"><span class="mys-ic">${ICON.bug}</span><span class="mys-txt"><b>제보 · 제안하기</b><small>버그 제보와 기능 제안을 보내 주세요</small></span><span class="sub">${ICON.chevR}</span></div>
+      <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 제보 · 제안하기</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
       <!-- 웹은 새로고침하면 그 자리에서 이미 최신 코드를 받으므로 "업데이트 확인"이 의미가
@@ -9502,7 +9502,7 @@ function bugReportModal(){
     <form id="bug-report-form">
       <input type="hidden" name="kind" value="bug">
       <div class="field"><label>제목</label><input type="text" name="title" id="bug-title-input" style="font-family:var(--font-display)" required placeholder="예: 학과 공지 좋아요 버튼 눌러도 안 눌림"></div>
-      <div class="field"><label>자세한 내용</label><textarea name="content" id="bug-content-input" style="min-height:110px" required placeholder="어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요"></textarea></div>
+      <div class="field"><label id="bug-content-label">자세한 내용</label><textarea name="content" id="bug-content-input" style="min-height:110px" required placeholder="어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요"></textarea></div>
       <div class="field">
         <label id="bug-img-label">스크린샷 (선택)</label>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-bug-img" style="width:100%;">${ICON.camera} 이미지 선택</button>
@@ -9545,7 +9545,8 @@ function setupBugReportModalListeners(){
       const fd=new FormData(form);
       const title=(fd.get('title')||'').trim();
       const content=(fd.get('content')||'').trim();
-      if(!title||!content){ toast('제목과 내용을 입력해주세요'); return; }
+      const isIdeaKind = fd.get('kind') === 'idea';
+      if(!title || (!content && !isIdeaKind)){ toast(isIdeaKind ? '제목을 입력해주세요' : '제목과 내용을 입력해주세요'); return; }
       const latest=await loadBugReports();
       const kind = (fd.get('kind') === 'idea') ? 'idea' : 'bug';
       const report={
@@ -12976,7 +12977,8 @@ document.addEventListener('click', async (e)=>{
       const kindInput = form && form.querySelector('input[name="kind"]'); if(kindInput) kindInput.value = idea ? 'idea' : 'bug';
       set('bug-intro', n=>{ n.textContent = idea ? '있으면 좋겠다고 생각한 기능이나 바뀌었으면 하는 점을 자유롭게 적어 주세요. 어떤 상황에서 왜 필요한지 함께 적어 주시면 큰 도움이 돼요.' : '이상하게 동작하는 부분을 발견하면 알려주세요. 어떤 화면에서 무엇을 했더니 어떻게 됐는지 최대한 자세히 적어주시면 좋아요. 스크린샷도 첨부할 수 있어요.'; });
       set('bug-title-input', n=>{ n.placeholder = idea ? '예: 시간표를 위젯에서 바로 추가하고 싶어요' : '예: 학과 공지 좋아요 버튼 눌러도 안 눌림'; });
-      set('bug-content-input', n=>{ n.placeholder = idea ? '어떤 기능이 있으면 좋을지, 왜 필요한지 적어주세요' : '어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요'; });
+      set('bug-content-input', n=>{ n.placeholder = idea ? '자세히 적지 않아도 괜찮아요 (예: 그냥)' : '어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요'; n.required = !idea; });
+      set('bug-content-label', n=>{ n.textContent = idea ? '자세한 내용 (선택)' : '자세한 내용'; });
       set('bug-img-label', n=>{ n.textContent = idea ? '참고 이미지 (선택)' : '스크린샷 (선택)'; });
       set('bug-submit-btn', n=>{ n.textContent = idea ? '제안 보내기' : '제보 보내기'; });
     }
