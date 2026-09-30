@@ -596,6 +596,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 환경설정 창: 예전 MY 탭 안 패널보다 넉넉하게(카드 둥글게, 제목·글자 조금 크게, 줄 간격 넓게) */
 #settings-page .fp-body{padding-top:16px;}
 .st-sect{margin:0 2px 10px;}
+#settings-page #st-sec-profile .card{padding:2px 14px !important;}
+#settings-page #st-sec-profile .link-row{padding:12px 2px;}
+.wp-cap{line-height:1.5;}
 .st-acct{display:flex; align-items:center; gap:14px; padding:16px; margin-bottom:9px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
 .st-acct:active{background:var(--surface-3);}
 .st-acct .mypage-avatar{flex-shrink:0;}
@@ -4653,7 +4656,7 @@ const WIDGET_BGS = [
   { key:'custom',  label:'사용자 지정' },
 ];
 const WIDGET_BG_DEFAULT_CUSTOM = '#8C1D2B';
-const WIDGET_ACCENTS = ['#F5C563','#4ECDC4','#B20923','#5B8DEF','#3DDC97','#C77DFF'];
+const WIDGET_ACCENTS = ['#FF9A9A','#FFB98A','#FFE08A','#9EE0B0','#9CC4F7','#C9A8F2'];   // 빨주노초파보 파스텔
 function isWidgetPresetAccent(hex){ return WIDGET_ACCENTS.some(h=>h.toLowerCase()===String(hex||'').toLowerCase()); }
 function isValidHexColor(s){ return /^#[0-9a-fA-F]{6}$/.test(s); }
 
@@ -4726,7 +4729,7 @@ function getWidgetOpts(){
   return {
     opacity: typeof o.opacity === 'number' ? o.opacity : 92,
     bg: WIDGET_BGS.some(b=>b.key===o.bg) ? o.bg : 'system',
-    accent: o.accent || WIDGET_ACCENTS[0],
+    accent: o.accent || WIDGET_ACCENTS[2],
     customBg: isValidHexColor(o.customBg) ? o.customBg : WIDGET_BG_DEFAULT_CUSTOM,
     dateShowEvents: o.dateShowEvents !== false,
     calendarShowMemo: o.calendarShowMemo !== false,
@@ -4992,7 +4995,7 @@ function widgetPreviewHtml(key, w){
   } else if(key === 'date'){
     body = `<div class="wp-date"><b style="color:${acc};">15</b><span>수요일</span></div>` + (w.dateShowEvents ? `<div class="wp-sub" style="color:${dim};">중간고사 기간</div>` : '');
   }
-  return `<div class="wp-stage"><div class="wp" data-base="${base}" style="background:${wpRgba(base, (w.opacity || 92) / 100)}; color:${fg}; font-size:${fs}px; --wp-line:${line};">${body}</div><p class="wp-cap">미리보기 (예시 내용)</p></div>`;
+  return `<div class="wp-stage"><div class="wp" data-base="${base}" style="background:${wpRgba(base, (w.opacity || 92) / 100)}; color:${fg}; font-size:${fs}px; --wp-line:${line};">${body}</div><p class="wp-cap">미리보기 (예시) · 실제 위젯은 폰 환경에 따라 다를 수 있어요. 홈 화면에 추가해서 보면서 조절해 주세요</p></div>`;
 }
 
 function renderWidgetSettingsTab(){
@@ -9640,6 +9643,7 @@ function placeBelowTopbar(wrap){
 const SETTINGS_SECTIONS = {
   display: { label:'화면',   desc:'테마 · 글씨 크기 · 홈 화면',       color:'#6C8CF5', icon:()=>ICON.sun },
   home:    { label:'홈 화면', desc:'보일 항목과 순서',       color:'#E0AC55', icon:()=>ICON.home },
+  profile: { label:'프로필', desc:'내 정보와 계정',           color:'#8E7CC3', icon:()=>ICON.person },
   notify:  { label:'알림',   desc:'받을 알림 고르기',       color:'#E5604D', icon:()=>ICON.bell },
   widget:  { label:'위젯',   desc:'바탕화면 위젯 꾸미기',   color:'#3FAF98', icon:()=>ICON.grid },
 };
@@ -9655,7 +9659,17 @@ function settingsOldHead(tab){
   if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<p class="st-cap">대표 시간표<span class="fs-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러 위젯 → KU ISE에서 추가해요</span></p>`;
   return '';
 }
+// 프로필 탭: 계정 카드(누르면 프로필 편집) + 계정 관리 줄
+function settingsProfileHtml(){
+  if(!state.user) return '';
+  const row = (action, icon, label, cls)=>`<div class="link-row ${cls || ''}" data-action="${action}"><span class="link-row-label"><span class="lr-ic">${icon}</span> ${label}</span> <span class="sub">${ICON.chevR}</span></div>`;
+  const div = '<div class="divider" style="margin:0;"></div>';
+  return settingsAccountHtml()
+    + '<p class="st-cap">계정</p>'
+    + `<div class="card">${row('change-password', ICON.key, '비밀번호 변경')}${div}${row('reset-all-timetables', ICON.trash, '모든 시간표 삭제', 'danger')}${div}${row('delete-account', ICON.personOff, '회원 탈퇴', 'danger')}</div>`;
+}
 function settingsSectionHtml(tab){
+  if(tab === 'profile') return settingsProfileHtml();
   const themeOv = getThemeOverride();
   const fontPct = getFontPct();
   const np = getNotifyPrefs();
@@ -9785,12 +9799,12 @@ function settingsAccountHtml(){
 }
 function settingsPanelHtml(){
   const prev = state.settingsTab;
-  const tabs = ['display','notify'].concat(isIOSDevice() ? [] : ['widget']);
+  const tabs = ['display','notify','profile'].concat(isIOSDevice() ? [] : ['widget']);
   const cur = tabs.includes(prev) ? prev : 'display';
   try{
     state.settingsTab = cur;
     const bar = `<div class="subtabs">${tabs.map(t=>`<div class="subtab ${cur===t?'active':''}" data-action="settings-tab" data-tab="${t}">${SETTINGS_SECTIONS[t].label}</div>`).join('')}</div>`;
-    return settingsAccountHtml() + bar + `<section class="st-sec" id="st-sec-${cur}">${settingsSectionHtml(cur)}</section>`;
+    return bar + `<section class="st-sec" id="st-sec-${cur}">${settingsSectionHtml(cur)}</section>`;
   } finally { state.settingsTab = prev; }
 }
 // 새 HTML과 지금 화면을 비교해서 달라진 곳만 고친다(통째로 갈아끼우면 스위치·선택기 애니메이션이 끊기고 깜빡인다).
@@ -13933,7 +13947,7 @@ document.addEventListener('click', async (e)=>{
       const w = getWidgetSettings(wkey);
       const hex = target==='bg' ? w.customBg : w.accent;
       const label = target==='bg' ? '배경 색' : '강조 색';
-      openModal(colorPickerModal(target, isValidHexColor(hex)?hex:WIDGET_ACCENTS[0], label));
+      openModal(colorPickerModal(target, isValidHexColor(hex)?hex:WIDGET_ACCENTS[2], label));
       setupColorPicker(target, (newHex)=>{
         if(target==='bg') setWidgetSetting(wkey, { bg:'custom', customBg:newHex });
         else setWidgetSetting(wkey, { accent:newHex });
