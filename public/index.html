@@ -13129,9 +13129,10 @@ document.addEventListener('click', async (e)=>{
       const wrap = document.getElementById('cp-wrap-'+id);
       if(!wrap) return;
       const show = wrap.style.display === 'none';
-      wrap.style.display = show ? 'block' : 'none';
+      if(show) setupColorPicker(id, (hex)=>{ const fn = INLINE_COLOR_HANDLERS[id]; if(fn) fn(hex); });
+      // 색상판은 안이 무거워서 높이를 늘리는 애니메이션이 끊겨 보였다 — 창을 통째로 미끄러뜨리고 내용은 서서히 나타나게(닫을 땐 흐려진 뒤 접힘)
+      smoothToggleBox(wrap, show);
       if(show){
-        setupColorPicker(id, (hex)=>{ const fn = INLINE_COLOR_HANDLERS[id]; if(fn) fn(hex); });
         // 색상판이 펼쳐지다가 창이 더 커질 수 없으면(화면 높이의 88%), 늘어나는 동안 창 안을 같이 부드럽게 스크롤해서
         // 색상판이 끝까지 보이게 한다(예전엔 아래가 잘린 채로 늘어나다 멈춰서 어색했다)
         requestAnimationFrame(()=>{
