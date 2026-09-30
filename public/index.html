@@ -715,6 +715,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .acc-dot:active i{transform:scale(.9);}
 .acc-dot.on i{color:var(--on-crimson,#fff); box-shadow:0 0 0 2px var(--surface-2), 0 0 0 4px var(--c);}
 #settings-page .card + .card{margin-top:8px !important;}
+/* 한 줄짜리 알림 카드(방해 금지·시간표)는 위아래 여백을 조금 더 */
+#settings-page #st-sec-notify .card:nth-of-type(2), #settings-page #st-sec-notify .card:nth-of-type(3){padding:9px 14px;}
 /* 오늘의 시간표 알림: 방해 금지와 같은 줄 높이, 시각 선택기는 더 낮고 작게 */
 #settings-page #st-sec-notify .tt-alert-row{min-height:40px; padding:4px 2px;}
 #settings-page #st-sec-notify .seg-group.tt-seg{padding:2px; border-radius:10px;}
