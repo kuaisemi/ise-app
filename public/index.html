@@ -9353,13 +9353,8 @@ function pokeState(f){
   if(mine > theirs) return 'sent';      // 내가 이미 찔렀고 상대의 답을 기다리는 중
   return 'idle';
 }
-// 서로 번갈아 찌른 연속 횟수. 마지막으로 찌른 지 48시간이 지나면 끊긴 것으로 보고 표시하지 않는다.
-const POKE_STREAK_WINDOW = 48 * 3600 * 1000;
-function pokeLastAt(f){ const pk = f.pokes || {}; return Math.max(Number(pk[state.user.uid] || 0), Number(pk[f.uid] || 0)); }
-function pokeStreakNow(f){
-  const last = pokeLastAt(f);
-  return (f.pokeStreak > 1 && last && Date.now() - last < POKE_STREAK_WINDOW) ? f.pokeStreak : 0;
-}
+// 이 친구와 콕 찌른 누적 횟수(서로 찌른 걸 합쳐서, 찌를 때마다 +1). 사라지지 않고 계속 쌓인다.
+function pokeStreakNow(f){ return Number(f.pokeStreak || 0); }
 function pokeButtonHtml(f){
   const st = pokeState(f);
   const streak = pokeStreakNow(f);
@@ -9375,9 +9370,8 @@ async function pokeFriend(pairId, uid){
   if(Date.now() - last < 5000) return;
   pokeCooldown[pairId] = Date.now();
   const ts = now();
-  // 상대가 찌른 걸 되찌르면 연속 횟수 +1, 처음 찌르거나 48시간이 지났으면 1부터 다시
   const prev = (state.friendsUI.data.friends || []).find(x=>x.pairId === pairId);
-  const streak = (prev && pokeState(prev) === 'pending' && Date.now() - pokeLastAt(prev) < POKE_STREAK_WINDOW) ? (prev.pokeStreak || 1) + 1 : 1;
+  const streak = (prev ? Number(prev.pokeStreak || 0) : 0) + 1;
   try{
     await updateDoc(doc(db,'friendLinks',pairId), { ['pokes.'+state.user.uid]: ts, pokeStreak: streak });
     const f = (state.friendsUI.data.friends || []).find(x=>x.pairId === pairId);
