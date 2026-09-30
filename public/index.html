@@ -5212,7 +5212,8 @@ function renderMain(){
   // 전에 끝나는 날은 그 아래로 빈 공간이 남아 거기에 버전 푸터를 넣을 자리가 있다.
   // 20~21시 사이거나 그 이상이면 여백이 거의 없어서 넣으면 넘칠 수 있으니 뺀다.
   const showTtFooter = state.view==='timetable' && timetableVisibleEnd() <= 20*60;
-  const skipFooter = state.view==='mypage' || (state.view==='timetable' && !showTtFooter);
+  const inFriendDetail = state.view==='council' && state.councilTab==='social' && state.friendsUI && state.friendsUI.screen==='detail';
+  const skipFooter = state.view==='mypage' || inFriendDetail || (state.view==='timetable' && !showTtFooter);
   el.innerHTML = html + (skipFooter ? '' : versionFooter());
   setupNowTimer();
   setupWidgetOpacitySlider();
@@ -9679,13 +9680,16 @@ async function loadFriendTimetableCard(uid){
       card.innerHTML = `<div class="empty"><p>${escapeHtml(semKey||'')} 학기에 등록된 수업이 없어요.</p></div>`;
       return;
     }
-    card.innerHTML = renderFriendTimetableGrid(slots, semKey);
+    // 화면 크기에 맞춰 높이를 정한다: 카드 위쪽부터 화면 아래(하단 탭 위)까지를 시간표로 채운다.
+    const topY = card.getBoundingClientRect().top;
+    const gridH = Math.max(340, Math.min(960, Math.round(window.innerHeight - topY - 150)));
+    card.innerHTML = renderFriendTimetableGrid(slots, semKey, gridH);
   }catch(e){
     card.innerHTML = `<div class="empty"><p>이 친구가 시간표를 공개하지 않았어요.</p></div>`;
   }
 }
-function renderFriendTimetableGrid(slots, semKey){
-  const GRID_H = 620;
+function renderFriendTimetableGrid(slots, semKey, gridH){
+  const GRID_H = gridH || 520;
   const minStart = 9*60, maxEnd = 21*60, totalMin = maxEnd-minStart, pxPerMin = GRID_H/totalMin;
   const hours = []; for(let h=9; h<=20; h++) hours.push(h);
   const hourLabels = hours.map(h => {
