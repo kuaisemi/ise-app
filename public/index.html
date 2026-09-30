@@ -3453,13 +3453,37 @@ if(!window.__revealBound){
       }
     }catch(_){}
   };
+  // 사라질 때: display:none이 걸린 직후(화면에 그려지기 전) 잠깐 되돌려 놓고, 높이를 줄이며 흐려지는 애니메이션이 끝나면 숨긴다.
+  const hideAnimated = (el, oldStyle)=>{
+    el.__fx = true;
+    const newStyle = el.getAttribute('style');
+    const settle = ()=>{ Promise.resolve().then(()=>{ el.__fx = false; }); };
+    try{
+      el.setAttribute('style', oldStyle || '');
+      const cs = getComputedStyle(el);
+      const h = parseFloat(cs.height);
+      if(cs.display === 'none' || cs.position === 'fixed' || cs.position === 'absolute' || !(h > 0) || el.dataset.noAnim !== undefined){
+        el.setAttribute('style', newStyle); settle(); return;
+      }
+      const a = el.animate([{ height:h + 'px', opacity:1, overflow:'hidden' }, { height:'0px', opacity:0, overflow:'hidden' }], { duration:220, easing:'cubic-bezier(.3,.7,.3,1)', fill:'forwards' });
+      a.onfinish = ()=>{
+        try{ a.cancel(); }catch(_){}
+        // 애니메이션 도중 화면 코드가 다시 이 요소의 스타일을 바꿨다면(다시 열기 등) 그쪽을 존중한다
+        if((el.getAttribute('style') || '') === (oldStyle || '')) el.setAttribute('style', newStyle);
+        settle();
+      };
+    }catch(_){ try{ el.setAttribute('style', newStyle); }catch(__){} settle(); }
+  };
   new MutationObserver((list)=>{
     if(list.length > 6) return;   // 목록 필터처럼 한꺼번에 많이 바뀌는 건 건너뛴다
     list.forEach(m=>{
       if(m.attributeName !== 'style') return;
       const el = m.target;
+      if(el.__fx) return;
       if(el.classList && (el.classList.contains('swatch') || el.classList.contains('tgl'))) return;
-      if(isNone(m.oldValue) && !isNone(el.getAttribute('style'))) reveal(el);
+      const nowNone = isNone(el.getAttribute('style'));
+      if(isNone(m.oldValue) && !nowNone) reveal(el);
+      else if(!isNone(m.oldValue) && nowNone) hideAnimated(el, m.oldValue);
     });
   }).observe(document.body || document.documentElement, { attributes:true, attributeFilter:['style'], attributeOldValue:true, subtree:true });
 }
