@@ -5447,7 +5447,13 @@ function renderTimetable(isCapture=false){
       </div>
     `}
     <div class="tt-fab-wrap ${state.ttFabOpen?'open':''}">
-      ${state.ttFabOpen ? `
+      ${state.ttFabOpen ? ttFabOptionsHtml() : ''}
+      <button type="button" class="tt-fab" data-action="toggle-tt-fab">${ICON.plus}</button>
+    </div>
+  `;
+}
+function ttFabOptionsHtml(){
+  return `
       <div class="tt-fab-backdrop" data-action="close-tt-fab"></div>
       <button type="button" class="tt-fab-option" data-action="ocr-timetable" style="--i:0;">
         <span class="tt-fab-option-circle">${ICON.camera}</span>
@@ -5456,11 +5462,17 @@ function renderTimetable(isCapture=false){
       <button type="button" class="tt-fab-option" data-action="add-class" style="--i:1;">
         <span class="tt-fab-option-circle">${ICON.pencil}</span>
         <span class="tt-fab-option-label">직접 추가</span>
-      </button>
-      ` : ''}
-      <button type="button" class="tt-fab" data-action="toggle-tt-fab">${ICON.plus}</button>
-    </div>
-  `;
+      </button>`;
+}
+// + 버튼 메뉴는 시간표 전체를 다시 그리지 않고 버튼 주변만 바꾼다.
+// (다시 그리면 시간표가 잠깐 깜빡이고, 칸 크기를 다시 맞추느라 위아래로 출렁였다.)
+function setTtFab(open){
+  state.ttFabOpen = !!open;
+  const wrap = document.querySelector('.tt-fab-wrap');
+  if(!wrap){ renderMain(); return; }
+  wrap.querySelectorAll('.tt-fab-backdrop, .tt-fab-option').forEach(n=>n.remove());
+  if(state.ttFabOpen) wrap.insertAdjacentHTML('afterbegin', ttFabOptionsHtml());
+  wrap.classList.toggle('open', state.ttFabOpen);
 }
 
 function openCaptureModeView(){
@@ -12101,12 +12113,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'change-password'){ openModal(changePasswordModal()); }
     else if(a === 'delete-account'){ openModal(deleteAccountModal()); }
     else if(a === 'kick-member'){ openModal(kickMemberModal(el.dataset.sid, el.dataset.name)); }
-    else if(a === 'toggle-tt-fab'){ state.ttFabOpen = !state.ttFabOpen; renderMain(); }
-    else if(a === 'close-tt-fab'){ state.ttFabOpen = false; renderMain(); }
-    else if(a === 'add-class'){ state.ttFabOpen = false; openModal(classModal(null)); setupClassModalListeners(); }
+    else if(a === 'toggle-tt-fab'){ setTtFab(!state.ttFabOpen); }
+    else if(a === 'close-tt-fab'){ setTtFab(false); }
+    else if(a === 'add-class'){ setTtFab(false); openModal(classModal(null)); setupClassModalListeners(); }
     else if(a === 'edit-class'){ const c = state.timetable.find(x => x.id === el.dataset.id); if(c){ openModal(classModal(c)); setupClassModalListeners(); } }
     else if(a === 'delete-class-group'){ await deleteClassGroup(el.dataset.groupId); }
-    else if(a === 'ocr-timetable'){ state.ttFabOpen = false; openModal(ocrModal()); setupOcrModalListeners(); }
+    else if(a === 'ocr-timetable'){ setTtFab(false); openModal(ocrModal()); setupOcrModalListeners(); }
     else if(a === 'pick-color'){
       // 프리셋을 고르면 "직접 선택" 스와치는 다시 무지개(선택 안 됨) 상태로 되돌린다
       document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s => {
