@@ -1017,8 +1017,8 @@ function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/,
 const ANDROID_VERSION_CODE = 174;
 const PATCH_NOTES = [
   { version:'Beta 0.5.1', date:'2026-09-30', items:[
-    { title:'친구에게 콕 찌르기', text:'소셜의 친구 이름 옆에서 주먹을 눌러 콕 찌를 수 있어요. 한 번 찌르면 상대가 찌를 때까지는 다시 못 찌르고, 상대가 나를 찌르면 검지손가락으로 바뀌어요. 친구 목록을 열거나 새로고침할 때 반영되고 알림은 가지 않아요' },
-    { title:'친구 1:1 채팅을 없앴어요', text:'서버 사용량을 줄이기 위해 채팅과 채팅 알림 설정을 없앴어요. 친구 화면에서는 시간표를 더 크게 볼 수 있어요' },
+    { title:'친구에게 콕 찌르기', text:'소셜의 친구 이름 옆에서 검지손가락을 눌러 콕 찌를 수 있어요. 한 번 찌르면 주먹으로 바뀌고 상대가 찌를 때까지는 다시 못 찌르며, 상대가 나를 찌르면 다시 검지손가락이 돼요. 친구 목록을 열거나 새로고침할 때 반영되고 알림은 가지 않아요' },
+    { title:'친구 1:1 채팅을 없앴어요', text:'서버 사용량을 줄이기 위해 채팅과 채팅 알림 설정을 없앴어요. 친구 화면의 시간표는 스크롤 없이 화면에 딱 맞게 보이고, 시간표 공개 스위치는 이름 줄과 친구 목록(전체 공개)으로 옮겼어요. 경고·정지 기능도 없앴어요' },
     { title:'MY 탭 관리 메뉴 정리', text:'학생회 · 학생회장 · 개발자 전용 메뉴를 구분선으로 나눴어요. 전체 가입자 목록은 열기 전에 한 번 확인하고, AI 인식 키와 삭제된 게시물 정리는 개발자에게만 보여요' },
     { title:'서버를 덜 쓰도록 개선', text:'오늘 방문자 수를 문서 하나로 세고, 가입자 전체 목록은 필요할 때만 불러와요. 가입자 목록에서는 눌러서 상세로 들어가야 접속 시각이 보여요' },
   ]},
@@ -5201,6 +5201,7 @@ function navBtn(view, icon, label){
 function renderMain(){
   const el = document.getElementById('main-content');
   if(!el) return;
+  if(!(state.view === 'council' && state.councilTab === 'social' && state.friendsUI && state.friendsUI.screen === 'detail')) setFriendScrollLock(false);
   let html='';
   if(state.view==='home') html=renderHome();
   else if(state.view==='timetable') html=renderTimetable();
@@ -9199,11 +9200,18 @@ function friendsModalBody(){
   if(state.friendsUI.screen === 'nickname') return friendNicknameBody();
   return friendListBody();
 }
+// 친구 시간표 화면은 화면 크기에 딱 맞게 그리므로 스크롤이 생기지 않게 잠근다(다른 화면으로 가면 풀린다).
+function setFriendScrollLock(on){
+  document.documentElement.style.overflow = on ? 'hidden' : '';
+  document.body.style.overflow = on ? 'hidden' : '';
+  const m = document.getElementById('main-content'); if(m) m.style.overflowY = on ? 'hidden' : '';
+}
 function refreshFriendsModalBody(){
   const el = document.getElementById('friends-modal-body');
   if(el){ el.innerHTML = friendsModalBody(); setupFriendsModalListeners(); }
   const vf = document.querySelector('#main-content .app-version');
   if(vf) vf.style.display = (state.friendsUI.screen === 'detail') ? 'none' : '';
+  setFriendScrollLock(state.friendsUI.screen === 'detail' && state.view === 'council' && state.councilTab === 'social');
   refreshAddFriendModalIfOpen();
 }
 // "친구 추가" 버튼이 여는 팝업은 친구 목록 화면(#friends-modal-body)과 다른 DOM이라,
@@ -9321,7 +9329,8 @@ function friendListBody(){
 
     <div class="row-between" style="margin-bottom:8px;">
       <div class="section-title" style="margin:0;">내 친구 (${friends.length})</div>
-      <div style="display:flex; gap:6px;">
+      <div style="display:flex; gap:6px; align-items:center;">
+        ${friends.length ? `<span style="display:inline-flex; align-items:center; gap:5px; margin-right:4px;"><span style="font-size:10.5px; color:var(--text-dim);">시간표 공개</span><button type="button" class="tgl sm ${friends.every(f=>(f.shareTimetable||{})[state.user.uid]!==false)?'on':''}" id="friends-share-all" role="switch" title="모든 친구에게 내 시간표 공개"></button></span>` : ''}
         ${friends.length ? `<button type="button" class="btn btn-ghost btn-sm" data-action="toggle-friends-edit-mode" style="width:auto; padding:4px 9px; font-size:10.5px;">${state.friendsUI.editMode ? '완료' : '편집'}</button>` : ''}
         <button type="button" class="btn btn-primary btn-sm" data-action="open-add-friend" style="width:auto; padding:4px 9px; font-size:10.5px;">친구 추가</button>
       </div>
@@ -9404,27 +9413,17 @@ async function pokeFriend(pairId, uid){
 function friendDetailBody(){
   const ui = state.friendsUI;
   const shareOn = ui.myShareOn !== false;
-  const ttCollapsed = !!ui.ttCollapsed;
   const nicknameHtml = ui.activeNickname ? `<span style="font-size:11px; font-weight:400; color:var(--text-dim);">(${escapeHtml(ui.activeNickname)})</span>` : '';
   return `
     <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
       <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
       <b style="font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(ui.activeName)} ${nicknameHtml}</b>
+      <button type="button" class="tgl sm ${shareOn?'on':''}" id="friend-share-toggle" data-on="${shareOn?'1':'0'}" role="switch" title="이 친구에게 내 시간표 공개" style="flex-shrink:0;"></button>
       <button type="button" class="btn btn-ghost btn-sm" data-action="set-friend-nickname" style="width:auto; padding:3px 8px; font-size:10px; flex-shrink:0;">별명설정</button>
       <button type="button" class="btn btn-ghost btn-sm" data-action="unfriend" style="width:auto; padding:3px 8px; font-size:10px; color:var(--danger); flex-shrink:0;">친구삭제</button>
     </div>
 
-    <div class="row-between" style="margin-bottom:6px;">
-      <div class="section-title" style="margin:0;">시간표</div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="font-size:10.5px; color:var(--text-dim);">시간표 공개</span><button type="button" class="tgl sm ${shareOn?'on':''}" id="friend-share-toggle" data-on="${shareOn?'1':'0'}" role="switch" title="이 친구에게 내 시간표 공개"></button></span>
-        <button type="button" data-action="toggle-friend-tt-collapse" style="background:none; border:none; display:flex; align-items:center; gap:3px; color:var(--text-dim); font-size:10.5px; cursor:pointer; padding:2px;">
-          ${ttCollapsed ? '펼치기' : '접기'}
-          <span style="display:flex; transition:transform .15s; transform:rotate(${ttCollapsed ? '0deg' : '180deg'});">${ICON.chevDown}</span>
-        </button>
-      </div>
-    </div>
-    ${ttCollapsed ? `<div style="margin-bottom:10px;"></div>` : `<div class="card tt-card-container" id="friend-tt-card" style="margin-bottom:14px;"><div class="empty"><p>불러오는 중…</p></div></div>`}
+    <div class="card tt-card-container" id="friend-tt-card" style="margin-bottom:14px;"><div class="empty"><p>불러오는 중…</p></div></div>
 
   `;
 }
@@ -9432,6 +9431,20 @@ function friendDetailBody(){
 function setupFriendsModalListeners(){
   const addInput = document.getElementById('friend-add-input');
   if(addInput) addInput.addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequest(); });
+
+  const shareAll = document.getElementById('friends-share-all');
+  if(shareAll) shareAll.addEventListener('click', async () => {
+    const newOn = !shareAll.classList.contains('on');
+    shareAll.disabled = true;
+    try{
+      const fr = state.friendsUI.data.friends || [];
+      await Promise.all(fr.map(f=>updateDoc(doc(db,'friendLinks',f.pairId), { shareTimetable: { ...(f.shareTimetable||{}), [state.user.uid]: newOn } })));
+      fr.forEach(f=>{ f.shareTimetable = { ...(f.shareTimetable||{}), [state.user.uid]: newOn }; });
+      shareAll.classList.toggle('on', newOn);
+      toast(newOn ? '모든 친구에게 시간표를 공개했어요' : '모든 친구에게 시간표를 숨겼어요');
+    }catch(e){ toast('변경 실패 (' + (e.code||'알 수 없음') + ')'); }
+    shareAll.disabled = false;
+  });
 
   if(state.friendsUI.screen !== 'detail') return;
 
@@ -9450,7 +9463,7 @@ function setupFriendsModalListeners(){
     }
   });
 
-  if(!state.friendsUI.ttCollapsed) loadFriendTimetableCard(state.friendsUI.activeUid);
+  loadFriendTimetableCard(state.friendsUI.activeUid);
 }
 
 async function sendFriendRequest(){
