@@ -8288,7 +8288,7 @@ function nickCheck(t){
   if(!v) return { ok:true, value:'' };
   if([...v].length > NICK_MAX) return { ok:false, msg:'별명은 '+NICK_MAX+'글자까지예요' };
   if(!/^[A-Za-z0-9가-힣ㄱ-ㅎㅏ-ㅣ]+$/.test(v)) return { ok:false, msg:'별명은 한글·영어·숫자만 쓸 수 있어요 (띄어쓰기·특수문자·이모지는 안 돼요)' };
-  if(nickHasBanned(v)) return { ok:false, msg:'쓸 수 없는 표현이 들어 있어요 (욕설·성적인 표현·성적/학점 관련 단어는 안 돼요)' };
+  if(nickHasBanned(v)) return { ok:false, msg:'쓸 수 없는 표현이 들어 있어요 (욕설·비하·성적인 표현 등은 안 돼요)' };
   return { ok:true, value:v };
 }
 if(!window.__nickInputBound){
