@@ -3154,7 +3154,8 @@ if(!window.__segSlideBound){
   window.__segSlideBound = true;
   document.addEventListener('click', (e)=>{
     // 손으로 밀어서 바꾼 직후에 뒤따라오는 진짜 클릭은 버린다(이미 바꿨으므로 또 바꾸면 되돌아간다)
-    if(Date.now() < (window.__suppressClickUntil || 0)){ e.stopPropagation(); e.preventDefault(); return; }
+    const sp = window.__suppressClick;
+    if(sp && Date.now() < sp.until && sp.el && sp.el.contains(e.target)){ e.stopPropagation(); e.preventDefault(); return; }
     // 위젯 설정의 켜짐/꺼짐 스위치: 먼저 미끄러뜨리고 0.24초 뒤에 원래 동작을 실행한다
     const tg = e.target.closest && e.target.closest('.tgl[data-action^="toggle-widget-"]');
     if(tg){
@@ -3188,12 +3189,16 @@ if(!window.__swipeBound){
   document.addEventListener('pointerdown', (e)=>{
     const c = e.target.closest && e.target.closest('.seg-vis, .tgl, .seg-group, .switch');
     if(!c || c.hasAttribute('disabled')) return;
-    st = { c, x:e.clientX, id:e.pointerId, moved:false, idx:-1 };
+    st = { c, x:e.clientX, y:e.clientY, id:e.pointerId, moved:false, idx:-1 };
   }, true);
   document.addEventListener('pointermove', (e)=>{
     if(!st || e.pointerId !== st.id) return;
-    if(!st.moved && Math.abs(e.clientX - st.x) > 8) st.moved = true;
-    if(st.moved && st.c.classList.contains('seg-group')){
+    if(!st.moved){
+      const dx = Math.abs(e.clientX - st.x), dy = Math.abs(e.clientY - st.y);
+      if(dy > 10 && dy > dx){ st = null; return; }          // 세로로 스크롤하는 중 — 밀기가 아니다
+      if(dx > 10 && dx > dy * 1.5) st.moved = true;
+    }
+    if(st && st.moved && st.c.classList.contains('seg-group')){
       st.idx = segIndexAt(st.c, e.clientX);
       const thumb = st.c.querySelector('.seg-thumb');
       if(thumb) thumb.style.setProperty('--i', String(st.idx));   // 선택 칸이 손가락을 따라 칸 단위로 미끄러진다
@@ -3230,7 +3235,7 @@ if(!window.__swipeBound){
       const inp = c.querySelector('input[type="checkbox"]');
       if(inp && inp.checked !== (dx > 0)) inp.click();
     }
-    window.__suppressClickUntil = Date.now() + 500;
+    window.__suppressClick = { el: c, until: Date.now() + 500 };
   };
   document.addEventListener('pointerup', finish, true);
   document.addEventListener('pointercancel', finish, true);
@@ -3285,27 +3290,41 @@ if(!window.__subtabBound){
   };
   document.addEventListener('pointerdown', (e)=>{
     const bar = e.target.closest && e.target.closest('.subtabs.has-thumb'); if(!bar) return;
-    sd = { bar, x:e.clientX, id:e.pointerId, moved:false, tab:null };
+    sd = { bar, x:e.clientX, y:e.clientY, id:e.pointerId, moved:false, tab:null };
   }, true);
   document.addEventListener('pointermove', (e)=>{
     if(!sd || e.pointerId !== sd.id) return;
-    if(!sd.moved && Math.abs(e.clientX - sd.x) > 8) sd.moved = true;
-    if(sd.moved){ const t = tabAt(sd.bar, e.clientX); if(t !== sd.tab){ sd.tab = t; place(sd.bar, t, true); } }
+    if(!sd.moved){
+      const dx = Math.abs(e.clientX - sd.x), dy = Math.abs(e.clientY - sd.y);
+      if(dy > 10 && dy > dx){ sd = null; return; }          // 세로 스크롤 — 탭을 바꾸지 않는다
+      if(dx > 10 && dx > dy * 1.5) sd.moved = true;
+    }
+    if(sd && sd.moved){ const t = tabAt(sd.bar, e.clientX); if(t !== sd.tab){ sd.tab = t; place(sd.bar, t, true); } }
   }, true);
   const endDrag = (e)=>{
     if(!sd || e.pointerId !== sd.id) return;
-    const { bar, moved, tab } = sd; sd = null;
+    const { bar, moved } = sd; let tab = sd.tab; sd = null;
     if(!moved || !tab) return;
+    // 선택 칸(.subtab-thumb)이 멈춘 자리의 가운데가 걸치는 탭을 목적지로 삼는다
+    const th = bar.querySelector(':scope > .subtab-thumb');
+    if(th){
+      const m = /translateX\(([-\d.]+)px\)/.exec(th.style.transform || '');
+      if(m){
+        const center = parseFloat(m[1]) + (parseFloat(th.style.width) || 0) / 2;
+        const hit = Array.from(bar.querySelectorAll('.subtab')).find(t=> center >= t.offsetLeft && center < t.offsetLeft + t.offsetWidth);
+        if(hit) tab = hit;
+      }
+    }
     if(e.type === 'pointercancel' || tab.classList.contains('active')){
       const cur = bar.querySelector('.subtab.active'); if(cur) place(bar, cur, true);
-      window.__suppressClickUntil = Date.now() + 500;
+      if(e.type !== 'pointercancel') window.__suppressClick = { el: bar, until: Date.now() + 500 };
       return;
     }
     bar.querySelectorAll('.subtab').forEach(t=>t.classList.toggle('active', t === tab));
     tab.dataset.slid = '1'; tab.click();
     // 손을 뗀 뒤 따라오는 진짜 클릭은 버린다. 반드시 위의 tab.click() 다음에 걸어야 한다
     // (먼저 걸면 우리가 보낸 클릭까지 막혀서 탭이 바뀌어도 화면이 안 넘어간다).
-    window.__suppressClickUntil = Date.now() + 500;
+    window.__suppressClick = { el: bar, until: Date.now() + 500 };
   };
   document.addEventListener('pointerup', endDrag, true);
   document.addEventListener('pointercancel', endDrag, true);
