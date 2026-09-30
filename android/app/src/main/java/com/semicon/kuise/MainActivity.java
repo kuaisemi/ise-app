@@ -6,7 +6,9 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebSettings;
+import android.webkit.WebView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebSettingsCompat;
@@ -38,6 +40,7 @@ public class MainActivity extends BridgeActivity {
         disableAlgorithmicDarkening();
         setupStatusBar();
         createNotificationChannel();
+        setupBackButton();
 
         // 콜드 스타트(앱이 꺼져있다가 위젯 클릭으로 켜짐) — 웹뷰/JS가 아직 준비 안 됐을 수 있으니
         // 플러그인에 값만 남겨두고, JS가 부팅 후 consumeDeepLink()로 직접 가져가게 한다.
@@ -58,6 +61,26 @@ public class MainActivity extends BridgeActivity {
         if (target != null) WidgetBridgePlugin.notifyDeepLink(target);
     }
 
+    /**
+     * 뒤로가기 키: 웹 쪽이 팝업·전체 화면 창을 열 때마다 history에 한 칸씩 쌓아 두므로(index.html의 uiLayerOpened),
+     * 웹뷰에 되돌아갈 기록이 있으면 한 칸 뒤로 가서 그 창을 닫고, 없으면(맨 화면) 기본 동작(앱 종료)으로 넘긴다.
+     * Capacitor 코어는 이 처리를 App 플러그인에 맡기는데 이 앱에는 그 플러그인이 없어서, 지금까지는 팝업이 떠 있어도 뒤로가기가 앱을 꺼버렸다.
+     */
+    private void setupBackButton() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView webView = (getBridge() == null) ? null : getBridge().getWebView();
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+                setEnabled(true);
+            }
+        });
+    }
     /**
      * 웹뷰의 "강제 다크모드(알고리즘 색 반전)"를 끈다.
      *
