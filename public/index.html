@@ -1927,12 +1927,26 @@ function fmtLastSeen(ts){
 // 그대로 재사용해 "오늘 방문자/현재 접속자" 수를 추정. 새 접속을 만들 때가 아니라 반드시
 // 조용히 백그라운드에서만 갱신되어야 하며(트래픽만을 위한 목적으로 쓰기 요청을 늘리지 않음),
 // lastSeen은 앱을 켤 때만 기록한다(현재 접속자 표시는 없앴다).
-function getTrafficStats(){
-  const users = Object.values(state.allUsers||{});
-  const nowTs = now();
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const todayVisitors = users.filter(u=>u.lastSeen && u.lastSeen >= todayStart.getTime()).length;
-  return { todayVisitors };
+// 오늘 방문자: 예전에는 가입자 전체를 읽어서 마지막 접속 시각으로 셌다(가입자 수만큼 읽기). 이제는 접속할 때
+// dailyVisits/{날짜} 문서에 내 uid 키 하나를 하루 한 번만 적고, 화면에서는 그 문서 하나만 읽어서 키 개수를 센다.
+let todayVisitorsCount = null, todayVisitorsAt = 0;
+function getTrafficStats(){ return { todayVisitors: todayVisitorsCount == null ? '-' : todayVisitorsCount }; }
+async function recordDailyVisit(){
+  if(!state.user) return;
+  const day = todayStr();
+  if(localGet('visit_day', '') === day) return;
+  try{ await setDoc(doc(db,'dailyVisits',day), { [state.user.uid]: now() }, { merge:true }); localSet('visit_day', day); }
+  catch(e){ console.warn('[dailyVisit]', e); }
+}
+async function loadTodayVisitors(){
+  if(!state.user) return;
+  if(todayVisitorsCount != null && Date.now() - todayVisitorsAt < 5 * 60 * 1000) return;
+  try{
+    const snap = await getDoc(doc(db,'dailyVisits',todayStr()));
+    todayVisitorsCount = snap.exists() ? Object.keys(snap.data() || {}).length : 0;
+    todayVisitorsAt = Date.now();
+    const el = document.getElementById('today-visitors'); if(el) el.textContent = String(todayVisitorsCount);
+  }catch(e){ console.warn('[todayVisitors]', e); }
 }
 function formatMealText(raw){
   if(!raw) return '';
@@ -2519,6 +2533,20 @@ async function saveRecruitments(a){ return await saveShared('recruitments',{list
 //
 // users/{uid}가 원래부터 진짜 원본이고(1600행대 주석 참고) 규칙도 학생회 이상에게 전체
 // 조회를 허용하므로, 캐시를 거치지 말고 그걸 그대로 읽는다. 쓰기가 없으니 덮어쓸 일도 없다.
+function cachedUsersMap(){
+  try{ const c = localGet('shared_usersList', null); return (c && c.map) ? c.map : {}; }catch(e){ return {}; }
+}
+let allUsersPromise = null;
+// 필요한 순간에만 가입자 전체를 읽는다(가입자 수만큼 읽기가 나간다). 학생 계정은 읽기 권한이 없어 호출해도 읽지 않는다.
+async function ensureAllUsers(force){
+  if(!isCouncil()) return state.allUsers || {};
+  const have = state.allUsers && Object.keys(state.allUsers).length > 0;
+  if(have && !force && Date.now() - usersFetchedAt < 30 * 60 * 1000) return state.allUsers;
+  if(!allUsersPromise){
+    allUsersPromise = loadAllUsersList().then(m=>{ state.allUsers = m; usersFetchedAt = Date.now(); return m; }).finally(()=>{ allUsersPromise = null; });
+  }
+  return allUsersPromise;
+}
 async function loadAllUsersList(){
   try{
     const snap = await getDocs(collection(db,'users'));
@@ -2705,7 +2733,7 @@ function boot(){
           // 요청해서, 로그인할 때마다 매번 왕복 하나만큼 초기 로딩이 더 걸렸다).
           let [udoc, usersList] = await Promise.all([
             fetchUserDoc(fbUser.uid),
-            loadAllUsersList().catch(()=>({})),
+            Promise.resolve(cachedUsersMap()),   // 가입자 전체 목록은 로그인 때 읽지 않는다(필요한 화면에서만 읽는다)
           ]);
           if(!udoc){
             await new Promise(r=>setTimeout(r, 700));
@@ -2763,6 +2791,7 @@ function boot(){
           await loadAllData(usersList);
           trackUserPresence(state.user, true);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
+          recordDailyVisit();
           setupPresenceHeartbeat();
           setupTimetableResizeListener();
           startRoleRealtimeListener();
@@ -4687,7 +4716,7 @@ async function loadAllData(preloadedUsers){
       loadNotices().catch(()=>[]),
       loadSuggestions().catch(()=>[]),
       loadPolls().catch(()=>[]),
-      preloadedUsers ? Promise.resolve(preloadedUsers) : loadAllUsersList().catch(()=>({})),
+      Promise.resolve(preloadedUsers && Object.keys(preloadedUsers).length ? preloadedUsers : ((state.allUsers && Object.keys(state.allUsers).length) ? state.allUsers : cachedUsersMap())),
       loadRecruitments().catch(()=>[]),
       loadRoster().catch(()=>({})),
       loadDeptNotices().catch(()=>({items:[],updatedAt:0})),
@@ -4731,7 +4760,6 @@ async function refreshShared(force){
     }catch(e){}
   }
   if(force || t - usersFetchedAt > 10 * 60 * 1000){
-    try{ state.allUsers = await loadAllUsersList(); usersFetchedAt = Date.now(); }catch(e){}
   }
 }
 
@@ -7884,8 +7912,9 @@ async function notifyRecruitmentOrgMessage(id, msgId){
   const post = next.find(r=>r.id===id);
   const msg = (post && post.poll && post.poll.orgMessages || []).find(m=>(m.id||'')===msgId) || {};
   const yesIds = Object.keys((post && post.poll && post.poll.votes) || {}).filter(sid=>post.poll.votes[sid].choice==='yes' && sid!==post.authorId);
+  await ensureAllUsers();
   yesIds.forEach(sid=>{
-    const targetUid = (state.allUsers[sid]||{}).uid;
+    const targetUid = ((state.allUsers||{})[sid]||{}).uid;
     if(targetUid) enqueuePush({ audience:'user', targetUid, category:'recruit', title:`${post.title} 참여자 공지`, body:msg.text||'' });
   });
   toast('참여자에게 공지 알림을 보냈어요 (1분 안에 도착해요)');
@@ -8049,6 +8078,9 @@ function renderPollItem(p){
         </div>`;
     }).join('');
 
+    if(isDirectorOrHigher && Object.keys(state.allUsers||{}).length === 0){
+      body += `<button type="button" class="btn btn-ghost btn-sm" data-action="load-unvoted" style="width:100%; margin-top:8px;">미투표자 명단 불러오기</button>`;
+    }
     if(isDirectorOrHigher && unvoted.length>0){
       body += `
         <details class="voters-accordion" style="margin-top:8px; border-color:rgba(var(--danger-rgb),0.3); background:rgba(var(--danger-rgb),0.05);">
@@ -8668,6 +8700,7 @@ INLINE_COLOR_HANDLERS['pxcolor'] = (hex)=>{ avPxColor = hex; const p = document.
 
 /* ===== 마이페이지 ===== */
 function renderMypage(){
+  setTimeout(loadTodayVisitors, 0);
   const userCount = Object.keys(state.allUsers||{}).length;
   const themeOv = getThemeOverride();
   const scale = getFontScale();
@@ -8829,8 +8862,6 @@ function renderMypage(){
     <div class="section-title">권한 및 관리</div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
       ${isPresident() ? `
-        <div class="link-row" data-action="view-users-list">전체 가입자 및 직급 관리 (${userCount}명) <span class="sub">${ICON.chevR}</span></div>
-        <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="manage-roster">학생 명단(로스터) 관리 <span class="sub">${ICON.chevR}</span></div>
         <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="view-audit-log">삭제 기록 보기 <span class="sub">${ICON.chevR}</span></div>
@@ -8849,7 +8880,7 @@ function renderMypage(){
 
     <div class="section-title dev-section-head">
       <span>추가기능</span>
-      <span class="dev-card-visitors">오늘 방문자 <b>${traffic.todayVisitors}</b>명</span>
+      <span class="dev-card-visitors">오늘 방문자 <b id="today-visitors">${traffic.todayVisitors}</b>명</span>
     </div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
       <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
@@ -8866,8 +8897,9 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="open-suspension-list"><span class="link-row-label">${ICON.ban} 경고 · 정지 목록</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isDeveloper() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isDeveloper() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="view-users-list"><span class="link-row-label">${ICON.person} 전체 가입자 및 직급 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ` : ''}
     </div>
 
@@ -11926,7 +11958,8 @@ async function handleReplySubmit(fd){
     // uid가 필요한 notifyQueue에는 state.allUsers에서 찾아 넘긴다 — 탈퇴 등으로 명단에
     // 없으면(못 찾으면) 조용히 건너뛴다.
     const answered = next.find(s => s.id === id);
-    const authorUid = answered && (state.allUsers[answered.studentId]||{}).uid;
+    await ensureAllUsers();
+    const authorUid = answered && ((state.allUsers||{})[answered.studentId]||{}).uid;
     if(authorUid && answered.studentId !== state.user.studentId){
       enqueuePush({ audience:'user', gateKey:null, targetUid:authorUid, title:'건의사항에 답변이 달렸어요', body:answer, category:'suggestion' });
     }
@@ -12489,7 +12522,9 @@ document.addEventListener('click', async (e)=>{
   // 필요합니다"만 뜨고 있었다. 실제 권한 판단은 deleteEvent() 안에서 작성자/직급으로 한다.
   const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
-  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','manage-gemini-keys','open-user-detail','user-sort','toggle-user-sort'];
+  const presidentOnly = ['view-users-list','manage-roster','view-audit-log','open-user-detail','user-sort','toggle-user-sort'];
+  const developerOnly = ['manage-gemini-keys','purge-tombstones'];
+  if(developerOnly.includes(a) && !isDeveloper()){ toast('개발자 권한이 필요한 기능입니다'); return; }
   if(councilOnly.includes(a) && !isCouncil()){ toast('학생회 권한이 필요한 기능입니다'); return; }
   if(pollOnly.includes(a) && !canPoll()){ toast('국장 이상 권한이 필요한 기능입니다'); return; }
   if(presidentOnly.includes(a) && !isPresident()){ toast('학생회장 권한이 필요한 기능입니다'); return; }
@@ -12676,6 +12711,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'reset-timetable'){ await resetTimetable(); }
     else if(a === 'set-theme'){ setThemeOverride(el.dataset.themeV); }
     else if(a === 'open-avatar-editor'){ openAvatarEditor(); }
+    else if(a === 'load-unvoted'){ el.textContent = '불러오는 중…'; await ensureAllUsers(true); renderMain(); }
     else if(a === 'av-tab'){ avTab = el.dataset.tab; renderAvBody(); }
     else if(a === 'av-pick-icon'){ avDraft.id = el.dataset.id; renderAvBody(); }
     else if(a === 'av-pick-emoji'){ avDraft.emoji = el.dataset.e; renderAvBody(); }
@@ -12771,7 +12807,10 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'apply-tt-opts'){ applyTtOptions(); }
     else if(a === 'verify-council'){ openModal(councilVerifyModal()); }
     else if(a === 'revoke-council'){ await setRole('student'); }
-    else if(a === 'view-users-list'){ await refreshUsersList(); state.activeUserListTab='all'; openModal(usersListModal()); }
+    else if(a === 'view-users-list'){
+      if(!await showConfirm('전체 가입자 목록을 불러옵니다.\n가입자 수만큼 서버 읽기가 발생해요.\n\n여시겠습니까?', { okLabel:'열기' })) return;
+      await ensureAllUsers(true); state.activeUserListTab='all'; openModal(usersListModal());
+    }
     else if(a === 'view-audit-log'){ state.auditLog = ((await loadShared('auditLog', {list:[]})).list)||[]; openModal(auditLogModal()); }
     else if(a === 'clear-audit-log'){ await clearAuditLog(); }
     else if(a === 'toggle-audit-reveal'){ toggleAuditReveal(el.dataset.id); }

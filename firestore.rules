@@ -225,6 +225,18 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['studentId', 'name']);
     }
 
+    // 오늘 방문자 수: 하루에 문서 하나(문서 id = 날짜). 각자 자기 uid 키 하나만 적을 수 있고(값은 시각 숫자),
+    // 읽을 때는 이 문서 하나만 읽어서 키 개수를 센다 — 가입자 전체를 읽지 않아도 된다.
+    match /dailyVisits/{day} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([request.auth.uid])
+        && request.resource.data[request.auth.uid] is number;
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data[request.auth.uid] is number;
+    }
+
     // 가입 시 명단과 안 맞은 사람이 남기는 문의. 가입 절차상 이 시점엔 이미 본인 Auth
     // 계정이 있는 상태라(그래야 나중에 승인돼도 비밀번호를 다시 받을 필요가 없다),
     // 자기 uid로만 문서 하나를 만들 수 있게 한다. 국장 이상이 승인/거절만 바꿀 수 있고,
