@@ -8366,9 +8366,7 @@ function avEditorHtml(){
     + '<button type="button" class="btn btn-sm '+(avPxTool === 'erase' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="erase">지우개</button>'
     + '<button type="button" class="btn btn-sm '+(avPxTool === 'fill' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="fill">채우기</button>'
     + '<span style="flex:1;"></span><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-undo">되돌리기</button><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-clear">비우기</button></div>'
-    + '<div class="row-between" style="margin-bottom:10px;"><p class="set-label sm" style="margin:0;">펜 굵기</p><div class="seg-group sm" style="width:132px;"><span class="seg-thumb" style="--n:3; --i:'+bi+';"></span>'
-    + [1,2,3].map(n=>'<button type="button" class="'+(avBrush === n ? 'on' : '')+'" data-action="av-brush" data-n="'+n+'">'+n+'px</button>').join('')
-    + '</div></div>'
+    + '<div class="opt-slider" style="margin-bottom:10px;"><span class="opt-name" style="flex:0 0 52px;">펜 굵기</span><input type="range" id="av-brush-range" min="1" max="8" step="1" value="'+avBrush+'"><span class="range-val"><b id="av-brush-val" style="min-width:14px; text-align:right;">'+avBrush+'</b><b>px</b></span></div>'
     + '<div class="px-wrap" style="max-width:'+AV_PX_SIZES[avPxSizeKey()][1]+'px;"><canvas id="av-canvas" width="32" height="32"></canvas><div class="px-grid"></div></div>'
     + '<div class="row-between" style="margin-top:12px;"><p class="set-label sm" style="margin:0;">그리는 색</p><button type="button" class="btn btn-ghost btn-sm" id="av-px-size-btn" data-action="av-px-size" style="width:auto; padding:4px 10px; font-size:10.5px;">캔버스 '+AV_PX_SIZES[avPxSizeKey()][0]+'</button></div>'
     + '<div class="swatches av-swatches" id="px-palette">' + PX_PALETTE.map(h=>'<button type="button" class="swatch '+(avPxColor.toLowerCase() === h.toLowerCase() ? 'selected' : '')+'" data-action="av-px-color" data-hex="'+h+'" style="background:'+h+'; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>').join('')
@@ -8428,6 +8426,8 @@ function avPxFlood(start, col){
 function setupAvCanvas(){
   const c = document.getElementById('av-canvas'); if(!c) return;
   avPxDraw();
+  const br = document.getElementById('av-brush-range'), bv = document.getElementById('av-brush-val');
+  if(br){ br.oninput = ()=>{ avBrush = Math.max(1, Math.min(8, parseInt(br.value, 10) || 1)); if(bv) bv.textContent = avBrush; }; }
   const at = (e)=>{
     const r = c.getBoundingClientRect();
     const x = Math.floor((e.clientX - r.left) / r.width * 32), y = Math.floor((e.clientY - r.top) / r.height * 32);
