@@ -460,6 +460,18 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-fab-wrap.open .tt-fab{transform:rotate(45deg);}
 /* + 버튼을 누르면 "직접 추가"로 바로 들어가던 걸, 사진 인식도 같이 고를 수 있게
    위로 펼쳐지는 작은 원형 메뉴(스피드 다이얼)로 바꿨다. */
+.ttm-sec{font-size:10px; font-weight:700; color:var(--text-faint); letter-spacing:.04em; margin:14px 4px 6px;}
+.ttm-card{background:var(--surface-2); border:1px solid var(--border); border-radius:16px; overflow:hidden;}
+.ttm-row{display:flex; align-items:center; gap:12px; padding:11px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
+.ttm-row + .ttm-row{border-top:1px solid var(--border-light);}
+.ttm-row:active{background:var(--surface-3);}
+.ttm-ic{width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(var(--c-rgb), .16); color:var(--c);}
+.ttm-ic svg{width:19px; height:19px;}
+.ttm-txt{flex:1; min-width:0;}
+.ttm-txt b{display:block; font-size:13px;}
+.ttm-txt small{display:block; font-size:10.5px; color:var(--text-dim); margin-top:2px; line-height:1.35;}
+.ttm-row.danger .ttm-txt b{color:var(--danger-text);}
+.ttm-row .sub{color:var(--text-faint); display:flex;}
 .tt-fab-backdrop{position:fixed; inset:0; z-index:14; background:transparent;}
 .tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
 @media (max-width:480px){ .tt-fab-option{right:18px;} }
@@ -5525,10 +5537,50 @@ function ttMoreMenuModal(){
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">시간표 메뉴<button data-action="close-modal">${ICON.close}</button></div>
-    <div class="link-row" data-action="ocr-timetable"><span class="link-row-label">${ICON.camera} 시간표 인식으로 등록</span> <span class="sub">${ICON.chevR}</span></div>
-    <div class="link-row" data-action="open-capture-mode"><span class="link-row-label">${ICON.frame} 캡처 모드</span> <span class="sub">${ICON.chevR}</span></div>
-    <div class="link-row" data-action="rename-variant"><span class="link-row-label">${ICON.pencil} 이 시간표 이름 변경</span> <span class="sub">${ICON.chevR}</span></div>
-    <div class="link-row danger" data-action="reset-timetable"><span class="link-row-label">${ICON.trash} 이 시간표 지우기</span> <span class="sub">${ICON.chevR}</span></div>
+    <div class="ttm-sec">수업 추가</div>
+    <div class="ttm-card">
+      <div class="ttm-row" data-action="ocr-timetable" style="--c:var(--teal); --c-rgb:224,172,85;">
+        <span class="ttm-ic">${ICON.camera}</span>
+        <span class="ttm-txt"><b>사진으로 등록</b><small>시간표 캡처 사진에서 수업을 한 번에 가져와요</small></span>
+        <span class="sub">${ICON.chevR}</span>
+      </div>
+      <div class="ttm-row" data-action="add-class" style="--c:var(--teal); --c-rgb:224,172,85;">
+        <span class="ttm-ic">${ICON.plus}</span>
+        <span class="ttm-txt"><b>직접 추가</b><small>수업 이름 · 시간 · 강의실을 입력해요</small></span>
+        <span class="sub">${ICON.chevR}</span>
+      </div>
+    </div>
+    <div class="ttm-sec">보기</div>
+    <div class="ttm-card">
+      <div class="ttm-row" data-action="open-capture-mode" style="--c:var(--blue); --c-rgb:var(--blue-rgb);">
+        <span class="ttm-ic">${ICON.frame}</span>
+        <span class="ttm-txt"><b>캡처 모드</b><small>버튼을 숨기고 시간표만 깔끔하게 보여요</small></span>
+        <span class="sub">${ICON.chevR}</span>
+      </div>
+      <div class="ttm-row" data-action="open-tt-options" style="--c:var(--purple); --c-rgb:var(--purple-rgb);">
+        <span class="ttm-ic">${ICON.gear}</span>
+        <span class="ttm-txt"><b>화면 표시 설정</b><small>색상 · 글자 크기 · 시간 범위를 바꿔요</small></span>
+        <span class="sub">${ICON.chevR}</span>
+      </div>
+      <div class="ttm-row" data-action="open-timetable-list" style="--c:var(--amber); --c-rgb:var(--amber-rgb);">
+        <span class="ttm-ic">${ICON.clipboard}</span>
+        <span class="ttm-txt"><b>시간표 목록</b><small>학기와 시간표를 바꾸거나 새로 만들어요</small></span>
+        <span class="sub">${ICON.chevR}</span>
+      </div>
+    </div>
+    <div class="ttm-sec">관리</div>
+    <div class="ttm-card">
+      <div class="ttm-row" data-action="rename-variant" style="--c:var(--crimson-light); --c-rgb:var(--crimson-rgb);">
+        <span class="ttm-ic">${ICON.pencil}</span>
+        <span class="ttm-txt"><b>이름 변경</b><small>지금 보고 있는 시간표의 이름을 바꿔요</small></span>
+        <span class="sub">${ICON.chevR}</span>
+      </div>
+      <div class="ttm-row danger" data-action="reset-timetable" style="--c:var(--danger); --c-rgb:var(--danger-rgb);">
+        <span class="ttm-ic">${ICON.trash}</span>
+        <span class="ttm-txt"><b>이 시간표 지우기</b><small>수업을 모두 지워요</small></span>
+        <span class="sub">${ICON.chevR}</span>
+      </div>
+    </div>
   `;
 }
 
@@ -5729,6 +5781,10 @@ function ttFabOptionsHtml(){
       <button type="button" class="tt-fab-option" data-action="add-class" style="--i:1;">
         <span class="tt-fab-option-circle">${ICON.pencil}</span>
         <span class="tt-fab-option-label">직접 추가</span>
+      </button>
+      <button type="button" class="tt-fab-option" data-action="tt-fab-more" style="--i:2;">
+        <span class="tt-fab-option-circle">${ICON.more}</span>
+        <span class="tt-fab-option-label">더보기</span>
       </button>`;
 }
 // + 버튼 메뉴는 시간표 전체를 다시 그리지 않고 버튼 주변만 바꾼다.
@@ -12627,6 +12683,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'kick-member'){ openModal(kickMemberModal(el.dataset.sid, el.dataset.name)); }
     else if(a === 'toggle-tt-fab'){ if(state.ttFabDocked){ setTtFabDock(false); } else { setTtFab(!state.ttFabOpen); } }
     else if(a === 'close-tt-fab'){ setTtFab(false); }
+    else if(a === 'tt-fab-more'){ setTtFab(false); openModal(ttMoreMenuModal()); }
     else if(a === 'add-class'){ setTtFab(false); openModal(classModal(null)); setupClassModalListeners(); }
     else if(a === 'edit-class'){ const c = state.timetable.find(x => x.id === el.dataset.id); if(c){ openModal(classModal(c)); setupClassModalListeners(); } }
     else if(a === 'delete-class-group'){ await deleteClassGroup(el.dataset.groupId); }
