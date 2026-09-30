@@ -3443,10 +3443,11 @@ if(!window.__revealBound){
     try{
       if(!el.isConnected || el.dataset.noAnim !== undefined) return;
       const cs = getComputedStyle(el);
-      if(cs.display === 'none' || cs.position === 'fixed' || cs.position === 'absolute') return;
+      if(cs.display === 'none') return;
+      const floating = cs.position === 'fixed' || cs.position === 'absolute';
       const h = parseFloat(cs.height);
       const easing = 'cubic-bezier(.3,.7,.3,1)';
-      if(h > 0 && cs.display !== 'inline'){
+      if(!floating && h > 0 && cs.display !== 'inline'){
         el.animate([{ height:'0px', opacity:0, overflow:'hidden' }, { height:h + 'px', opacity:1, overflow:'hidden' }], { duration:280, easing });
       } else {
         el.animate([{ opacity:0, transform:'translateY(-6px)' }, { opacity:1, transform:'none' }], { duration:240, easing });
@@ -3462,10 +3463,14 @@ if(!window.__revealBound){
       el.setAttribute('style', oldStyle || '');
       const cs = getComputedStyle(el);
       const h = parseFloat(cs.height);
-      if(cs.display === 'none' || cs.position === 'fixed' || cs.position === 'absolute' || !(h > 0) || el.dataset.noAnim !== undefined){
+      const floating = cs.position === 'fixed' || cs.position === 'absolute';
+      if(cs.display === 'none' || !(h > 0) || el.dataset.noAnim !== undefined){
         el.setAttribute('style', newStyle); settle(); return;
       }
-      const a = el.animate([{ height:h + 'px', opacity:1, overflow:'hidden' }, { height:'0px', opacity:0, overflow:'hidden' }], { duration:220, easing:'cubic-bezier(.3,.7,.3,1)', fill:'forwards' });
+      const frames = floating
+        ? [{ opacity:1, transform:'none' }, { opacity:0, transform:'translateY(-6px)' }]
+        : [{ height:h + 'px', opacity:1, overflow:'hidden' }, { height:'0px', opacity:0, overflow:'hidden' }];
+      const a = el.animate(frames, { duration:220, easing:'cubic-bezier(.3,.7,.3,1)', fill:'forwards' });
       a.onfinish = ()=>{
         try{ a.cancel(); }catch(_){}
         // 애니메이션 도중 화면 코드가 다시 이 요소의 스타일을 바꿨다면(다시 열기 등) 그쪽을 존중한다
@@ -11942,8 +11947,13 @@ document.addEventListener('click', async (e)=>{
       const wrap = el.closest('.date-field');
       const hidden = wrap && wrap.querySelector('input[type=hidden]');
       const ym = (hidden && hidden.value ? hidden.value : todayStr()).slice(0,7);
-      panel.innerHTML = show ? dateGridHtml(name, ym, hidden ? hidden.value : '') : '';
-      panel.style.display = show ? 'block' : 'none';
+      if(show){
+        panel.innerHTML = dateGridHtml(name, ym, hidden ? hidden.value : '');
+        panel.style.display = 'block';
+      } else {
+        panel.style.display = 'none';
+        setTimeout(()=>{ if(panel.style.display === 'none') panel.innerHTML = ''; }, 320);
+      }
     }
     else if(a === 'dp-nav-month'){
       const name = el.dataset.name;
@@ -11961,7 +11971,7 @@ document.addEventListener('click', async (e)=>{
       if(hidden) hidden.value = el.dataset.date;
       if(btn) btn.textContent = fmtDateLabel(el.dataset.date);
       const panel = document.getElementById('date-panel-'+name);
-      if(panel){ panel.style.display = 'none'; panel.innerHTML=''; }
+      if(panel){ panel.style.display = 'none'; setTimeout(()=>{ if(panel.style.display === 'none') panel.innerHTML = ''; }, 320); }
       if(hidden){
         hidden.dispatchEvent(new Event('change', { bubbles:true }));
         // 시작일이 바뀌면 아직 안 건드린 종료일 필드를 자동으로 같은 날로 맞춘다(기존 event-date-input 동작과 동일).
