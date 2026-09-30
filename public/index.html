@@ -9936,7 +9936,7 @@ function settingsSectionHtml(tab){
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
         </div>
       </div>
-      </div><p class="st-cap">학식</p><div class="card">
+      </div><p class="st-cap">학식<span class="fs-hint">알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요)</span></p><div class="card">
       <div class="meal-wrap">
         <span class="meal-ico">${ICON.utensils}</span>
         <div class="meal-body">
@@ -9952,10 +9952,6 @@ function settingsSectionHtml(tab){
       </div>
         </div>
       </div>
-      <p style="font-size:10px; color:var(--text-faint); margin:8px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">
-        ${isNativeApp ? '공지 · 투표 · 학식 알림은 앱을 꺼둬도 도착해요.' : '브라우저에서는 공지 · 투표 · 학식 알림을 받을 수 있어요.'}
-      </p>
       ` : ''}
 
       ${(state.settingsTab==='widget' && !isIOSDevice()) ? (isNativeApp ? renderWidgetSettingsTab() : `
