@@ -9635,10 +9635,10 @@ function settingsSectionHtml(tab){
 
       </div><div class="card">
       <div class="row-between" style="margin:0 0 2px; align-items:center;">
-        <p class="set-label" style="margin:0;">홈 화면 보기 설정</p>
+        <p class="set-label" style="margin:0; flex:1; min-width:0;">홈 화면 보기 설정${state.homeReorderMode ? `<span class="fs-hint">손잡이를 잡고 위아래로 끌어요</span>` : ''}</p>
         <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
       </div>
-      ${state.homeReorderMode ? `<p class="st-hint">오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.</p>` : '<div style="height:2px;"></div>'}
+      <div style="height:2px;"></div>
       <div class="notify-row hp-row ${(!state.homeReorderMode && hp.hideVotedPolls) ? 'is-off' : ''}">
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>${state.homeReorderMode ? '항상 맨 위에 고정돼요' : '내가 이미 참여한 투표는 목록에서 숨겨요'}</small></span></span>
         ${state.homeReorderMode ? '' : homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls)}
