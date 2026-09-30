@@ -411,7 +411,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .poke-btn:active{transform:scale(.86);}
 .poke-btn.pending{color:var(--crimson);}
 .poke-btn.sent{opacity:.28;}
+.poke-btn svg *{vector-effect:non-scaling-stroke;}
 .poke-btn.idle{color:var(--text-dim);}
+.toast{white-space:pre-line; text-align:center;}
 .poke-btn.pending svg{animation:poke-nudge 1.4s ease-in-out infinite;}
 @keyframes poke-nudge{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px) rotate(-6deg);}}
 .av-tools{display:flex; gap:6px; align-items:center; margin-bottom:10px;}
@@ -1661,11 +1663,8 @@ function maxSuspendDays(role){
 function canDiscipline(targetRole){ return myLevel() > roleLevel(targetRole || 'student'); }
 // 경고 "삭제"는 더 무거운 조치라 부회장 이상만.
 function isVicePlus(){ return myLevel() >= 3; }
-function isSuspendedNow(u){
-  const s = u && u.suspension;
-  if(!s) return false;
-  return s.permanent === true || (typeof s.until === 'number' && s.until > Date.now());
-}
+// 경고·정지 기능은 없앴다: 어떤 계정도 정지 상태로 취급하지 않는다(예전에 걸린 값이 서버에 남아 있어도 무시).
+function isSuspendedNow(u){ return false; }
 // 정지 중이면 토스트로 안내하고 true를 돌려준다 — 호출부에서 그대로 return에 쓴다.
 function blockIfSuspended(){
   if(!isSuspendedNow(state.user)) return false;
@@ -4841,8 +4840,8 @@ const ICON = {
   pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-6.1 7-12A7 7 0 0 0 5 9.5c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
   gimbap:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="7.5" rx="7.5" ry="3.3"/><path d="M4.5 7.5v9.2c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3V7.5"/><path d="M4.5 12.1c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3"/><circle cx="10.2" cy="7.1" r=".9" fill="currentColor" stroke="none"/><circle cx="13.8" cy="7.9" r=".9" fill="currentColor" stroke="none"/></svg>`,
   drumstick:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="14.6" cy="9.4" rx="6.8" ry="5.2" transform="rotate(-45 14.6 9.4)"/><path d="M9.8 14.2 6.4 17.6"/><circle cx="6.5" cy="19.1" r="1.5"/><circle cx="4.9" cy="17.5" r="1.5"/></svg>`,
-  pokeFinger:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>`,
-  pokeFist:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 11V9a1.8 1.8 0 0 1 3.5 0"/><path d="M10 9V7.8a1.8 1.8 0 0 1 3.5 0V9"/><path d="M13.5 9V8.3a1.8 1.8 0 0 1 3.5 0V12"/><path d="M6.5 11.2v3.2a5.6 5.6 0 0 0 5.6 5.6h1.5a4.4 4.4 0 0 0 4.4-4.4V12"/><path d="M17 12.2a1.7 1.7 0 0 1 3.4 0V15a6 6 0 0 1-5 5.9"/></svg>`,
+  pokeFinger:`<svg width="14" height="20" viewBox="0 0 24 24" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>`,
+  pokeFist:`<svg width="14" height="20" viewBox="0 0 24 24" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 11V9a1.8 1.8 0 0 1 3.5 0"/><path d="M10 9V7.8a1.8 1.8 0 0 1 3.5 0V9"/><path d="M13.5 9V8.3a1.8 1.8 0 0 1 3.5 0V12"/><path d="M6.5 11.2v3.2a5.6 5.6 0 0 0 5.6 5.6h1.5a4.4 4.4 0 0 0 4.4-4.4V12"/><path d="M17 12.2a1.7 1.7 0 0 1 3.4 0V15a6 6 0 0 1-5 5.9"/></svg>`,
   thumbtack:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 7 3.2 3.2V15H6.8v-1.8L10 10z"/><path d="M12 15v6.5"/></svg>`,
   android:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16a7.5 7.5 0 0 1 15 0z"/><path d="M6.9 10.6 5 8M17.1 10.6 19 8"/><circle cx="9.4" cy="12.7" r=".9" fill="currentColor" stroke="none"/><circle cx="14.6" cy="12.7" r=".9" fill="currentColor" stroke="none"/></svg>`,
   clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
@@ -8859,20 +8858,6 @@ function renderMypage(){
     </div>
     ` : ''}
 
-    ${isSuspendedNow(state.user) ? `
-    <div class="card" style="border:1px solid var(--danger, #e5484d); background:var(--surface-2); margin-bottom:8px;">
-      <p style="font-size:12.5px; font-weight:700; margin:0 0 4px;">${ICON.ban} 현재 ${state.user.suspension.permanent?'영구':fmtSuspendRemaining(state.user.suspension)} 정지 중이에요</p>
-      <p style="font-size:11.5px; color:var(--text-dim); margin:0; line-height:1.6;">사유: ${escapeHtml(state.user.suspension.reason||'')}</p>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0;">채팅 전송 · 좋아요 등 일부 기능이 제한돼요.</p>
-    </div>
-    ` : ''}
-    ${(state.user.warnings||[]).length ? `
-    <div class="card" style="margin-bottom:8px;">
-      <p style="font-size:12px; font-weight:700; margin:0 0 4px;">받은 경고 (${state.user.warnings.length}건)</p>
-      ${state.user.warnings.slice().reverse().slice(0,5).map(w=>`<p style="font-size:11px; color:var(--text-dim); margin:2px 0; line-height:1.6;">· ${escapeHtml(w.reason||'')} <span class="meta">(${fmtDateTime(w.ts)})</span></p>`).join('')}
-    </div>
-    ` : ''}
-
     <div class="section-title">계정</div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
       <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
@@ -8896,7 +8881,6 @@ function renderMypage(){
       ${isCouncil() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>
-      <div class="link-row" data-action="open-suspension-list"><span class="link-row-label">${ICON.ban} 경고 · 정지 목록</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
@@ -9218,6 +9202,8 @@ function friendsModalBody(){
 function refreshFriendsModalBody(){
   const el = document.getElementById('friends-modal-body');
   if(el){ el.innerHTML = friendsModalBody(); setupFriendsModalListeners(); }
+  const vf = document.querySelector('#main-content .app-version');
+  if(vf) vf.style.display = (state.friendsUI.screen === 'detail') ? 'none' : '';
   refreshAddFriendModalIfOpen();
 }
 // "친구 추가" 버튼이 여는 팝업은 친구 목록 화면(#friends-modal-body)과 다른 DOM이라,
@@ -9379,8 +9365,8 @@ function friendListBody(){
   `;
 }
 
-// 콕 찌르기(핑퐁): 처음에는 주먹을 쥐고 있고, 눌러서 먼저 찌를 수 있다. 내가 찔렀으면 상대가 찌를 때까지는 다시 못 찌른다
-// (흐리게 표시). 상대가 나를 찔렀으면 검지손가락이 되고, 눌러서 되찌를 수 있다. 실시간이 아니라 친구 목록을 열거나
+// 콕 찌르기(핑퐁): 처음에는 검지손가락을 펴고 있고 눌러서 찌를 수 있다. 찌르고 나면 주먹이 되고(흐리게), 상대가 찌를 때까지는
+// 다시 못 찌른다. 상대가 나를 찔렀으면 검지손가락(빨간색)이 되어 눌러서 되찌를 수 있다. 실시간이 아니라 친구 목록을 열거나
 // 새로고침할 때 반영되고, 푸시 알림은 보내지 않는다(토큰 절약).
 function pokeState(f){
   const pk = f.pokes || {};
@@ -9392,13 +9378,13 @@ function pokeState(f){
 function pokeButtonHtml(f){
   const st = pokeState(f);
   const title = st === 'pending' ? '나를 콕 찔렀어요 · 눌러서 되찌르기' : (st === 'sent' ? '이미 찔렀어요 · 상대가 찌르면 다시 찌를 수 있어요' : '콕 찌르기');
-  return '<button type="button" class="poke-btn '+st+'" data-action="poke-friend" data-pair="'+escapeHtml(f.pairId)+'" data-uid="'+escapeHtml(f.uid)+'" title="'+title+'">'+(st === 'pending' ? ICON.pokeFinger : ICON.pokeFist)+'</button>';
+  return '<button type="button" class="poke-btn '+st+'" data-action="poke-friend" data-pair="'+escapeHtml(f.pairId)+'" data-uid="'+escapeHtml(f.uid)+'" title="'+title+'">'+(st === 'sent' ? ICON.pokeFist : ICON.pokeFinger)+'</button>';
 }
 const pokeCooldown = {};
 async function pokeFriend(pairId, uid){
   if(!state.user) return;
   const f0 = (state.friendsUI.data.friends || []).find(x=>x.pairId === pairId);
-  if(f0 && pokeState(f0) === 'sent'){ toast('이미 찔렀어요. 상대가 찌르면 다시 찌를 수 있어요'); return; }
+  if(f0 && pokeState(f0) === 'sent'){ toast('이미 찔렀어요\n상대가 찌르면 다시 찌를 수 있어요'); return; }
   const last = pokeCooldown[pairId] || 0;
   if(Date.now() - last < 5000) return;
   pokeCooldown[pairId] = Date.now();
@@ -9682,7 +9668,10 @@ async function loadFriendTimetableCard(uid){
     }
     // 화면 크기에 맞춰 높이를 정한다: 카드 위쪽부터 화면 아래(하단 탭 위)까지를 시간표로 채운다.
     const topY = card.getBoundingClientRect().top;
-    const gridH = Math.max(340, Math.min(960, Math.round(window.innerHeight - topY - 150)));
+    const nav = document.querySelector('.bottomnav');
+    const bottomY = nav ? nav.getBoundingClientRect().top : window.innerHeight - 90;
+    // 카드 안쪽 여백(위아래) + 학기 글자 줄 + 요일 머리 줄을 빼고 남은 높이가 곧 시간표 높이다
+    const gridH = Math.max(300, Math.floor(bottomY - topY - 104));
     card.innerHTML = renderFriendTimetableGrid(slots, semKey, gridH);
   }catch(e){
     card.innerHTML = `<div class="empty"><p>이 친구가 시간표를 공개하지 않았어요.</p></div>`;
