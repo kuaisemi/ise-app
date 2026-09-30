@@ -1508,7 +1508,8 @@ const PATCH_NOTES = [
 const DAYS = ['월','화','수','목','금'];
 const TIME_START = 540;
 const TIME_END   = 1320;
-const TIMETABLE_VISIBLE_END = 1200;   // 시간표가 보여 주는 끝 시각(20시, 최대이자 최소). 그 뒤 시간은 자르고 대신 칸을 그만큼 크게 그려 화면을 채운다
+const TIMETABLE_VISIBLE_END = 1080;   // 수업이 일찍 끝나도 시간표를 최소 18시까지는 그린다(그보다 짧게는 자르지 않는다)
+const TIMETABLE_BASE_END = 1200;      // 칸 높이(비율)의 기준 끝점: 20시. 어느 폰에서든 "9~20시가 화면을 채우는 높이"가 기준이다
 const TIMETABLE_GRID_STEP = 15;
 // 한눈에 보려고 스크롤을 계속 내려야 한다는 피드백을 받아 15→12→10으로 줄였다 —
 // 글자 크기(.tt-block 안 폰트)는 그대로 두고 칸 높이(여백)만 줄여서, 글씨는 안 작아지고
@@ -5678,7 +5679,7 @@ function renderMain(){
   // 시간표 탭은 21시 기준으로 칸 높이를 잡기 때문에(fitTimetableGrid), 수업이 20시
   // 전에 끝나는 날은 그 아래로 빈 공간이 남아 거기에 버전 푸터를 넣을 자리가 있다.
   // 20~21시 사이거나 그 이상이면 여백이 거의 없어서 넣으면 넘칠 수 있으니 뺀다.
-  const showTtFooter = state.view==='timetable' && timetableVisibleEnd() <= 20*60;
+  const showTtFooter = state.view==='timetable' && timetableVisibleEnd() <= 19*60;
   const inFriendDetail = state.view==='council' && state.councilTab==='social' && state.friendsUI && state.friendsUI.screen==='detail';
   const skipFooter = state.view==='mypage' || inFriendDetail || (state.view==='timetable' && !showTtFooter);
   el.innerHTML = html + (skipFooter ? '' : versionFooter());
@@ -6005,14 +6006,16 @@ function fitTimetableGrid(){
   // 자리가 있다고 봤다가 실제로는 그 아래로 밀려나면서 페이지 전체가 스크롤되는 원인이 된다.
   const footerEl = document.querySelector('#main-content > .app-version');
   const footerReserve = footerEl ? Math.ceil(footerEl.getBoundingClientRect().height) + 30 : 0;
-  const available = viewportH - navHeight - wrapTop - bottomMargin - footerReserve;
+  const availableRaw = viewportH - navHeight - wrapTop - bottomMargin;   // 버전 표시 자리를 빼지 않은 높이(칸 높이 비율은 이걸로 정한다)
+  const available = availableRaw - footerReserve;
   if(available <= 60) return; // 화면이 너무 작아 계산이 이상해지면 기본값(CSS 68vh)을 그대로 둔다
   const headerPx = 24;
-  // 칸 높이는 "지금 그려진 칸 수"로 남는 높이를 나눠서 정한다 — 그래서 최소 끝 시각(20시)일 때는 칸이 조금 더 크게 화면을 딱 채우고
-  // (아래에 빈 공간이 남지 않는다), 수업이 더 늦게 끝나 칸이 늘어나면 그만큼 촘촘해져서 언제나 스크롤 없이 한 화면에 들어온다.
-  const actualRows = parseInt(grid.dataset.rows||'0', 10) || Math.ceil((TIMETABLE_VISIBLE_END - TIME_START) / TIMETABLE_GRID_STEP);
-  const effectiveRows = actualRows;
-  const maxSafeRowPx = Math.max(8, (available - headerPx) / effectiveRows);
+  // 칸 높이는 "20시까지 44칸"을 기준으로 남는 높이를 나눠 정한다(어느 폰에서든 같은 비율). 수업이 19시나 18시에 끝나는 날은 이 칸 높이를 그대로 두고
+  // 아래만 잘라서(최소 18시) 그리며, 20시를 넘는 수업이 있어 칸이 44개보다 늘어나면 그만큼 촘촘하게 줄여서 스크롤 없이 다 들어오게 한다.
+  const baselineRows = Math.ceil((TIMETABLE_BASE_END - TIME_START) / TIMETABLE_GRID_STEP);
+  const actualRows = parseInt(grid.dataset.rows||'0', 10) || baselineRows;
+  const effectiveRows = Math.max(baselineRows, actualRows);
+  const maxSafeRowPx = Math.max(8, (availableRaw - headerPx) / effectiveRows);
   // "시간표 크기" 설정(화면 표시 설정)은 이 화면-꽉-채움 크기를 100%로 보고, 그보다
   // 작게(0.6~1.0배)만 줄일 수 있게 한다 — 100%가 이미 스크롤 없이 들어가는 최대치라,
   // 더 키우는 건 허용하지 않는다(스크롤 금지 원칙을 항상 지키기 위해).
@@ -6053,11 +6056,11 @@ function fitTimetableGrid(){
 // 여기서도 써서(버전 푸터를 보여줄지 말지 결정하는 데 씀), 로직이 어긋나지 않게 한다.
 function timetableVisibleEnd(){
   const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
-  return TIMETABLE_VISIBLE_END;
+  return Math.min(TIME_END, Math.max(TIMETABLE_VISIBLE_END, Math.ceil(latestEnd/60)*60));
 }
 function renderTimetable(isCapture=false){
   const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
-  const visibleEnd = TIMETABLE_VISIBLE_END;   // 항상 9시~20시(44칸): 비율이 일정하고 스크롤 없이 화면을 딱 채운다
+  const visibleEnd = Math.min(TIME_END, Math.max(TIMETABLE_VISIBLE_END, Math.ceil(latestEnd/60)*60));
   const rows = Math.ceil((visibleEnd-TIME_START)/TIMETABLE_GRID_STEP);
   const di = todayDayIndex();
 
