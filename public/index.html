@@ -31,6 +31,7 @@
   var t = v ? JSON.parse(v) : 'dark';
   if(t === 'system') t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  var ac = localStorage.getItem('ku_ise_accent'); ac = ac ? JSON.parse(ac) : ''; if(ac && ac !== 'crimson') document.documentElement.setAttribute('data-accent', ac);
 }catch(e){} })();
 </script>
 <style>
@@ -689,6 +690,24 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .st-in.st-back > *{animation-name:stInBack;}
 @keyframes stIn{from{opacity:0; transform:translateX(18px);} to{opacity:1; transform:none;}}
 @keyframes stInBack{from{opacity:0; transform:translateX(-18px);} to{opacity:1; transform:none;}}
+/* 포인트 색: 기본(크림슨) 외의 색은 data-accent 로 크림슨 계열 변수만 덮어쓴다 */
+[data-accent="pink"]{--crimson:#D6457E; --crimson-light:#EE6A9C; --crimson-glow:rgba(214,69,126,0.4); --crimson-rgb:214,69,126; --crimson-text:#FF8FB8;}
+[data-theme="light"][data-accent="pink"]{--crimson:#C2366B; --crimson-light:#D6457E; --crimson-glow:rgba(194,54,107,0.18); --crimson-rgb:194,54,107; --crimson-text:#B02C5E;}
+[data-accent="blue"]{--crimson:#3D6FE0; --crimson-light:#6690F0; --crimson-glow:rgba(61,111,224,0.4); --crimson-rgb:61,111,224; --crimson-text:#8FB0FF;}
+[data-theme="light"][data-accent="blue"]{--crimson:#2F5FD0; --crimson-light:#3D6FE0; --crimson-glow:rgba(47,95,208,0.18); --crimson-rgb:47,95,208; --crimson-text:#2A56C0;}
+[data-accent="green"]{--crimson:#2F9E6E; --crimson-light:#52BC8C; --crimson-glow:rgba(47,158,110,0.4); --crimson-rgb:47,158,110; --crimson-text:#7FD9AE;}
+[data-theme="light"][data-accent="green"]{--crimson:#1F8458; --crimson-light:#2F9E6E; --crimson-glow:rgba(31,132,88,0.18); --crimson-rgb:31,132,88; --crimson-text:#1A7550;}
+[data-accent="purple"]{--crimson:#7E5CE0; --crimson-light:#9F84F0; --crimson-glow:rgba(126,92,224,0.4); --crimson-rgb:126,92,224; --crimson-text:#B9A2FF;}
+[data-theme="light"][data-accent="purple"]{--crimson:#6A48CC; --crimson-light:#7E5CE0; --crimson-glow:rgba(106,72,204,0.18); --crimson-rgb:106,72,204; --crimson-text:#5E3DBE;}
+[data-accent="orange"]{--crimson:#D96A25; --crimson-light:#F08A48; --crimson-glow:rgba(217,106,37,0.4); --crimson-rgb:217,106,37; --crimson-text:#FFA872;}
+[data-theme="light"][data-accent="orange"]{--crimson:#C25A18; --crimson-light:#D96A25; --crimson-glow:rgba(194,90,24,0.18); --crimson-rgb:194,90,24; --crimson-text:#AE4E12;}
+.acc-row{display:flex; gap:6px; justify-content:space-between; margin-top:2px;}
+.acc-dot{flex:1; min-width:0; border:none; background:none; padding:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer; font-family:inherit; color:var(--text-dim); -webkit-tap-highlight-color:transparent;}
+.acc-dot i{width:34px; height:34px; border-radius:50%; background:var(--c); display:flex; align-items:center; justify-content:center; color:transparent; font-style:normal; font-size:15px; font-weight:800; transition:box-shadow .2s, transform .15s, color .2s;}
+.acc-dot:active i{transform:scale(.9);}
+.acc-dot.on i{color:#fff; box-shadow:0 0 0 3px var(--surface-2), 0 0 0 5px var(--c);}
+.acc-dot span{font-size:10.5px; font-weight:600;}
+.acc-dot.on span{color:var(--text); font-weight:800;}
 #settings-page .card + .card{margin-top:12px !important;}
 #settings-page .set-label::before{display:none;}
 #settings-page .set-label{margin-bottom:12px;}
@@ -2495,7 +2514,7 @@ function applyTheme(theme){
   if(csMeta) csMeta.setAttribute('content', theme==='light' ? 'light' : 'dark');
   // 상태표시줄(시계·배터리가 있는 최상단 영역)은 테마와 무관하게 크림슨으로 통일.
   const meta = document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content', theme==='light' ? '#8C1D2B' : '#A72A3A');
+  if(meta){ const cc = (getComputedStyle(document.documentElement).getPropertyValue('--crimson') || '').trim(); meta.setAttribute('content', cc || (theme==='light' ? '#8C1D2B' : '#A72A3A')); }
 }
 function systemPrefersLight(){
   return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
@@ -2513,6 +2532,35 @@ function getTheme(){
   const ov = getThemeOverride();
   if(ov==='light' || ov==='dark') return ov;
   return systemPrefersLight() ? 'light' : 'dark';
+}
+
+/* ===== 포인트 색 ===== */
+// 앱의 강조색(버튼·스위치·선택 칸 등, 크림슨 계열 변수)을 바꾼다. 기본은 크림슨. 이 기기에만 저장한다.
+const ACCENTS = [
+  { key:'crimson', label:'기본',   dark:'#A72A3A', light:'#8C1D2B' },
+  { key:'pink', label:'핑크', dark:'#D6457E', light:'#C2366B' },
+  { key:'blue', label:'블루', dark:'#3D6FE0', light:'#2F5FD0' },
+  { key:'green', label:'그린', dark:'#2F9E6E', light:'#1F8458' },
+  { key:'purple', label:'퍼플', dark:'#7E5CE0', light:'#6A48CC' },
+  { key:'orange', label:'오렌지', dark:'#D96A25', light:'#C25A18' },
+];
+function getAccent(){ const v = localGet('accent', 'crimson'); return ACCENTS.some(a=>a.key === v) ? v : 'crimson'; }
+function applyAccent(key){
+  const root = document.documentElement;
+  if(key && key !== 'crimson') root.setAttribute('data-accent', key); else root.removeAttribute('data-accent');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  const c = (getComputedStyle(root).getPropertyValue('--crimson') || '').trim();
+  if(meta && c) meta.setAttribute('content', c);
+}
+function setAccent(key){
+  if(!ACCENTS.some(a=>a.key === key)) return;
+  localSet('accent', key);
+  applyAccent(key);
+  renderMain();
+}
+function accentPickerHtml(){
+  const cur = getAccent(), light = getTheme() === 'light';
+  return `<p class="set-label" style="margin-top:18px;">포인트 색</p><div class="acc-row">${ACCENTS.map(a=>`<button type="button" class="acc-dot ${cur === a.key ? 'on' : ''}" data-action="set-accent" data-accent="${a.key}" style="--c:${light ? a.light : a.dark};" aria-label="${a.label}"><i>✓</i><span>${a.label}</span></button>`).join('')}</div>`;
 }
 
 /* ===== 글씨 크기 =====
@@ -2545,6 +2593,7 @@ if(!window.__fontPctBound){
 }
 
 applyTheme(getTheme());
+applyAccent(getAccent());
 applyFontScale(getFontPct());
 if(window.matchMedia){
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()=>{
@@ -9470,6 +9519,7 @@ function settingsSectionHtml(tab){
         일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
       </p>` : ''}
 
+      ${accentPickerHtml()}
       </div><div class="card"><p class="set-label">글씨 크기 <span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
       <div class="fs-row"><span class="fs-a s">가</span><input type="range" id="font-pct" min="${FONT_PCT_MIN}" max="${FONT_PCT_MAX}" step="10" value="${fontPct}"><span class="fs-a l">가</span></div>
       <div class="fs-ticks"><span>작게</span><span>기본</span><span>크게</span></div>
@@ -13288,6 +13338,7 @@ document.addEventListener('click', async (e)=>{
       setTimeout(()=>{ state.myPageSettingsOpen = !state.myPageSettingsOpen; window.__gearBusy = false; renderMain(); }, 300);
     }
     else if(a === 'font-reset'){ setFontPct(100); }
+    else if(a === 'set-accent'){ setAccent(el.dataset.accent); }
     else if(a === 'toggle-notify'){
       const key = el.dataset.key;
       const cur = getNotifyPrefs();
