@@ -239,7 +239,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 
 /* 네이티브 앱은 edge-to-edge라 상태표시줄(시계·배터리) 영역이 비어 보인다.
    그 영역을 크림슨으로 칠해준다. 브라우저에서는 --safe-top이 0이라 보이지 않는다. */
-.statusbar-bg{position:fixed; top:0; left:0; right:0; height:var(--safe-top); background:var(--crimson); z-index:30; pointer-events:none;}
+.statusbar-bg{position:fixed; top:0; left:0; right:0; height:var(--safe-top); background:var(--status-bg,var(--crimson)); z-index:30; pointer-events:none;}
 
 .section-title{font-size:15.5px; font-weight:700; color:var(--text); letter-spacing:-0.02em; margin:22px 4px 8px;}
 .section-title:first-child{margin-top:2px;}
@@ -2650,7 +2650,12 @@ function applyAccent(key){
   else vars.forEach(v=>root.style.removeProperty(v));
   const meta = document.querySelector('meta[name="theme-color"]');
   const c = (getComputedStyle(root).getPropertyValue('--crimson') || '').trim();
-  if(meta && c) meta.setAttribute('content', c);
+  // 상태표시줄(시계·배터리, 아이콘은 항상 흰색): 강조 색이 밝으면 그 색을 어둡게 눌러 칠해서 흰 아이콘이 보이게 한다
+  const mh0 = /^#([0-9a-f]{6})$/i.exec(c);
+  const bright = !!mh0 && (0.299*((parseInt(mh0[1],16)>>16)&255) + 0.587*((parseInt(mh0[1],16)>>8)&255) + 0.114*(parseInt(mh0[1],16)&255)) > 160;
+  const statusColor = bright ? accentMix(c, '#000000', 0.55) : c;
+  if(bright) root.style.setProperty('--status-bg', statusColor); else root.style.removeProperty('--status-bg');
+  if(meta && statusColor) meta.setAttribute('content', statusColor);
   // 노랑·하늘처럼 밝은 강조 색에서는 흰 글씨가 안 보이므로, 밝기를 보고 어두운 글씨로 바꾼다(--on-crimson)
   const mh = /^#([0-9a-f]{6})$/i.exec(c);
   let onColor = '';
