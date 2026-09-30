@@ -4716,7 +4716,8 @@ async function loadAllData(preloadedUsers){
       loadPolls().catch(()=>[]),
       Promise.resolve(preloadedUsers && Object.keys(preloadedUsers).length ? preloadedUsers : ((state.allUsers && Object.keys(state.allUsers).length) ? state.allUsers : cachedUsersMap())),
       loadRecruitments().catch(()=>[]),
-      loadRoster().catch(()=>({})),
+      // 학생 명단은 학생회 이상만 읽을 수 있다(학생은 권한 오류로 두 번 읽기가 낭비됨) — 학생회가 아니면 읽지 않는다
+      (isCouncil() ? loadRoster().catch(()=>({})) : Promise.resolve({})),
       loadDeptNotices().catch(()=>({items:[],updatedAt:0})),
       (state.user ? loadMemos(state.user.uid) : Promise.resolve({})).catch(()=>({})),
       loadShuttle().catch(()=>({weekday:[],sunday:[],fridayOffNos:[],updatedAt:0})),
@@ -9150,7 +9151,10 @@ function moveFriendOrder(pairId, dir){
 // 로그인/재접속 때마다(부팅 시 한 번) 올려둔다.
 async function ensureStudentDirectoryEntry(){
   if(!state.user) return;
-  try{ await setDoc(doc(db,'studentDirectory',state.user.uid), { studentId: state.user.studentId, name: state.user.name }); }
+  // 같은 학번·이름으로 이미 올려 뒀으면(이 기기에 기록이 있으면) 다시 쓰지 않는다 — 앱을 켤 때마다 쓰기 1번이 나가던 것을 없앤다
+  const sig = state.user.uid + '|' + state.user.studentId + '|' + state.user.name;
+  if(localGet('dir_synced', '') === sig) return;
+  try{ await setDoc(doc(db,'studentDirectory',state.user.uid), { studentId: state.user.studentId, name: state.user.name }); localSet('dir_synced', sig); }
   catch(e){ console.warn('[studentDirectory]', e); }
 }
 
