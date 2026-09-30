@@ -13198,8 +13198,34 @@ document.addEventListener('click', async (e)=>{
       div.innerHTML = `<div style="display:flex; gap:6px;"><input type="text" name="option" required style="font-family:var(--font-display)"><button type="button" class="btn btn-danger btn-sm" data-action="remove-poll-option" style="width:auto;">삭제</button></div>`;
       wrap.appendChild(div);
       updatePollOptionUI();
+      // 새 선택지가 "뿅" 하고 나타난다: 높이가 부드럽게 열리면서 안쪽이 살짝 커졌다 자리를 잡는다
+      try{
+        div.dataset.noAnim = '1';
+        const h = div.getBoundingClientRect().height;
+        div.animate([{ height:'0px', opacity:0, marginBottom:'0px' }, { height:h + 'px', opacity:1, marginBottom:'8px' }], { duration:360, easing:'cubic-bezier(.22,1,.36,1)' });
+        const inner = div.firstElementChild;
+        if(inner) inner.animate([
+          { transform:'scale(.78)', opacity:0, offset:0 },
+          { transform:'scale(1.05)', opacity:1, offset:.6 },
+          { transform:'scale(1)', opacity:1, offset:1 }
+        ], { duration:480, easing:'ease-out' });
+        const inp = div.querySelector('input'); if(inp) inp.focus({ preventScroll:true });
+        div.scrollIntoView({ behavior:'smooth', block:'nearest' });
+      }catch(_){}
     }
-    else if(a === 'remove-poll-option'){ const f = el.closest('.poll-option-field'); if(f) f.remove(); updatePollOptionUI(); }
+    else if(a === 'remove-poll-option'){
+      const f = el.closest('.poll-option-field');
+      if(!f) return;
+      // 지울 때는 살짝 작아지며 흐려진 뒤 높이가 접힌다
+      try{
+        f.dataset.noAnim = '1';
+        const h = f.getBoundingClientRect().height;
+        const inner = f.firstElementChild;
+        if(inner) inner.animate([{ transform:'scale(1)', opacity:1 }, { transform:'scale(.85)', opacity:0 }], { duration:180, easing:'ease-in', fill:'forwards' });
+        const col = f.animate([{ height:h + 'px', marginBottom:'8px', overflow:'hidden' }, { height:'0px', marginBottom:'0px', overflow:'hidden' }], { duration:260, delay:120, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
+        col.onfinish = ()=>{ f.remove(); updatePollOptionUI(); };
+      }catch(_){ f.remove(); updatePollOptionUI(); }
+    }
     else if(a === 'close-poll'){ await closePollNow(el.dataset.id); }
     else if(a === 'reopen-poll'){ await reopenPoll(el.dataset.id); }
     else if(a === 'delete-poll'){ await deletePoll(el.dataset.id); }
