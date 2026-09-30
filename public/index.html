@@ -552,6 +552,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 @media (max-width:480px){ .tt-fab-option{right:23px;} }
 .tt-fab-option-label{border:1px solid var(--border-light); background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px;  white-space:nowrap;}
 .meal-side{font-size:.86em; color:var(--text-dim);}
+.cp-hex-wrap{flex:1; min-width:0; display:flex; align-items:center; gap:4px; height:38px; padding:0 12px; border-radius:12px; background:var(--surface-3); border:1.5px solid var(--border); transition:border-color .2s, box-shadow .2s;}
+.cp-hex-wrap:focus-within{border-color:var(--teal); box-shadow:0 0 0 3px rgba(224,172,85,.14);}
+.cp-hex-wrap.bad{border-color:var(--danger); box-shadow:0 0 0 3px rgba(var(--danger-rgb),.14);}
+.cp-hash{color:var(--text-faint); font-family:var(--font-mono); font-weight:800; font-size:14px;}
+.cp-hex-wrap input{flex:1; min-width:0; width:100%; height:auto; background:transparent; border:none; outline:none; color:var(--text); font-family:var(--font-mono); font-size:14px; letter-spacing:.1em; text-transform:uppercase; padding:0; box-shadow:none;}
 /* 예쁜 체크박스: 눌리면 크림슨으로 차고 체크 표시가 통통 튀며 나온다 */
 .ck{position:relative; display:inline-flex; width:24px; height:24px; flex-shrink:0; cursor:pointer;}
 .ck input{position:absolute; inset:0; width:100%; height:100%; opacity:0; margin:0; cursor:pointer;}
@@ -4439,7 +4444,7 @@ function renderColorPickerPanel(id, hex){
       <input type="range" class="cp-hue" id="cp-hue-${id}" min="0" max="359" value="${Math.round(h)}">
       <div class="cp-row">
         <span class="cp-preview" id="cp-preview-${id}" style="background:${hex};"></span>
-        <input type="text" id="cp-hex-${id}" maxlength="7" value="${hex.toUpperCase()}" style="flex:1; font-family:var(--font-mono); text-transform:uppercase;">
+        <label class="cp-hex-wrap"><span class="cp-hash">#</span><input type="text" id="cp-hex-${id}" maxlength="6" value="${hex.replace('#','').toUpperCase()}" spellcheck="false" autocomplete="off" autocapitalize="characters" placeholder="RRGGBB"></label>
       </div>
     </div>`;
 }
@@ -4461,7 +4466,7 @@ function setupColorPicker(id, onChange){
   function apply(save){
     const hex = hsvToHex(hue, sat, val);
     if(preview) preview.style.background = hex;
-    if(hexInput) hexInput.value = hex.toUpperCase();
+    if(hexInput){ hexInput.value = hex.replace('#','').toUpperCase(); const wrapEl = hexInput.closest('.cp-hex-wrap'); if(wrapEl) wrapEl.classList.remove('bad'); }
     square.style.background = `linear-gradient(to right,#fff,hsl(${Math.round(hue)},100%,50%))`;
     if(cursor){ cursor.style.left = sat+'%'; cursor.style.top = (100-val)+'%'; }
     if(save) onChange(hex);
@@ -4486,16 +4491,33 @@ function setupColorPicker(id, onChange){
 
   hueSlider.oninput = ()=>{ hue = parseFloat(hueSlider.value); apply(true); };
 
-  hexInput.onchange = ()=>{
-    let v2 = hexInput.value.trim();
-    if(v2 && !v2.startsWith('#')) v2 = '#'+v2;
-    if(isValidHexColor(v2)){
+  // 색 코드: 0-9 A-F만 받고, 6자리(또는 3자리)가 되는 순간 바로 색에 반영한다. 틀린 코드는 테두리가 붉게 변한다.
+  const hexWrap = hexInput.closest('.cp-hex-wrap');
+  const parseHex = (raw)=>{
+    const t = String(raw || '').replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+    if(t.length === 6) return '#' + t;
+    if(t.length === 3) return '#' + t.split('').map(c=>c + c).join('');
+    return null;
+  };
+  hexInput.oninput = ()=>{
+    const cleaned = hexInput.value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 6);
+    if(hexInput.value !== cleaned) hexInput.value = cleaned;
+    if(hexWrap) hexWrap.classList.remove('bad');
+    if(cleaned.length === 6){
+      const v2 = '#' + cleaned;
       const hsv = hexToHsv(v2);
       hue = hsv.h; sat = hsv.s; val = hsv.v;
       hueSlider.value = Math.round(hue);
       apply(true);
-    } else toast('#RRGGBB 형식으로 입력해주세요 (예: #FF6B6B)');
+    }
   };
+  hexInput.onblur = ()=>{
+    if(!hexInput.value) { apply(false); return; }
+    const v2 = parseHex(hexInput.value);
+    if(v2){ const hsv = hexToHsv(v2); hue = hsv.h; sat = hsv.s; val = hsv.v; hueSlider.value = Math.round(hue); apply(true); }
+    else { if(hexWrap) hexWrap.classList.add('bad'); toast('색 코드는 6자리로 입력해 주세요 (예: FF6B6B)'); }
+  };
+  hexInput.onkeydown = (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); hexInput.blur(); } };
 }
 
 /* 모달 안(수업 추가·일정 추가·시간표 설정)에서 쓰는 색상 선택기.
@@ -13230,6 +13252,10 @@ document.addEventListener('click', async (e)=>{
       const wrap = document.getElementById('cp-wrap-'+id);
       if(!wrap) return;
       const show = wrap.style.display === 'none';
+      if(show){
+        // 배경 색상 · 줄 색상 · 선 색상처럼 같은 창의 다른 색상판이 열려 있으면 먼저 접는다
+        document.querySelectorAll('.modal-sheet [id^="cp-wrap-"]').forEach(o=>{ if(o !== wrap && o.style.display !== 'none') smoothToggleBox(o, false); });
+      }
       if(show) setupColorPicker(id, (hex)=>{ const fn = INLINE_COLOR_HANDLERS[id]; if(fn) fn(hex); });
       // 색상판은 안이 무거워서 높이를 늘리는 애니메이션이 끊겨 보였다 — 창을 통째로 미끄러뜨리고 내용은 서서히 나타나게(닫을 땐 흐려진 뒤 접힘)
       smoothToggleBox(wrap, show);
