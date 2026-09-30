@@ -594,6 +594,53 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .fp-empty small{font-size:11px; color:var(--text-dim); line-height:1.5;}
 /* 환경설정 창: 예전 MY 탭 안 패널보다 넉넉하게(카드 둥글게, 제목·글자 조금 크게, 줄 간격 넓게) */
 #settings-page .fp-body{padding-top:0;}
+/* ===== 환경설정 새 구성요소 ===== */
+.sg-cap{margin:20px 4px 8px; font-size:11px; font-weight:800; color:var(--text-faint); letter-spacing:.02em; display:flex; align-items:center; justify-content:space-between; min-height:22px;}
+.st-dhead + .sg-cap{margin-top:6px;}
+.sg{background:var(--surface-2); border:1px solid var(--border); border-radius:18px; overflow:hidden;}
+.sg.reorder{overflow:visible;}
+.sg-foot{margin:8px 6px 0; font-size:10.5px; color:var(--text-faint); line-height:1.6;}
+.sg-foot b{color:var(--text-dim); font-weight:700;}
+.sr{display:flex; align-items:center; gap:12px; padding:12px 14px; min-height:54px; box-sizing:border-box; position:relative; transition:background .15s;}
+.sg > .sr + .sr, .sg > .sr-block + .sr-block, .sg > .sr + .sr-block, .sg > .sr-block + .sr{border-top:1px solid var(--border);}
+.sr.tap{cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.sr.tap:active{background:var(--surface-3);}
+.sr-ic{width:32px; height:32px; border-radius:10px; background:var(--surface-3); color:var(--text-dim); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .2s;}
+.sr-ic svg{width:17px; height:17px;}
+.sr-tx{flex:1; min-width:0; transition:opacity .2s;}
+.sr-tx b{display:block; font-size:13.5px; font-weight:700;}
+.sr-tx small{display:block; font-size:10.5px; color:var(--text-dim); margin-top:2px; line-height:1.45;}
+.sr.is-off .sr-ic, .sr.is-off .sr-tx{opacity:.42;}
+.sr-chev{display:flex; color:var(--text-faint);}
+.sr-block{padding:14px;}
+.sr-block > .sr{padding:0; min-height:0; margin-bottom:12px;}
+.sb-label{margin:0 0 9px; font-size:12px; font-weight:700; color:var(--text);}
+.sb-label em{font-style:normal; font-weight:500; font-size:10.5px; color:var(--text-faint); margin-left:4px;}
+.sb-text{margin:0 0 4px; font-size:12px; line-height:1.7; color:var(--text-dim);}
+.sr-block .chip-row{margin:0 0 10px;}
+.sr-block .chip-row:last-child{margin-bottom:0;}
+.st-tiles{display:grid; grid-template-columns:repeat(var(--c,3), 1fr); gap:8px; padding:14px;}
+.st-tiles.c4{--c:4; gap:7px;}
+.st-tile{border:1.5px solid var(--border); background:var(--surface-3); border-radius:14px; padding:9px 4px 8px; display:flex; flex-direction:column; align-items:center; gap:7px; font-family:inherit; color:var(--text-dim); cursor:pointer; min-width:0; transition:border-color .2s, box-shadow .2s, color .2s, transform .15s; -webkit-tap-highlight-color:transparent;}
+.st-tile:active{transform:scale(.96);}
+.st-tile b{font-size:11px; font-weight:700; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.st-tile.on{border-color:var(--crimson); color:var(--text); box-shadow:0 0 0 3px rgba(167,42,58,.16);}
+.st-prev{width:100%; height:40px; border-radius:9px; border:1px solid var(--border-light); display:flex; flex-direction:column; justify-content:center; gap:4px; padding:0 8px; box-sizing:border-box;}
+.st-prev i{display:block; height:5px; border-radius:3px; background:rgba(128,128,128,.4);}
+.st-prev i:first-child{width:55%; background:#A72A3A;}
+.st-prev.light{background:#fff;}
+.st-prev.dark{background:#1a1a20;}
+.st-prev.system{background:linear-gradient(105deg, #fff 50%, #1a1a20 50%);}
+.st-aa{height:40px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--text);}
+.st-wi{height:26px; display:flex; align-items:center; justify-content:center; color:inherit;}
+.st-wi svg{width:22px; height:22px;}
+.st-mini{border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); border-radius:12px; padding:5px 11px; font-family:inherit; font-size:11px; font-weight:700; cursor:pointer; transition:background .2s, color .2s, border-color .2s;}
+.st-mini.on{background:var(--crimson); border-color:var(--crimson); color:#fff;}
+.st-slider{display:flex; align-items:center; gap:10px;}
+.seg-group.st-seg{width:100%;}
+.seg-group.st-seg.disabled{opacity:.4; pointer-events:none;}
+#settings-page .sr .tgl, #settings-page .sr .home-drag-handle{margin-left:auto;}
+
 .st-nav{position:sticky; top:0; z-index:4; display:flex; gap:7px; margin:0 -16px 16px; padding:11px 16px; background:var(--bg); border-bottom:1px solid var(--border); overflow-x:auto;}
 .st-chip{flex:0 0 auto; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); border-radius:999px; padding:7px 14px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;}
 .st-chip:active{transform:scale(.95); background:var(--surface-3);}
@@ -4697,126 +4744,67 @@ function colorPickerModal(id, hex, title){
 }
 
 function renderWidgetSettingsTab(){
-  const wo = getWidgetOpts();
   const WIDGET_TYPE_ICONS = {
     timetable: ICON.grid, nextClass: ICON.nextClass, week: ICON.weekBars, meal: ICON.utensils,
     schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendarWideIcon, date: ICON.todayCal,
   };
-  return `
-    <div class="field" style="margin-bottom:12px;">
-      <p class="set-label">대표 시간표</p>
-      <div class="link-row pick-box" data-action="open-primary-timetable">
-        <span style="font-size:12px; font-weight:600;">${escapeHtml(widgetPrimaryLabel())}</span> <span class="sub">${ICON.chevR}</span>
-      </div>
+  const key = state.widgetFontScaleTarget;
+  const label = (WIDGET_TYPES.find(t=>t[0]===key)||['','위젯'])[1];
+  const w = getWidgetSettings(key);
+
+  const primary = stGroup(stRow({
+    icon: ICON.grid, title:'대표 시간표', sub: escapeHtml(widgetPrimaryLabel()),
+    cls:'tap', attrs:'data-action="open-primary-timetable"', ctl:`<span class="sr-chev">${ICON.chevR}</span>`,
+  }), '', '위젯에 보여 줄 시간표예요. 핸드폰 홈 화면의 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가해요.');
+
+  const pickTiles = WIDGET_TYPES.map(([k,l])=>
+    `<button type="button" class="st-tile ${state.widgetFontScaleTarget===k?'on':''}" data-action="pick-widget-font-target" data-key="${k}"><span class="st-wi">${WIDGET_TYPE_ICONS[k]||ICON.chip}</span><b>${l}</b></button>`).join('');
+  const picker = stGroup(`<div class="st-tiles c4">${pickTiles}</div>`, '꾸밀 위젯 고르기');
+
+  const bgSeg = (()=>{
+    const nc = WIDGET_BGS.filter(b=>b.key!=='custom'); const n = nc.length + 1;
+    const i = w.bg==='custom' ? n-1 : Math.max(0, nc.findIndex(b=>b.key===w.bg));
+    return `<div class="seg-group st-seg"><span class="seg-thumb" style="--n:${n}; --i:${i};"></span>
+      ${nc.map(b=>`<button type="button" class="${w.bg===b.key?'on':''}" data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
+      <button type="button" class="${w.bg==='custom'?'on':''}" style="display:flex; align-items:center; justify-content:center; gap:5px;" data-action="open-color-modal" data-target="bg">
+        <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'var(--surface-3)'}; flex-shrink:0; border:1px solid var(--border-light); display:flex; align-items:center; justify-content:center; font-size:9px; line-height:1; color:var(--text-faint);">${w.bg==='custom'?'':'+'}</span>
+        <span>지정</span>
+      </button></div>`;
+  })();
+  const accent = `
+    <div class="swatches" id="widget-accent-swatches-wrap">
+      ${WIDGET_ACCENTS.map(hex=>`
+        <div class="swatch ${w.accent.toLowerCase()===hex.toLowerCase()?'selected':''}" data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${w.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
+      ${inlineColorSwatchHtml('widget-accent', w.accent, !isWidgetPresetAccent(w.accent))}
     </div>
-
-    <div class="field" style="margin-bottom:10px;">
-      <p class="set-label">꾸밀 위젯 고르기</p>
-      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:2px;">
-        ${WIDGET_TYPES.map(([key,label])=>{
-          const active = state.widgetFontScaleTarget===key;
-          return `
-          <button type="button" data-action="pick-widget-font-target" data-key="${key}"
-            style="display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 4px; border-radius:var(--radius-sm); cursor:pointer; text-align:center;
-              border:1px solid ${active?'var(--teal)':'var(--border)'}; background:${active?'var(--teal-glow-3)':'var(--surface-2)'}; color:${active?'var(--teal)':'var(--text-dim)'};">
-            <span class="widget-type-icon">${WIDGET_TYPE_ICONS[key]||ICON.chip}</span>
-            <span style="font-size:9.5px; font-weight:${active?'700':'500'}; line-height:1.25;">${label}</span>
-          </button>`;
-        }).join('')}
-      </div>
-    </div>
-
-    ${(()=>{
-      const key = state.widgetFontScaleTarget;
-      const label = (WIDGET_TYPES.find(t=>t[0]===key)||['','위젯'])[1];
-      const w = getWidgetSettings(key);
-      return `
-      <div class="card" style="background:var(--surface-2); padding:12px; margin-bottom:12px;">
-        <p style="margin:0 0 12px; font-size:11.5px; font-weight:800; color:var(--teal);">${escapeHtml(label)} 설정</p>
-
-        <div class="field" style="margin-bottom:14px;">
-          <p class="set-label sm">배경</p>
-          <div class="seg-group">
-            ${(()=>{ const nc = WIDGET_BGS.filter(b=>b.key!=='custom'); const n = nc.length + 1; const i = w.bg==='custom' ? n-1 : Math.max(0, nc.findIndex(b=>b.key===w.bg)); return `<span class="seg-thumb" style="--n:${n}; --i:${i};"></span>`; })()}
-            ${WIDGET_BGS.filter(b=>b.key!=='custom').map(b=>`
-              <button type="button" class="${w.bg===b.key?'on':''}" data-action="set-widget-bg" data-bg="${b.key}">${b.label}</button>`).join('')}
-            <button type="button" class="${w.bg==='custom'?'on':''}" style="display:flex; align-items:center; justify-content:center; gap:5px;" data-action="open-color-modal" data-target="bg">
-              <span style="width:13px; height:13px; border-radius:50%; background:${w.bg==='custom'?w.customBg:'var(--surface-3)'}; flex-shrink:0; border:1px solid var(--border-light); display:flex; align-items:center; justify-content:center; font-size:9px; line-height:1; color:var(--text-faint);">${w.bg==='custom'?'':'+'}</span>
-              <span>지정</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="field" style="margin-bottom:12px;">
-          <p class="set-label sm">강조 색</p>
-          <div class="swatches" id="widget-accent-swatches-wrap">
-            ${WIDGET_ACCENTS.map(hex=>`
-              <div class="swatch ${w.accent.toLowerCase()===hex.toLowerCase()?'selected':''}"
-                data-action="set-widget-accent" data-hex="${hex}" style="background:${hex}">${w.accent.toLowerCase()===hex.toLowerCase()?'✓':''}</div>`).join('')}
-            ${inlineColorSwatchHtml('widget-accent', w.accent, !isWidgetPresetAccent(w.accent))}
-          </div>
-          ${inlineColorPanelHtml('widget-accent', w.accent)}
-        </div>
-
-        <div class="field" style="margin-bottom:12px;">
-          <p class="set-label sm tight">투명도 <span style="color:var(--text-faint); font-weight:400;">(카드 배경만)</span></p>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <input type="range" id="widget-opacity" min="20" max="100" step="1" value="${w.opacity}" style="flex:1;">
-            <span class="range-val"><input type="number" id="widget-opacity-val" class="range-num" inputmode="numeric" min="20" max="100" value="${w.opacity}"><b>%</b></span>
-          </div>
-        </div>
-
-        <div class="field" style="margin-bottom:${key==='date'||key==='calendar'?'12px':'2px'};">
-          <p class="set-label sm tight">글씨 크기</p>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <input type="range" id="widget-font-scale" min="80" max="150" step="1" value="${Math.round(w.fontScale*100)}" style="flex:1;">
-            <span class="range-val"><input type="number" id="widget-font-scale-val" class="range-num" inputmode="numeric" min="80" max="150" value="${Math.round(w.fontScale*100)}"><b>%</b></span>
-          </div>
-        </div>
-
-        ${key==='date' ? `
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>오늘 학사일정 표시</b><small>날짜 아래에 간략히 보여줘요</small></span></span>
-          <button type="button" class="tgl ${w.dateShowEvents?'on':''}" data-action="toggle-widget-date-events" role="switch" aria-checked="${!!w.dateShowEvents}"></button>
-        </div>` : ''}
-
-        ${(key==='calendar'||key==='calendarWide') ? `
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>오늘 할 일 표시</b><small>내가 직접 적어둔 메모만 (학사일정 아님)</small></span></span>
-          <button type="button" class="tgl ${w.calendarShowMemo?'on':''}" data-action="toggle-widget-calendar-memo" role="switch" aria-checked="${!!w.calendarShowMemo}"></button>
-        </div>` : ''}
-
-        ${key==='calendarWide' ? `
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>학사일정 표시</b><small>오늘 일정 목록에 학사일정 포함</small></span></span>
-          <button type="button" class="tgl ${w.calendarShowOfficial?'on':''}" data-action="toggle-widget-calendar-official" role="switch" aria-checked="${!!w.calendarShowOfficial}"></button>
-        </div>
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>학생회 일정 표시</b><small>오늘 일정 목록에 학생회 일정 포함</small></span></span>
-          <button type="button" class="tgl ${w.calendarShowCouncil?'on':''}" data-action="toggle-widget-calendar-council" role="switch" aria-checked="${!!w.calendarShowCouncil}"></button>
-        </div>` : ''}
-
-        ${key==='week' ? `
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>수업 시간 표시</b><small>각 수업 칸에 몇시~몇시인지 표시. 칸이 좁으면 자동으로 생략돼요</small></span></span>
-          <button type="button" class="tgl ${w.weekShowTime?'on':''}" data-action="toggle-widget-week-time" role="switch" aria-checked="${!!w.weekShowTime}"></button>
-        </div>
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>강의실 표시</b><small>칸이 좁으면 자동으로 생략돼요</small></span></span>
-          <button type="button" class="tgl ${w.weekShowRoom?'on':''}" data-action="toggle-widget-week-room" role="switch" aria-checked="${!!w.weekShowRoom}"></button>
-        </div>` : ''}
-
-        ${key==='meal' ? `
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>진리관 표시</b><small>학생식당 (조식·중식·석식)</small></span></span>
-          <button type="button" class="tgl ${w.mealShowJinri?'on':''}" data-action="toggle-widget-meal-jinri" role="switch" aria-checked="${!!w.mealShowJinri}"></button>
-        </div>
-        <div class="notify-row" style="padding:8px 2px;">
-          <span class="notify-label"><span class="notify-label-text"><b>미래관 표시</b><small>교직원식당 (중식만 운영)</small></span></span>
-          <button type="button" class="tgl ${w.mealShowMirae?'on':''}" data-action="toggle-widget-meal-mirae" role="switch" aria-checked="${!!w.mealShowMirae}"></button>
-        </div>` : ''}
-      </div>`;
-    })()}`;
+    ${inlineColorPanelHtml('widget-accent', w.accent)}`;
+  const slider = (id, min, max, val)=>`
+    <div class="st-slider"><input type="range" id="${id}" min="${min}" max="${max}" step="1" value="${val}" style="flex:1;">
+      <span class="range-val"><input type="number" id="${id}-val" class="range-num" inputmode="numeric" min="${min}" max="${max}" value="${val}"><b>%</b></span></div>`;
+  const sw = (action, on)=>stSwitch(action, on);
+  const extra = [];
+  if(key==='date') extra.push(stRow({ title:'오늘 학사일정 표시', sub:'날짜 아래에 간략히 보여줘요', ctl: sw('toggle-widget-date-events', w.dateShowEvents) }));
+  if(key==='calendar' || key==='calendarWide') extra.push(stRow({ title:'오늘 할 일 표시', sub:'내가 직접 적어둔 메모만 (학사일정 아님)', ctl: sw('toggle-widget-calendar-memo', w.calendarShowMemo) }));
+  if(key==='calendarWide'){
+    extra.push(stRow({ title:'학사일정 표시', sub:'오늘 일정 목록에 학사일정 포함', ctl: sw('toggle-widget-calendar-official', w.calendarShowOfficial) }));
+    extra.push(stRow({ title:'학생회 일정 표시', sub:'오늘 일정 목록에 학생회 일정 포함', ctl: sw('toggle-widget-calendar-council', w.calendarShowCouncil) }));
+  }
+  if(key==='week'){
+    extra.push(stRow({ title:'수업 시간 표시', sub:'각 수업 칸에 몇시~몇시인지 표시. 칸이 좁으면 자동으로 생략돼요', ctl: sw('toggle-widget-week-time', w.weekShowTime) }));
+    extra.push(stRow({ title:'강의실 표시', sub:'칸이 좁으면 자동으로 생략돼요', ctl: sw('toggle-widget-week-room', w.weekShowRoom) }));
+  }
+  if(key==='meal'){
+    extra.push(stRow({ title:'진리관 표시', sub:'학생식당 (조식·중식·석식)', ctl: sw('toggle-widget-meal-jinri', w.mealShowJinri) }));
+    extra.push(stRow({ title:'미래관 표시', sub:'교직원식당 (중식만 운영)', ctl: sw('toggle-widget-meal-mirae', w.mealShowMirae) }));
+  }
+  const look = stGroup(
+    `<div class="sr-block"><p class="sb-label">배경</p>${bgSeg}</div>`
+    + `<div class="sr-block"><p class="sb-label">강조 색</p>${accent}</div>`
+    + `<div class="sr-block"><p class="sb-label">투명도 <em>카드 배경만</em></p>${slider('widget-opacity', 20, 100, w.opacity)}</div>`
+    + `<div class="sr-block"><p class="sb-label">글씨 크기</p>${slider('widget-font-scale', 80, 150, Math.round(w.fontScale*100))}</div>`
+    + extra.join(''),
+    `${escapeHtml(label)} 설정`);
+  return primary + picker + look;
 }
 
 /* ===== 홈 화면 위젯 데이터 전달 =====
@@ -9350,131 +9338,102 @@ function settingsDetailHead(tab){
   const m = SETTINGS_SECTIONS[tab]; if(!m) return '';
   return `<div class="st-dhead"><span class="st-ic" style="background:${m.color};">${m.icon()}</span><span class="st-txt"><b>${m.label}</b><small>${m.desc}</small></span></div>`;
 }
+// ===== 환경설정 구성요소 =====
+// sg = 둥근 묶음 카드, sr = 그 안의 한 줄(아이콘 칩 · 제목 · 설명 · 오른쪽 조작), sr-block = 줄 아래에 조작이 더 붙는 칸, st-tile = 미리보기가 있는 선택 타일
+function stRow({ icon, title, sub, ctl, attrs, cls }){
+  return `<div class="sr ${cls || ''}" ${attrs || ''}>${icon ? `<span class="sr-ic">${icon}</span>` : ''}<span class="sr-tx"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${ctl || ''}</div>`;
+}
+function stSwitch(action, on, extra){
+  return `<button type="button" class="tgl ${on ? 'on' : ''}" data-action="${action}" ${extra || ''} role="switch" aria-checked="${!!on}"></button>`;
+}
+function stGroup(inner, cap, foot, cls){
+  return `${cap ? `<p class="sg-cap">${cap}</p>` : ''}<div class="sg ${cls || ''}">${inner}</div>${foot ? `<p class="sg-foot">${foot}</p>` : ''}`;
+}
+
 function settingsSectionHtml(tab){
-  const themeOv = getThemeOverride();
-  const scale = getFontScale();
-  const np = getNotifyPrefs();
-  const hp = getHomePrefs();
+  const head = settingsDetailHead(tab);
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-  return settingsDetailHead(tab) + `
-    <div class="card" style="margin-top:10px;">
-      ${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<p class="set-title"><span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span></p>` : ''}
 
-      ${state.settingsTab==='display' ? `
-      <p class="set-label">테마</p>
-      <div class="seg-group"><span class="seg-thumb" style="--n:3; --i:${Math.max(0, ['system','light','dark'].indexOf(themeOv))};"></span>
-        ${[['system','기기 설정'],['light','라이트'],['dark','다크']].map(([v,label])=>`
-          <button type="button" class="${themeOv===v?'on':''}" data-action="set-theme" data-theme-v="${v}">${label}</button>
-        `).join('')}
-      </div>
-      ${!isNativeApp ? `
-      <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
-        일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
-      </p>` : ''}
+  if(tab === 'display'){
+    const themeOv = getThemeOverride();
+    const scale = getFontScale();
+    const themeTiles = [['system','기기 설정'],['light','라이트'],['dark','다크']].map(([v,l])=>
+      `<button type="button" class="st-tile ${themeOv===v?'on':''}" data-action="set-theme" data-theme-v="${v}"><span class="st-prev ${v}"><i></i><i></i></span><b>${l}</b></button>`).join('');
+    const scaleTiles = FONT_SCALES.map(([v,l],i)=>
+      `<button type="button" class="st-tile ${scale===v?'on':''}" data-action="set-font-scale" data-scale-v="${v}"><span class="st-aa" style="font-size:${[13,16,19,22][i] || 16}px;">가</span><b>${l}</b></button>`).join('');
+    return head
+      + stGroup(`<div class="st-tiles">${themeTiles}</div>`, '테마', !isNativeApp ? '일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.' : '')
+      + stGroup(`<div class="st-tiles c4">${scaleTiles}</div>`, '글씨 크기', '글씨뿐 아니라 버튼·여백까지 함께 커지고 작아져요.');
+  }
 
-      <p class="set-label" style="margin-top:20px;">글씨 크기</p>
-      <div class="seg-group"><span class="seg-thumb" style="--n:${FONT_SCALES.length}; --i:${Math.max(0, FONT_SCALES.findIndex(([v])=>v===scale))};"></span>
-        ${FONT_SCALES.map(([v,label])=>`
-          <button type="button" class="${scale===v?'on':''}" data-action="set-font-scale" data-scale-v="${v}">${label}</button>
-        `).join('')}
-      </div>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
-        글씨뿐 아니라 버튼·여백까지 함께 커지고 작아져요.
-      </p>
+  if(tab === 'home'){
+    const hp = getHomePrefs();
+    const reorder = !!state.homeReorderMode;
+    const meta = {
+      timetable: { icon:ICON.grid,       label:'오늘의 시간표',     hideKey:'hideTodayTimetable' },
+      recruits:  { icon:ICON.doc,        label:'구인글',           hideKey:'hideRecruits' },
+      meal:      { icon:ICON.utensils,   label:'오늘의 학식',       hideKey:'hideTodayMeal' },
+      shuttle:   { icon:ICON.bus,        label:'셔틀버스',          hideKey:'hideShuttle' },
+      calendar:  { icon:ICON.calendar,   label:'다가오는 학사일정', hideKey:'hideUpcomingCalendar' },
+      mine:      { icon:ICON.calendarMy, label:'다가오는 내 일정',  hideKey:'hideUpcomingMine', sub:'내가 만든 개인 일정만' },
+    };
+    const pinned = stRow({
+      icon: ICON.ballot, title:'진행 중인 투표',
+      sub: reorder ? '항상 맨 위에 고정돼요' : '내가 이미 참여한 투표는 목록에서 숨겨요',
+      cls: (!reorder && hp.hideVotedPolls) ? 'is-off' : '',
+      ctl: reorder ? '' : homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls),
+    });
+    const rows = hp.order.map(key=>{
+      const m = meta[key]; if(!m) return '';
+      const hidden = !!hp[m.hideKey];
+      return stRow({
+        icon: m.icon, title: m.label, sub: m.sub,
+        cls: reorder ? 'home-order-row' : (hidden ? 'is-off' : ''),
+        attrs: reorder ? `data-order-key="${key}"` : '',
+        ctl: reorder ? homeOrderMoveHtml(key) : homePrefToggleHtml(m.hideKey, hidden),
+      });
+    }).join('');
+    const cap = `<span>홈에 보일 카드</span><button type="button" class="st-mini ${reorder ? 'on' : ''}" data-action="toggle-home-reorder">${reorder ? '완료' : '순서 변경'}</button>`;
+    return head + stGroup(pinned + rows, cap,
+      reorder ? '순서 변경 중이에요. 오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.' : '학생회 공지는 등록된 공지가 있을 때만 자동으로 나타나요.', reorder ? 'reorder' : '');
+  }
 
-      ` : ''}
+  if(tab === 'notify'){
+    const np = getNotifyPrefs();
+    const sw = (key, on)=>stSwitch('toggle-notify', on, `data-key="${key}"`);
+    const news = [
+      stRow({ icon:ICON.megaphone, title:'공지', sub:'새 공지가 올라올 때', ctl: sw('notice', np.notice) }),
+      stRow({ icon:ICON.ballot,    title:'투표', sub:'시작 · 마감 30분 전 · 저녁 8시', ctl: sw('poll', np.poll) }),
+      stRow({ icon:ICON.doc,       title:'구인글', sub:'새 구인글이 올라올 때', ctl: sw('recruit', np.recruit) }),
+      stRow({ icon:ICON.person,    title:'친구 요청', sub:'친구 요청이 오거나 수락됐을 때', ctl: sw('friendRequest', np.friendRequest !== false) }),
+    ].join('');
+    const night = stRow({ icon:ICON.moon, title:'야간 알림 (22시~7시)', sub:'꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요', ctl: sw('night', np.night) });
+    const ttSub = !isNativeApp ? '앱(APK)에서만 사용할 수 있어요' : (np.timetable ? `평일 아침 ${np.timetableHour}시에 수업 안내` : '알림 꺼짐');
+    const ttIdx = np.timetable ? 1 + Math.max(0, [7,8,9].indexOf(np.timetableHour)) : 0;
+    const tt = `<div class="sr-block">${stRow({ icon:ICON.calendar, title:'오늘의 시간표', sub: ttSub })}
+      <div class="seg-group st-seg ${isNativeApp ? '' : 'disabled'}"><span class="seg-thumb" style="--n:4; --i:${ttIdx};"></span>
+        <button type="button" class="${!np.timetable ? 'on' : ''}" data-action="set-tt-alert" data-val="off">끄기</button>
+        ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
+      </div></div>`;
+    const chip = (key, label, em, on)=>`<button type="button" class="chip-tgl ${on ? 'on' : ''}" data-action="toggle-notify" data-key="${key}" aria-pressed="${!!on}">${label}<em>${em}</em></button>`;
+    const meal = `<div class="sr-block">${stRow({ icon:ICON.utensils, title:'학식', sub:'지점과 끼니를 둘 다 켜야 알림이 와요' })}
+      <p class="sb-label">지점</p>
+      <div class="chip-row" style="--cols:2;">${chip('mealJinri','진리관','학생',np.mealJinri)}${chip('mealMirae','미래관','교직원',np.mealMirae)}</div>
+      <p class="sb-label">끼니</p>
+      <div class="chip-row" style="--cols:3;">${chip('mealBreakfast','조식','7시',np.mealBreakfast)}${chip('mealLunch','중식','10시 반',np.mealLunch)}${chip('mealDinner','석식','4시 반',np.mealDinner)}</div></div>`;
+    return head
+      + stGroup(news, '소식')
+      + stGroup(tt + meal, '시간표 · 학식', '미래관(교직원식당)은 중식만 운영해요. 예: 진리관+중식을 둘 다 켜야 진리관 중식 알림이 와요.')
+      + stGroup(night, '방해 금지', isNativeApp ? '공지 · 투표 · 학식 알림은 앱을 꺼둬도 도착해요.' : '브라우저에서는 공지 · 투표 · 학식 알림을 받을 수 있어요.');
+  }
 
-      ${state.settingsTab==='home' ? `
-      <div class="row-between" style="margin:0 0 2px; align-items:center;">
-        <p class="set-label" style="margin:0;">홈 화면 보기 설정</p>
-        <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
-      </div>
-      <div style="height:2px;"></div>
-      <div class="notify-row hp-row ${(!state.homeReorderMode && hp.hideVotedPolls) ? 'is-off' : ''}">
-        <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>${state.homeReorderMode ? '항상 맨 위에 고정돼요' : '내가 이미 참여한 투표는 목록에서 숨겨요'}</small></span></span>
-        ${state.homeReorderMode ? '' : homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls)}
-      </div>
-      ${hp.order.map((key,i)=>{
-        const meta = {
-          timetable: { icon:ICON.grid,     label:'오늘의 시간표', hidden:hp.hideTodayTimetable },
-          recruits:  { icon:ICON.doc,      label:'구인글',       hidden:hp.hideRecruits },
-          meal:      { icon:ICON.utensils, label:'오늘의 학식',   hidden:hp.hideTodayMeal },
-          shuttle:   { icon:ICON.bus,      label:'셔틀버스',      hidden:hp.hideShuttle },
-          calendar:  { icon:ICON.calendar, label:'다가오는 학사일정', hidden:hp.hideUpcomingCalendar },
-          mine:      { icon:ICON.calendarMy, label:'다가오는 내 일정', sub:'내가 만든 개인 일정만', hidden:hp.hideUpcomingMine },
-        }[key];
-        const hideKey = { timetable:'hideTodayTimetable', recruits:'hideRecruits', meal:'hideTodayMeal', shuttle:'hideShuttle', calendar:'hideUpcomingCalendar', mine:'hideUpcomingMine' }[key];
-        return `
-      <div class="notify-row hp-row ${state.homeReorderMode ? 'home-order-row' : ((meta.hidden) ? 'is-off' : '')}" ${state.homeReorderMode ? `data-order-key="${key}"` : ''}>
-        <span class="notify-label">${meta.icon}<span class="notify-label-text"><b>${meta.label}</b>${meta.sub ? `<small>${meta.sub}</small>` : ''}</span></span>
-        ${state.homeReorderMode ? homeOrderMoveHtml(key) : homePrefToggleHtml(hideKey, meta.hidden)}
-      </div>`;
-      }).join('')}
-      <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
-        학생회 공지는 등록된 공지가 있을 때만 자동으로 나타나요.
-      </p>
-      ${state.homeReorderMode ? `<p style="font-size:10.5px; color:var(--text-faint); margin:4px 2px 0; line-height:1.55;">순서 변경 중이에요. 오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.</p>` : ''}
-      ` : ''}
-
-      ${state.settingsTab==='notify' ? `
-      <div class="notify-row">
-        <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>공지</b><small>새 공지가 올라올 때</small></span></span>
-        <button type="button" class="tgl ${np.notice?'on':''}" data-action="toggle-notify" data-key="notice" role="switch" aria-checked="${!!np.notice}"></button>
-      </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>투표</b><small>시작 · 마감 30분 전 · 저녁 8시</small></span></span>
-        <button type="button" class="tgl ${np.poll?'on':''}" data-action="toggle-notify" data-key="poll" role="switch" aria-checked="${!!np.poll}"></button>
-      </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.doc}<span class="notify-label-text"><b>구인글</b><small>새 구인글이 올라올 때</small></span></span>
-        <button type="button" class="tgl ${np.recruit?'on':''}" data-action="toggle-notify" data-key="recruit" role="switch" aria-checked="${!!np.recruit}"></button>
-      </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>친구 요청</b><small>친구 요청이 오거나 수락됐을 때</small></span></span>
-        <button type="button" class="tgl ${np.friendRequest!==false?'on':''}" data-action="toggle-notify" data-key="friendRequest" role="switch" aria-checked="${np.friendRequest!==false}"></button>
-      </div>
-      <div class="notify-row">
-        <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
-        <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
-      </div>
-      <div class="notify-row tt-alert-row">
-        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${!isNativeApp ? '앱(APK)에서만 사용할 수 있어요' : (np.timetable ? `평일 아침 ${np.timetableHour}시에 수업 안내` : '알림 꺼짐')}</small></span></span>
-        <div class="seg-group tt-seg ${isNativeApp ? '' : 'disabled'}"><span class="seg-thumb" style="--n:4; --i:${np.timetable ? 1 + Math.max(0, [7,8,9].indexOf(np.timetableHour)) : 0};"></span>
-          <button type="button" class="${!np.timetable ? 'on' : ''}" data-action="set-tt-alert" data-val="off">끄기</button>
-          ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
-        </div>
-      </div>
-      <div class="meal-wrap">
-        <span class="meal-ico">${ICON.utensils}</span>
-        <div class="meal-body">
-      <p class="meal-title">학식</p>
-      <div class="chip-row" style="--cols:2;">
-        <button type="button" class="chip-tgl ${np.mealJinri?'on':''}" data-action="toggle-notify" data-key="mealJinri" aria-pressed="${!!np.mealJinri}">진리관<em>학생</em></button>
-        <button type="button" class="chip-tgl ${np.mealMirae?'on':''}" data-action="toggle-notify" data-key="mealMirae" aria-pressed="${!!np.mealMirae}">미래관<em>교직원</em></button>
-      </div>
-      <div class="chip-row" style="--cols:3;">
-        <button type="button" class="chip-tgl ${np.mealBreakfast?'on':''}" data-action="toggle-notify" data-key="mealBreakfast" aria-pressed="${!!np.mealBreakfast}">조식<em>7시</em></button>
-        <button type="button" class="chip-tgl ${np.mealLunch?'on':''}" data-action="toggle-notify" data-key="mealLunch" aria-pressed="${!!np.mealLunch}">중식<em>10시 반</em></button>
-        <button type="button" class="chip-tgl ${np.mealDinner?'on':''}" data-action="toggle-notify" data-key="mealDinner" aria-pressed="${!!np.mealDinner}">석식<em>4시 반</em></button>
-      </div>
-        </div>
-      </div>
-      <p style="font-size:10px; color:var(--text-faint); margin:8px 2px 8px; line-height:1.5;">미래관(교직원식당)은 중식만 운영해요. 실제로 알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요).</p>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">
-        ${isNativeApp ? '공지 · 투표 · 학식 알림은 앱을 꺼둬도 도착해요.' : '브라우저에서는 공지 · 투표 · 학식 알림을 받을 수 있어요.'}
-      </p>
-      ` : ''}
-
-      ${(state.settingsTab==='widget' && !isIOSDevice()) ? (isNativeApp ? renderWidgetSettingsTab() : `
-        <div class="empty" style="padding:24px 8px;">
-          <p style="font-size:12px; line-height:1.7;">
-            홈 화면 위젯은 <b>안드로이드 앱(APK)</b>에서만 쓸 수 있어요.<br>
-            브라우저에서는 위젯을 홈 화면에 올릴 수 없어서 설정도 앱에서만 보여드려요.
-          </p>
-          ${androidApkWidgetTabPromptHtml()}
-        </div>`) : ''}
-    </div>
-  `;
+  if(tab === 'widget' && !isIOSDevice()){
+    if(!isNativeApp){
+      return head + stGroup(`<div class="sr-block"><p class="sb-text">홈 화면 위젯은 <b>안드로이드 앱(APK)</b>에서만 쓸 수 있어요.<br>브라우저에서는 위젯을 홈 화면에 올릴 수 없어서 설정도 앱에서만 보여드려요.</p>${androidApkWidgetTabPromptHtml()}</div>`);
+    }
+    return head + renderWidgetSettingsTab();
+  }
+  return '';
 }
 // 네 섹션(화면·홈 화면·알림·위젯)을 한 페이지에 차례로 보여 준다. 위쪽 칩을 누르면 그 섹션으로 스크롤한다.
 // 본문은 탭별 조건(state.settingsTab)으로 만들어져 있어서, 섹션마다 잠깐 그 값으로 바꿔서 그린다.
