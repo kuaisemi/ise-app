@@ -320,7 +320,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 위(main의 padding-top 16px)와 아래(margin-bottom 12px) 간격이 안 맞아 보이던 것을
    맞춤 — main의 전역 여백은 다른 탭에도 쓰이니 건드리지 않고, 이 줄만 4px 끌어올려서
    위쪽 실제 여백도 12px로 맞춘다. */
-.tt-switcher{display:flex; align-items:center; gap:8px; margin-top:-4px; margin-bottom:12px;}
+.tt-switcher{display:flex; align-items:center; gap:8px; margin-top:-6px; margin-bottom:8px;}
 .tt-switcher-label{display:flex; align-items:center; gap:8px; flex:1; min-width:0; background:none; border:none; padding:2px 0; text-align:left; cursor:pointer;}
 .tt-switcher-sem{font-size:11.5px; color:var(--text-faint); font-weight:600; flex-shrink:0; display:inline-flex; align-items:center; gap:3px; line-height:1;}
 .tt-switcher-sem svg, .tt-switcher-name svg{display:block; flex:0 0 auto;}
@@ -5927,9 +5927,6 @@ function renderSemesterTabs(){
       <button type="button" class="tt-switcher-label" data-action="open-timetable-list" style="flex:1; min-width:0;">
         <span class="tt-switcher-name">${escapeHtml(activeVariantName())} ${ICON.chevDown}</span>
       </button>
-      <div class="tt-switcher-divider"></div>
-      <button type="button" class="tt-switcher-icon-btn" data-action="open-tt-options" title="화면 표시 설정">${ICON.gear}</button>
-      <button type="button" class="tt-switcher-icon-btn" data-action="open-tt-more-menu" title="더보기">${ICON.more}</button>
     </div>`;
 }
 function ttMoreMenuModal(){
@@ -5939,6 +5936,7 @@ function ttMoreMenuModal(){
     <div class="modal-title">시간표 메뉴<button data-action="close-modal">${ICON.close}</button></div>
     <div class="ttm-head">
       <div class="ttm-head-txt"><b>${escapeHtml(activeVariantName())}</b><small>${sem} · 수업 ${(state.timetable||[]).length}개</small></div>
+      <button type="button" class="ttm-icbtn" data-action="open-tt-options" title="화면 표시 설정">${ICON.gear}</button>
       <button type="button" class="ttm-icbtn" data-action="rename-variant" title="이름 변경">${ICON.pencil}</button>
       <button type="button" class="ttm-icbtn danger" data-action="reset-timetable" title="이 시간표 지우기">${ICON.trash}</button>
     </div>
