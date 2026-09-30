@@ -9675,7 +9675,7 @@ function settingsSectionHtml(tab){
         일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
       </p>` : ''}
 
-      </div><p class="st-cap">포인트 색</p><div class="card">
+      <div style="height:12px;"></div>
       ${accentPickerHtml()}
       </div><p class="st-cap">글씨 크기 <span class="fs-hint">버튼·여백까지 함께 조절돼요</span><span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p><div class="card st-tight">
       <div class="fs-row"><span class="fs-a s">가</span><input type="range" id="font-pct" min="${FONT_PCT_MIN}" max="${FONT_PCT_MAX}" step="10" value="${fontPct}"><span class="fs-a l">가</span></div>
