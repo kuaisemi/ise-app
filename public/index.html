@@ -409,6 +409,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-nick:focus{outline:none; border-color:var(--crimson);}
 .poke-btn{display:flex; align-items:center; justify-content:center; width:34px; height:30px; border:none; background:transparent; color:var(--text-faint); cursor:pointer; padding:0; -webkit-tap-highlight-color:transparent; transition:transform .15s, color .2s;}
 .poke-btn:active{transform:scale(.86);}
+.poke-btn svg{display:block;}
+.poke-btn.sent svg{transform:translateY(-2px);}
 .poke-btn.pending{color:var(--crimson);}
 .poke-btn.sent{opacity:.28;}
 .poke-btn svg *{vector-effect:non-scaling-stroke;}
@@ -3244,6 +3246,7 @@ function getNotifyPrefs(){
     mealLunch: localGet('notif_mealLunch', mealLegacy),
     mealDinner: localGet('notif_mealDinner', mealLegacy),
     recruit: localGet('notif_recruit', false),
+    friendRequest: localGet('notif_friendRequest', true),
     night: localGet('notif_night', false),
     chat: localGet('notif_chat', true),
     timetable: localGet('notif_timetable', false),
@@ -3252,7 +3255,7 @@ function getNotifyPrefs(){
 }
 // 서버(GitHub Actions)가 "누구에게 보낼지" 알아야 하는 항목만 Firestore에도 저장한다.
 // 시간표 알림은 기기 로컬 알림이라 서버가 알 필요 없음.
-const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'mealJinri', 'mealMirae', 'mealBreakfast', 'mealLunch', 'mealDinner', 'recruit', 'night', 'chat'];
+const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'mealJinri', 'mealMirae', 'mealBreakfast', 'mealLunch', 'mealDinner', 'recruit', 'friendRequest', 'night', 'chat'];
 async function setNotifyPref(key, value){
   localSet('notif_'+key, value);
   if(SERVER_NOTIFY_KEYS.includes(key) && state.user){
@@ -8716,7 +8719,7 @@ function renderMypage(){
 
     ${state.myPageSettingsOpen ? `
     <div class="card" style="margin-top:10px;">
-      <p class="set-title">${ICON.gear}<span>환경설정</span>${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span>` : ''}</p>
+      <p class="set-title"><span>환경설정</span>${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span>` : ''}</p>
       <div class="subtabs" style="margin-bottom:12px;">
         <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
         <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
@@ -8792,6 +8795,10 @@ function renderMypage(){
         <button type="button" class="tgl ${np.recruit?'on':''}" data-action="toggle-notify" data-key="recruit" role="switch" aria-checked="${!!np.recruit}"></button>
       </div>
       <div class="notify-row">
+        <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>친구 요청</b><small>친구 요청이 오거나 수락됐을 때</small></span></span>
+        <button type="button" class="tgl ${np.friendRequest!==false?'on':''}" data-action="toggle-notify" data-key="friendRequest" role="switch" aria-checked="${np.friendRequest!==false}"></button>
+      </div>
+      <div class="notify-row">
         <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
         <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
       </div>
@@ -8857,7 +8864,7 @@ function renderMypage(){
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
-      ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회장 전용</p>
@@ -9461,7 +9468,7 @@ async function sendFriendRequest(){
       status: 'pending',
       createdAt: Date.now(),
     });
-    enqueuePush({ audience:'user', targetUid, category:'friendRequest', title:'새 친구 요청이 왔어요', body:`${state.user.name}님이 친구 요청을 보냈어요` });
+    enqueuePush({ audience:'user', gateKey:'friendRequest', targetUid, category:'friendRequest', title:'새 친구 요청이 왔어요', body:`${state.user.name}님이 친구 요청을 보냈어요` });
 
     msgEl.style.color='var(--teal)';
     msgEl.textContent = `학번 ${sid}에게 요청을 보냈어요.`;
@@ -9478,7 +9485,7 @@ async function acceptFriendRequest(pairId){
   try{ await updateDoc(doc(db,'friendLinks',pairId), { status:'accepted', acceptedAt: now() }); }
   catch(e){ toast('수락에 실패했어요 (' + (e.code||'알 수 없음') + ')'); return; }
   const otherUid = pairId.split('_').find(u=>u!==state.user.uid);
-  if(otherUid) enqueuePush({ audience:'user', targetUid:otherUid, category:'friendRequest', title:'친구가 됐어요', body:`${state.user.name}님과 친구가 됐어요` });
+  if(otherUid) enqueuePush({ audience:'user', gateKey:'friendRequest', targetUid:otherUid, category:'friendRequest', title:'친구가 됐어요', body:`${state.user.name}님과 친구가 됐어요` });
   await refreshFriendsData();
   toast('친구가 됐어요');
 }

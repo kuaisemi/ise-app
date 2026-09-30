@@ -188,8 +188,8 @@ async function listAllAuthUsers() {
   } while (pageToken);
   return all;
 }
-async function purgeGhostAuthAccounts(authUsers) {
-  const usersSnap = await db.collection('users').get();
+async function purgeGhostAuthAccounts(authUsers, usersSnap) {
+  usersSnap = usersSnap || await db.collection('users').get();
   const profiledUids = new Set(usersSnap.docs.map((d) => d.id));
   let removed = 0;
   for (const u of authUsers) {
@@ -372,6 +372,7 @@ async function main() {
   const pollTokensByStudentId = new Map(); // 투표 알림(prefs.poll 켠 사람)을 학번별로 묶어둔 것 — 그 투표에 아직 투표 안 한 사람만 골라 보낼 때 씀
   const tokensByUid = new Map(); // 채팅처럼 uid로만 상대를 아는 경우
   const chatOkUids = new Set(); // 채팅 알림을 켜둔 사람만
+  const friendRequestOkUids = new Set(); // 친구 요청·수락 알림을 끄지 않은 사람(설정한 적 없으면 켬)
   const tokenToUid = new Map();
   // 같은 기기에서 계정을 바꿔 로그인하면 그 기기 토큰이 여러 계정 문서에 남는다. 그대로 두면
   // 예전 계정이 켜둔 알림(예: 조식)이 지금 로그인한 계정 설정과 무관하게 그 폰으로 온다.
@@ -418,6 +419,7 @@ async function main() {
     if (u.studentId && prefs.poll) pollTokensByStudentId.set(u.studentId, tokens);
     tokensByUid.set(docSnap.id, tokens);
     if (prefs.chat) chatOkUids.add(docSnap.id);
+    if (prefs.friendRequest !== false) friendRequestOkUids.add(docSnap.id);
     mealPrefsByUid.set(docSnap.id, {
       jinri: !!prefs.mealJinri,
       mirae: !!prefs.mealMirae,
@@ -676,10 +678,13 @@ async function main() {
   await purgeOldTombstones();
   await purgePendingAuthDeletes();
   await processPendingAuthReactivations();
-  const authUsers = await listAllAuthUsers();
-  await purgeGhostAuthAccounts(authUsers);
-  await purgeOrphanedDirectoryAndFriendLinks(authUsers);
-  await purgeOldChatMessages();
+  // 가입자 전체·친구 관계 전체를 읽는 정리 작업은 매시간이 아니라 하루에 한 번(한국 시간 새벽 4시대 실행)만 한다 — 읽기량 절감.
+  if (new Date(Date.now() + 9 * 3600 * 1000).getUTCHours() === 4) {
+    const authUsers = await listAllAuthUsers();
+    await purgeGhostAuthAccounts(authUsers, usersSnap);
+    await purgeOrphanedDirectoryAndFriendLinks(authUsers);
+    await purgeOldChatMessages();
+  }
   await processInactiveAccounts(usersSnap);
 
   // 만료/무효 토큰 정리 — 배열에서 해당 토큰만 빼고, 단일 필드는 그 토큰일 때만 지운다.
@@ -758,6 +763,7 @@ async function main() {
       // 채팅처럼 "특정 한 사람"에게 보내는 알림(audience:'user')은 그 사람이 해당 알림
       // 종류를 켰는지를 uid 목록으로 따로 남겨서 Worker가 확인한다(친구 채팅용).
       chatOkUids: [...chatOkUids],
+      friendRequestOkUids: [...friendRequestOkUids],
       updatedAt: Date.now(),
     });
   }
