@@ -876,6 +876,10 @@ details.likers-accordion > div, details.voters-accordion > div{
 .time-slot-inline span.sep{color:var(--text-faint); font-weight:700; flex:0 0 auto;}
 .time-slot-inline{justify-content:center;}
 .time-slot-inline .time-picker{flex:1 1 0; min-width:0; justify-content:center;}
+#poll-deadline-inputs .time-picker{display:flex; width:100%;}
+#poll-deadline-inputs .time-picker .tp-col{flex:1; min-width:0;}
+#poll-deadline-inputs .time-picker .tp-btn, #poll-deadline-inputs .time-picker .tp-col-ampm .tp-btn{width:100%;}
+#poll-deadline-inputs .time-picker .tp-val{text-align:center;}
 /* 시간 선택기 — 시간표 수업시간 · 투표 마감 · 일정 알림이 함께 쓴다.
    예전에는 26x20px 버튼이 낱개로 떠 있어서 누르기도 어렵고 입력칸처럼 보이지도 않았다.
    하나의 입력 필드처럼 테두리로 묶고, 손가락에 맞게 버튼을 키웠다(권장 최소 크기에 맞춤). */
@@ -887,6 +891,7 @@ details.likers-accordion > div, details.voters-accordion > div{
 .time-picker .tp-btn{width:38px; height:22px; border:none; background:transparent; color:var(--text-faint); font-size:8px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s;}
 .time-picker .tp-btn:hover{color:var(--teal);}
 .time-picker .tp-btn:active{background:var(--teal); color:var(--teal-ink);}
+.time-picker .tp-btn{touch-action:manipulation; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
 .time-picker .tp-colon{color:var(--text-faint); font-weight:800; font-size:17px; display:flex; align-items:center; padding:0 1px;}
 /* 오전/오후 칸은 글자가 두 자라 조금 넓고, 숫자가 아니라 본문 서체를 쓴다. */
 .time-picker .tp-col-ampm{border-right:1px solid var(--border);}
@@ -1909,6 +1914,63 @@ function hour24To12(h){ const v = h % 12; return v === 0 ? 12 : v; }
 function meridiemLabel(h){ return h >= 12 ? '오후' : '오전'; }
 // opts.clamp === false 면 09:00~22:00(TIME_START~TIME_END) 제한을 걸지 않는다.
 // 이 제한은 원래 시간표 수업 시간용이라, 아침 7시 알림 같은 걸 09:00으로 끌어올려 버린다.
+// 시간 선택기 ▲▼ 한 번 누름(또는 꾹 눌러 반복될 때 한 칸)
+function tpStepEl(el){
+  const picker = el.closest('.time-picker');
+  if(!picker) return;
+  const hidden = picker.querySelector('input[type=hidden]');
+  const part = el.dataset.part, dir = parseInt(el.dataset.dir, 10);
+  let [h, m] = hidden.value.split(':').map(Number);
+  if(part==='a'){
+    // 오전 ↔ 오후. 위·아래 어느 쪽을 눌러도 두 값뿐이라 똑같이 뒤집는다.
+    h = (h + 12) % 24;
+  } else if(part==='h'){
+    // 화면이 12시간제이므로 1~12 안에서만 돌고, 오전/오후는 여기서 바뀌지 않는다.
+    // (24시간으로 그냥 ±1 하면 11시→12시에서 오전이 오후로 넘어가 버린다)
+    const isPM = h >= 12;
+    const next12 = ((hour24To12(h) - 1 + dir + 12) % 12) + 1;
+    h = (next12 % 12) + (isPM ? 12 : 0);
+  } else {
+    m = (m + dir*5 + 60) % 60;
+  }
+  hidden.value = `${pad(h)}:${pad(m)}`;
+  const ampmEl = picker.querySelector('.tp-val[data-part="a"]');
+  if(ampmEl) ampmEl.textContent = meridiemLabel(h);
+  picker.querySelector('.tp-val[data-part="h"]').textContent = pad(hour24To12(h));
+  picker.querySelector('.tp-val[data-part="m"]').textContent = pad(m);
+}
+// ▲▼를 꾹 누르고 있으면(0.35초 뒤부터) 계속 올라가거나 내려가고, 약 3초에 걸쳐 점점 빨라진다. 오전/오후 버튼은 반복하지 않는다.
+if(!window.__tpHoldBound){
+  window.__tpHoldBound = true;
+  let hold = null;
+  const stopHold = ()=>{
+    if(!hold) return;
+    clearTimeout(hold.t); clearTimeout(hold.r);
+    if(hold.active) window.__tpSuppressUntil = Date.now() + 400;   // 꾹 누른 뒤 손을 뗄 때 따라오는 클릭이 한 번 더 바꾸지 않게
+    hold = null;
+  };
+  document.addEventListener('pointerdown', (e)=>{
+    const b = e.target.closest && e.target.closest('.tp-btn');
+    if(!b || b.dataset.part === 'a') return;
+    stopHold();
+    const t0 = Date.now();
+    hold = { t:null, r:null, active:false };
+    const tick = ()=>{
+      if(!hold) return;
+      tpStepEl(b);
+      const prog = Math.min(1, Math.max(0, (Date.now() - t0 - 350) / 3000));
+      hold.r = setTimeout(tick, Math.round(170 - 135 * prog));   // 170ms → 35ms
+    };
+    hold.t = setTimeout(()=>{ if(hold){ hold.active = true; tick(); } }, 350);
+  }, true);
+  document.addEventListener('pointerup', stopHold, true);
+  document.addEventListener('pointercancel', stopHold, true);
+  document.addEventListener('visibilitychange', stopHold);
+  document.addEventListener('contextmenu', (e)=>{ if(e.target.closest && e.target.closest('.tp-btn')) e.preventDefault(); });
+  document.addEventListener('click', (e)=>{
+    if(Date.now() < (window.__tpSuppressUntil || 0) && e.target.closest && e.target.closest('.tp-btn')){ e.stopPropagation(); e.preventDefault(); }
+  }, true);
+}
 function renderTimePicker(name, minutes, opts={}){
   const hhmm = opts.clamp === false
     ? `${pad(Math.floor((Number(minutes)||0)/60)%24)}:${pad((Number(minutes)||0)%60)}`
@@ -8226,8 +8288,8 @@ function recruitmentModal(r){
       <input type="hidden" name="itemId" value="${r ? r.id : ''}">
       <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="구인글 제목"></div>
       <div class="field"><label>내용</label><textarea name="content" style="min-height:120px" required placeholder="모집 내용 및 연락 방법">${escapeHtml(v.content)}</textarea></div>
-      <div class="field"><label>노출 시간</label>
-        ${renderSegPicker('expireHours', [[12,'12시간'],[24,'24시간 (기본)'],[48,'48시간'],[72,'72시간']], v.expireHours, true)}
+      <div class="field"><label>노출 시간 <span style="font-weight:500; color:var(--text-faint);">(기본 24시간)</span></label>
+        ${renderSegPicker('expireHours', [[12,'12시간'],[24,'24시간'],[48,'48시간'],[72,'72시간']], v.expireHours, true, '', true)}
       </div>
       <div class="row-between" style="margin-bottom:14px; gap:10px; align-items:center;">
         <label for="rec-poll-check" style="margin:0; cursor:pointer; font-size:11.5px; color:var(--text-dim); line-height:1.5;">참여 여부 투표 추가하기<br><span style="font-size:10.5px; color:var(--text-faint);">참여/불참 버튼, 참여자 명단은 작성자만 확인</span></label>
@@ -8440,29 +8502,24 @@ function pollModal(){
         </div>`).join('')}
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-action="add-poll-option" style="width:100%; margin-bottom:12px;">+ 선택지 추가</button>
-      <div style="display:flex; gap:14px; margin-bottom:14px;">
-        <div style="flex:1;">
-          <div class="row-between" style="gap:8px;">
-            <label for="poll-multi-check" style="margin:0; cursor:pointer; font-size:11.5px; color:var(--text-dim);">복수 선택 허용</label>
-            <label class="switch"><input type="checkbox" name="multi" id="poll-multi-check"><span class="slider"></span></label>
-          </div>
-          <div class="row-between" style="gap:8px; margin-top:14px;">
-            <label for="poll-push-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.bell} 알림 발송</label>
-            <label class="switch"><input type="checkbox" name="sendPush" id="poll-push-check"><span class="slider"></span></label>
-          </div>
-          <p style="font-size:10px; color:var(--text-faint); margin:5px 0 0; line-height:1.5;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림이 나갑니다</p>
+      <div class="poll-opts" style="margin-bottom:14px;">
+        <div class="row-between" style="gap:8px;">
+          <label for="poll-multi-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">복수 선택 허용</label>
+          <label class="switch"><input type="checkbox" name="multi" id="poll-multi-check"><span class="slider"></span></label>
         </div>
-        <div style="flex:1; border-left:1px solid var(--border); padding-left:14px;">
-          <div class="row-between" style="gap:8px; margin-bottom:8px;">
-            <label for="poll-deadline-check" style="margin:0; cursor:pointer; font-size:11.5px; color:var(--text-dim);">마감 일시 설정</label>
-            <label class="switch"><input type="checkbox" id="poll-deadline-check" data-action="toggle-poll-deadline"><span class="slider"></span></label>
-          </div>
-          <div id="poll-deadline-inputs" style="display:flex; flex-direction:column; gap:6px; align-items:stretch; opacity:.4; pointer-events:none;">
-            ${dateFieldHtml('poll_deadline_date', addDays(todayStr(),1))}
-            ${renderTimePicker('poll_deadline_time', 23*60+59)}
-          </div>
-          <div style="font-size:10px; color:var(--text-faint); margin-top:5px; line-height:1.5;">설정한 시각에 자동 종료됩니다.</div>
+        <div class="row-between" style="gap:8px; margin-top:14px;">
+          <label for="poll-deadline-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">마감 일시 설정</label>
+          <label class="switch"><input type="checkbox" id="poll-deadline-check" data-action="toggle-poll-deadline"><span class="slider"></span></label>
         </div>
+        <div id="poll-deadline-inputs" style="display:flex; flex-direction:column; gap:6px; align-items:stretch; margin-top:8px; opacity:.4; pointer-events:none;">
+          ${dateFieldHtml('poll_deadline_date', addDays(todayStr(),1))}
+          ${renderTimePicker('poll_deadline_time', 23*60+59)}
+        </div>
+        <div class="row-between" style="gap:8px; margin-top:14px;">
+          <label for="poll-push-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">알림 발송</label>
+          <label class="switch"><input type="checkbox" name="sendPush" id="poll-push-check"><span class="slider"></span></label>
+        </div>
+        <p style="font-size:10px; color:var(--text-faint); margin:5px 0 0; line-height:1.5;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림이 나갑니다</p>
       </div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">투표 게시</button></div>
     </form>`;
@@ -12407,30 +12464,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'apk-popup-back'){ setApkPopupStep('benefits'); }
     else if(a === 'show-ios-install'){ showApkInstallPopup('ios'); }
     else if(a === 'apk-popup-open-confirm'){ showApkInstallPopup('android', 'confirm'); }
-    else if(a === 'tp-step'){
-      const picker = el.closest('.time-picker');
-      if(!picker) return;
-      const hidden = picker.querySelector('input[type=hidden]');
-      const part = el.dataset.part, dir = parseInt(el.dataset.dir, 10);
-      let [h, m] = hidden.value.split(':').map(Number);
-      if(part==='a'){
-        // 오전 ↔ 오후. 위·아래 어느 쪽을 눌러도 두 값뿐이라 똑같이 뒤집는다.
-        h = (h + 12) % 24;
-      } else if(part==='h'){
-        // 화면이 12시간제이므로 1~12 안에서만 돌고, 오전/오후는 여기서 바뀌지 않는다.
-        // (24시간으로 그냥 ±1 하면 11시→12시에서 오전이 오후로 넘어가 버린다)
-        const isPM = h >= 12;
-        const next12 = ((hour24To12(h) - 1 + dir + 12) % 12) + 1;
-        h = (next12 % 12) + (isPM ? 12 : 0);
-      } else {
-        m = (m + dir*5 + 60) % 60;
-      }
-      hidden.value = `${pad(h)}:${pad(m)}`;
-      const ampmEl = picker.querySelector('.tp-val[data-part="a"]');
-      if(ampmEl) ampmEl.textContent = meridiemLabel(h);
-      picker.querySelector('.tp-val[data-part="h"]').textContent = pad(hour24To12(h));
-      picker.querySelector('.tp-val[data-part="m"]').textContent = pad(m);
-    }
+    else if(a === 'tp-step'){ tpStepEl(el); }
     else if(a === 'set-signup-role'){ state.signupRole = el.dataset.role; renderAuth(); }
     else if(a === 'global-refresh'){
       if(refreshCdLeft() > 0) return;   // 5초에 한 번만
@@ -12506,13 +12540,13 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'dp-nav-month'){
       const name = el.dataset.name;
       const panel = document.getElementById('date-panel-'+name);
-      const wrap = el.closest('.date-field');
+      const wrap = el.closest('.date-field') || document.querySelector('.date-field[data-name="' + name + '"]');
       const hidden = wrap && wrap.querySelector('input[type=hidden]');
       if(panel) panel.innerHTML = dateGridHtml(name, el.dataset.ym, hidden ? hidden.value : '');
     }
     else if(a === 'dp-pick-day'){
       const name = el.dataset.name;
-      const wrap = el.closest('.date-field');
+      const wrap = el.closest('.date-field') || document.querySelector('.date-field[data-name="' + name + '"]');
       if(!wrap) return;
       const hidden = wrap.querySelector('input[type=hidden]');
       const btn = wrap.querySelector('.date-field-btn .date-field-text');
