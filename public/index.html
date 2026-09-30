@@ -712,6 +712,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .acc-dot:active i{transform:scale(.9);}
 .acc-dot.on i{color:var(--on-crimson,#fff); box-shadow:0 0 0 2px var(--surface-2), 0 0 0 4px var(--c);}
 #settings-page .card + .card{margin-top:8px !important;}
+/* 오늘의 시간표 알림: 방해 금지와 같은 줄 높이, 시각 선택기는 더 낮고 작게 */
+#settings-page #st-sec-notify .tt-alert-row{min-height:40px; padding:4px 2px;}
+#settings-page #st-sec-notify .seg-group.tt-seg{padding:2px; border-radius:10px;}
+#settings-page #st-sec-notify .seg-group.tt-seg button{padding:4px 0; font-size:11.5px; border-radius:8px;}
+#settings-page #st-sec-notify .seg-group.tt-seg .seg-thumb{top:2px; bottom:2px; left:2px; border-radius:8px; width:calc((100% - 4px - (var(--n) - 1) * 2px) / var(--n));}
 /* 곡률 체계: 카드 16 · 묶음 컨트롤 12 · 그 안의 칸/칩 9~10 */
 #settings-page .card, #settings-page .st-acct{border-radius:16px !important;}
 #settings-page .subtabs{border-radius:12px;}
@@ -9746,9 +9751,9 @@ function settingsSectionHtml(tab){
         <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b></span></span>
         <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
       </div>
-      </div><p class="st-cap">시간표</p><div class="card">
+      </div><p class="st-cap">시간표<span class="fs-hint">${!isNativeApp ? '앱(APK)에서만 사용할 수 있어요' : (np.timetable ? `평일 아침 ${np.timetableHour}시에 수업 안내` : '알림 꺼짐')}</span></p><div class="card">
       <div class="notify-row tt-alert-row">
-        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${!isNativeApp ? '앱(APK)에서만 사용할 수 있어요' : (np.timetable ? `평일 아침 ${np.timetableHour}시에 수업 안내` : '알림 꺼짐')}</small></span></span>
+        <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b></span></span>
         <div class="seg-group tt-seg ${isNativeApp ? '' : 'disabled'}"><span class="seg-thumb" style="--n:4; --i:${np.timetable ? 1 + Math.max(0, [7,8,9].indexOf(np.timetableHour)) : 0};"></span>
           <button type="button" class="${!np.timetable ? 'on' : ''}" data-action="set-tt-alert" data-val="off">끄기</button>
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
