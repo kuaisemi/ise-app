@@ -407,6 +407,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .fr-av{flex:none; width:30px; height:30px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--teal); overflow:hidden;}
 .av-nick{width:100%; box-sizing:border-box; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:12.5px; font-family:inherit;}
 .av-nick:focus{outline:none; border-color:var(--crimson);}
+.poke-btn{display:flex; align-items:center; justify-content:center; width:34px; height:30px; border:none; background:transparent; color:var(--text-faint); cursor:pointer; padding:0; -webkit-tap-highlight-color:transparent; transition:transform .15s, color .2s;}
+.poke-btn:active{transform:scale(.86);}
+.poke-btn.pending{color:var(--crimson);}
+.poke-btn.pending svg{animation:poke-nudge 1.4s ease-in-out infinite;}
+@keyframes poke-nudge{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px) rotate(-6deg);}}
 .av-tools{display:flex; gap:6px; align-items:center; margin-bottom:10px;}
 .px-wrap{position:relative; width:100%; max-width:320px; margin:0 auto; aspect-ratio:1/1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; overflow:hidden;}
 .px-wrap canvas{display:block; width:100%; height:100%; image-rendering:pixelated; touch-action:none;}
@@ -2802,7 +2807,7 @@ function boot(){
           // 안내 없이 권한창부터 뜨면 거부당하기 쉽고, 한 번 거부되면 되돌리기 어렵기 때문.
           const np = getNotifyPrefs();
           syncNotifyPrefsToServer(np);
-          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.mealJinri || np.mealMirae || np.chat)) ensurePushToken();
+          if(localGet('notif_onboarded', false) && (np.notice || np.poll || np.mealJinri || np.mealMirae)) ensurePushToken();
           scheduleTimetableReminders();
           pushWidgetData();
           setupWidgetDeepLink();
@@ -3757,7 +3762,7 @@ function routeNotificationTap(category, data){
   else if(category==='recruit'){ state.view='council'; state.councilTab='recruitment'; renderShell(); }
   else if(category==='meal'){ state.view='info'; state.infoTab='meal'; renderShell(); }
   else if(category==='timetable'){ state.view='timetable'; renderShell(); }
-  else if(category==='chat'){ openFriendChatByPairId(data && data.pairId); }
+  else if(category==='chat'){ openSocialTab(); }
   else if(category==='friend' || category==='friendRequest'){ openSocialTab(); }
   else if(category==='suggestion'){ state.view='council'; state.councilTab='suggestion'; renderShell(); }
 }
@@ -4412,7 +4417,7 @@ async function refreshAdminBadgeCounts(){
     if(isCouncil()){
       const [br, cr] = await Promise.all([
         loadShared('bugReports', {list:[]}),
-        loadShared('chatReports', {list:[]}),
+        Promise.resolve({list:[]}),
       ]);
       state.adminBadge.bugReports = (br.list||[]).filter(r=>r.status!=='해결').length;
       state.adminBadge.chatReports = (cr.list||[]).filter(r=>r.status!=='해결').length;
@@ -4433,6 +4438,9 @@ state.hasUnseenChat = false;
 state.unseenChatPairIds = new Set(); // 친구 목록에서 "이 사람한테 새 채팅 왔음" 점 표시용
 state.unseenChatDetails = []; // 알림 목록에 "OO님의 메시지"로 각각 띄우기 위한 정보 (pairId·보낸사람 이름·시각)
 async function refreshChatUnseenBadge(){
+  // 채팅 기능을 없앴다: 서버 읽기 없이 항상 '안 읽은 채팅 없음'으로 둔다.
+  state.hasUnseenChat = false; state.unseenChatPairIds = new Set(); state.unseenChatDetails = [];
+  return;
   if(!state.user) return;
   try{
     const q = query(collection(db,'friendLinks'), where('uids','array-contains', state.user.uid));
@@ -4825,6 +4833,8 @@ const ICON = {
   pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-6.1 7-12A7 7 0 0 0 5 9.5c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
   gimbap:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="7.5" rx="7.5" ry="3.3"/><path d="M4.5 7.5v9.2c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3V7.5"/><path d="M4.5 12.1c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3"/><circle cx="10.2" cy="7.1" r=".9" fill="currentColor" stroke="none"/><circle cx="13.8" cy="7.9" r=".9" fill="currentColor" stroke="none"/></svg>`,
   drumstick:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="14.6" cy="9.4" rx="6.8" ry="5.2" transform="rotate(-45 14.6 9.4)"/><path d="M9.8 14.2 6.4 17.6"/><circle cx="6.5" cy="19.1" r="1.5"/><circle cx="4.9" cy="17.5" r="1.5"/></svg>`,
+  pokeFinger:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>`,
+  pokeFist:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 11V9a1.8 1.8 0 0 1 3.5 0"/><path d="M10 9V7.8a1.8 1.8 0 0 1 3.5 0V9"/><path d="M13.5 9V8.3a1.8 1.8 0 0 1 3.5 0V12"/><path d="M6.5 11.2v3.2a5.6 5.6 0 0 0 5.6 5.6h1.5a4.4 4.4 0 0 0 4.4-4.4V12"/><path d="M17 12.2a1.7 1.7 0 0 1 3.4 0V15a6 6 0 0 1-5 5.9"/></svg>`,
   thumbtack:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 7 3.2 3.2V15H6.8v-1.8L10 10z"/><path d="M12 15v6.5"/></svg>`,
   android:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16a7.5 7.5 0 0 1 15 0z"/><path d="M6.9 10.6 5 8M17.1 10.6 19 8"/><circle cx="9.4" cy="12.7" r=".9" fill="currentColor" stroke="none"/><circle cx="14.6" cy="12.7" r=".9" fill="currentColor" stroke="none"/></svg>`,
   clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
@@ -8798,10 +8808,6 @@ function renderMypage(){
         <button type="button" class="tgl ${np.recruit?'on':''}" data-action="toggle-notify" data-key="recruit" role="switch" aria-checked="${!!np.recruit}"></button>
       </div>
       <div class="notify-row">
-        <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>채팅 알림</b><small>친구가 메시지를 보낼 때 · 실시간으로 바로 오진 않아요</small></span></span>
-        <button type="button" class="tgl ${np.chat?'on':''}" data-action="toggle-notify" data-key="chat" role="switch" aria-checked="${!!np.chat}"></button>
-      </div>
-      <div class="notify-row">
         <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
         <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
       </div>
@@ -8881,8 +8887,6 @@ function renderMypage(){
       ${isCouncil() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>
-      <div class="link-row" data-action="open-chat-report-inbox"><span class="link-row-label">${ICON.flag} 채팅 신고함</span> <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="open-suspension-list"><span class="link-row-label">${ICON.ban} 경고 · 정지 목록</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
@@ -9266,29 +9270,17 @@ async function applyFriendLinksSnapshot(snap){
       clearedAt: data.clearedAt || {},
       nickname: (data.nicknames && data.nicknames[state.user.uid]) || '',
       muted: !!(data.mutedBy && data.mutedBy[state.user.uid]),
+      pokes: data.pokes || {},
     };
     if((data.status||'accepted') === 'pending'){
       if(data.requestedBy === state.user.uid) outgoing.push(entry); else incoming.push(entry);
     } else {
       friends.push(entry);
-      // 친구 목록을 새로고침할 때마다 "이 사람한테 새 채팅 왔음" 점도 같이 최신화 (쿼리 재사용, 왕복 안 늘림)
-      if(data.lastMessageAt && data.lastMessageBy !== state.user.uid){
-        // 지금 바로 그 친구랑 채팅 화면을 보고 있다면 이미 본 것이니 안읽음으로 쌓을 필요가
-        // 없다 — 오히려 그 자리에서 바로 읽음 처리해서(기기·서버 둘 다) 나중에 화면을 벗어나도
-        // "방금 그 메시지"가 새삼 안읽음으로 남지 않게 한다.
-        if(state.friendsUI.screen==='detail' && state.friendsUI.activePairId===d.id){
-          localSet('chat_seen_'+d.id, now());
-          updateDoc(doc(db,'friendLinks',d.id), { ['lastSeenAt.'+state.user.uid]: now() }).catch(()=>{});
-        } else {
-          const seenAt = (data.lastSeenAt && data.lastSeenAt[state.user.uid]) || localGet('chat_seen_'+d.id, 0);
-          if(data.lastMessageAt > seenAt) unseenPairIds.add(d.id);
-        }
-      }
     }
   });
   state.friendsUI.data = { incoming, outgoing, friends };
   state.unseenChatPairIds = unseenPairIds;
-  state.hasUnseenChat = unseenPairIds.size > 0;
+  state.hasUnseenChat = false;
   refreshBellDot();
   // 채팅 상세 화면(friendDetailBody)에 있을 때는 이 리스너가 매번(메시지 주고받을 때마다
   // lastMessageAt이 바뀌므로) 전체를 다시 그리지 않게 한다 — 그렇지 않으면 입력창·키보드가
@@ -9366,8 +9358,8 @@ function friendListBody(){
           <div class="list-item" style="cursor:pointer; ${sp}" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
             <div class="row-between">
               <div><b style="font-size:13.5px;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}</div>
-              <span style="display:flex; align-items:center; gap:6px;">
-                ${hasUnseen ? '<span style="width:7px; height:7px; border-radius:50%; background:var(--crimson); flex-shrink:0;"></span>' : ''}
+              <span style="display:flex; align-items:center; gap:4px;">
+                ${pokeButtonHtml(f)}
                 <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
               </span>
             </div>
@@ -9378,11 +9370,39 @@ function friendListBody(){
   `;
 }
 
+// 콕 찌르기: 상대가 나를 찔렀는데 내가 아직 안 찔렀으면 검지손가락(눌러서 되찌르기), 아니면 주먹.
+// 실시간이 아니라 친구 목록을 열거나 새로고침할 때 반영되고, 푸시 알림은 보내지 않는다(토큰 절약).
+function pokePending(f){
+  const pk = f.pokes || {};
+  return Number(pk[f.uid] || 0) > Number(pk[state.user.uid] || 0);
+}
+function pokeButtonHtml(f){
+  const pend = pokePending(f);
+  return '<button type="button" class="poke-btn '+(pend ? 'pending' : '')+'" data-action="poke-friend" data-pair="'+escapeHtml(f.pairId)+'" data-uid="'+escapeHtml(f.uid)+'" title="'+(pend ? '나를 콕 찔렀어요 · 눌러서 되찌르기' : '콕 찌르기')+'">'+(pend ? ICON.pokeFinger : ICON.pokeFist)+'</button>';
+}
+const pokeCooldown = {};
+async function pokeFriend(pairId, uid){
+  if(!state.user) return;
+  const last = pokeCooldown[pairId] || 0;
+  if(Date.now() - last < 30000){ toast('조금 뒤에 다시 찔러 주세요'); return; }
+  pokeCooldown[pairId] = Date.now();
+  const ts = now();
+  try{
+    await updateDoc(doc(db,'friendLinks',pairId), { ['pokes.'+state.user.uid]: ts });
+    const f = (state.friendsUI.data.friends || []).find(x=>x.pairId === pairId);
+    if(f){ f.pokes = { ...(f.pokes || {}), [state.user.uid]: ts }; }
+    toast('콕 찔렀어요');
+    if(state.friendsUI.screen !== 'detail') refreshFriendsModalBody();
+  }catch(e){
+    pokeCooldown[pairId] = 0;
+    console.warn('[poke]', e);
+    toast('콕 찌르기에 실패했어요');
+  }
+}
 function friendDetailBody(){
   const ui = state.friendsUI;
   const shareOn = ui.myShareOn !== false;
   const ttCollapsed = !!ui.ttCollapsed;
-  const chatMuted = !!ui.chatMuted;
   const nicknameHtml = ui.activeNickname ? `<span style="font-size:11px; font-weight:400; color:var(--text-dim);">(${escapeHtml(ui.activeNickname)})</span>` : '';
   return `
     <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
@@ -9404,27 +9424,6 @@ function friendDetailBody(){
     </div>
     ${ttCollapsed ? `<div style="margin-bottom:10px;"></div>` : `<div class="card tt-card-container" id="friend-tt-card" style="margin-bottom:14px;"><div class="empty"><p>불러오는 중…</p></div></div>`}
 
-    <div class="row-between" style="margin-bottom:6px;">
-      <div class="section-title" style="margin:0; display:flex; align-items:baseline; gap:6px;">
-        <span style="font-size:13.5px; font-weight:800; font-style:italic;">간단한 채팅</span>
-        <span style="font-size:9.5px; color:var(--text-faint); font-weight:600;">beta</span>
-        <span style="font-size:9.5px; color:var(--text-faint); font-weight:400;">7일 뒤 채팅 내용이 사라져요</span>
-      </div>
-      <div style="display:flex; gap:6px;">
-        <button type="button" class="btn btn-ghost btn-sm" data-action="open-report-friend" style="width:auto; padding:3px 8px; font-size:10px;">채팅 신고</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-action="clear-friend-chat" style="width:auto; padding:3px 8px; font-size:10px;">채팅 지우기</button>
-        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="font-size:10.5px; color:var(--text-dim);">채팅 알림</span><button type="button" class="tgl sm ${chatMuted?'':'on'}" id="friend-mute-toggle" data-on="${chatMuted?'0':'1'}" role="switch" title="이 친구 채팅 알림만 끄기"></button></span>
-      </div>
-    </div>
-    <div class="card" style="padding:12px;">
-      <div id="friend-chat-log" style="max-height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:2px;"></div>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <input type="text" id="friend-chat-input" placeholder="메시지 입력…" maxlength="1500"
-          style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; color:var(--text); font-size:13px; min-width:0;">
-        <button type="button" class="btn btn-primary btn-sm" id="friend-chat-send" style="width:auto;">전송</button>
-      </div>
-    </div>
-    <p style="font-size:9.5px; color:var(--text-faint); margin:6px 2px 0; line-height:1.5;">채팅 알림은 실시간이 아니라 서버를 거쳐서 가요 — 최대 1분 정도 걸릴 수 있어요.</p>
   `;
 }
 
@@ -9449,31 +9448,7 @@ function setupFriendsModalListeners(){
     }
   });
 
-  const muteToggle = document.getElementById('friend-mute-toggle');
-  if(muteToggle) muteToggle.addEventListener('click', async () => {
-    // data-on은 "알림이 켜져 있는지"를 나타낸다 (뮤트 여부의 반대) — 다른 알림 토글들과
-    // 색 규칙을 맞추기 위해서다 (켜짐=강조색, 꺼짐=흐린색).
-    const newNotifyOn = muteToggle.dataset.on !== '1';
-    muteToggle.disabled = true;
-    const ok = await toggleChatMute(!newNotifyOn);
-    muteToggle.disabled = false;
-    if(ok){
-      muteToggle.dataset.on = newNotifyOn ? '1' : '0';
-      muteToggle.classList.toggle('on', newNotifyOn);
-    }
-  });
-
   if(!state.friendsUI.ttCollapsed) loadFriendTimetableCard(state.friendsUI.activeUid);
-  // 접었다 펴기·별명 저장 후 복귀처럼 detail 화면을 유지한 채 다시 그릴 때도 이 함수가
-  // 다시 불리므로, 매번 새 리스너를 붙이기 전에 이전 리스너를 반드시 끊어야 중복 구독이 안 쌓인다.
-  stopFriendChatListener();
-  openFriendChatListener(state.friendsUI.activePairId, state.friendsUI.activeUid);
-
-  const chatInput = document.getElementById('friend-chat-input');
-  const chatSend = document.getElementById('friend-chat-send');
-  const send = () => sendFriendChatMessage();
-  if(chatSend) chatSend.onclick = send;
-  if(chatInput) chatInput.addEventListener('keydown', e => { if(e.key==='Enter') send(); });
 }
 
 async function sendFriendRequest(){
@@ -12712,6 +12687,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'reset-timetable'){ await resetTimetable(); }
     else if(a === 'set-theme'){ setThemeOverride(el.dataset.themeV); }
     else if(a === 'open-avatar-editor'){ openAvatarEditor(); }
+    else if(a === 'poke-friend'){ await pokeFriend(el.dataset.pair, el.dataset.uid); }
     else if(a === 'load-unvoted'){ el.textContent = '불러오는 중…'; await ensureAllUsers(true); renderMain(); }
     else if(a === 'av-tab'){ avTab = el.dataset.tab; renderAvBody(); }
     else if(a === 'av-pick-icon'){ avDraft.id = el.dataset.id; renderAvBody(); }
