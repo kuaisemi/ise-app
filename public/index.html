@@ -2786,6 +2786,35 @@ async function enqueuePush(opts){
 const REMIND_WEEKDAYS = ['일','월','화','수','목','금','토'];
 // 상자(display:none ↔ 보임)를 부드럽게 열고 닫는다. 높이 자체를 애니메이션하면 폼 전체가 프레임마다 다시 계산돼서 끊겨 보이므로,
 // 열 때는 "늘어난 만큼 시트를 아래에서 위로 미끄러뜨리기"(변환만 쓰므로 GPU가 처리) + 내용 서서히 나타나기, 닫을 때는 서서히 사라진 뒤 감춘다.
+// 새 카드가 "뿅" 나타난다: 높이가 부드럽게 열리면서 살짝 커졌다 자리를 잡는다(시간대 추가 등)
+function popInEl(el){
+  if(!el) return;
+  try{
+    el.dataset.noAnim = '1';
+    const h = el.getBoundingClientRect().height;
+    const mb = getComputedStyle(el).marginBottom;
+    el.animate([
+      { height:'0px', opacity:0, marginBottom:'0px', transform:'scale(.92) translateY(-8px)', overflow:'hidden', offset:0 },
+      { opacity:1, transform:'scale(1.025)', overflow:'hidden', offset:.6 },
+      { height:h + 'px', opacity:1, marginBottom:mb, transform:'none', overflow:'hidden', offset:1 }
+    ], { duration:480, easing:'cubic-bezier(.22,1,.36,1)' });
+    el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }catch(_){}
+}
+// 카드를 지울 때: 살짝 작아지며 흐려진 뒤 높이가 접히고, 끝나면 done()을 부른다
+function popOutEl(el, done){
+  try{
+    el.dataset.noAnim = '1';
+    const h = el.getBoundingClientRect().height;
+    const mb = getComputedStyle(el).marginBottom;
+    const a = el.animate([
+      { height:h + 'px', opacity:1, marginBottom:mb, transform:'none', overflow:'hidden', offset:0 },
+      { opacity:0, transform:'scale(.94)', overflow:'hidden', offset:.5 },
+      { height:'0px', opacity:0, marginBottom:'0px', transform:'scale(.94)', overflow:'hidden', offset:1 }
+    ], { duration:340, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
+    a.onfinish = ()=>{ done(); };
+  }catch(_){ done(); }
+}
 function smoothToggleBox(box, show){
   if(!box) return;
   box.dataset.noAnim = '1';   // 공통 높이 애니메이션은 이 상자에는 쓰지 않는다
@@ -6445,16 +6474,15 @@ function classModal(cls){
       <input type="hidden" name="textColor" id="class-text-color-input" value="${escapeHtml(textColor)}">
       <div class="field"><label>과목명</label><input type="text" name="subject" style="font-family:var(--font-display)" value="${escapeHtml(subject)}" required placeholder="예: 반도체소자 및 실습"></div>
       <div class="field"><label>교수님 성함 (선택)</label><input type="text" name="professor" style="font-family:var(--font-display)" value="${escapeHtml(professor)}" placeholder="담당 교수님 성함"></div>
-      <div>
-        <div class="field">
+      <div class="field-row">
+        <div class="field" style="flex:1.4;">
           <label>배경 색상</label>
           <div class="swatches" id="class-swatches-wrap">
             ${COLORS.map(col => `<div class="swatch ${col.hex.toLowerCase() === color.toLowerCase() ? 'selected' : ''}" data-action="pick-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === color.toLowerCase() ? '✓' : ''}</div>`).join('')}
             ${inlineColorSwatchHtml('classcolor', color, !COLORS.some(c=>c.hex.toLowerCase()===color.toLowerCase()))}
           </div>
-          ${inlineColorPanelHtml('classcolor', color)}
         </div>
-        <div class="field">
+        <div class="field" style="flex:0.8;">
           <label>글씨 색상</label>
           <div class="swatches" id="class-text-swatches-wrap">
             <div class="text-swatch ${textColor === '#FFFFFF' ? 'selected' : ''}" data-action="pick-text-color" data-color="#FFFFFF" style="background:#FFFFFF; color:#000;">${textColor === '#FFFFFF' ? '✓' : ''}</div>
@@ -6462,6 +6490,7 @@ function classModal(cls){
           </div>
         </div>
       </div>
+      ${inlineColorPanelHtml('classcolor', color)}
       <div style="margin:14px 0 6px;" class="row-between">
         <label style="font-size:11.5px; font-weight:800; color:var(--text-dim);">수업 요일 및 시간대</label>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-add-slot-row" style="width:auto; padding:3px 8px; font-size:12px;">+ 시간대 추가</button>
@@ -6483,6 +6512,8 @@ function setupClassModalListeners(){
       const slots = readCurrentFormSlots();
       slots.push({ day: 1, start: 540, end: 615, building: '과학기술1관', roomDetail: '' });
       c.innerHTML = slots.map((s, i) => renderSlotHtml(s, i, slots.length)).join('');
+      const cards = c.querySelectorAll('.slot-item-card');
+      popInEl(cards[cards.length - 1]);   // 새 시간대 카드가 뿅 나타난다
     };
   }
 }
@@ -13156,7 +13187,9 @@ document.addEventListener('click', async (e)=>{
       const slots=readCurrentFormSlots();
       if(slots.length<=1){ toast('최소 1개 이상의 시간대가 필요합니다'); return; }
       slots.splice(idx,1);
-      c.innerHTML = slots.map((s,i)=>renderSlotHtml(s,i,slots.length)).join('');
+      const rerender = ()=>{ c.innerHTML = slots.map((s,i)=>renderSlotHtml(s,i,slots.length)).join(''); };
+      const card = el.closest('.slot-item-card');
+      if(card) popOutEl(card, rerender); else rerender();
     }
     else if(a==='cal-month-prev'){ state.calendarMonth=addMonths(state.calendarMonth,-1); renderMain(); }
     else if(a==='cal-month-next'){ state.calendarMonth=addMonths(state.calendarMonth,1); renderMain(); }
