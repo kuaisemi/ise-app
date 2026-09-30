@@ -3152,10 +3152,13 @@ function homeOrderMoveHtml(key){
 // 먼저 선택 칸(.seg-thumb)만 옮겨서 애니메이션을 보여 주고, 끝난 뒤에 같은 클릭을 한 번 더 보내 원래 동작을 실행한다.
 if(!window.__segSlideBound){
   window.__segSlideBound = true;
+  // 새로 손을 대는 순간 이전 밀기의 클릭 차단은 끝낸다(연달아 빠르게 누르거나 밀어도 다음 동작이 먹히도록)
+  document.addEventListener('pointerdown', ()=>{ window.__suppressClick = null; }, true);
   document.addEventListener('click', (e)=>{
     // 손으로 밀어서 바꾼 직후에 뒤따라오는 진짜 클릭은 버린다(이미 바꿨으므로 또 바꾸면 되돌아간다)
     const sp = window.__suppressClick;
-    if(sp && Date.now() < sp.until && sp.el && sp.el.contains(e.target)){ e.stopPropagation(); e.preventDefault(); return; }
+    // 우리가 코드로 보낸 클릭(isTrusted=false)은 절대 막지 않는다. 막으면 선택 칸은 움직였는데 실제 설정은 안 바뀐다.
+    if(e.isTrusted && sp && Date.now() < sp.until && sp.el && sp.el.contains(e.target)){ e.stopPropagation(); e.preventDefault(); return; }
     // 위젯 설정의 켜짐/꺼짐 스위치: 먼저 미끄러뜨리고 0.24초 뒤에 원래 동작을 실행한다
     const tg = e.target.closest && e.target.closest('.tgl[data-action^="toggle-widget-"]');
     if(tg){
