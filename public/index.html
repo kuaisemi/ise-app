@@ -384,6 +384,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-slot.empty{border-style:dashed;}
 .av-slot.selected{border-color:var(--crimson);}
 .av-slot-del{position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%; border:none; background:var(--surface-3); color:var(--text); font-size:14px; line-height:1; padding:0; cursor:pointer;}
+.av-five{display:grid; grid-template-columns:repeat(5, 1fr); justify-items:center; gap:8px;}
+.px-wrap{transition:max-width .25s cubic-bezier(.3,.7,.3,1);}
 .av-tools{display:flex; gap:6px; align-items:center; margin-bottom:10px;}
 .px-wrap{position:relative; width:100%; max-width:320px; margin:0 auto; aspect-ratio:1/1; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; overflow:hidden;}
 .px-wrap canvas{display:block; width:100%; height:100%; image-rendering:pixelated; touch-action:none;}
@@ -8207,8 +8209,8 @@ AV_ICONS.push(
   ['pin','위치','<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>']
 );
 AV_EMOJIS.push('😂','🥹','😇','🤗','🤔','😏','😜','🤪','😡','🥶','🥵','🤯','😭','🤠','🧐','😺','🐰','🐻','🐨','🐯','🦁','🐮','🐷','🐵','🐔','🦉','🦋','🐝','🐞','🐬','🐳','🦈','🦖','🐉','🌵','🌴','🌻','🌹','🍁','🍄','🌊','⛄','🌍','🪐','🌟','💫','💎','👑','🎯','🎲','🧩','🎨','🎬','🎤','🎸','🥁','🎹','⚽','🏀','🏈','⚾','🎾','🏐','🏓','🥊','🚗','✈️','🚁','🛸','⚓','🧲','🔋','💡','📡','🔌','🖥️','⌨️','🖱️','💾','📷','🔍','🔐','🔑','🧰','🛠️','⚙️','🦾','🧬','🍜','🍙','🍦','🍓','🍉','🍇','🥑','🌮','🍟','🥤','🍰','🍫','🍿');
-const AV_COLORS = ['', '#E0AC55', '#A72A3A', '#6FA3F5', '#FFFFFF'];
-const AV_BGS = ['', '#0F1626', '#3A1A20', '#FFFFFF', '#EEDFC7'];
+const AV_COLORS = ['', '#E0AC55', '#A72A3A', '#6FA3F5'];
+const AV_BGS = ['', '#0F1626', '#3A1A20', '#EEDFC7'];
 const PX_PALETTE = ['#000000','#FFFFFF','#A72A3A','#FF6B6B','#FFB454','#E0AC55','#6FA3F5','#3ED6B5'];
 const AV_DEFAULT = { kind:'preset', id:'chip', color:'', bg:'' };
 
@@ -8268,6 +8270,8 @@ function avStyle(av){
 }
 
 let avMore = { icon:false, emoji:false }, avSlotSel = -1;
+const AV_PX_SIZES = { s:['작게', 190], m:['보통', 260], l:['크게', 320] };
+function avPxSizeKey(){ const k = localGet('avatar_px_size', 'm'); return AV_PX_SIZES[k] ? k : 'm'; }
 let avDraft = null, avTab = 'icon', avPx = [], avPxColor = '#000000', avPxTool = 'pen', avPxUndo = [];
 function openAvatarEditor(){
   avDraft = JSON.parse(JSON.stringify(getAvatar()));
@@ -8302,7 +8306,7 @@ function updateAvPreview(){
 }
 function avSwatchRow(id, list, cur, action, extra){
   const isPreset = list.some(h=>h.toLowerCase() === (cur||'').toLowerCase());
-  return '<div class="swatches av-swatches" id="'+id+'">'
+  return '<div class="swatches av-swatches av-five" id="'+id+'">'
     + list.map(h => h === ''
         ? '<button type="button" class="swatch line-default '+(!cur ? 'selected' : '')+'" data-action="'+action+'" data-hex="" data-target="'+extra+'" title="기본">기본</button>'
         : '<button type="button" class="swatch '+(cur && cur.toLowerCase() === h.toLowerCase() ? 'selected' : '')+'" data-action="'+action+'" data-hex="'+h+'" data-target="'+extra+'" style="background:'+h+'; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>').join('')
@@ -8356,8 +8360,8 @@ function renderAvBody(){
       + '<button type="button" class="btn btn-sm '+(avPxTool === 'erase' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="erase">지우개</button>'
       + '<button type="button" class="btn btn-sm '+(avPxTool === 'fill' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="fill">채우기</button>'
       + '<span style="flex:1;"></span><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-undo">되돌리기</button><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-clear">비우기</button></div>'
-      + '<div class="px-wrap"><canvas id="av-canvas" width="32" height="32"></canvas><div class="px-grid"></div></div>'
-      + '<p class="set-label sm" style="margin-top:12px;">그리는 색</p>'
+      + '<div class="px-wrap" style="max-width:'+AV_PX_SIZES[avPxSizeKey()][1]+'px;"><canvas id="av-canvas" width="32" height="32"></canvas><div class="px-grid"></div></div>'
+      + '<div class="row-between" style="margin-top:12px;"><p class="set-label sm" style="margin:0;">그리는 색</p><button type="button" class="btn btn-ghost btn-sm" id="av-px-size-btn" data-action="av-px-size" style="width:auto; padding:4px 10px; font-size:10.5px;">캔버스 '+AV_PX_SIZES[avPxSizeKey()][0]+'</button></div>'
       + '<div class="swatches av-swatches" id="px-palette">' + PX_PALETTE.map(h=>'<button type="button" class="swatch '+(avPxColor.toLowerCase() === h.toLowerCase() ? 'selected' : '')+'" data-action="av-px-color" data-hex="'+h+'" style="background:'+h+'; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>').join('')
       + inlineColorSwatchHtml('pxcolor', avPxColor, !PX_PALETTE.some(h=>h.toLowerCase() === avPxColor.toLowerCase())) + '</div>'
       + inlineColorPanelHtml('pxcolor', avPxColor) + avSlotsHtml() + bgRow;
@@ -12437,6 +12441,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'av-px-color'){ avPxColor = el.dataset.hex; if(avPxTool === 'erase') avPxTool = 'pen'; renderAvBody(); }
     else if(a === 'av-px-undo'){ if(avPxUndo.length){ avPx = avPxUndo.pop(); renderAvBody(); } }
     else if(a === 'av-px-clear'){ avPxUndo.push(avPx.slice()); avPx = new Array(1024).fill(''); renderAvBody(); }
+    else if(a === 'av-px-size'){
+      const order = ['s','m','l']; const nk = order[(order.indexOf(avPxSizeKey()) + 1) % 3];
+      localSet('avatar_px_size', nk);
+      const w = document.querySelector('.px-wrap'); if(w) w.style.maxWidth = AV_PX_SIZES[nk][1] + 'px';
+      el.textContent = '캔버스 ' + AV_PX_SIZES[nk][0];
+    }
     else if(a === 'av-more'){
       const k = el.dataset.k; avMore[k] = !avMore[k];
       const ex = document.getElementById('av-extra-' + k); if(ex) ex.style.display = avMore[k] ? '' : 'none';
