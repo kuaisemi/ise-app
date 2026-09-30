@@ -612,6 +612,8 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .seg-group.tt-seg button{font-size:clamp(10.5px, 3.1vw, 12px); padding:7px 0;}
 .seg-group.tt-seg.disabled{opacity:.4; pointer-events:none;}
 .seg-group.sm button{font-size:11.5px; padding:7px 0;}
+.seg-group.notice-author-seg{flex:1 1 0; min-width:0; width:auto; max-width:230px;}
+.seg-group.notice-author-seg button{font-size:clamp(10px, 3vw, 11.5px);}
 /* 홈 화면 보기 설정 줄 간격 + 끌어서 순서 바꾸기 */
 .notify-row.hp-row{padding:5px 2px; min-height:40px; box-sizing:border-box;}
 /* 손으로 잡고 밀 수 있게: 세로 스크롤만 브라우저에 맡기고 가로 움직임은 우리가 받는다 */
@@ -7612,12 +7614,12 @@ function noticeModal(n){
         <div class="row-between" style="gap:10px;">
           <span style="color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.eyeOff} 작성자 표시</span>
           <input type="hidden" name="displayAs" value="council">
-        </div>
-        <div class="seg-group sm" style="width:100%; margin-top:8px;"><span class="seg-thumb" style="--n:4; --i:0;"></span>
+        <div class="seg-group sm notice-author-seg"><span class="seg-thumb" style="--n:4; --i:0;"></span>
           <button type="button" class="on" data-action="notice-display-as" data-val="council">학생회</button>
           <button type="button" data-action="notice-display-as" data-val="developer">개발자</button>
           <button type="button" data-action="notice-display-as" data-val="real">실명</button>
           <button type="button" data-action="notice-display-as" data-val="none">끄기</button>
+        </div>
         </div>
       </div>` : isCouncil() ? `
       <div style="margin:8px 0 0;">
