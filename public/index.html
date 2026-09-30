@@ -1508,7 +1508,7 @@ const PATCH_NOTES = [
 const DAYS = ['월','화','수','목','금'];
 const TIME_START = 540;
 const TIME_END   = 1320;
-const TIMETABLE_VISIBLE_END = 1200;   // 시간표가 최소한 보여 주는 끝 시각(20시). 수업이 더 늦게 끝나면 그 시각(최대 22시)까지 늘어난다
+const TIMETABLE_VISIBLE_END = 1200;   // 시간표가 보여 주는 끝 시각(20시, 최대이자 최소). 그 뒤 시간은 자르고 대신 칸을 그만큼 크게 그려 화면을 채운다
 const TIMETABLE_GRID_STEP = 15;
 // 한눈에 보려고 스크롤을 계속 내려야 한다는 피드백을 받아 15→12→10으로 줄였다 —
 // 글자 크기(.tt-block 안 폰트)는 그대로 두고 칸 높이(여백)만 줄여서, 글씨는 안 작아지고
@@ -6053,11 +6053,11 @@ function fitTimetableGrid(){
 // 여기서도 써서(버전 푸터를 보여줄지 말지 결정하는 데 씀), 로직이 어긋나지 않게 한다.
 function timetableVisibleEnd(){
   const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
-  return Math.min(TIME_END, Math.max(TIMETABLE_VISIBLE_END, Math.ceil(latestEnd/60)*60));
+  return TIMETABLE_VISIBLE_END;
 }
 function renderTimetable(isCapture=false){
   const latestEnd = state.timetable.reduce((m,c)=>Math.max(m, Number(c.end)||TIME_START), TIME_START);
-  const visibleEnd = Math.min(TIME_END, Math.max(TIMETABLE_VISIBLE_END, Math.ceil(latestEnd/60)*60));
+  const visibleEnd = TIMETABLE_VISIBLE_END;   // 항상 9시~20시(44칸): 비율이 일정하고 스크롤 없이 화면을 딱 채운다
   const rows = Math.ceil((visibleEnd-TIME_START)/TIMETABLE_GRID_STEP);
   const di = todayDayIndex();
 
@@ -6079,7 +6079,9 @@ function renderTimetable(isCapture=false){
   let blocks='';
   state.timetable.forEach(c=>{
     const start = Math.max(TIME_START, Number(c.start)||TIME_START);
-    const end = Math.min(visibleEnd, Number(c.end)||start+60);
+    if(start >= visibleEnd) return;   // 20시 이후에 시작하는 수업은 이 화면에 그리지 않는다(잘려도 괜찮고 스크롤은 만들지 않는다)
+    const realEnd = Number(c.end)||start+60;
+    const end = Math.min(visibleEnd, realEnd);
     const startRow = 2 + Math.floor((start-TIME_START)/TIMETABLE_GRID_STEP);
     const endRow = Math.max(startRow+1, 2 + Math.ceil((end-TIME_START)/TIMETABLE_GRID_STEP));
     const textColor = c.textColor || '#FFFFFF';
@@ -6087,7 +6089,7 @@ function renderTimetable(isCapture=false){
     blocks += `<div class="tt-block" ${actionAttr}
       style="grid-column:${c.day+2}; grid-row:${startRow} / ${endRow}; background:${c.color||COLORS[0].hex}; color:${textColor};">
       ${o.subject ? `<b style="color:${textColor};">${escapeHtml(c.subject)}</b>` : ''}
-      ${o.time ? `<span class="time-tag" style="color:${textColor}">${minutesToLabel(start)}–${minutesToLabel(end)}</span>` : ''}
+      ${o.time ? `<span class="time-tag" style="color:${textColor}">${minutesToLabel(start)}–${minutesToLabel(realEnd)}</span>` : ''}
       ${o.professor && c.professor ? `<span class="prof-tag" style="color:${textColor}">${escapeHtml(c.professor)}</span>` : ''}
       ${o.room && c.room ? `<span class="room-tag" style="color:${textColor}">${formatRoomForBlock(c.room)}</span>` : ''}
     </div>`;
@@ -12977,7 +12979,7 @@ document.addEventListener('click', async (e)=>{
       const kindInput = form && form.querySelector('input[name="kind"]'); if(kindInput) kindInput.value = idea ? 'idea' : 'bug';
       set('bug-intro', n=>{ n.textContent = idea ? '있으면 좋겠다고 생각한 기능이나 바뀌었으면 하는 점을 자유롭게 적어 주세요. 어떤 상황에서 왜 필요한지 함께 적어 주시면 큰 도움이 돼요.' : '이상하게 동작하는 부분을 발견하면 알려주세요. 어떤 화면에서 무엇을 했더니 어떻게 됐는지 최대한 자세히 적어주시면 좋아요. 스크린샷도 첨부할 수 있어요.'; });
       set('bug-title-input', n=>{ n.placeholder = idea ? '예: 시간표를 위젯에서 바로 추가하고 싶어요' : '예: 학과 공지 좋아요 버튼 눌러도 안 눌림'; });
-      set('bug-content-input', n=>{ n.placeholder = idea ? '자세히 적지 않아도 괜찮아요 (예: 그냥)' : '어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요'; n.required = !idea; });
+      set('bug-content-input', n=>{ n.placeholder = idea ? '어떤 기능이 있으면 좋을지, 왜 필요한지 적어주세요. 정 생각이 안 나면 "그냥"이라고 적어도 괜찮아요' : '어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요'; n.required = !idea; });
       set('bug-content-label', n=>{ n.textContent = idea ? '자세한 내용 (선택)' : '자세한 내용'; });
       set('bug-img-label', n=>{ n.textContent = idea ? '참고 이미지 (선택)' : '스크린샷 (선택)'; });
       set('bug-submit-btn', n=>{ n.textContent = idea ? '제안 보내기' : '제보 보내기'; });
