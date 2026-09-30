@@ -5639,7 +5639,7 @@ function ttOptionsModal(){
       <div class="opt-sec">
         <p class="set-label sm">배경 색상</p>
         <div class="swatches" id="tt-bg-color-swatches" data-selected="${o.bgColor||''}">
-          <button type="button" class="swatch tt-bg-pending ${!o.bgColor ? 'selected' : ''}" data-hex="" title="기본(테마 색)" style="background:linear-gradient(90deg,#fff 50%,#000 50%);">${!o.bgColor ? TT_CHECK_SVG : ''}</button>
+          <button type="button" class="swatch tt-bg-pending ${!o.bgColor ? 'selected' : ''}" data-hex="" title="기본(테마 색)" style="background:transparent;"><svg width="100%" height="100%" viewBox="0 0 30 30" style="display:block;"><path d="M15 0a15 15 0 0 0 0 30z" fill="#fff"/><path d="M15 0a15 15 0 0 1 0 30z" fill="#000"/><circle cx="15" cy="15" r="14.5" fill="none" stroke="rgba(128,128,128,.55)"/></svg></button>
           ${TT_BG_PRESETS.map(hex => `<button type="button" class="swatch tt-bg-pending ${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);">${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? TT_CHECK_SVG : ''}</button>`).join('')}
           ${inlineColorSwatchHtml('ttbg', o.bgColor || '#000000', !!o.bgColor && !TT_BG_PRESETS.some(h=>h.toLowerCase()===o.bgColor.toLowerCase()))}
         </div>
@@ -5693,8 +5693,8 @@ function setupTtOptionsModalListeners(){
   const bgWrap = document.getElementById('tt-bg-color-swatches');
   panel.querySelectorAll('.tt-bg-pending').forEach(btn=>{
     btn.onclick = ()=>{
-      panel.querySelectorAll('#tt-bg-color-swatches .swatch').forEach(b=>{ b.classList.remove('selected'); b.innerHTML = (b.dataset.action === 'toggle-inline-color') ? '+' : ''; if(b.dataset.action === 'toggle-inline-color') b.style.background = 'var(--surface-2)'; });
-      btn.classList.add('selected'); btn.innerHTML = TT_CHECK_SVG;
+      panel.querySelectorAll('#tt-bg-color-swatches .swatch').forEach(b=>{ b.classList.remove('selected'); if(b.dataset.action === 'toggle-inline-color') b.style.background = 'var(--surface-2)'; });
+      btn.classList.add('selected');
       if(bgWrap) bgWrap.dataset.selected = btn.dataset.hex;
     };
   });
@@ -11760,7 +11760,6 @@ INLINE_COLOR_HANDLERS['ttbg'] = (hex)=>{
   document.querySelectorAll('#tt-bg-color-swatches .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
-    s.innerHTML = isPicker ? '+' : '';
     if(isPicker) s.style.background = hex;
   });
 };
