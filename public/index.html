@@ -593,7 +593,15 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .fp-empty b{font-size:14px;}
 .fp-empty small{font-size:11px; color:var(--text-dim); line-height:1.5;}
 /* 환경설정 창: 예전 MY 탭 안 패널보다 넉넉하게(카드 둥글게, 제목·글자 조금 크게, 줄 간격 넓게) */
-#settings-page .fp-body{padding-top:16px;}
+#settings-page .fp-body{padding-top:0;}
+.st-nav{position:sticky; top:0; z-index:4; display:flex; gap:7px; margin:0 -16px 16px; padding:11px 16px; background:var(--bg); border-bottom:1px solid var(--border); overflow-x:auto;}
+.st-chip{flex:0 0 auto; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); border-radius:999px; padding:7px 14px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.st-chip:active{transform:scale(.95); background:var(--surface-3);}
+.st-sec{margin-bottom:24px; scroll-margin-top:62px;}
+#settings-page .home-order-row{background:transparent;}
+#settings-page .home-order-row.dragging{background:var(--surface-3); border-radius:12px;}
+#settings-page .notify-label > svg{box-sizing:content-box; width:16px; height:16px; padding:7px; border-radius:10px; background:var(--surface-3); color:var(--text-dim);}
+#settings-page .notify-row + .notify-row{border-top:1px solid var(--border);}
 .st-cap{margin:18px 4px 8px; font-size:11px; font-weight:800; color:var(--text-faint); letter-spacing:.02em;}
 .st-cap:first-child{margin-top:4px;}
 .st-group{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; overflow:hidden;}
@@ -2417,7 +2425,7 @@ function getThemeOverride(){ return localGet('theme_override', 'dark'); }
 function setThemeOverride(v){
   localSet('theme_override', v);
   applyTheme(getTheme());
-  renderApp();
+  rerenderAppKeepSettings();
 }
 function getTheme(){
   const ov = getThemeOverride();
@@ -2440,7 +2448,7 @@ function applyFontScale(key){
 function setFontScale(key){
   localSet('font_scale', key);
   applyFontScale(key);
-  renderApp();
+  rerenderAppKeepSettings();
 }
 
 applyTheme(getTheme());
@@ -9342,38 +9350,12 @@ function settingsDetailHead(tab){
   const m = SETTINGS_SECTIONS[tab]; if(!m) return '';
   return `<div class="st-dhead"><span class="st-ic" style="background:${m.color};">${m.icon()}</span><span class="st-txt"><b>${m.label}</b><small>${m.desc}</small></span></div>`;
 }
-// 환경설정 첫 화면: 항목마다 지금 상태를 한 줄로 보여 주고, 누르면 그 화면으로 들어간다
-function settingsHubHtml(themeOv, scale, np, hp){
-  const themeLabel = { system:'기기 설정', light:'라이트', dark:'다크' }[themeOv] || '기기 설정';
-  const scaleLabel = (FONT_SCALES.find(([v])=>v===scale) || FONT_SCALES[1])[1];
-  const hidden = ['hideVotedPolls','hideTodayTimetable','hideRecruits','hideTodayMeal','hideShuttle','hideUpcomingCalendar','hideUpcomingMine'].filter(k=>hp[k]).length;
-  const nOn = [np.notice, np.poll, np.recruit, np.friendRequest !== false, np.night, np.timetable].filter(Boolean).length;
-  const sum = {
-    display: `${themeLabel} · 글씨 ${scaleLabel}`,
-    home: hidden ? `숨긴 항목 ${hidden}개` : '모두 표시 중',
-    notify: nOn ? `${nOn}개 켜짐` : '모두 꺼짐',
-    widget: '바탕화면 위젯',
-  };
-  const item = (k)=>{ const m = SETTINGS_SECTIONS[k]; return `<div class="st-item" data-action="settings-tab" data-tab="${k}"><span class="st-ic" style="background:${m.color};">${m.icon()}</span><span class="st-txt"><b>${m.label}</b><small>${sum[k]}</small></span><span class="st-chev">${ICON.chevR}</span></div>`; };
-  return `
-    <p class="st-cap">보기</p>
-    <div class="st-group">${item('display')}${item('home')}</div>
-    <p class="st-cap">알림 · 기기</p>
-    <div class="st-group">${item('notify')}${isIOSDevice() ? '' : item('widget')}</div>
-    <p class="st-foot">KU ISE · ${escapeHtml(APP_VERSION)}</p>`;
-}
-function settingsTitle(){
-  const m = SETTINGS_SECTIONS[state.settingsTab];
-  return m ? m.label : '환경설정';
-}
-function settingsPanelHtml(){
+function settingsSectionHtml(tab){
   const themeOv = getThemeOverride();
   const scale = getFontScale();
   const np = getNotifyPrefs();
   const hp = getHomePrefs();
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-  const tab = state.settingsTab;
-  if(!['display','home','notify','widget'].includes(tab) || (tab==='widget' && isIOSDevice())) return settingsHubHtml(themeOv, scale, np, hp);
   return settingsDetailHead(tab) + `
     <div class="card" style="margin-top:10px;">
       ${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<p class="set-title"><span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span></p>` : ''}
@@ -9494,16 +9476,46 @@ function settingsPanelHtml(){
     </div>
   `;
 }
-function openSettingsPage(){
+// 네 섹션(화면·홈 화면·알림·위젯)을 한 페이지에 차례로 보여 준다. 위쪽 칩을 누르면 그 섹션으로 스크롤한다.
+// 본문은 탭별 조건(state.settingsTab)으로 만들어져 있어서, 섹션마다 잠깐 그 값으로 바꿔서 그린다.
+function settingsPanelHtml(){
+  const prev = state.settingsTab;
+  const tabs = ['display','home','notify'].concat(isIOSDevice() ? [] : ['widget']);
+  try{
+    const nav = `<div class="st-nav">${tabs.map(t=>`<button type="button" class="st-chip" data-action="settings-jump" data-tab="${t}">${SETTINGS_SECTIONS[t].label}</button>`).join('')}</div>`;
+    const secs = tabs.map(t=>{ state.settingsTab = t; return `<section class="st-sec" id="st-sec-${t}">${settingsSectionHtml(t)}</section>`; }).join('');
+    return nav + secs;
+  } finally { state.settingsTab = prev; }
+}
+// 새 HTML과 지금 화면을 비교해서 달라진 곳만 고친다(통째로 갈아끼우면 스위치·선택기 애니메이션이 끊기고 깜빡인다).
+function morphChildren(dst, src){
+  const sk = Array.from(src.childNodes);
+  for(let i=0;i<sk.length;i++){
+    const n = sk[i], d = dst.childNodes[i];
+    if(!d){ dst.appendChild(n.cloneNode(true)); continue; }
+    if(d.nodeType !== n.nodeType || d.nodeName !== n.nodeName){ dst.replaceChild(n.cloneNode(true), d); continue; }
+    if(n.nodeType !== 1){ if(d.nodeValue !== n.nodeValue) d.nodeValue = n.nodeValue; continue; }
+    if(d.isEqualNode(n)) continue;
+    Array.from(d.attributes).forEach(a=>{ if(!n.hasAttribute(a.name)) d.removeAttribute(a.name); });
+    Array.from(n.attributes).forEach(a=>{ if(d.getAttribute(a.name) !== a.value) d.setAttribute(a.name, a.value); });
+    morphChildren(d, n);
+  }
+  while(dst.childNodes.length > sk.length) dst.removeChild(dst.lastChild);
+}
+function openSettingsPage(opts){
   if(!state.user || document.getElementById('settings-page')) return;
-  state.settingsTab = 'hub';
   const wrap = document.createElement('div');
   wrap.className = 'friends-page';
   wrap.id = 'settings-page';
-  wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="settings-back" aria-label="뒤로">${ICON.chevL}</button><b id="settings-page-title">${settingsTitle()}</b><span class="fp-head-sp"></span></div><div class="fp-body" id="settings-page-body" data-tab="${state.settingsTab}">${settingsPanelHtml()}</div>`;
+  wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="close-settings-page" aria-label="닫기">${ICON.chevL}</button><b>환경설정</b><span class="fp-head-sp"></span></div><div class="fp-body" id="settings-page-body">${settingsPanelHtml()}</div>`;
   placeBelowTopbar(wrap);
   (document.querySelector('.shell') || document.body).appendChild(wrap);
-  requestAnimationFrame(()=>wrap.classList.add('open'));
+  const body = wrap.querySelector('#settings-page-body');
+  if(opts && opts.instant){   // 화면 전체가 다시 그려진 뒤 되살릴 때는 올라오는 효과 없이 바로 보인다
+    wrap.style.transition = 'none'; wrap.classList.add('open');
+    body.scrollTop = opts.scroll || 0;
+    requestAnimationFrame(()=>{ wrap.style.transition = ''; });
+  } else requestAnimationFrame(()=>wrap.classList.add('open'));
   renderMain();   // 위젯 슬라이더 같은 것을 새 화면에 연결한다
 }
 function closeSettingsPage(){
@@ -9515,17 +9527,16 @@ function closeSettingsPage(){
 function refreshSettingsPage(){
   const body = document.getElementById('settings-page-body');
   if(!body) return;
-  const top = body.scrollTop;
-  const moved = body.dataset.tab !== state.settingsTab;   // 다른 화면으로 넘어갈 때만 미끄러지는 효과를 주고 맨 위부터 보여 준다
-  const toHub = state.settingsTab === 'hub';
-  body.innerHTML = settingsPanelHtml();
-  body.scrollTop = moved ? 0 : top;
-  if(moved){
-    body.dataset.tab = state.settingsTab;
-    body.classList.remove('st-in', 'st-back'); void body.offsetWidth;
-    body.classList.add('st-in'); if(toHub) body.classList.add('st-back');
-    const t = document.getElementById('settings-page-title'); if(t) t.textContent = settingsTitle();
-  }
+  const t = document.createElement('template');
+  t.innerHTML = settingsPanelHtml();
+  morphChildren(body, t.content);
+}
+// 테마·글씨 크기는 화면 전체를 다시 그려서(renderApp) 그 위의 설정 창도 같이 사라진다 — 열려 있었으면 같은 스크롤 위치로 바로 되살린다.
+function rerenderAppKeepSettings(){
+  const b = document.getElementById('settings-page-body');
+  const keep = b ? { scroll: b.scrollTop } : null;
+  renderApp();
+  if(keep) openSettingsPage({ instant:true, scroll: keep.scroll });
 }
 
 /* ===== 마이페이지 ===== */
@@ -13183,7 +13194,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'close-friends-page'){ closeFriendsPage(); }
     else if(a === 'open-settings-page'){ openSettingsPage(); }
     else if(a === 'close-settings-page'){ closeSettingsPage(); }
-    else if(a === 'settings-back'){ if(state.settingsTab && state.settingsTab !== 'hub'){ state.settingsTab = 'hub'; renderMain(); } else closeSettingsPage(); }
+    else if(a === 'settings-jump'){ const sec = document.getElementById('st-sec-' + el.dataset.tab); if(sec) sec.scrollIntoView({ behavior:'smooth', block:'start' }); }
     else if(a === 'open-update-check'){
       // 웹은 물어볼 APK가 없으니 곧바로 결과 화면을 띄운다(로딩 단계 자체가 불필요).
       if(!isNativeApp){ openModal(updateCheckModal()); return; }
