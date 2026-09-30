@@ -1008,9 +1008,9 @@ function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/,
 const ANDROID_VERSION_CODE = 174;
 const PATCH_NOTES = [
   { version:'Beta 0.5.0', date:'2026-09-30', items:[
-    { title:'프로필 아이콘을 바꿀 수 있어요', text:'MY 탭에서 이름 옆 아이콘을 누르면 반도체 · 트랜지스터 · 램 · 안경 · 하트 · 별 등 80여 종의 아이콘과 이모지를 고르고, 아이콘 색과 배경 색도 정할 수 있어요' },
+    { title:'프로필 아이콘을 바꿀 수 있어요', text:'MY 탭에서 이름 옆 아이콘을 누르면 반도체 · 트랜지스터 · 램 · 안경 · 하트 · 별 등 80여 종의 아이콘과 이모지를 고르고, 아이콘 색과 배경 색도 정할 수 있어요. 내 계정에 저장돼서 다른 기기에서도 같아요' },
     { title:'32x32 도트로 직접 그려요', text:'"내 그림"의 + 칸이나 새로 그리기를 누르면 별도 그림판이 열려요. 펜 · 지우개 · 채우기 · 되돌리기와 1~8px 펜 굵기를 지원하고, 그림은 3개까지 보관해요' },
-    { title:'나만 보는 별명', text:'프로필 편집에서 별명(최대 8자, 한글·영어·숫자)을 정하면 홈 인사말이 별명으로 바뀌고 MY 이름 옆에 (별명)이 붙어요. 이 폰에서만 보이고, 욕설이나 성적인 표현은 쓸 수 없어요' },
+    { title:'나만 보는 별명', text:'프로필 편집에서 별명(최대 8자, 한글·영어·숫자)을 정하면 홈 인사말이 별명으로 바뀌고 MY 이름 옆에 (별명)이 붙어요. 내 계정에 저장돼서 다른 기기에서도 같아요. 나에게만 보이고, 욕설이나 성적인 표현은 쓸 수 없어요' },
     { title:'시간표 + 버튼을 옆으로 밀어 넣기', text:'+ 버튼을 오른쪽 가장자리로 밀면 끄트머리만 남아서 캡처할 때 시간표를 가리지 않아요. 다시 끌거나 눌러서 꺼내요. 메뉴가 닫힐 때도 부드럽게 사라져요' },
     { title:'공지 작성자 표시에 실명 · 끄기', text:'개발자는 작성자를 학생회 · 개발자 · 실명 · 끄기 중에서 고를 수 있어요' },
     { title:'열리고 닫힐 때 부드럽게', text:'일정 자세히 보기, 달력 날짜 선택창, 색상판 등이 나타나고 사라질 때 천천히 움직여요' },
@@ -2759,6 +2759,7 @@ function boot(){
           // 깔거나 다른 기기로 바꿨을 때 이미 확인한 알림이 다시 나타난다. 로그인할 때
           // 서버(udoc)에 저장된 값과 합쳐서 두 기록 중 더 최근 것을 기준으로 맞춘다.
           mergeNotifFeedStateFromServer(udoc.notifFeedState);
+          mergeProfileFromServer(udoc.profile);
           await loadAllData(usersList);
           trackUserPresence(state.user, true);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
@@ -8308,6 +8309,56 @@ if(!window.__nickInputBound){
     if(clean !== t.value) t.value = clean;
   }, true);
 }
+function avSlotOk(sl){
+  return !!sl && typeof sl === 'object' && Array.isArray(sl.pal) && sl.pal.length <= 64 && sl.pal.every(c=>typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c))
+    && typeof sl.rle === 'string' && sl.rle.length <= 7000 && /^[e0-9:,]+$/.test(sl.rle);
+}
+function profileSnapshot(){
+  const av = getAvatar();
+  const isDefault = av.kind === 'preset' && av.id === 'chip' && !av.color && !av.bg;
+  const slots = [0,1,2].map(i => { const a = localGet('avatar_slots', []); return (Array.isArray(a) && avSlotOk(a[i])) ? { pal:a[i].pal, rle:a[i].rle } : null; });
+  return {
+    nick: getNickname(),
+    avatar: isDefault ? '' : JSON.stringify(av).slice(0, 7600),
+    slots: slots.some(Boolean) ? JSON.stringify(slots) : '',
+  };
+}
+let profileSyncTimer = null;
+function syncProfileToServer(){
+  if(!state.user) return;
+  if(profileSyncTimer) clearTimeout(profileSyncTimer);
+  profileSyncTimer = setTimeout(async ()=>{
+    profileSyncTimer = null;
+    const at = now();
+    localSet('profile_at', at);
+    try{ await setDoc(doc(db,'users',state.user.uid), { profile: { at, ...profileSnapshot() } }, { merge:true }); }
+    catch(e){ console.warn('[profile sync]', e); }
+  }, 800);
+}
+// 로그인할 때 서버 값이 더 최근이면 이 기기 값을 서버 값으로 맞추고, 서버에 아직 없으면 이 기기 값을 한 번 올린다.
+// 서버에서 온 값은 남이 바꿔 놓았을 가능성까지 생각해서 화면에 쓰기 전에 전부 다시 검사한다.
+function mergeProfileFromServer(pf){
+  try{
+    const localAt = Number(localGet('profile_at', 0)) || 0;
+    if(pf && typeof pf === 'object' && Number(pf.at) > localAt){
+      const nk = nickCheck(typeof pf.nick === 'string' ? pf.nick : '');
+      localSet('nickname', nk.ok ? nk.value : '');
+      if(typeof pf.avatar === 'string' && pf.avatar){
+        let av = null; try{ av = avSanitize(JSON.parse(pf.avatar)); }catch(_){ av = null; }
+        localSet('avatar', av || { ...AV_DEFAULT });
+      } else { localSet('avatar', { ...AV_DEFAULT }); }
+      let slots = [null, null, null];
+      if(typeof pf.slots === 'string' && pf.slots){
+        try{ const a = JSON.parse(pf.slots); if(Array.isArray(a)) slots = [0,1,2].map(i => avSlotOk(a[i]) ? { pal:a[i].pal, rle:a[i].rle } : null); }catch(_){}
+      }
+      localSet('avatar_slots', slots);
+      localSet('profile_at', Number(pf.at));
+    } else if(!pf){
+      const sn = profileSnapshot();
+      if(sn.nick || sn.avatar || sn.slots) syncProfileToServer();
+    }
+  }catch(e){ console.warn('[profile merge]', e); }
+}
 function getNickname(){ const v = localGet('nickname', ''); return (typeof v === 'string' && nickCheck(v).ok) ? v.trim() : ''; }
 const AV_HEX = /^#[0-9a-fA-F]{6}$/;
 function avSanitize(a){
@@ -8504,7 +8555,7 @@ function avRefresh(){ if(document.getElementById('av-ov')) avRenderOverlay(); el
 function avSlotSaveTo(i){
   if(!avPx.some(Boolean)){ toast('먼저 그림을 그려 주세요'); return; }
   const slots = avSlots(); const e = pxEncode(avPx);
-  slots[i] = { pal:e.pal, rle:e.rle }; localSet('avatar_slots', slots);
+  slots[i] = { pal:e.pal, rle:e.rle }; localSet('avatar_slots', slots); syncProfileToServer();
   avSlotSel = i; renderAvBody(); toast('내 그림에 저장했어요');
 }
 function renderAvBody(){
@@ -8594,10 +8645,12 @@ function avSaveAvatar(){
     const r = nickCheck(nk.value);
     if(!r.ok){ toast(r.msg); nk.focus(); return; }
     localSet('nickname', r.value);
+    syncProfileToServer();
   }
   const av = avCurrent();
   if(av.kind === 'pixel' && !avPx.some(Boolean)){ toast('먼저 그림을 그려 주세요'); return; }
   localSet('avatar', av);
+  syncProfileToServer();
   closeModal();
   renderMain();
   toast('프로필을 저장했어요');
@@ -12659,9 +12712,9 @@ document.addEventListener('click', async (e)=>{
       if(i < 0){ toast('3칸이 모두 찼어요. 덮어쓸 그림을 눌러 고른 뒤 다시 눌러 주세요'); return; }
       avSlotSaveTo(i);
     }
-    else if(a === 'av-slot-del'){ const slots = avSlots(); slots[Number(el.dataset.i)] = null; localSet('avatar_slots', slots); if(avSlotSel === Number(el.dataset.i)) avSlotSel = -1; renderAvBody(); }
+    else if(a === 'av-slot-del'){ const slots = avSlots(); slots[Number(el.dataset.i)] = null; localSet('avatar_slots', slots); syncProfileToServer(); if(avSlotSel === Number(el.dataset.i)) avSlotSel = -1; renderAvBody(); }
     else if(a === 'av-save'){ avSaveAvatar(); }
-    else if(a === 'av-reset'){ localSet('avatar', { ...AV_DEFAULT }); closeModal(); if(state.view === 'mypage') renderMain(); toast('기본 아이콘으로 되돌렸어요'); }
+    else if(a === 'av-reset'){ localSet('avatar', { ...AV_DEFAULT }); syncProfileToServer(); closeModal(); if(state.view === 'mypage') renderMain(); toast('기본 아이콘으로 되돌렸어요'); }
     else if(a === 'toggle-mypage-settings'){
       // 톱니가 90도 도는 동안 기다렸다가 패널을 열고 닫는다(화면을 다시 그리면 돌아가는 모습이 끊긴다)
       if(window.__gearBusy) return;
