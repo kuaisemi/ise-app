@@ -709,6 +709,18 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .acc-dot span{font-size:10.5px; font-weight:600;}
 .acc-dot.on span{color:var(--text); font-weight:800;}
 #settings-page .card + .card{margin-top:12px !important;}
+.fs-hint{margin-left:8px; font-size:10.5px; font-weight:500; color:var(--text-faint);}
+/* 알림: 카드 위아래와 줄 간격을 촘촘하게 */
+#st-sec-notify .card{padding:13px 16px 8px;}
+#st-sec-notify .set-label{margin-bottom:6px;}
+#st-sec-notify .notify-row{padding:8px 2px; min-height:44px;}
+#st-sec-notify .notify-row:first-of-type{padding-top:2px;}
+#st-sec-notify .card p[style*="font-size:10"]{margin:8px 2px 4px !important;}
+/* 학식: 제목 중복 제거, 아이콘에 다른 줄과 같은 네모 칩 */
+#settings-page .meal-title{display:none;}
+#settings-page .meal-wrap{padding:2px 2px 4px;}
+#settings-page .meal-ico{width:30px; height:30px; margin-top:0; border-radius:10px; background:var(--surface-3); color:var(--text-dim);}
+#settings-page .meal-ico svg{width:16px; height:16px;}
 #settings-page .set-label::before{display:none;}
 #settings-page .set-label{margin-bottom:12px;}
 #settings-page .notify-row{padding:13px 2px; min-height:56px; box-sizing:border-box;}
@@ -9520,12 +9532,9 @@ function settingsSectionHtml(tab){
       </p>` : ''}
 
       ${accentPickerHtml()}
-      </div><div class="card"><p class="set-label">글씨 크기 <span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
+      </div><div class="card"><p class="set-label">글씨 크기 <span class="fs-hint">버튼·여백까지 함께 조절돼요</span><span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
       <div class="fs-row"><span class="fs-a s">가</span><input type="range" id="font-pct" min="${FONT_PCT_MIN}" max="${FONT_PCT_MAX}" step="10" value="${fontPct}"><span class="fs-a l">가</span></div>
       <div class="fs-ticks"><span>작게</span><span>기본</span><span>크게</span></div>
-      <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
-        글씨뿐 아니라 버튼·여백까지 함께 커지고 작아져요.
-      </p>
 
       </div><div class="card">
       <div class="row-between" style="margin:0 0 2px; align-items:center;">
@@ -9553,9 +9562,6 @@ function settingsSectionHtml(tab){
         ${state.homeReorderMode ? homeOrderMoveHtml(key) : homePrefToggleHtml(hideKey, meta.hidden)}
       </div>`;
       }).join('')}
-      <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
-        학생회 공지는 등록된 공지가 있을 때만 자동으로 나타나요.
-      </p>
       ${state.homeReorderMode ? `<p style="font-size:10.5px; color:var(--text-faint); margin:4px 2px 0; line-height:1.55;">순서 변경 중이에요. 오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.</p>` : ''}
       ` : ''}
 
