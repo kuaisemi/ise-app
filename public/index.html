@@ -339,7 +339,13 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .sem-picker-lock{font-size:10.5px; font-weight:600; color:var(--text-faint); background:var(--surface-2); padding:2px 8px; border-radius:10px;}
 
 .tt-list-scroll{max-height:64vh; overflow-y:auto;}
-.tt-list-group{margin-bottom:18px;}
+.tt-list-group{margin-bottom:14px;}
+.tt-list-group.folded{margin-bottom:8px;}
+.tt-list-sem-title.fold{cursor:pointer; padding:6px 4px; border-radius:10px; -webkit-tap-highlight-color:transparent;}
+.tt-list-sem-title.fold:active{background:var(--surface-2);}
+.tt-list-sem-count{margin-left:6px; font-size:10px; font-weight:600; color:var(--text-faint);}
+.tt-list-chev{display:flex; color:var(--text-dim); transition:transform .2s;}
+.tt-list-foldall{background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:14px; font-size:10.5px; font-weight:700; padding:4px 10px; cursor:pointer;}
 .tt-list-sem-title{font-size:12.5px; font-weight:800; color:var(--text); margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;}
 .tt-list-sem-del{background:none; border:none; color:var(--text-faint); padding:4px; cursor:pointer;}
 .tt-list-row{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:10px; font-size:12.5px; font-weight:600; color:var(--text-dim); cursor:pointer;}
@@ -461,21 +467,26 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* + 버튼을 누르면 "직접 추가"로 바로 들어가던 걸, 사진 인식도 같이 고를 수 있게
    위로 펼쳐지는 작은 원형 메뉴(스피드 다이얼)로 바꿨다. */
 .ttm-sec{font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.04em; margin:10px 4px 5px;}
-.ttm-card{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
-.ttm-row{display:flex; align-items:center; gap:10px; padding:7px 10px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
-.ttm-row + .ttm-row{border-top:1px solid var(--border-light);}
-.ttm-row:active{background:var(--surface-3);}
-.ttm-ic{width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(var(--c-rgb), .16); color:var(--c);}
-.ttm-ic svg{width:15px; height:15px;}
-.ttm-txt{flex:1; min-width:0;}
-.ttm-txt b{display:block; font-size:12px; line-height:1.3;}
-.ttm-txt small{display:block; font-size:9.5px; color:var(--text-dim); margin-top:1px; line-height:1.3;}
-.ttm-row.danger .ttm-txt b{color:var(--danger-text);}
-.ttm-row .sub{color:var(--text-faint); display:flex;}
+.ttm-sum{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:14px; border:1px solid var(--border); background:linear-gradient(135deg, rgba(224,172,85,.14), rgba(167,42,58,.12));}
+.ttm-sum-ic{width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:rgba(224,172,85,.2); color:var(--teal); flex-shrink:0;}
+.ttm-sum-ic svg{width:18px; height:18px;}
+.ttm-sum-txt{min-width:0;}
+.ttm-sum-txt b{display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.ttm-sum-txt small{display:block; font-size:10px; color:var(--text-dim); margin-top:1px;}
+.ttm-grid{display:grid; gap:8px;}
+.ttm-grid.c2{grid-template-columns:1fr 1fr;}
+.ttm-grid.c3{grid-template-columns:repeat(3,1fr);}
+.ttm-tile{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s, background .15s;}
+.ttm-tile:active{transform:scale(.96); background:var(--surface-3);}
+.ttm-tile b{font-size:11.5px; line-height:1.3;}
+.ttm-tile small{font-size:9.5px; color:var(--text-dim); line-height:1.3;}
+.ttm-tile.danger b{color:var(--danger-text);}
+.ttm-ic{width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(var(--c-rgb), .16); color:var(--c); margin-bottom:1px;}
+.ttm-ic svg{width:16px; height:16px;}
 .tt-fab-backdrop{position:fixed; inset:0; z-index:14; background:transparent;}
 .tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px + 5px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
 @media (max-width:480px){ .tt-fab-option{right:23px;} }
-.tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 12px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,.35); white-space:nowrap;}
+.tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,.35); white-space:nowrap;}
 .tt-fab-option-circle svg{width:18px; height:18px; display:block;}
 .tt-fab-option-circle{flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.35);}
 .tt-fab-option:active .tt-fab-option-circle{transform:scale(0.94);}
@@ -799,7 +810,9 @@ details.likers-accordion > div, details.voters-accordion > div{
 
 .time-slot-inline{display:flex; align-items:center; gap:8px; background:var(--surface-3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 12px; margin-top:4px;}
 .time-slot-inline input[type=time]{background:transparent; border:none; padding:2px; font-size:12.5px; font-family:var(--font-mono); color:var(--text); outline:none; width:90px; text-align:center;}
-.time-slot-inline span.sep{color:var(--text-faint); font-weight:700;}
+.time-slot-inline span.sep{color:var(--text-faint); font-weight:700; flex:0 0 auto;}
+.time-slot-inline{justify-content:center;}
+.time-slot-inline .time-picker{flex:1 1 0; min-width:0; justify-content:center;}
 /* 시간 선택기 — 시간표 수업시간 · 투표 마감 · 일정 알림이 함께 쓴다.
    예전에는 26x20px 버튼이 낱개로 떠 있어서 누르기도 어렵고 입력칸처럼 보이지도 않았다.
    하나의 입력 필드처럼 테두리로 묶고, 손가락에 맞게 버튼을 키웠다(권장 최소 크기에 맞춤). */
@@ -1766,7 +1779,13 @@ function timeInputToMinutes(v){ const m=String(v||'').match(/^(\d{1,2}):(\d{2})$
 // 몇 가지 값 중 하나를 고르는 곳에 공통으로 쓴다. equal=true면 버튼 너비를 균등하게
 // 한 줄로(옵션이 몇 개 안 될 때), false면 내용만큼 너비를 갖고 자연스럽게 줄바꿈된다(옵션이 많을 때).
 // 값은 name 그대로인 hidden input에 저장돼 기존 FormData 처리와 100% 호환된다.
-function renderSegPicker(name, options, value, equal=true, inputId=''){
+function renderSegPicker(name, options, value, equal=true, inputId='', slide=false){
+  // slide=true: 알약 모양 선택기(.seg-group)로 그려서 선택 칸이 미끄러지고, 선택 안 된 칸은 흐릿한 글자로만 보인다(요일 선택용)
+  if(slide){
+    const idx = Math.max(0, options.findIndex(([v])=>String(v)===String(value)));
+    const btns2 = options.map(([v,label],i)=>`<button type="button" class="seg-opt ${i===idx?'on':''}" data-action="seg-pick" data-value="${escapeHtml(String(v))}">${label}</button>`).join('');
+    return `<div class="seg-picker seg-group" data-name="${name}"><span class="seg-thumb" style="--n:${options.length}; --i:${idx};"></span>${btns2}<input type="hidden" name="${name}" ${inputId?`id="${inputId}"`:''} value="${escapeHtml(String(value))}"></div>`;
+  }
   const btns = options.map(([v,label])=>`
     <button type="button" class="btn ${String(v)===String(value)?'btn-primary':'btn-ghost'} btn-sm seg-opt"
       data-action="seg-pick" data-value="${escapeHtml(String(v))}"
@@ -2185,6 +2204,66 @@ async function loadShared(name, fallback){
 }
 
 let LAST_SAVE_ERROR = '';
+// ===== 저장 대기열: 폰에 먼저 저장해 두고, 서버가 바쁘거나 연결이 끊겨도 나중에 자동으로 다시 올린다 =====
+// 내 시간표·메모는 저장할 때 먼저 "저장 대기" 표시(dirty)를 폰에 남기고, 서버가 확인해 주면 지운다. 서버가 바쁘거나(resource-exhausted 등)
+// 응답이 오래 안 오거나 앱이 그 사이 꺼져도 표시가 남아 있어서, 다음에 켜거나 연결이 돌아왔을 때 폰에 있는 최신 내용을 서버에 올린다.
+let LAST_SAVE_QUEUED = false;
+const TRANSIENT_SAVE_ERRORS = ['resource-exhausted','unavailable','deadline-exceeded','aborted','internal','unknown','cancelled'];
+function dirtyGet(kind, u){ return localGet('dirty_'+kind+'_'+u, 0); }
+function dirtySet(kind, u, v){ localSet('dirty_'+kind+'_'+u, v); }
+function withSaveTimeout(promise, ms){
+  return new Promise((resolve, reject)=>{
+    const t = setTimeout(()=>reject({ code:'deadline-exceeded' }), ms);
+    promise.then(v=>{ clearTimeout(t); resolve(v); }, e=>{ clearTimeout(t); reject(e); });
+  });
+}
+let dirtyFlushTimer = null, dirtyFlushing = false, dirtyBackoff = 30000;
+function scheduleDirtyFlush(){
+  clearTimeout(dirtyFlushTimer);
+  dirtyFlushTimer = setTimeout(()=>flushDirtyWrites(true), dirtyBackoff);
+}
+async function flushDirtyWrites(force){
+  if(dirtyFlushing || !state.user || !auth.currentUser) return;
+  const u = state.user.uid;
+  if(!dirtyGet('tt', u) && !dirtyGet('memos', u)){ dirtyBackoff = 30000; return; }
+  dirtyFlushing = true;
+  let allOk = true, did = false;
+  try{
+    if(dirtyGet('tt', u)){
+      const local = localGet('tt_'+u, null);
+      const at = localGet('tt_at_'+u, now());
+      if(local && local.bySemester){
+        try{
+          // 그 사이 다른 기기에서 더 최근에 저장한 게 서버에 있으면 그쪽을 존중한다(폰의 오래된 내용으로 덮어쓰지 않는다)
+          const cur = await withSaveTimeout(getDoc(doc(db,'timetables',u)), 10000);
+          if(cur.exists() && (cur.data().updatedAt || 0) > at){ dirtySet('tt', u, 0); localSet('own_sync_tt_'+u, ''); }
+          else{
+            await withSaveTimeout(setDoc(doc(db,'timetables',u), JSON.parse(JSON.stringify({ bySemester: local.bySemester, activeSemester: local.activeSemester || null, updatedAt: at }))), 12000);
+            dirtySet('tt', u, 0); ttVerQueue(); did = true;
+          }
+        }catch(e){ allOk = false; console.warn('[dirty tt]', e && e.code); }
+      } else dirtySet('tt', u, 0);
+    }
+    if(dirtyGet('memos', u)){
+      const byDate = localGet('memos_'+u, null);
+      const at = localGet('memos_at_'+u, now());
+      if(byDate){
+        try{
+          const cur = await withSaveTimeout(getDoc(doc(db,'memos',u)), 10000);
+          if(cur.exists() && (cur.data().updatedAt || 0) > at){ dirtySet('memos', u, 0); localSet('own_sync_memos_'+u, ''); }
+          else{
+            await withSaveTimeout(setDoc(doc(db,'memos',u), { byDate, updatedAt: at }), 12000);
+            dirtySet('memos', u, 0); did = true;
+          }
+        }catch(e){ allOk = false; console.warn('[dirty memos]', e && e.code); }
+      } else dirtySet('memos', u, 0);
+    }
+  } finally { dirtyFlushing = false; }
+  if(allOk){ dirtyBackoff = 30000; if(did) toast('폰에 저장해 두었던 내용을 서버에 올렸어요'); }
+  else { dirtyBackoff = Math.min(dirtyBackoff * 2, 5 * 60 * 1000); scheduleDirtyFlush(); }
+}
+window.addEventListener('online', ()=>{ dirtyBackoff = 30000; flushDirtyWrites(true); });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) flushDirtyWrites(); });
 // Firestore는 문서 하나당 1 MiB를 넘길 수 없다. 이 앱은 공지·버그제보 목록을 문서 하나에
 // 통째로 넣고 사진도 base64로 함께 저장하므로, 사진이 붙은 글이 몇 개만 쌓여도 한도에 닿는다.
 // 한도를 넘으면 Firestore가 알 수 없는 에러로 거절해서 원인을 알기 어렵기 때문에,
@@ -2324,6 +2403,7 @@ async function purgeOldTombstonesNow(){
 }
 
 function saveResultToast(ok, okMsg){
+  if(ok && LAST_SAVE_QUEUED){ LAST_SAVE_QUEUED = false; toast('폰에 먼저 저장했어요' + String.fromCharCode(10) + '서버가 바빠서 나중에 자동으로 올려요'); return; }
   if(ok){ toast(okMsg || '저장되었습니다'); return; }
   const map = {
     'permission-denied':'저장 권한이 없습니다. (Firestore 보안 규칙을 확인해주세요)',
@@ -2589,8 +2669,14 @@ async function saveMemos(uidStr, byDate){
     toast('메모가 너무 많아요. 오래된 메모를 정리해주세요');
     return false;
   }
-  try{ await setDoc(doc(db,'memos',uidStr), payload); LAST_SAVE_ERROR=''; return true; }
-  catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; console.error('메모 저장 실패', e); return false; }
+  dirtySet('memos', uidStr, Date.now()); LAST_SAVE_QUEUED = false;
+  try{ await withSaveTimeout(setDoc(doc(db,'memos',uidStr), payload), 12000); dirtySet('memos', uidStr, 0); LAST_SAVE_ERROR=''; return true; }
+  catch(e){
+    LAST_SAVE_ERROR=(e&&e.code)||'unknown'; console.error('메모 저장 실패', e);
+    if(TRANSIENT_SAVE_ERRORS.includes(LAST_SAVE_ERROR)){ LAST_SAVE_QUEUED = true; scheduleDirtyFlush(); return true; }
+    dirtySet('memos', uidStr, 0);
+    return false;
+  }
 }
 async function loadMeals(){ return (await loadShared('meals',{byDate:{}})).byDate || {}; }
 async function saveMeals(o){ return await saveShared('meals',{byDate:o}); }
@@ -2767,8 +2853,15 @@ async function saveTimetable(uidStr, arr){
   catch(e){ payload = { bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts }; }
   scheduleTimetableReminders(arr);
   pushWidgetData();
-  try{ await setDoc(doc(db,'timetables',uidStr), payload); LAST_SAVE_ERROR=''; ttVerQueue(); return true; }
-  catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; console.error('시간표 저장 실패', e); return false; }
+  dirtySet('tt', uidStr, Date.now()); LAST_SAVE_QUEUED = false;
+  try{ await withSaveTimeout(setDoc(doc(db,'timetables',uidStr), payload), 12000); dirtySet('tt', uidStr, 0); LAST_SAVE_ERROR=''; ttVerQueue(); return true; }
+  catch(e){
+    LAST_SAVE_ERROR=(e&&e.code)||'unknown'; console.error('시간표 저장 실패', e);
+    // 서버가 바쁘거나 연결이 불안정한 경우는 폰에 저장된 상태로 두고 나중에 자동으로 올린다
+    if(TRANSIENT_SAVE_ERRORS.includes(LAST_SAVE_ERROR)){ LAST_SAVE_QUEUED = true; scheduleDirtyFlush(); return true; }
+    dirtySet('tt', uidStr, 0);
+    return false;
+  }
 }
 // 현재 활성 학기/시간표 이름만 바꿔서 저장 (수업 목록은 그대로 유지)
 async function renameActiveVariant(uidStr, newName){
@@ -2782,8 +2875,9 @@ async function renameActiveVariant(uidStr, newName){
   const ts = now();
   localSet('tt_'+uidStr, { bySemester: state.timetablesBySemester, activeSemester: sem });
   localSet('tt_at_'+uidStr, ts);
-  try{ await setDoc(doc(db,'timetables',uidStr), { bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts }); ttVerQueue(); return true; }
-  catch(e){ return false; }
+  dirtySet('tt', uidStr, Date.now()); LAST_SAVE_QUEUED = false;
+  try{ await withSaveTimeout(setDoc(doc(db,'timetables',uidStr), { bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts }), 12000); dirtySet('tt', uidStr, 0); ttVerQueue(); return true; }
+  catch(e){ const code=(e&&e.code)||''; if(TRANSIENT_SAVE_ERRORS.includes(code)){ LAST_SAVE_QUEUED = true; scheduleDirtyFlush(); return true; } dirtySet('tt', uidStr, 0); return false; }
 }
 
 /* ===== 부팅 ===== */
@@ -2882,6 +2976,7 @@ function boot(){
           recordDailyVisit();
           shareSchedule();
           ttVerSchedule();
+          setTimeout(()=>flushDirtyWrites(true), 6000);
           setTimeout(pruneCaches, 15000);
           setupPresenceHeartbeat();
           setupTimetableResizeListener();
@@ -5538,58 +5633,34 @@ function renderSemesterTabs(){
         <span class="tt-switcher-name">${escapeHtml(activeVariantName())} ${ICON.chevDown}</span>
       </button>
       <div class="tt-switcher-divider"></div>
-      <button type="button" class="tt-switcher-icon-btn" data-action="open-timetable-list" title="시간표 목록">${ICON.plus}</button>
       <button type="button" class="tt-switcher-icon-btn" data-action="open-tt-options" title="화면 표시 설정">${ICON.gear}</button>
       <button type="button" class="tt-switcher-icon-btn" data-action="open-tt-more-menu" title="더보기">${ICON.more}</button>
     </div>`;
 }
 function ttMoreMenuModal(){
+  const sem = state.activeSemester ? semesterLabel(state.activeSemester) : '학기 없음';
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">시간표 메뉴<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="ttm-sum">
+      <span class="ttm-sum-ic">${ICON.calendar}</span>
+      <span class="ttm-sum-txt"><b>${escapeHtml(activeVariantName())}</b><small>${sem} · 수업 ${(state.timetable||[]).length}개</small></span>
+    </div>
     <div class="ttm-sec">수업 추가</div>
-    <div class="ttm-card">
-      <div class="ttm-row" data-action="ocr-timetable" style="--c:var(--teal); --c-rgb:224,172,85;">
-        <span class="ttm-ic">${ICON.camera}</span>
-        <span class="ttm-txt"><b>사진으로 등록</b><small>시간표 캡처 사진에서 수업을 한 번에 가져와요</small></span>
-        <span class="sub">${ICON.chevR}</span>
-      </div>
-      <div class="ttm-row" data-action="add-class" style="--c:var(--teal); --c-rgb:224,172,85;">
-        <span class="ttm-ic">${ICON.plus}</span>
-        <span class="ttm-txt"><b>직접 추가</b><small>수업 이름 · 시간 · 강의실을 입력해요</small></span>
-        <span class="sub">${ICON.chevR}</span>
-      </div>
+    <div class="ttm-grid c2">
+      <div class="ttm-tile" data-action="ocr-timetable" style="--c:var(--teal); --c-rgb:224,172,85;"><span class="ttm-ic">${ICON.camera}</span><b>사진으로 등록</b><small>캡처에서 한 번에</small></div>
+      <div class="ttm-tile" data-action="add-class" style="--c:var(--teal); --c-rgb:224,172,85;"><span class="ttm-ic">${ICON.plus}</span><b>직접 추가</b><small>하나씩 입력</small></div>
     </div>
     <div class="ttm-sec">보기</div>
-    <div class="ttm-card">
-      <div class="ttm-row" data-action="open-capture-mode" style="--c:var(--blue); --c-rgb:var(--blue-rgb);">
-        <span class="ttm-ic">${ICON.frame}</span>
-        <span class="ttm-txt"><b>캡처 모드</b><small>버튼을 숨기고 시간표만 깔끔하게 보여요</small></span>
-        <span class="sub">${ICON.chevR}</span>
-      </div>
-      <div class="ttm-row" data-action="open-tt-options" style="--c:var(--purple); --c-rgb:var(--purple-rgb);">
-        <span class="ttm-ic">${ICON.gear}</span>
-        <span class="ttm-txt"><b>화면 표시 설정</b><small>색상 · 글자 크기 · 시간 범위를 바꿔요</small></span>
-        <span class="sub">${ICON.chevR}</span>
-      </div>
-      <div class="ttm-row" data-action="open-timetable-list" style="--c:var(--amber); --c-rgb:var(--amber-rgb);">
-        <span class="ttm-ic">${ICON.clipboard}</span>
-        <span class="ttm-txt"><b>시간표 목록</b><small>학기와 시간표를 바꾸거나 새로 만들어요</small></span>
-        <span class="sub">${ICON.chevR}</span>
-      </div>
+    <div class="ttm-grid c3">
+      <div class="ttm-tile" data-action="open-capture-mode" style="--c:var(--blue); --c-rgb:var(--blue-rgb);"><span class="ttm-ic">${ICON.frame}</span><b>캡처 모드</b></div>
+      <div class="ttm-tile" data-action="open-tt-options" style="--c:var(--purple); --c-rgb:var(--purple-rgb);"><span class="ttm-ic">${ICON.gear}</span><b>표시 설정</b></div>
+      <div class="ttm-tile" data-action="open-timetable-list" style="--c:var(--amber); --c-rgb:var(--amber-rgb);"><span class="ttm-ic">${ICON.clipboard}</span><b>시간표 목록</b></div>
     </div>
     <div class="ttm-sec">관리</div>
-    <div class="ttm-card">
-      <div class="ttm-row" data-action="rename-variant" style="--c:var(--crimson-light); --c-rgb:var(--crimson-rgb);">
-        <span class="ttm-ic">${ICON.pencil}</span>
-        <span class="ttm-txt"><b>이름 변경</b><small>지금 보고 있는 시간표의 이름을 바꿔요</small></span>
-        <span class="sub">${ICON.chevR}</span>
-      </div>
-      <div class="ttm-row danger" data-action="reset-timetable" style="--c:var(--danger); --c-rgb:var(--danger-rgb);">
-        <span class="ttm-ic">${ICON.trash}</span>
-        <span class="ttm-txt"><b>이 시간표 지우기</b><small>수업을 모두 지워요</small></span>
-        <span class="sub">${ICON.chevR}</span>
-      </div>
+    <div class="ttm-grid c2">
+      <div class="ttm-tile" data-action="rename-variant" style="--c:var(--crimson-light); --c-rgb:var(--crimson-rgb);"><span class="ttm-ic">${ICON.pencil}</span><b>이름 변경</b></div>
+      <div class="ttm-tile danger" data-action="reset-timetable" style="--c:var(--danger); --c-rgb:var(--danger-rgb);"><span class="ttm-ic">${ICON.trash}</span><b>시간표 지우기</b></div>
     </div>
   `;
 }
@@ -6070,7 +6141,7 @@ function renderSlotHtml(slot, index, total){
       </div>
       <div class="field" style="margin-bottom:8px;">
         <label>요일</label>
-        ${renderSegPicker('slot_day', DAYS.map((d,i)=>[i,d]), slot.day||0, true)}
+        ${renderSegPicker('slot_day', DAYS.map((d,i)=>[i,d]), slot.day||0, true, '', true)}
       </div>
       <div class="field" style="margin-bottom:8px;">
         <label>수업 시간 (시작 ~ 종료)</label>
@@ -8966,7 +9037,7 @@ function renderMypage(){
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
       <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row danger" data-action="reset-all-timetables">모든 시간표 전체 삭제 <span class="sub">${ICON.chevR}</span></div>
+      <div class="link-row danger" data-action="reset-all-timetables">모든 시간표 삭제 <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row danger" data-action="delete-account">회원 탈퇴 <span class="sub">${ICON.chevR}</span></div>
     </div>
@@ -10158,23 +10229,35 @@ function semesterPickerModal(){
 }
 
 // 이미지3 스타일: 학기별로 그 안의 이름 있는 시간표들을 전부 보여주는 관리 화면
+// 지난 학기는 기본으로 접어 두고(지금 보고 있는 학기는 펼침), 학기 제목을 눌러 접고 펼 수 있다. 위쪽 "모두 접기/펼치기"로 한꺼번에도 된다.
+function isSemOpen(k){
+  const o = state.ttListOpen || {};
+  if(o[k] !== undefined) return !!o[k];
+  const past = semesterSortValue(k) < semesterSortValue(currentSemesterKey());
+  return !(past && k !== state.activeSemester);
+}
 function timetableListModal(){
   const keys = sortedSemesterKeys();
+  const anyOpen = keys.some(isSemOpen);
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">시간표 목록<button data-action="open-semester-picker" title="학기 추가">${ICON.plus}</button></div>
+    ${keys.length > 1 ? `<div style="display:flex; justify-content:flex-end; margin:-4px 0 6px;"><button type="button" class="tt-list-foldall" data-action="tt-list-toggle-all">${anyOpen ? '모두 접기' : '모두 펼치기'}</button></div>` : ''}
     <div class="tt-list-scroll">
       ${keys.length===0 ? `<p style="font-size:11.5px; color:var(--text-faint); text-align:center; padding:30px 0;">아직 추가한 학기가 없어요.<br>+ 버튼으로 학기를 추가해보세요.</p>` : keys.map(k=>{
         const variants = semesterVariants(k);
+        const open = isSemOpen(k);
         return `
-        <div class="tt-list-group">
-          <div class="tt-list-sem-title">${semesterLabel(k)}</div>
-          ${variants.map((v,i)=>`
+        <div class="tt-list-group ${open?'':'folded'}">
+          <div class="tt-list-sem-title fold" data-action="toggle-tt-sem" data-key="${k}">
+            <span>${semesterLabel(k)}<span class="tt-list-sem-count">${variants.length}개</span></span>
+            <span class="tt-list-chev" style="transform:rotate(${open?180:0}deg);">${ICON.chevDown}</span>
+          </div>
+          ${open ? variants.map((v,i)=>`
             <div class="tt-list-row ${k===state.activeSemester && i===state.activeVariant?'active':''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
               <span>${escapeHtml(v.name)}</span>
               <span class="tt-list-row-meta">${v.slots.length}개 수업 <button type="button" class="tt-list-row-del" data-action="delete-variant" data-key="${k}" data-idx="${i}">${ICON.close}</button></span>
-            </div>`).join('')}
-          <div class="tt-list-add-row" data-action="show-add-variant-input" data-key="${k}">${ICON.plus} 새 시간표 추가</div>
+            </div>`).join('') + `<div class="tt-list-add-row" data-action="show-add-variant-input" data-key="${k}">${ICON.plus} 새 시간표 추가</div>` : ''}
         </div>`;
       }).join('')}
     </div>`;
@@ -11218,8 +11301,9 @@ async function resetAllTimetables(){
   let ok = false;
   if(!auth.currentUser){ LAST_SAVE_ERROR='unauthenticated'; }
   else{
-    try{ await setDoc(doc(db,'timetables',uidStr), { bySemester: {}, activeSemester: state.activeSemester, updatedAt: ts }); LAST_SAVE_ERROR=''; ok=true; ttVerQueue(); }
-    catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; }
+    dirtySet('tt', uidStr, Date.now());
+    try{ await withSaveTimeout(setDoc(doc(db,'timetables',uidStr), { bySemester: {}, activeSemester: state.activeSemester, updatedAt: ts }), 12000); dirtySet('tt', uidStr, 0); LAST_SAVE_ERROR=''; ok=true; ttVerQueue(); }
+    catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; if(TRANSIENT_SAVE_ERRORS.includes(LAST_SAVE_ERROR)){ LAST_SAVE_QUEUED = true; scheduleDirtyFlush(); ok = true; } else dirtySet('tt', uidStr, 0); }
   }
   renderMain();
   saveResultToast(ok, '모든 시간표가 삭제되었습니다');
@@ -12254,8 +12338,10 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'seg-pick'){
       const wrap = el.closest('.seg-picker');
       if(wrap){
-        wrap.querySelectorAll('.seg-opt').forEach(b=>{ b.classList.remove('btn-primary'); b.classList.add('btn-ghost'); });
-        el.classList.remove('btn-ghost'); el.classList.add('btn-primary');
+        if(!wrap.classList.contains('seg-group')){
+          wrap.querySelectorAll('.seg-opt').forEach(b=>{ b.classList.remove('btn-primary'); b.classList.add('btn-ghost'); });
+          el.classList.remove('btn-ghost'); el.classList.add('btn-primary');
+        }
         const hidden = wrap.querySelector('input[type=hidden]');
         if(hidden) hidden.value = el.dataset.value;
         hidden && hidden.dispatchEvent(new Event('change', { bubbles:true }));
@@ -12533,7 +12619,9 @@ document.addEventListener('click', async (e)=>{
       toast(state.previewAsRole ? `${roleLabel(state.previewAsRole)} 화면으로 미리보기 중` : '개발자 화면으로 복귀했습니다');
     }
     else if(a === 'open-semester-picker'){ openModal(semesterPickerModal()); }
-    else if(a === 'open-timetable-list'){ openModal(timetableListModal()); }
+    else if(a === 'open-timetable-list'){ state.ttListOpen = {}; openModal(timetableListModal()); }
+    else if(a === 'toggle-tt-sem'){ const k = el.dataset.key; state.ttListOpen = { ...(state.ttListOpen||{}), [k]: !isSemOpen(k) }; openModal(timetableListModal()); }
+    else if(a === 'tt-list-toggle-all'){ const keys = sortedSemesterKeys(); const open = !keys.some(isSemOpen); state.ttListOpen = Object.fromEntries(keys.map(k=>[k, open])); openModal(timetableListModal()); }
     else if(a === 'open-tt-more-menu'){ openModal(ttMoreMenuModal()); }
     else if(a === 'pick-semester'){
       state.activeSemester = el.dataset.key;
@@ -12599,7 +12687,8 @@ document.addEventListener('click', async (e)=>{
         const ts=now();
         localSet('tt_'+state.user.uid, { bySemester: state.timetablesBySemester, activeSemester: state.activeSemester });
         localSet('tt_at_'+state.user.uid, ts);
-        try{ await setDoc(doc(db,'timetables',state.user.uid), { bySemester: state.timetablesBySemester, activeSemester: state.activeSemester, updatedAt: ts }); ttVerQueue(); }catch(e){}
+        dirtySet('tt', state.user.uid, Date.now());
+        try{ await withSaveTimeout(setDoc(doc(db,'timetables',state.user.uid), { bySemester: state.timetablesBySemester, activeSemester: state.activeSemester, updatedAt: ts }), 12000); dirtySet('tt', state.user.uid, 0); ttVerQueue(); }catch(e){ scheduleDirtyFlush(); }
       }
       openModal(timetableListModal());
       renderMain();
