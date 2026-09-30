@@ -379,6 +379,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-swatches .swatch{width:32px; height:32px; flex:none; padding:0;}
 .av-swatches .swatch.selected{border-color:var(--crimson); box-shadow:0 0 0 2px var(--surface); transform:scale(1.06);}
 .av-more{color:var(--text-faint);}
+.av-swap{display:contents;}
 .av-less{grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border:1px dashed var(--border); border-radius:12px; background:transparent; color:var(--text-dim); font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;}
 .av-less svg{width:16px; height:16px;}
 .av-slots{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:8px;}
@@ -8327,13 +8328,17 @@ function avCellsHtml(kind, from, to){
   if(kind === 'icon') return AV_ICONS.slice(from, to).map(it=>'<button type="button" class="av-cell '+((avDraft.id || 'chip') === it[0] ? 'selected' : '')+'" data-action="av-pick-icon" data-id="'+it[0]+'" title="'+it[1]+'">'+avIconSvg(it[0], 24)+'</button>').join('');
   return AV_EMOJIS.slice(from, to).map(e=>'<button type="button" class="av-cell '+((avDraft.emoji || '') === e ? 'selected' : '')+'" data-action="av-pick-emoji" data-e="'+e+'">'+e+'</button>').join('');
 }
+// 처음엔 한 줄만 보이고(아이콘 6칸·이모지 8칸), 마지막 칸이 ···(더보기)다. 펼치면 그 칸이 원래 있던 항목으로 바뀌고
+// 나머지가 아래로 이어지며, 목록의 맨 마지막에 '줄이기' 버튼이 온다.
+function avN(kind){ return kind === 'icon' ? 6 : 8; }
+function avMoreBtn(kind){ return '<button type="button" class="av-cell av-more" data-action="av-more" data-k="'+kind+'" title="더보기">'+AV_DOTS+'</button>'; }
 function avGridBlock(kind){
   const total = kind === 'icon' ? AV_ICONS.length : AV_EMOJIS.length;
-  const head = kind === 'icon' ? 11 : 15;
+  const n = avN(kind);
   const cls = kind === 'icon' ? 'av-grid' : 'av-grid av-emoji';
   const open = avMore[kind];
-  return '<div class="'+cls+'">'+avCellsHtml(kind, 0, head)+'<button type="button" class="av-cell av-more" data-action="av-more" data-k="'+kind+'" title="더보기">'+(open ? AV_UP : AV_DOTS)+'</button></div>'
-    + '<div class="'+cls+' av-extra" id="av-extra-'+kind+'" style="'+(open ? '' : 'display:none;')+' margin-top:6px;">'+avCellsHtml(kind, head, total)+'<button type="button" class="av-less" data-action="av-more" data-k="'+kind+'">줄이기 '+AV_UP+'</button></div>';
+  return '<div class="'+cls+'">'+avCellsHtml(kind, 0, n - 1)+'<span class="av-swap" data-k="'+kind+'">'+(open ? avCellsHtml(kind, n - 1, n) : avMoreBtn(kind))+'</span></div>'
+    + '<div class="'+cls+' av-extra" id="av-extra-'+kind+'" style="'+(open ? '' : 'display:none;')+' margin-top:6px;">'+avCellsHtml(kind, n, total)+'<button type="button" class="av-less" data-action="av-more" data-k="'+kind+'">줄이기 '+AV_UP+'</button></div>';
 }
 /* 내가 그린 그림 보관함(3칸) */
 function avSlots(){ const a = localGet('avatar_slots', []); return [0,1,2].map(i => (Array.isArray(a) && a[i]) ? a[i] : null); }
@@ -12459,7 +12464,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'av-more'){
       const k = el.dataset.k; avMore[k] = !avMore[k];
       const ex = document.getElementById('av-extra-' + k); if(ex) ex.style.display = avMore[k] ? '' : 'none';
-      const cell = document.querySelector('.av-cell.av-more[data-k="' + k + '"]'); if(cell) cell.innerHTML = avMore[k] ? AV_UP : AV_DOTS;
+      const sw = document.querySelector('.av-swap[data-k="' + k + '"]'); if(sw) sw.innerHTML = avMore[k] ? avCellsHtml(k, avN(k) - 1, avN(k)) : avMoreBtn(k);
     }
     else if(a === 'av-slot-load'){ const sl = avSlots()[Number(el.dataset.i)]; if(sl){ avPxUndo.push(avPx.slice()); avPx = pxDecode(sl); avSlotSel = Number(el.dataset.i); renderAvBody(); } }
     else if(a === 'av-slot-fill'){ avSlotSaveTo(Number(el.dataset.i)); }
