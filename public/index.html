@@ -460,22 +460,23 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-fab-wrap.open .tt-fab{transform:rotate(45deg);}
 /* + 버튼을 누르면 "직접 추가"로 바로 들어가던 걸, 사진 인식도 같이 고를 수 있게
    위로 펼쳐지는 작은 원형 메뉴(스피드 다이얼)로 바꿨다. */
-.ttm-sec{font-size:10px; font-weight:700; color:var(--text-faint); letter-spacing:.04em; margin:14px 4px 6px;}
-.ttm-card{background:var(--surface-2); border:1px solid var(--border); border-radius:16px; overflow:hidden;}
-.ttm-row{display:flex; align-items:center; gap:12px; padding:11px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
+.ttm-sec{font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.04em; margin:10px 4px 5px;}
+.ttm-card{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
+.ttm-row{display:flex; align-items:center; gap:10px; padding:7px 10px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
 .ttm-row + .ttm-row{border-top:1px solid var(--border-light);}
 .ttm-row:active{background:var(--surface-3);}
-.ttm-ic{width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(var(--c-rgb), .16); color:var(--c);}
-.ttm-ic svg{width:19px; height:19px;}
+.ttm-ic{width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(var(--c-rgb), .16); color:var(--c);}
+.ttm-ic svg{width:15px; height:15px;}
 .ttm-txt{flex:1; min-width:0;}
-.ttm-txt b{display:block; font-size:13px;}
-.ttm-txt small{display:block; font-size:10.5px; color:var(--text-dim); margin-top:2px; line-height:1.35;}
+.ttm-txt b{display:block; font-size:12px; line-height:1.3;}
+.ttm-txt small{display:block; font-size:9.5px; color:var(--text-dim); margin-top:1px; line-height:1.3;}
 .ttm-row.danger .ttm-txt b{color:var(--danger-text);}
 .ttm-row .sub{color:var(--text-faint); display:flex;}
 .tt-fab-backdrop{position:fixed; inset:0; z-index:14; background:transparent;}
-.tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
-@media (max-width:480px){ .tt-fab-option{right:18px;} }
+.tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px + 5px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
+@media (max-width:480px){ .tt-fab-option{right:23px;} }
 .tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 12px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,.35); white-space:nowrap;}
+.tt-fab-option-circle svg{width:18px; height:18px; display:block;}
 .tt-fab-option-circle{flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.35);}
 .tt-fab-option:active .tt-fab-option-circle{transform:scale(0.94);}
 @keyframes tt-fab-out{from{opacity:1; transform:translateY(0) scale(1);}to{opacity:0; transform:translateY(8px) scale(.9);}}
@@ -5774,7 +5775,7 @@ function renderTimetable(isCapture=false){
 function ttFabOptionsHtml(){
   return `
       <div class="tt-fab-backdrop" data-action="close-tt-fab"></div>
-      <button type="button" class="tt-fab-option" data-action="ocr-timetable" style="--i:0;">
+      <button type="button" class="tt-fab-option" data-action="ocr-timetable" style="--i:2;">
         <span class="tt-fab-option-circle">${ICON.camera}</span>
         <span class="tt-fab-option-label">사진 인식</span>
       </button>
@@ -5782,7 +5783,7 @@ function ttFabOptionsHtml(){
         <span class="tt-fab-option-circle">${ICON.pencil}</span>
         <span class="tt-fab-option-label">직접 추가</span>
       </button>
-      <button type="button" class="tt-fab-option" data-action="tt-fab-more" style="--i:2;">
+      <button type="button" class="tt-fab-option" data-action="tt-fab-more" style="--i:0;">
         <span class="tt-fab-option-circle">${ICON.more}</span>
         <span class="tt-fab-option-label">더보기</span>
       </button>`;
