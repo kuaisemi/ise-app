@@ -1832,11 +1832,18 @@ const SCHED_COLORS = [
 ];
 // 수업 기본 색: 흰 글씨가 잘 보이는 예쁜 10가지. 수업 추가 화면에는 앞의 7가지를 보여 주고, 사진 인식·새 수업의 기본색은 겹치지 않게 무작위로 고른다.
 const CLASS_PALETTE = ['#E71D36','#FF7A1A','#F5A524','#2EC46A','#2EC4B6','#3A7BFF','#8338EC','#E056A0','#5B5BD6','#6B7A8F'];
+const CLASS_FORM_SWATCHES = ['#FF9AA2', '#FFE08A', '#A8E6B0', '#9CC9FF', '#C9B3FF'];   // 수업 추가 화면의 배경 색(파스텔 빨·노·초·파·보)
+function isLightColor(hex){
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if(!m) return false;
+  const n = parseInt(m[1], 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62;
+}
 const CLASS_SWATCH_COUNT = 5;   // 수업 추가 화면에 보이는 색 개수(좁은 칸이라 5가지). 사진 인식은 전체 10가지에서 뽑는다
 function shuffledArr(arr){ const a = arr.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 // 새 수업의 기본색: 시간표에서 아직 안 쓴 색 중에서 무작위(다 썼으면 아무거나)
 function randomClassColor(){
-  const shown = CLASS_PALETTE.slice(0, CLASS_SWATCH_COUNT);
+  const shown = CLASS_FORM_SWATCHES;
   const used = new Set((state.timetable || []).map(c=>String(c.color || '').toLowerCase()));
   const free = shown.filter(h=>!used.has(h.toLowerCase()));
   const pool = free.length ? free : shown;
@@ -6492,7 +6499,7 @@ function renderSlotHtml(slot, index, total){
 
 function classModal(cls){
   const isEdit = !!cls;
-  let slots = [], subject = '', professor = '', color = randomClassColor(), textColor = '#FFFFFF', groupId = '';
+  let slots = [], subject = '', professor = '', color = randomClassColor(), textColor = isLightColor(color) ? '#000000' : '#FFFFFF', groupId = '';
   if(cls){
     groupId = cls.groupId || cls.id;
     subject = cls.subject || ''; professor = cls.professor || ''; color = cls.color || COLORS[0].hex;
@@ -6516,8 +6523,8 @@ function classModal(cls){
         <div class="field" style="flex:1.4;">
           <label>배경 색상</label>
           <div class="swatches" id="class-swatches-wrap">
-            ${CLASS_PALETTE.slice(0, CLASS_SWATCH_COUNT).map(hex => ({hex})).map(col => `<div class="swatch ${col.hex.toLowerCase() === color.toLowerCase() ? 'selected' : ''}" data-action="pick-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === color.toLowerCase() ? '✓' : ''}</div>`).join('')}
-            ${inlineColorSwatchHtml('classcolor', color, !CLASS_PALETTE.slice(0, CLASS_SWATCH_COUNT).some(h=>h.toLowerCase()===color.toLowerCase()))}
+            ${CLASS_FORM_SWATCHES.map(hex => ({hex})).map(col => `<div class="swatch ${col.hex.toLowerCase() === color.toLowerCase() ? 'selected' : ''}" data-action="pick-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === color.toLowerCase() ? '✓' : ''}</div>`).join('')}
+            ${inlineColorSwatchHtml('classcolor', color, !CLASS_FORM_SWATCHES.some(h=>h.toLowerCase()===color.toLowerCase()))}
           </div>
         </div>
         <div class="field" style="flex:0.8;">
@@ -12563,9 +12570,15 @@ async function clearAllBoard(type){
 /* ===== 이벤트 리스너 통합 ===== */
 
 // 모달 안 색상 선택기에서 색을 고르면 어디에 반영할지 (선택기 자체는 공용, 반영만 화면별로 다름)
+function applyClassTextAuto(bgHex){
+  const t = isLightColor(bgHex) ? '#000000' : '#FFFFFF';
+  document.querySelectorAll('#class-text-swatches-wrap .text-swatch').forEach(sw=>{ const on = (sw.dataset.color || '').toUpperCase() === t; sw.classList.toggle('selected', on); sw.innerHTML = on ? '✓' : ''; });
+  const inp = document.getElementById('class-text-color-input'); if(inp) inp.value = t;
+}
 INLINE_COLOR_HANDLERS['classcolor'] = (hex)=>{
   const hidden = document.getElementById('class-color-input');
   if(hidden) hidden.value = hex;
+  applyClassTextAuto(hex);
   document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
@@ -13208,6 +13221,7 @@ document.addEventListener('click', async (e)=>{
       el.classList.add('selected'); el.innerHTML = '✓';
       const inp = document.getElementById('class-color-input');
       if(inp) inp.value = el.dataset.hex;
+      applyClassTextAuto(el.dataset.hex);
     }
     else if(a === 'pick-schedule-color'){
       document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s => {
