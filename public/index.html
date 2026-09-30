@@ -881,6 +881,13 @@ details.likers-accordion > div, details.voters-accordion > div{
 #poll-deadline-inputs .time-picker .tp-btn, #poll-deadline-inputs .time-picker .tp-col-ampm .tp-btn{width:100%;}
 #poll-deadline-inputs .time-picker .tp-val, #poll-deadline-inputs .time-picker .tp-ampm{width:100%; min-width:0; text-align:center; justify-content:center;}
 #poll-deadline-inputs .time-picker .tp-colon{flex:0 0 auto;}
+/* 마감 날짜 달력은 좁은 오른쪽 칸 안에서 날짜 바로 아래로 펼쳐지므로, 조금 작게(여백·글씨·칸 간격을 줄여) 보여 준다 */
+#poll-deadline-inputs .date-field-panel{padding:6px; margin-top:6px;}
+#poll-deadline-inputs .dp-head{font-size:11px; margin-bottom:4px;}
+#poll-deadline-inputs .dp-nav{padding:2px;}
+#poll-deadline-inputs .dp-weekdays{font-size:8.5px; margin-bottom:2px;}
+#poll-deadline-inputs .dp-grid{gap:1px;}
+#poll-deadline-inputs .dp-cell{font-size:9.5px; border-radius:6px;}
 /* 시간 선택기 — 시간표 수업시간 · 투표 마감 · 일정 알림이 함께 쓴다.
    예전에는 26x20px 버튼이 낱개로 떠 있어서 누르기도 어렵고 입력칸처럼 보이지도 않았다.
    하나의 입력 필드처럼 테두리로 묶고, 손가락에 맞게 버튼을 키웠다(권장 최소 크기에 맞춤). */
@@ -890,8 +897,10 @@ details.likers-accordion > div, details.voters-accordion > div{
    같은 높이로 못 박아 세 칸의 글자가 한 줄에 정확히 놓이게 한다. */
 .time-picker .tp-val{font-family:var(--font-mono); font-size:17px; font-weight:800; color:var(--text); min-width:38px; height:28px; text-align:center; user-select:none; display:flex; align-items:center; justify-content:center; padding:0;}
 .time-picker .tp-btn{width:38px; height:22px; border:none; background:transparent; color:var(--text-faint); font-size:8px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s;}
-.time-picker .tp-btn:hover{color:var(--teal);}
+/* 마우스가 있는 기기에서만 hover 색을 쓴다 — 터치 기기는 한 번 누른 뒤에도 hover 상태가 남아서 화살표가 노랗게 굳어 있던 문제 */
+@media (hover:hover) and (pointer:fine){ .time-picker .tp-btn:hover{color:var(--teal);} }
 .time-picker .tp-btn:active{background:var(--teal); color:var(--teal-ink);}
+.time-picker .tp-btn:focus{outline:none;}
 .time-picker .tp-btn{touch-action:manipulation; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
 .time-picker .tp-colon{color:var(--text-faint); font-weight:800; font-size:17px; display:flex; align-items:center; padding:0 1px;}
 /* 오전/오후 칸은 글자가 두 자라 조금 넓고, 숫자가 아니라 본문 서체를 쓴다. */
@@ -1939,6 +1948,7 @@ function tpStepEl(el){
   if(ampmEl) ampmEl.textContent = meridiemLabel(h);
   picker.querySelector('.tp-val[data-part="h"]').textContent = pad(hour24To12(h));
   picker.querySelector('.tp-val[data-part="m"]').textContent = pad(m);
+  try{ el.blur(); }catch(_){}   // 누른 뒤 포커스가 남아 색이 그대로 유지되지 않게
 }
 // ▲▼를 꾹 누르고 있으면(0.35초 뒤부터) 계속 올라가거나 내려가고, 약 3초에 걸쳐 점점 빨라진다. 오전/오후 버튼은 반복하지 않는다.
 if(!window.__tpHoldBound){
@@ -8510,32 +8520,30 @@ function pollModal(){
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-action="add-poll-option" style="width:100%; margin-bottom:12px;">+ 선택지 추가</button>
       <div class="poll-opts" style="display:flex; gap:14px; margin-bottom:14px; position:relative;">
-        <!-- 왼쪽 열: 복수 선택 허용 → 마감 일시 설정 → 알림 발송 -->
+        <!-- 왼쪽 열: 마감 일시 설정 → 복수 선택 허용 → 알림 발송 -->
         <div style="flex:1; min-width:0;">
-          <div class="row-between" style="gap:8px;">
-            <label for="poll-multi-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">복수 선택 허용</label>
-            <label class="switch"><input type="checkbox" name="multi" id="poll-multi-check"><span class="slider"></span></label>
-          </div>
-          <div class="row-between" style="gap:8px; margin-top:14px;">
+          <div class="row-between" style="gap:8px; min-height:43px;">
             <label for="poll-deadline-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">마감 일시 설정</label>
             <label class="switch"><input type="checkbox" id="poll-deadline-check" data-action="toggle-poll-deadline"><span class="slider"></span></label>
+          </div>
+          <div class="row-between" style="gap:8px; margin-top:14px;">
+            <label for="poll-multi-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">복수 선택 허용</label>
+            <label class="switch"><input type="checkbox" name="multi" id="poll-multi-check"><span class="slider"></span></label>
           </div>
           <div class="row-between" style="gap:8px; margin-top:14px;">
             <label for="poll-push-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">알림 발송</label>
             <label class="switch"><input type="checkbox" name="sendPush" id="poll-push-check"><span class="slider"></span></label>
           </div>
-          <p style="font-size:10px; color:var(--text-faint); margin:5px 0 0; line-height:1.5;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림이 나갑니다</p>
+          <p style="font-size:10px; color:var(--text-faint); margin:5px 0 0; line-height:1.5;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림</p>
         </div>
-        <!-- 오른쪽 열: 마감 날짜(복수 선택 허용과 같은 줄)·시간(마감 일시 설정을 켜야 활성화) -->
+        <!-- 오른쪽 열: 마감 날짜(마감 일시 설정과 같은 줄)·시간. 마감 일시 설정을 켜야 활성화. 달력은 날짜 바로 아래에서 펼쳐진다 -->
         <div style="flex:1; min-width:0; border-left:1px solid var(--border); padding-left:14px;">
           <div id="poll-deadline-inputs" style="display:flex; flex-direction:column; gap:6px; align-items:stretch; opacity:.4; pointer-events:none;">
-            ${dateFieldHtml('poll_deadline_date', addDays(todayStr(),1), {external:true})}
+            ${dateFieldHtml('poll_deadline_date', addDays(todayStr(),1))}
             ${renderTimePicker('poll_deadline_time', 23*60+59)}
           </div>
         </div>
       </div>
-      <!-- 마감 날짜 달력: 두 칸 아래로 전체 폭을 쓰며 아래로만 펼쳐진다(밀려 내려가는 흐름) -->
-      <div class="date-field-panel" id="date-panel-poll_deadline_date" style="display:none; margin:-6px 0 14px;"></div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">투표 게시</button></div>
     </form>`;
 }
