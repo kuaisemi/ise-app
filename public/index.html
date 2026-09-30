@@ -367,6 +367,27 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-list-row.active .tt-list-dot{background:var(--crimson); border-color:var(--crimson);}
 .tt-list-add-row{margin:2px 4px 0; padding:9px 10px; border:1px dashed var(--border-light); border-radius:12px; justify-content:center;}
 .tt-list-add-input-row{display:flex; gap:6px; padding:6px 12px;}
+.ttl-chips{display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; scrollbar-width:none;}
+.ttl-chips::-webkit-scrollbar{display:none;}
+.ttl-chip{flex:0 0 auto; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); border-radius:999px; padding:7px 13px; font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .2s, color .2s, border-color .2s;}
+.ttl-chip.on{background:var(--crimson); border-color:var(--crimson); color:#fff;}
+.ttl-dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--teal); margin-left:6px; vertical-align:middle;}
+.ttl-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:58vh; overflow-y:auto; padding:2px;}
+.ttl-card{position:relative; background:var(--surface-2); border:1.5px solid var(--border); border-radius:16px; padding:8px 8px 10px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s, border-color .2s;}
+.ttl-card:active{transform:scale(.97);}
+.ttl-card.active{border-color:var(--teal);}
+.ttl-mini{position:relative; height:74px; border-radius:10px; background:var(--surface-3); overflow:hidden; margin-bottom:8px;}
+.ttl-mini i{position:absolute; border-radius:2px; opacity:.92;}
+.ttl-name{display:block; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 2px;}
+.ttl-card small{display:block; font-size:10px; color:var(--text-dim); padding:0 2px; margin-top:2px;}
+.ttl-badge{position:absolute; top:13px; left:13px; font-size:9px; font-weight:800; color:#1A0F14; background:var(--teal); border-radius:8px; padding:2px 6px; z-index:2;}
+.ttl-del{position:absolute; top:13px; right:13px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(0,0,0,.5); color:#fff; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; z-index:2;}
+.ttl-del svg{width:12px; height:12px;}
+.ttl-new{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; border-style:dashed; min-height:132px; color:var(--text-dim);}
+.ttl-new b{font-size:11.5px;}
+.ttl-plus{width:34px; height:34px; border-radius:12px; background:rgba(224,172,85,.14); color:var(--teal); display:flex; align-items:center; justify-content:center;}
+.ttl-plus svg{width:18px; height:18px;}
+.ttl-grid .tt-list-add-input-row{grid-column:1 / -1;}
 .tt-list-add-input{flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--text); font-family:var(--font-display);}
 
 .tt-card-container{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;}
@@ -391,9 +412,6 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .opt-two .swatch{flex:1 1 0; min-width:0; max-width:28px; width:auto; height:auto; aspect-ratio:1 / 1; font-size:11px;}
 .opt-two .swatch.line-default{font-size:8px;}
 .opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px;}
-.now-inline{margin-left:auto; margin-right:12px; gap:5px; flex-wrap:nowrap; transition:opacity .25s ease;}
-.now-inline .swatch{width:22px; height:22px; font-size:10px;}
-.now-inline.hide{opacity:0; pointer-events:none;}
 /* 스위치로 켜고 끄는 하위 줄: 높이가 0 ↔ 실제 높이로 부드럽게 바뀌고, 살짝 위에서 내려오며 나타난다 */
 .opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s cubic-bezier(.3,.7,.3,1), opacity .24s ease;}
 .opt-collapse.open{grid-template-rows:1fr; opacity:1;}
@@ -2615,6 +2633,25 @@ async function enqueuePush(opts){
 // 자리만 차지해서 폼이 길어 보인다).
 // 반복 요일 표시 순서 — Date.getDay()와 맞춘다(0=일 ... 6=토).
 const REMIND_WEEKDAYS = ['일','월','화','수','목','금','토'];
+// 상자(display:none ↔ 보임)를 부드럽게 열고 닫는다. 높이 자체를 애니메이션하면 폼 전체가 프레임마다 다시 계산돼서 끊겨 보이므로,
+// 열 때는 "늘어난 만큼 시트를 아래에서 위로 미끄러뜨리기"(변환만 쓰므로 GPU가 처리) + 내용 서서히 나타나기, 닫을 때는 서서히 사라진 뒤 감춘다.
+function smoothToggleBox(box, show){
+  if(!box) return;
+  box.dataset.noAnim = '1';   // 공통 높이 애니메이션은 이 상자에는 쓰지 않는다
+  try{
+    if(show){
+      const sheet = box.closest('.modal-sheet');
+      const before = sheet ? sheet.getBoundingClientRect().height : 0;
+      box.style.display = '';
+      const delta = sheet ? sheet.getBoundingClientRect().height - before : 0;
+      if(sheet && delta > 0) sheet.animate([{ transform:'translateY(' + delta + 'px)' }, { transform:'translateY(0)' }], { duration:340, easing:'cubic-bezier(.22,1,.36,1)' });
+      box.animate([{ opacity:0 }, { opacity:1 }], { duration:300, delay:60, easing:'ease-out', fill:'backwards' });
+    } else {
+      const an = box.animate([{ opacity:1 }, { opacity:0 }], { duration:150, easing:'ease-in', fill:'forwards' });
+      an.onfinish = ()=>{ box.style.display = 'none'; try{ an.cancel(); }catch(_){} };
+    }
+  }catch(_){ box.style.display = show ? '' : 'none'; }
+}
 function reminderFieldsHtml(opts={}){
   const broadcast = !!opts.broadcast;
   const on = !!opts.enabled;
@@ -6002,7 +6039,7 @@ const TT_BG_PRESETS = ['#000000', '#FFFFFF'];
 const TT_CHECK_SVG_OLD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#000" stroke-opacity=".6" stroke-width="5.4"/><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#fff" stroke-width="3"/></svg>';
 function ttOptionsModal(){
   const o = state.ttOpts;
-  const colors = ['#FF6B6B', '#5B9DFF', '#FFB454', '#FFFFFF'];
+  const colors = ['#FF6B6B', '#3ED6B5', '#5B9DFF', '#FFB454', '#B98CFF', '#FFFFFF'];
   const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘 요일 강조'], ['currentTime', '현재 시간 표시선']];
   const fontScale = o.fontScale || 1;
   const rowScale = o.rowScale || 1;
@@ -6052,12 +6089,16 @@ function ttOptionsModal(){
         ${opts.map(([key, label]) => `
         <div class="opt-row">
           <span>${label}</span>
-          ${key==='currentTime' ? `<div class="swatches now-inline ${o.currentTime ? '' : 'hide'}" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
+          <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
+        </div>${key==='currentTime' ? `
+        <div id="tt-now-color-section" class="opt-sub" style="${o.currentTime ? '' : 'display:none;'}">
+          <span class="opt-name">선 색상</span>
+          <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
             ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
             ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
-          </div>` : ''}
-          <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
-        </div>${key==='currentTime' ? inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B') : ''}`).join('')}
+          </div>
+          ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
+        </div>` : ''}`).join('')}
       </div>
     </div>
     <div class="modal-actions" style="gap:8px;">
@@ -6069,7 +6110,7 @@ function ttOptionsModal(){
 function setupTtOptionsModalListeners(){
   const panel = document.getElementById('tt-opts-panel');
   if(!panel) return;
-  const colorSection = document.getElementById('tt-now-color-swatches');
+  const colorSection = document.getElementById('tt-now-color-section');
   panel.querySelectorAll('.tt-opt-pending').forEach(btn=>{
     btn.onclick = ()=>{
       const next = btn.dataset.checked !== '1';
@@ -6077,8 +6118,7 @@ function setupTtOptionsModalListeners(){
       btn.classList.toggle('on', next);
       btn.setAttribute('aria-checked', String(next));
       if(btn.dataset.opt==='currentTime' && colorSection){
-        colorSection.classList.toggle('hide', !next);   // 꺼지면 색 칸이 서서히 사라진다(같은 줄 안이라 화면이 출렁이지 않는다)
-        if(!next){ const cp = document.getElementById('cp-wrap-ttnow'); if(cp) cp.style.display = 'none'; }
+        colorSection.style.display = next ? '' : 'none';   // 켜면 펼쳐지고 끄면 접히며 사라진다(공통 나타남·사라짐 애니메이션이 처리)
       }
     };
   });
@@ -10261,54 +10301,53 @@ function semesterPickerModal(){
 }
 
 // 이미지3 스타일: 학기별로 그 안의 이름 있는 시간표들을 전부 보여주는 관리 화면
-// 지난 학기는 기본으로 접어 두고(지금 보고 있는 학기는 펼침), 학기 제목을 눌러 접고 펼 수 있다. 위쪽 "모두 접기/펼치기"로 한꺼번에도 된다.
-function isSemOpen(k){
-  const o = state.ttListOpen || {};
-  if(o[k] !== undefined) return !!o[k];
-  const past = semesterSortValue(k) < semesterSortValue(currentSemesterKey());
-  return !(past && k !== state.activeSemester);
+// 시간표 목록: 위쪽 칩으로 학기를 고르면 그 학기의 시간표들이 미리보기 카드로 나온다(지난 학기가 많아도 복잡하지 않다).
+function ttListSem(){
+  const keys = sortedSemesterKeys();
+  if(keys.includes(state.ttListSem)) return state.ttListSem;
+  return keys.includes(state.activeSemester) ? state.activeSemester : (keys[0] || null);
 }
-// 이미 그려진 목록의 접힘 상태만 바꾼다(다시 그리지 않으므로 깜빡임 없이 부드럽게 접히고 펼쳐진다)
-function applyTtListFold(){
-  document.querySelectorAll('.tt-list-card').forEach(card=>{
-    const open = isSemOpen(card.dataset.sem);
-    card.classList.toggle('folded', !open);
-    const body = card.querySelector('.opt-collapse'); if(body) body.classList.toggle('open', open);
-    const ch = card.querySelector('.tt-list-chev'); if(ch) ch.style.transform = 'rotate(' + (open ? 180 : 0) + 'deg)';
-  });
-  const btn = document.querySelector('.tt-list-foldall');
-  if(btn) btn.textContent = sortedSemesterKeys().some(isSemOpen) ? '모두 접기' : '모두 펼치기';
+function ttChipLabel(k){ return semesterLabel(k).replace(/^20/, ''); }
+// 한 시간표의 주간 모양을 작게 그린 미리보기(월~금, 9시~21시)
+function ttMiniHtml(slots){
+  const blocks = (slots || []).map(c=>{
+    const d = Number(c.day);
+    if(!(d >= 0 && d < 5)) return '';
+    const top = Math.max(0, (c.start - TIME_START) / 720 * 100);
+    const h = Math.max(4, Math.min((c.end - c.start) / 720 * 100, 100 - top));
+    return `<i style="left:${d*20+1}%; width:18%; top:${top}%; height:${h}%; background:${escapeHtml(c.color || '#888')};"></i>`;
+  }).join('');
+  return `<div class="ttl-mini">${blocks}</div>`;
+}
+function ttListBody(k){
+  const variants = k ? semesterVariants(k) : [];
+  return variants.map((v,i)=>{
+    const act = k === state.activeSemester && i === state.activeVariant;
+    return `
+    <div class="ttl-card ${act ? 'active' : ''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
+      ${act ? '<span class="ttl-badge">사용 중</span>' : ''}
+      <button type="button" class="ttl-del" data-action="delete-variant" data-key="${k}" data-idx="${i}" title="삭제">${ICON.close}</button>
+      ${ttMiniHtml(v.slots)}
+      <b class="ttl-name">${escapeHtml(v.name)}</b>
+      <small>${v.slots.length}개 수업</small>
+    </div>`;
+  }).join('') + `
+    <div class="ttl-card ttl-new" data-action="show-add-variant-input" data-key="${k}">
+      <span class="ttl-plus">${ICON.plus}</span><b>새 시간표</b>
+    </div>`;
 }
 function timetableListModal(){
   const keys = sortedSemesterKeys();
-  const anyOpen = keys.some(isSemOpen);
-  const curKey = currentSemesterKey();
-  return `
+  const head = `
     <div class="modal-handle"></div>
-    <div class="modal-title">시간표 목록<button data-action="open-semester-picker" title="학기 추가">${ICON.plus}</button></div>
-    ${keys.length > 1 ? `<div style="display:flex; justify-content:flex-end; margin:-4px 0 8px;"><button type="button" class="tt-list-foldall" data-action="tt-list-toggle-all">${anyOpen ? '모두 접기' : '모두 펼치기'}</button></div>` : ''}
-    <div class="tt-list-scroll">
-      ${keys.length===0 ? `<p style="font-size:11.5px; color:var(--text-faint); text-align:center; padding:30px 0;">아직 추가한 학기가 없어요.<br>+ 버튼으로 학기를 추가해보세요.</p>` : keys.map(k=>{
-        const variants = semesterVariants(k);
-        const open = isSemOpen(k);
-        return `
-        <div class="tt-list-card ${open?'':'folded'}" data-sem="${k}">
-          <div class="tt-list-head" data-action="toggle-tt-sem" data-key="${k}">
-            <span class="tt-list-head-txt"><b>${semesterLabel(k)}</b>${k===curKey ? '<em class="tt-list-badge">이번 학기</em>' : ''}<span class="tt-list-sem-count">${variants.length}개</span></span>
-            <span class="tt-list-chev" style="transform:rotate(${open?180:0}deg);">${ICON.chevDown}</span>
-          </div>
-          <div class="opt-collapse ${open?'open':''}"><div class="opt-collapse-in">
-            ${variants.map((v,i)=>{ const act = k===state.activeSemester && i===state.activeVariant; return `
-            <div class="tt-list-row ${act?'active':''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
-              <span class="tt-list-dot">${act ? ICON.tick : ''}</span>
-              <span class="tt-list-row-name">${escapeHtml(v.name)}</span>
-              <span class="tt-list-row-meta">${v.slots.length}개 수업 <button type="button" class="tt-list-row-del" data-action="delete-variant" data-key="${k}" data-idx="${i}">${ICON.close}</button></span>
-            </div>`; }).join('')}
-            <div class="tt-list-add-row" data-action="show-add-variant-input" data-key="${k}">${ICON.plus} 새 시간표 추가</div>
-          </div></div>
-        </div>`;
-      }).join('')}
-    </div>`;
+    <div class="modal-title">시간표 목록<button data-action="open-semester-picker" title="학기 추가">${ICON.plus}</button></div>`;
+  if(!keys.length) return head + `<p style="font-size:11.5px; color:var(--text-faint); text-align:center; padding:30px 0;">아직 추가한 학기가 없어요.<br>+ 버튼으로 학기를 추가해보세요.</p>`;
+  const sel = ttListSem(), cur = currentSemesterKey();
+  return head + `
+    <div class="ttl-chips" id="ttl-chips">
+      ${keys.map(k=>`<button type="button" class="ttl-chip ${k===sel?'on':''}" data-action="tt-list-sem" data-key="${k}">${ttChipLabel(k)}${k===cur?'<i class="ttl-dot"></i>':''}</button>`).join('')}
+    </div>
+    <div class="ttl-grid" id="ttl-body">${ttListBody(sel)}</div>`;
 }
 function renameVariantModal(){
   return `
@@ -12408,7 +12447,7 @@ document.addEventListener('click', async (e)=>{
         // 알림 반복에서 "매주"를 골랐을 때만 요일 고르는 줄을 보여준다.
         if(wrap.dataset.name === 'remindRepeat'){
           const days = document.getElementById('remind-weekdays');
-          if(days) days.style.display = el.dataset.value === 'weekly' ? '' : 'none';
+          if(days){ const want = el.dataset.value === 'weekly'; if((days.style.display !== 'none') !== want) smoothToggleBox(days, want); }
         }
       }
     }
@@ -12679,13 +12718,16 @@ document.addEventListener('click', async (e)=>{
       toast(state.previewAsRole ? `${roleLabel(state.previewAsRole)} 화면으로 미리보기 중` : '개발자 화면으로 복귀했습니다');
     }
     else if(a === 'open-semester-picker'){ openModal(semesterPickerModal()); }
-    else if(a === 'open-timetable-list'){ state.ttListOpen = {}; openModal(timetableListModal()); }
-    else if(a === 'toggle-tt-sem'){
-      const k = el.dataset.key; const open = !isSemOpen(k);
-      state.ttListOpen = { ...(state.ttListOpen||{}), [k]: open };
-      applyTtListFold();
+    else if(a === 'open-timetable-list'){
+      state.ttListSem = null; openModal(timetableListModal());
+      const on = document.querySelector('.ttl-chip.on'); if(on) on.scrollIntoView({ inline:'center', block:'nearest' });
     }
-    else if(a === 'tt-list-toggle-all'){ const keys = sortedSemesterKeys(); const open = !keys.some(isSemOpen); state.ttListOpen = Object.fromEntries(keys.map(k=>[k, open])); applyTtListFold(); }
+    else if(a === 'tt-list-sem'){
+      state.ttListSem = el.dataset.key;
+      document.querySelectorAll('.ttl-chip').forEach(c=>c.classList.toggle('on', c.dataset.key === state.ttListSem));
+      const body = document.getElementById('ttl-body');
+      if(body){ body.innerHTML = ttListBody(state.ttListSem); try{ body.animate([{ opacity:0, transform:'translateY(6px)' }, { opacity:1, transform:'none' }], { duration:240, easing:'cubic-bezier(.22,1,.36,1)' }); }catch(_){} }
+    }
     else if(a === 'open-tt-more-menu'){ openModal(ttMoreMenuModal()); }
     else if(a === 'pick-semester'){
       state.activeSemester = el.dataset.key;
@@ -12907,8 +12949,7 @@ document.addEventListener('click', async (e)=>{
     // "알림 받기" 스위치 — 꺼져 있으면 날짜·시각 입력을 아예 감춘다.
     // (회색으로 죽여두면 쓰지도 않을 입력칸이 자리만 차지해서 폼이 길어 보인다)
     else if(a==='toggle-remind'){
-      const box = document.getElementById('remind-fields');
-      if(box) box.style.display = el.checked ? '' : 'none';
+      smoothToggleBox(document.getElementById('remind-fields'), el.checked);
     }
     // 일정 목록 항목의 시간·장소·메모를 접었다 펴는 토글. 눌러서 펼치면 그 안에
     // 수정·삭제 버튼도 같이 나온다.
