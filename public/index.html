@@ -860,9 +860,9 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .link-row{display:flex; align-items:center; justify-content:space-between; padding:15px 2px; font-size:13.5px; font-weight:500; cursor:pointer; color:var(--text); transition:opacity .1s;}
 .link-row:active{opacity:.55;}
 .link-row-label{display:flex; align-items:center; gap:7px;}
-.lr-ic{display:inline-flex; width:18px; height:18px; align-items:center; justify-content:center; flex-shrink:0;}
-.lr-ic svg{width:18px; height:18px;}
-.lr-ic.sm svg{width:15px; height:15px;}
+.lr-ic{display:inline-flex; width:16px; height:16px; align-items:center; justify-content:center; flex-shrink:0;}
+.lr-ic svg{width:16px; height:16px;}
+.lr-ic.sm svg{width:13px; height:13px;}
 .dept-notice-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 2px; border-bottom:1px solid var(--border); text-decoration:none; color:var(--text);}
 .dept-notice-row:last-child{border-bottom:none;}
 .dept-notice-title{font-size:11.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;}
@@ -4013,8 +4013,12 @@ if(!window.__friendDragBound){
       row.style.transform = 'translateY(' + (dy / zm) + 'px)';
       const center = rects[from].top + hs[from]/2 + dy;
       to = 0;
-      rows.forEach((r,i)=>{ if(i !== from && rects[i].top + hs[i]/2 <= center) to++; });
-      if(from < to) to = Math.min(to, rows.length - 1);
+      // 끌 수 있는 끝(다른 줄의 중심)까지 끌면 "넘었다"로 본다(줄이 두 개면 끝까지 끌어도 중심을 넘지는 못한다). 1px 여유
+      rows.forEach((r,i)=>{
+        if(i === from) return;
+        const c = rects[i].top + hs[i]/2;
+        if(i > from ? c <= center + 1 : c < center - 1) to++;
+      });
       rows.forEach((r,i)=>{
         if(i === from) return;
         let shift = 0;
@@ -5312,6 +5316,7 @@ const ICON = {
   grid:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg>`,
   calendar:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>`,
   calendarMy:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><text x="12" y="17.6" text-anchor="middle" font-size="6.6" font-weight="800" font-family="system-ui,sans-serif" fill="currentColor" stroke="none">MY</text></svg>`,
+  personOff:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20.5c0-3.6 3.2-6 7-6s7 2.4 7 6"/><path d="M4 4l16 16"/></svg>`,
   grip:`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.6"/><circle cx="15" cy="7" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="17" r="1.6"/><circle cx="15" cy="17" r="1.6"/></svg>`,
   todayCal:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2.3" fill="currentColor" stroke="none"/></svg>`,
   weekBars:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v4M9 9v10M14 12v7M19 6v13"/></svg>`,
@@ -9287,6 +9292,12 @@ INLINE_COLOR_HANDLERS['avcolor'] = (hex)=>{ avDraft.color = hex; const p = docum
 INLINE_COLOR_HANDLERS['avbg'] = (hex)=>{ avDraft.bg = hex; const p = document.querySelector('#av-bg-swatches [data-action="toggle-inline-color"]'); if(p){ avMarkSwatch('av-bg-swatches', p, hex); p.style.background = hex; } updateAvPreview(); };
 INLINE_COLOR_HANDLERS['pxcolor'] = (hex)=>{ avPxColor = hex; const p = document.querySelector('#px-palette [data-action="toggle-inline-color"]'); if(p){ avMarkSwatch('px-palette', p, hex); p.style.background = hex; } };
 
+// 전체 화면 창(친구·환경설정)을 상단바 바로 아래에서 시작하게 맞춘다
+function placeBelowTopbar(wrap){
+  const tb = document.querySelector('.topbar');
+  const y = tb ? Math.max(0, Math.round(tb.getBoundingClientRect().bottom)) : 0;
+  if(y > 0){ wrap.style.top = y + 'px'; wrap.style.paddingTop = '0'; }
+}
 /* ===== 환경설정 창 =====
  * MY 탭 '계정' 카드의 "환경설정"이 여는 전체 화면 창(친구 창과 같은 모양). 예전에는 MY 탭 안에서 펼쳐졌다.
  * 설정을 바꾸면 모두 renderMain()을 다시 부르므로, renderMain 끝에서 이 창도 같이 새로 그린다. */
@@ -9426,6 +9437,7 @@ function openSettingsPage(){
   wrap.className = 'friends-page';
   wrap.id = 'settings-page';
   wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="close-settings-page" aria-label="닫기">${ICON.chevL}</button><b>환경설정</b><span class="fp-head-sp"></span></div><div class="fp-body" id="settings-page-body">${settingsPanelHtml()}</div>`;
+  placeBelowTopbar(wrap);
   (document.querySelector('.shell') || document.body).appendChild(wrap);
   requestAnimationFrame(()=>wrap.classList.add('open'));
   renderMain();   // 위젯 슬라이더 같은 것을 새 화면에 연결한다
@@ -9474,7 +9486,7 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row danger" data-action="reset-all-timetables"><span class="link-row-label"><span class="lr-ic">${ICON.trash}</span> 모든 시간표 삭제</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row danger" data-action="delete-account"><span class="link-row-label"><span class="lr-ic">${ICON.person}</span> 회원 탈퇴</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="link-row danger" data-action="delete-account"><span class="link-row-label"><span class="lr-ic">${ICON.personOff}</span> 회원 탈퇴</span> <span class="sub">${ICON.chevR}</span></div>
     </div>
 
     <div class="section-title dev-section-head">
@@ -9800,6 +9812,7 @@ async function openFriendsPage(){
   wrap.id = 'friends-page';
   wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="close-friends-page" aria-label="닫기">${ICON.chevL}</button><b>친구 시간표</b><span class="fp-head-sp"></span></div><div class="fp-body" id="friends-modal-body">${friendsModalBody()}</div>`;
   // 친구 추가 같은 팝업(#modal-root)은 .shell 안에 있어서, 이 창을 body에 직접 붙이면 팝업이 창 뒤로 가려진다 — 같은 층(.shell)에 붙여 팝업(z-index 50)이 위에 뜨게 한다
+  placeBelowTopbar(wrap);
   (document.querySelector('.shell') || document.body).appendChild(wrap);
   requestAnimationFrame(()=>wrap.classList.add('open'));
   setupFriendsModalListeners();
@@ -10241,11 +10254,12 @@ async function handleNicknameSubmit(fd){
 
 // 내가 시간표를 저장하면 10분 뒤 친구 연결 문서에 ttVer(변경 시각)를 남긴다. 친구는 실시간으로 이미 받고 있는 그 값이 바뀌었을 때만
 // 내 시간표를 다시 읽고, 그 전에는 폰에 저장해 둔 것을 쓴다(그래서 친구 시간표를 열 때 읽기가 안 나간다).
+const TT_VER_DELAY = 60 * 1000;   // 시간표를 고친 뒤 친구에게 "바뀌었다"고 알리기까지 모아 두는 시간(수정이 이어지면 한 번만 쓴다)
 let ttVerTimer = null;
 function ttVerQueue(){
   if(!state.user) return;
   const p = localGet('tt_ver_pending', null);
-  if(!p || p.uid !== state.user.uid) localSet('tt_ver_pending', { uid: state.user.uid, due: Date.now() + SHARE_DELAY });
+  if(!p || p.uid !== state.user.uid) localSet('tt_ver_pending', { uid: state.user.uid, due: Date.now() + TT_VER_DELAY });
   ttVerSchedule();
 }
 function ttVerSchedule(){
@@ -10258,10 +10272,17 @@ async function ttVerFlush(){
   const p = localGet('tt_ver_pending', null);
   if(!p || !state.user || p.uid !== state.user.uid) return;
   if(Date.now() < p.due){ ttVerSchedule(); return; }
-  const fr = (state.friendsUI.data && state.friendsUI.data.friends) || [];
   localSet('tt_ver_pending', null);
   const ts = Date.now();
-  try{ await Promise.all(fr.map(f=>updateDoc(doc(db,'friendLinks',f.pairId), { ['ttVer.'+state.user.uid]: ts }))); }
+  try{
+    // 친구 목록은 친구 창을 열어야 채워진다 — 안 열었으면 여기서 한 번 받아온다(예전엔 이때 목록이 비어 친구에게 변경이 전혀 전달되지 않았다)
+    let ids = ((state.friendsUI.data && state.friendsUI.data.friends) || []).map(f=>f.pairId);
+    if(!ids.length){
+      const snap = await getDocs(query(collection(db,'friendLinks'), where('uids','array-contains', state.user.uid)));
+      ids = snap.docs.filter(d=>(d.data().status||'accepted') !== 'pending').map(d=>d.id);
+    }
+    await Promise.all(ids.map(id=>updateDoc(doc(db,'friendLinks',id), { ['ttVer.'+state.user.uid]: ts })));
+  }
   catch(e){ console.warn('[ttVer]', e); localSet('tt_ver_pending', { uid: p.uid, due: Date.now() + 60000 }); ttVerSchedule(); }
 }
 // 시간표 공개 변경은 서버 쓰기를 아끼려고 10분 동안 모았다가 한 번에 저장한다(화면에는 바로 반영, 앱을 꺼도 다음에 켤 때 이어서 저장).
