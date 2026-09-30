@@ -545,6 +545,8 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .seg-vis, .tgl, .seg-group, .switch{touch-action:pan-y;}
 .home-order-row{position:relative; background:var(--surface); transition:transform .18s;}
 .home-order-row.dragging{transition:none; z-index:6; background:var(--surface-2); box-shadow:0 6px 18px rgba(0,0,0,.35); border-radius:12px;}
+.friend-row{position:relative; background:var(--surface); transition:transform .18s;}
+.friend-row.dragging{transition:none; z-index:6; background:var(--surface-2); box-shadow:0 6px 18px rgba(0,0,0,.35); border-radius:12px;}
 .home-drag-handle{display:flex; align-items:center; justify-content:center; width:44px; height:30px; color:var(--text-faint); cursor:grab; touch-action:none; flex-shrink:0;}
 .set-label.sm{font-size:11.5px; margin-bottom:7px;}
 .set-label.sm.tight{margin-bottom:0;}
@@ -931,7 +933,7 @@ const PATCH_NOTES = [
   { version:'Beta 0.4.0', date:'2026-09-30', items:[
     { title:'환경설정을 새로 다듬었어요', text:'화면 · 알림 · 위젯 탭의 디자인과 간격을 하나로 맞췄어요. 제목마다 골드 막대가 붙고, 선택 항목은 알약 모양으로 통일했어요' },
     { title:'켜짐/꺼짐이 슬라이드 스위치로', text:'알림 · 위젯 · 친구 화면 · 시간표 표시 설정의 스위치를 눌러도 되고, 손으로 밀어도 넘어가요. 테마 · 글씨 크기 같은 선택도 칸이 미끄러지듯 움직여요' },
-    { title:'홈 화면 항목을 끌어서 순서 바꾸기', text:'홈 화면 보기 설정에서 순서 변경을 누르면 오른쪽 손잡이를 잡고 위아래로 끌어 옮길 수 있어요. 다가오는 학사일정과 다가오는 내 일정도 이제 따로 옮기고 숨길 수 있어요' },
+    { title:'홈 화면 항목을 끌어서 순서 바꾸기', text:'홈 화면 보기 설정에서 순서 변경을 누르면 오른쪽 손잡이를 잡고 위아래로 끌어 옮길 수 있어요. 다가오는 학사일정과 다가오는 내 일정도 이제 따로 옮기고 숨길 수 있어요. 소셜의 친구 편집에서도 같은 방식으로 친구 순서를 바꿀 수 있어요' },
     { title:'오늘의 시간표 알림을 한 번에', text:'끄기 · 7시 · 8시 · 9시 중에서 하나만 고르면 돼요. 학식 알림은 진리관(학생) · 미래관(교직원)과 조식 · 중식 · 석식을 버튼으로 바로 켜고 꺼요' },
     { title:'퍼센트는 숫자로 직접 입력', text:'위젯 투명도 · 글씨 크기, 시간표 글씨 · 크기 슬라이더 옆 칸에 숫자를 적으면 슬라이더도 함께 움직여요. 잡으면 손잡이가 커져요' },
     { title:'MY 탭 정리', text:'개발자에게 카드가 추가기능으로 바뀌어 계정 아래로 내려갔고, 오늘 방문자는 제목 줄 오른쪽에 있어요. 환경설정은 톱니 버튼 하나로 열고 닫아요' },
@@ -3317,6 +3319,55 @@ if(!window.__subtabBound){
     bar.querySelectorAll('.subtab').forEach(t=>t.classList.toggle('active', t === tab));
     place(bar, tab, true);
     setTimeout(()=>{ tab.dataset.slid = '1'; tab.click(); }, 240);
+  }, true);
+}
+// 친구 목록 순서 변경: 편집 모드에서 오른쪽 손잡이를 잡고 위아래로 끌면 그 줄이 손가락을 따라오고,
+// 다른 줄은 자리를 비켜준다. 놓으면 그 자리로 저장한다. 줄마다 높이가 달라도(별명이 있는 줄 등) 실제 위치로 계산한다.
+if(!window.__friendDragBound){
+  window.__friendDragBound = true;
+  document.addEventListener('pointerdown', (e)=>{
+    const h = e.target.closest && e.target.closest('.friend-drag-handle'); if(!h) return;
+    const row = h.closest('.friend-row'); if(!row) return;
+    const rows = Array.from(row.parentElement.querySelectorAll(':scope > .friend-row'));
+    const from = rows.indexOf(row); if(from < 0) return;
+    e.preventDefault();
+    const rects = rows.map(r=>r.getBoundingClientRect());
+    const hs = rects.map(r=>r.height);
+    const step = hs[from] + (rows.length > 1 ? Math.max(0, (rects[1].top - rects[0].bottom)) : 0);
+    const startY = e.clientY;
+    const minDy = rects[0].top - rects[from].top, maxDy = rects[rows.length-1].top - rects[from].top;
+    let to = from;
+    try{ h.setPointerCapture(e.pointerId); }catch(_){}
+    row.classList.add('dragging');
+    const move = (ev)=>{
+      const dy = Math.max(minDy, Math.min(maxDy, ev.clientY - startY));
+      row.style.transform = 'translateY(' + dy + 'px)';
+      const center = rects[from].top + hs[from]/2 + dy;
+      to = 0;
+      rows.forEach((r,i)=>{ if(i !== from && rects[i].top + hs[i]/2 < center) to++; });
+      rows.forEach((r,i)=>{
+        if(i === from) return;
+        let shift = 0;
+        if(from < to && i > from && i <= to) shift = -step;
+        if(from > to && i < from && i >= to) shift = step;
+        r.style.transform = shift ? 'translateY(' + shift + 'px)' : '';
+      });
+    };
+    const end = ()=>{
+      h.removeEventListener('pointermove', move);
+      h.removeEventListener('pointerup', end);
+      h.removeEventListener('pointercancel', end);
+      if(to !== from){
+        const ids = rows.map(r=>r.dataset.pair);
+        const [k] = ids.splice(from, 1);
+        ids.splice(to, 0, k);
+        localSet('friend_order', ids);
+      }
+      refreshFriendsModalBody();
+    };
+    h.addEventListener('pointermove', move);
+    h.addEventListener('pointerup', end);
+    h.addEventListener('pointercancel', end);
   }, true);
 }
 function setupHomeReorderDrag(){
@@ -8441,7 +8492,7 @@ function friendListBody(){
           const sp = '';
           if(state.friendsUI.editMode){
             return `
-            <div class="list-item" style="${sp}">
+            <div class="list-item friend-row" data-pair="${escapeHtml(f.pairId)}" style="${sp}">
               <div class="row-between">
                 <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
                   <button type="button" class="btn btn-danger btn-sm" data-action="delete-friend-direct" data-pair="${escapeHtml(f.pairId)}" data-name="${escapeHtml(f.name)}" style="width:auto; padding:4px 9px; font-size:10.5px; flex-shrink:0;">친구 삭제</button>
@@ -8449,10 +8500,7 @@ function friendListBody(){
                     <b style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}
                   </div>
                 </div>
-                <div style="display:flex; gap:4px; flex-shrink:0;">
-                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="-1" ${i===0?'disabled':''} title="위로">▲</button>
-                  <button type="button" class="btn-settings-mini" data-action="move-friend-order" data-pair="${escapeHtml(f.pairId)}" data-dir="1" ${i===sorted.length-1?'disabled':''} title="아래로">▼</button>
-                </div>
+                <span class="home-drag-handle friend-drag-handle" title="끌어서 순서 변경">${ICON.grip}</span>
               </div>
             </div>`;
           }
