@@ -495,7 +495,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-wrap.bg-dark{--text-dim:#a9aeb9; --text-faint:#7d828d; --border:rgba(255,255,255,.14);}
 .tt-wrap.bg-light .tt-cell{border-top-color:rgba(0,0,0,.07); border-left-color:rgba(0,0,0,.07);}
 .tt-wrap.bg-light .tt-cell.hour-cell{border-top-color:rgba(0,0,0,.2);}
-.tt-grid{display:grid; grid-template-columns:20px repeat(5, minmax(24px, 1fr)); min-width:320px; position:relative; --tt-row-h:13px;}
+.tt-grid{display:grid; grid-template-columns:20px repeat(5, minmax(24px, 1fr)); min-width:320px; position:relative; --tt-row-h:26px;}
 .tt-head{height:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; color:var(--text-dim); border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(var(--grid-b-rgb),0.95); backdrop-filter:blur(8px); z-index:4;}
 .tt-head.today{color:var(--teal); border-bottom:2px solid var(--teal);}
 .tt-timelabel{font-family:var(--font-mono); font-size:9px; font-weight:600; color:var(--text-faint); text-align:right; padding-right:3px; grid-column:1; display:flex; align-items:flex-start; justify-content:flex-end; padding-top:2px; pointer-events:none;}
@@ -503,6 +503,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-wrap.has-line .tt-cell{border-top-color:var(--tt-line) !important; border-left-color:var(--tt-line) !important;}
 .tt-wrap.has-line .tt-cell.hour-cell{border-top-color:var(--tt-line-strong) !important;}
 .tt-cell.hour-cell{border-top:1px solid rgba(255,255,255,0.12);}
+/* 정각 줄만 보이는 민무늬: 30분 칸의 위쪽 선은 그리지 않는다 */
+.tt-cell:not(.hour-cell){border-top-color:transparent !important;}
 .tt-cell.today-col{background:var(--teal-glow-5);}
 /* 행 높이는 더 눌러서 한 화면에 더 많은 시간대가 들어오게 하고, 대신 블록 안
    글씨는 오히려 키워서 눌린 만큼 안 읽히는 일이 없게 한다. */
@@ -1510,12 +1512,12 @@ const TIME_START = 540;
 const TIME_END   = 1320;
 const TIMETABLE_VISIBLE_END = 1080;   // 수업이 일찍 끝나도 시간표를 최소 18시까지는 그린다(그보다 짧게는 자르지 않는다)
 const TIMETABLE_BASE_END = 1200;      // 칸 높이(비율)의 기준 끝점: 20시. 어느 폰에서든 "9~20시가 화면을 채우는 높이"가 기준이다
-const TIMETABLE_GRID_STEP = 15;
+const TIMETABLE_GRID_STEP = 30;   // 한 시간을 2칸(30분)으로 나눈다. 수업은 정각에 시작해 50분에 끝나므로 15분 칸은 필요 없고, 보조선은 그리지 않는다(민무늬)
 // 한눈에 보려고 스크롤을 계속 내려야 한다는 피드백을 받아 15→12→10으로 줄였다 —
 // 글자 크기(.tt-block 안 폰트)는 그대로 두고 칸 높이(여백)만 줄여서, 글씨는 안 작아지고
 // 화면에 더 많은 시간대가 한 번에 들어오게 한다. .tt-grid의 --tt-row-h와 항상 같아야
 // 한다(다르면 현재시각 빨간 줄 위치가 어긋난다).
-const TIMETABLE_ROW_PX = 10;
+const TIMETABLE_ROW_PX = 20;
 
 /* ===== 학기(시간표 탭) 관련 헬퍼 ===== */
 const SEASON_ORDER = { '봄':0, '여름':1, '가을':2, '겨울':3 };
@@ -6121,7 +6123,7 @@ function renderTimetable(isCapture=false){
     const capBlockBorder = isLight ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.18)';
     return `
       <style>
-        .capture-grid-scope .tt-cell{border-top:1px dashed ${capLine} !important; border-left:1px solid ${capLine} !important;}
+        .capture-grid-scope .tt-cell{border-top:1px solid transparent !important; border-left:1px solid ${capLine} !important;}
         .capture-grid-scope .tt-cell.hour-cell{border-top:1px solid ${capLineStrong} !important;}
         .capture-grid-scope .tt-block{border-color:${capBlockBorder} !important;}
         /* 캡처는 움직이지 않는 한 장의 그림이라 요일 헤더가 따라다닐 이유가 없다.
@@ -6130,7 +6132,7 @@ function renderTimetable(isCapture=false){
       </style>
       <div class="tt-card-container capture-grid-scope" style="background:${capBg}; border:2px solid ${capBg}; box-shadow:none;">
         <div class="tt-wrap" style="max-height:none; background:${capBg};">
-          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(11*deviceRatioScale()*1.15)}px;">
+          <div class="tt-grid" style="grid-template-rows:24px repeat(${rows}, var(--tt-row-h)); position:relative; --tt-font-scale:${state.ttOpts.fontScale||1}; --tt-row-h:${Math.round(22*deviceRatioScale()*1.15)}px;">
             <div class="tt-head" style="grid-column:1; background:${capBg};"></div>
             ${heads}${timeLabels}${cells}${blocks}
           </div>
