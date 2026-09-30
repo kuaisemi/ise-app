@@ -31,7 +31,7 @@
   var t = v ? JSON.parse(v) : 'dark';
   if(t === 'system') t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
-  var ac = localStorage.getItem('ku_ise_accent'); ac = ac ? JSON.parse(ac) : ''; if(ac && ac !== 'crimson') document.documentElement.setAttribute('data-accent', ac);
+  var ac = localStorage.getItem('ku_ise_accent'); ac = ac ? JSON.parse(ac) : ''; if(ac && ac !== 'crimson'){ document.documentElement.setAttribute('data-accent', ac); if(ac === 'custom'){ var cc = localStorage.getItem('ku_ise_accent_custom'); cc = cc ? JSON.parse(cc) : ''; if(/^#[0-9a-fA-F]{6}$/.test(cc)) document.documentElement.style.setProperty('--crimson', cc); } }
 }catch(e){} })();
 </script>
 <style>
@@ -702,20 +702,48 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 [data-accent="orange"]{--crimson:#D96A25; --crimson-light:#F08A48; --crimson-glow:rgba(217,106,37,0.4); --crimson-rgb:217,106,37; --crimson-text:#FFA872;}
 [data-theme="light"][data-accent="orange"]{--crimson:#C25A18; --crimson-light:#D96A25; --crimson-glow:rgba(194,90,24,0.18); --crimson-rgb:194,90,24; --crimson-text:#AE4E12;}
 .acc-row{display:flex; gap:6px; justify-content:space-between; margin-top:2px;}
-.acc-dot{flex:1; min-width:0; border:none; background:none; padding:0; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer; font-family:inherit; color:var(--text-dim); -webkit-tap-highlight-color:transparent;}
-.acc-dot i{width:34px; height:34px; border-radius:50%; background:var(--c); display:flex; align-items:center; justify-content:center; color:transparent; font-style:normal; font-size:15px; font-weight:800; transition:box-shadow .2s, transform .15s, color .2s;}
+.acc-dot.own i{border:1.5px dashed var(--border-light); color:var(--text-dim); background:var(--c);}
+.acc-dot.own.on i{border-color:transparent; color:#fff;}
+.acc-dot{flex:1; min-width:0; border:none; background:none; padding:4px 0; display:flex; flex-direction:column; align-items:center; gap:0; cursor:pointer; font-family:inherit; color:var(--text-dim); -webkit-tap-highlight-color:transparent;}
+.acc-dot i{width:26px; height:26px; border-radius:50%; background:var(--c); display:flex; align-items:center; justify-content:center; color:transparent; font-style:normal; font-size:13px; font-weight:800; transition:box-shadow .2s, transform .15s, color .2s;}
 .acc-dot:active i{transform:scale(.9);}
-.acc-dot.on i{color:#fff; box-shadow:0 0 0 3px var(--surface-2), 0 0 0 5px var(--c);}
-.acc-dot span{font-size:10.5px; font-weight:600;}
-.acc-dot.on span{color:var(--text); font-weight:800;}
+.acc-dot.on i{color:#fff; box-shadow:0 0 0 2px var(--surface-2), 0 0 0 4px var(--c);}
 #settings-page .card + .card{margin-top:12px !important;}
 .fs-hint{margin-left:8px; font-size:10.5px; font-weight:500; color:var(--text-faint);}
 /* 알림: 카드 위아래와 줄 간격을 촘촘하게 */
-#st-sec-notify .card{padding:13px 16px 8px;}
-#st-sec-notify .set-label{margin-bottom:6px;}
-#st-sec-notify .notify-row{padding:8px 2px; min-height:44px;}
-#st-sec-notify .notify-row:first-of-type{padding-top:2px;}
-#st-sec-notify .card p[style*="font-size:10"]{margin:8px 2px 4px !important;}
+#st-sec-notify .card{padding:2px 14px;}
+#st-sec-notify .notify-row{padding:6px 2px; min-height:42px;}
+#st-sec-notify .notify-row:first-of-type{padding-top:6px;}
+#st-sec-notify .card p[style*="font-size:10"]{margin:6px 2px 8px !important;}
+#st-sec-notify .meal-wrap{padding:6px 2px;}
+.st-cap{margin:14px 4px 7px; font-size:12px; font-weight:800; color:var(--text);}
+.st-sec > .st-cap:first-child{margin-top:2px;}
+.st-tight{padding-bottom:8px !important;}
+.st-tight .fs-ticks{margin-bottom:0;}
+.st-hint{margin:2px 0 6px; font-size:10.5px; color:var(--text-faint); text-align:right;}
+#st-sec-widget .card{padding:12px 14px;}
+#st-sec-widget .pick-box{margin-top:0;}
+/* 위젯 미리보기 */
+.wp-stage{margin:12px 0 0; padding:14px 12px 8px; border-radius:14px; background:var(--surface-3);}
+.wp{width:100%; max-width:300px; margin:0 auto; box-sizing:border-box; padding:11px 13px; border-radius:16px; min-height:96px; box-shadow:0 2px 10px rgba(0,0,0,.18);}
+.wp-h{font-size:.82em; font-weight:800; margin-bottom:6px;}
+.wp-r{display:flex; align-items:center; gap:7px; padding:2px 0; line-height:1.35;}
+.wp-r i{width:3px; height:1.2em; border-radius:2px; flex-shrink:0;}
+.wp-r b{font-family:var(--font-mono); font-size:.88em; font-weight:700; flex-shrink:0;}
+.wp-r span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.wp-big{font-size:1.5em; font-weight:800; margin:2px 0 3px;}
+.wp-sub{font-size:.85em; margin-top:3px;}
+.wp-week{display:grid; grid-template-columns:repeat(5,1fr); gap:5px; min-height:78px;}
+.wp-col{display:flex; flex-direction:column; border-left:1px solid var(--wp-line); padding-left:3px;}
+.wp-col em{font-style:normal; font-size:.78em; text-align:center;}
+.wp-col i{display:block; height:13px; border-radius:3px;}
+.wp-cal{display:grid; grid-template-columns:repeat(7,1fr); gap:1px; text-align:center; font-size:.78em;}
+.wp-cal u{text-decoration:none; border-radius:50%; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-weight:600;}
+.wp-two{display:grid; grid-template-columns:1.25fr 1fr; gap:12px;}
+.wp-date{display:flex; align-items:baseline; gap:8px;}
+.wp-date b{font-size:2.4em; font-weight:800; line-height:1;}
+.wp-date span{font-size:.95em; font-weight:700;}
+.wp-cap{margin:8px 0 0; text-align:center; font-size:10px; color:var(--text-faint);}
 /* 학식: 제목 중복 제거, 아이콘에 다른 줄과 같은 네모 칩 */
 #settings-page .meal-title{display:none;}
 #settings-page .meal-wrap{padding:2px 2px 4px;}
@@ -2538,6 +2566,7 @@ function getThemeOverride(){ return localGet('theme_override', 'dark'); }
 function setThemeOverride(v){
   localSet('theme_override', v);
   applyTheme(getTheme());
+  applyAccent(getAccent());   // 직접 고른 색은 라이트/다크에 맞춰 다시 계산한다
   rerenderAppKeepSettings();
 }
 function getTheme(){
@@ -2556,24 +2585,55 @@ const ACCENTS = [
   { key:'purple', label:'퍼플', dark:'#7E5CE0', light:'#6A48CC' },
   { key:'orange', label:'오렌지', dark:'#D96A25', light:'#C25A18' },
 ];
-function getAccent(){ const v = localGet('accent', 'crimson'); return ACCENTS.some(a=>a.key === v) ? v : 'crimson'; }
+function getAccent(){ const v = localGet('accent', 'crimson'); return (v === 'custom' || ACCENTS.some(a=>a.key === v)) ? v : 'crimson'; }
+function getCustomAccent(){ const v = localGet('accent_custom', ''); return isValidHexColor(v) ? v : '#7E5CE0'; }
+// 직접 고른 색에서 크림슨 계열 변수 다섯 개를 만든다(라이트는 글씨가 읽히게 조금 어둡게, 다크는 밝게)
+function accentMix(hex, withHex, t){
+  const a = parseInt(hex.slice(1), 16), b = parseInt(withHex.slice(1), 16);
+  const ch = (sh)=>Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t);
+  return '#' + [16, 8, 0].map(sh=>ch(sh).toString(16).padStart(2, '0')).join('');
+}
+function deriveAccent(hex, light){
+  const n = parseInt(hex.slice(1), 16), rgb = `${(n>>16)&255},${(n>>8)&255},${n&255}`;
+  return {
+    '--crimson': light ? accentMix(hex, '#000000', 0.1) : hex,
+    '--crimson-light': accentMix(hex, '#ffffff', 0.25),
+    '--crimson-glow': `rgba(${rgb},${light ? 0.18 : 0.4})`,
+    '--crimson-rgb': rgb,
+    '--crimson-text': light ? accentMix(hex, '#000000', 0.25) : accentMix(hex, '#ffffff', 0.45),
+  };
+}
 function applyAccent(key){
   const root = document.documentElement;
+  const vars = ['--crimson','--crimson-light','--crimson-glow','--crimson-rgb','--crimson-text'];
   if(key && key !== 'crimson') root.setAttribute('data-accent', key); else root.removeAttribute('data-accent');
+  if(key === 'custom'){ const d = deriveAccent(getCustomAccent(), getTheme() === 'light'); vars.forEach(v=>root.style.setProperty(v, d[v])); }
+  else vars.forEach(v=>root.style.removeProperty(v));
   const meta = document.querySelector('meta[name="theme-color"]');
   const c = (getComputedStyle(root).getPropertyValue('--crimson') || '').trim();
   if(meta && c) meta.setAttribute('content', c);
 }
 function setAccent(key){
-  if(!ACCENTS.some(a=>a.key === key)) return;
+  if(key !== 'custom' && !ACCENTS.some(a=>a.key === key)) return;
   localSet('accent', key);
   applyAccent(key);
   renderMain();
 }
 function accentPickerHtml(){
-  const cur = getAccent(), light = getTheme() === 'light';
-  return `<p class="set-label" style="margin-top:18px;">포인트 색</p><div class="acc-row">${ACCENTS.map(a=>`<button type="button" class="acc-dot ${cur === a.key ? 'on' : ''}" data-action="set-accent" data-accent="${a.key}" style="--c:${light ? a.light : a.dark};" aria-label="${a.label}"><i>✓</i><span>${a.label}</span></button>`).join('')}</div>`;
+  const cur = getAccent(), light = getTheme() === 'light', custom = getCustomAccent();
+  const dots = ACCENTS.map(a=>`<button type="button" class="acc-dot ${cur === a.key ? 'on' : ''}" data-action="set-accent" data-accent="${a.key}" style="--c:${light ? a.light : a.dark};" aria-label="${a.label}"><i>✓</i></button>`).join('');
+  const own = `<button type="button" class="acc-dot own ${cur === 'custom' ? 'on' : ''}" data-action="toggle-inline-color" data-id="accent" style="--c:${cur === 'custom' ? custom : 'transparent'};" aria-label="직접 고르기"><i>${cur === 'custom' ? '✓' : '+'}</i></button>`;
+  return `<p class="set-label" style="margin-top:16px;">포인트 색</p><div class="acc-row">${dots}${own}</div>${inlineColorPanelHtml('accent', custom)}`;
 }
+INLINE_COLOR_HANDLERS['accent'] = (hex)=>{
+  localSet('accent_custom', hex); localSet('accent', 'custom');
+  applyAccent('custom');
+  document.querySelectorAll('#settings-page .acc-dot').forEach(d=>{
+    const own = d.classList.contains('own');
+    d.classList.toggle('on', own);
+    if(own){ d.style.setProperty('--c', hex); const i = d.querySelector('i'); if(i) i.textContent = '✓'; }
+  });
+};
 
 /* ===== 글씨 크기 =====
    이 앱은 폰트 크기가 전부 px 하드코딩(인라인 스타일 포함)이라 rem 전환이 현실적이지 않다.
@@ -4850,6 +4910,52 @@ function colorPickerModal(id, hex, title){
     <button type="button" class="btn btn-primary" style="margin-top:14px;" data-action="close-color-modal">완료</button>`;
 }
 
+// 위젯 미리보기: 고른 위젯이 홈 화면에서 대략 어떻게 보일지 예시 내용으로 보여 준다(배경·투명도·강조 색·글씨 크기 설정이 그대로 반영된다).
+function wpRgba(hex, a){
+  const h = String(hex || '#000000').replace('#', '');
+  const f = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
+  const n = parseInt(f, 16) || 0;
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+function wpIsDarkHex(hex){
+  const h = String(hex || '#000000').replace('#', '');
+  const f = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
+  const n = parseInt(f, 16) || 0;
+  return (0.299*((n>>16)&255) + 0.587*((n>>8)&255) + 0.114*(n&255)) < 140;
+}
+function widgetPreviewHtml(key, w){
+  const dark = w.bg === 'custom' ? wpIsDarkHex(w.customBg) : (w.bg === 'dark' || (w.bg === 'system' && getTheme() !== 'light'));
+  const base = w.bg === 'custom' ? w.customBg : (dark ? '#1B1B21' : '#FFFFFF');
+  const fg = dark ? '#F9F6F4' : '#191F28', dim = dark ? '#A7A7A7' : '#6B7684', line = dark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.1)';
+  const acc = w.accent || '#F5C563';
+  const fs = 11 * (w.fontScale || 1);
+  const cls = [['09:00','반도체공학개론','#5B8DEF'],['11:00','디지털논리회로','#4ECDC4'],['14:00','전자기학','#F5C563']];
+  const head = (t)=>`<div class="wp-h" style="color:${acc};">${t}</div>`;
+  let body = '';
+  if(key === 'timetable'){
+    body = head('오늘의 시간표') + cls.map(([t,s,c])=>`<div class="wp-r"><i style="background:${c};"></i><b>${t}</b><span>${s}</span></div>`).join('');
+  } else if(key === 'nextClass'){
+    body = head('다음 수업 · 25분 후') + `<div class="wp-big">디지털논리회로</div><div class="wp-sub" style="color:${dim};">11:00 – 11:50 · 공학관 302</div>`;
+  } else if(key === 'week'){
+    const cols = ['월','화','수','목','금'];
+    const blocks = [[0,1,'#5B8DEF'],[0,3,'#F5C563'],[1,2,'#4ECDC4'],[2,1,'#5B8DEF'],[3,2,'#C77DFF'],[4,3,'#4ECDC4']];
+    body = `<div class="wp-week">${cols.map((d,i)=>`<div class="wp-col"><em style="color:${dim};">${d}</em>${blocks.filter(b=>b[0]===i).map(b=>`<i style="background:${b[2]}; margin-top:${b[1]*7}px;"></i>`).join('')}</div>`).join('')}</div>`;
+  } else if(key === 'meal'){
+    body = head('오늘의 학식') + (w.mealShowJinri ? `<div class="wp-r"><b>진리관</b><span>제육덮밥 · 미역국</span></div>` : '') + (w.mealShowMirae ? `<div class="wp-r"><b>미래관</b><span>한식 뷔페</span></div>` : '') + `<div class="wp-sub" style="color:${dim};">중식</div>`;
+  } else if(key === 'schedule'){
+    body = head('일정 · 메모') + `<div class="wp-r"><i style="background:${acc};"></i><span>팀 프로젝트 회의</span></div><div class="wp-r"><i style="background:${acc};"></i><span>실험 보고서 제출</span></div>`;
+  } else if(key === 'calendar' || key === 'calendarWide'){
+    const cells = Array.from({length:35}, (_, i)=>{ const d = i - 2; const today = d === 14; return `<u class="${today ? 'on' : ''}" style="${today ? `background:${acc}; color:${dark ? '#1A0F14' : '#fff'};` : ''}">${d >= 1 && d <= 31 ? d : ''}</u>`; }).join('');
+    const cal = `<div class="wp-cal">${cells}</div>`;
+    body = key === 'calendar'
+      ? head('10월') + cal
+      : `<div class="wp-two"><div>${head('10월')}${cal}</div><div class="wp-list">${head('오늘')}<div class="wp-r"><i style="background:${acc};"></i><span>중간고사 기간</span></div>${w.calendarShowMemo ? '<div class="wp-r"><i style="background:'+dim+';"></i><span>도서관 반납</span></div>' : ''}</div></div>`;
+  } else if(key === 'date'){
+    body = `<div class="wp-date"><b style="color:${acc};">15</b><span>수요일</span></div>` + (w.dateShowEvents ? `<div class="wp-sub" style="color:${dim};">중간고사 기간</div>` : '');
+  }
+  return `<div class="wp-stage"><div class="wp" style="background:${wpRgba(base, (w.opacity || 92) / 100)}; color:${fg}; font-size:${fs}px; --wp-line:${line};">${body}</div><p class="wp-cap">미리보기 (예시 내용)</p></div>`;
+}
+
 function renderWidgetSettingsTab(){
   const wo = getWidgetOpts();
   const WIDGET_TYPE_ICONS = {
@@ -4857,14 +4963,12 @@ function renderWidgetSettingsTab(){
     schedule: ICON.doc, calendar: ICON.calendar, calendarWide: ICON.calendarWideIcon, date: ICON.todayCal,
   };
   return `
-    <div class="field" style="margin-bottom:12px;">
-      <p class="set-label">대표 시간표</p>
+    <div class="field" style="margin-bottom:0;">
       <div class="link-row pick-box" data-action="open-primary-timetable">
         <span style="font-size:12px; font-weight:600;">${escapeHtml(widgetPrimaryLabel())}</span> <span class="sub">${ICON.chevR}</span>
       </div>
-    </div></div><div class="card">
+    </div></div><p class="st-cap">위젯 선택</p><div class="card">
     <div class="field" style="margin-bottom:10px;">
-      <p class="set-label">위젯 선택</p>
       <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:2px;">
         ${WIDGET_TYPES.map(([key,label])=>{
           const active = state.widgetFontScaleTarget===key;
@@ -4879,7 +4983,8 @@ function renderWidgetSettingsTab(){
       </div>
     </div>
 
-    <div style="border-top:1px solid var(--border); margin:16px 0 14px;"></div>
+    ${widgetPreviewHtml(state.widgetFontScaleTarget, getWidgetSettings(state.widgetFontScaleTarget))}
+    <div style="border-top:1px solid var(--border); margin:12px 0 12px;"></div>
     ${(()=>{
       const key = state.widgetFontScaleTarget;
       const label = (WIDGET_TYPES.find(t=>t[0]===key)||['','위젯'])[1];
@@ -9507,7 +9612,8 @@ function settingsDetailHead(tab){
 // 섹션 제목(예전 설정 카드 스타일): 굵은 제목 + 카드
 function settingsOldHead(tab){
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-  if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<div class="st-note">${ICON.info || ''}<span>핸드폰 홈 화면의 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가해요</span></div>`;
+  if(tab === 'notify') return '<p class="st-cap">소식</p>';
+  if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<div class="st-note">${ICON.info || ''}<span>핸드폰 홈 화면의 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가해요</span></div><p class="st-cap">대표 시간표</p>`;
   return '';
 }
 function settingsSectionHtml(tab){
@@ -9532,7 +9638,7 @@ function settingsSectionHtml(tab){
       </p>` : ''}
 
       ${accentPickerHtml()}
-      </div><div class="card"><p class="set-label">글씨 크기 <span class="fs-hint">버튼·여백까지 함께 조절돼요</span><span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
+      </div><div class="card st-tight"><p class="set-label">글씨 크기 <span class="fs-hint">버튼·여백까지 함께 조절돼요</span><span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
       <div class="fs-row"><span class="fs-a s">가</span><input type="range" id="font-pct" min="${FONT_PCT_MIN}" max="${FONT_PCT_MAX}" step="10" value="${fontPct}"><span class="fs-a l">가</span></div>
       <div class="fs-ticks"><span>작게</span><span>기본</span><span>크게</span></div>
 
@@ -9541,7 +9647,7 @@ function settingsSectionHtml(tab){
         <p class="set-label" style="margin:0;">홈 화면 보기 설정</p>
         <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
       </div>
-      <div style="height:2px;"></div>
+      ${state.homeReorderMode ? `<p class="st-hint">오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.</p>` : '<div style="height:2px;"></div>'}
       <div class="notify-row hp-row ${(!state.homeReorderMode && hp.hideVotedPolls) ? 'is-off' : ''}">
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>${state.homeReorderMode ? '항상 맨 위에 고정돼요' : '내가 이미 참여한 투표는 목록에서 숨겨요'}</small></span></span>
         ${state.homeReorderMode ? '' : homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls)}
@@ -9562,11 +9668,9 @@ function settingsSectionHtml(tab){
         ${state.homeReorderMode ? homeOrderMoveHtml(key) : homePrefToggleHtml(hideKey, meta.hidden)}
       </div>`;
       }).join('')}
-      ${state.homeReorderMode ? `<p style="font-size:10.5px; color:var(--text-faint); margin:4px 2px 0; line-height:1.55;">순서 변경 중이에요. 오른쪽 손잡이를 잡고 위아래로 끌어서 순서를 바꿔요.</p>` : ''}
       ` : ''}
 
       ${state.settingsTab==='notify' ? `
-      <p class="set-label">소식</p>
       <div class="notify-row">
         <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>공지</b><small>새 공지가 올라올 때</small></span></span>
         <button type="button" class="tgl ${np.notice?'on':''}" data-action="toggle-notify" data-key="notice" role="switch" aria-checked="${!!np.notice}"></button>
@@ -9583,14 +9687,12 @@ function settingsSectionHtml(tab){
         <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>친구 요청</b><small>친구 요청이 오거나 수락됐을 때</small></span></span>
         <button type="button" class="tgl ${np.friendRequest!==false?'on':''}" data-action="toggle-notify" data-key="friendRequest" role="switch" aria-checked="${np.friendRequest!==false}"></button>
       </div>
-      </div><div class="card">
-      <p class="set-label">방해 금지</p>
+      </div><p class="st-cap">방해 금지</p><div class="card">
       <div class="notify-row">
         <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
         <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
       </div>
-      </div><div class="card">
-      <p class="set-label">시간표</p>
+      </div><p class="st-cap">시간표</p><div class="card">
       <div class="notify-row tt-alert-row">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${!isNativeApp ? '앱(APK)에서만 사용할 수 있어요' : (np.timetable ? `평일 아침 ${np.timetableHour}시에 수업 안내` : '알림 꺼짐')}</small></span></span>
         <div class="seg-group tt-seg ${isNativeApp ? '' : 'disabled'}"><span class="seg-thumb" style="--n:4; --i:${np.timetable ? 1 + Math.max(0, [7,8,9].indexOf(np.timetableHour)) : 0};"></span>
@@ -9598,8 +9700,7 @@ function settingsSectionHtml(tab){
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
         </div>
       </div>
-      </div><div class="card">
-      <p class="set-label">학식</p>
+      </div><p class="st-cap">학식</p><div class="card">
       <div class="meal-wrap">
         <span class="meal-ico">${ICON.utensils}</span>
         <div class="meal-body">
