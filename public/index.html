@@ -690,6 +690,18 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 @keyframes stIn{from{opacity:0; transform:translateX(18px);} to{opacity:1; transform:none;}}
 @keyframes stInBack{from{opacity:0; transform:translateX(-18px);} to{opacity:1; transform:none;}}
 #settings-page .card + .card{margin-top:12px !important;}
+#settings-page .set-label::before{display:none;}
+#settings-page .set-label{margin-bottom:12px;}
+#settings-page .notify-row{padding:13px 2px; min-height:56px; box-sizing:border-box;}
+#settings-page .notify-row.hp-row{padding:9px 2px; min-height:48px;}
+#settings-page .notify-row + .notify-row{border-top:1px solid var(--border);}
+#settings-page .notify-row:first-of-type{padding-top:4px;}
+#settings-page .meal-wrap{border-top:none; padding:4px 2px 0;}
+#settings-page .card p[style*="font-size:10"]{margin:12px 2px 0 !important; font-size:10.5px !important; line-height:1.6 !important;}
+#settings-page .subtabs{margin:0 0 12px;}
+.st-note{display:flex; align-items:flex-start; gap:8px; margin:2px 4px 12px; font-size:11.5px; line-height:1.55; color:var(--text-dim);}
+.st-note svg{width:15px; height:15px; flex-shrink:0; margin-top:2px; color:var(--text-faint);}
+.st-note b{color:var(--text); font-weight:700;}
 #settings-page .card{margin-top:0 !important; padding:18px 16px 20px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border);}
 #settings-page .subtabs{margin-bottom:18px; border-radius:14px;}
 #settings-page .set-label{font-size:13px; margin-bottom:11px;}
@@ -4791,7 +4803,7 @@ function renderWidgetSettingsTab(){
       </div>
     </div></div><div class="card">
     <div class="field" style="margin-bottom:10px;">
-      <p class="set-label">꾸밀 위젯 고르기</p>
+      <p class="set-label">위젯 선택</p>
       <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:2px;">
         ${WIDGET_TYPES.map(([key,label])=>{
           const active = state.widgetFontScaleTarget===key;
@@ -4806,7 +4818,7 @@ function renderWidgetSettingsTab(){
       </div>
     </div>
 
-    </div><div class="card">
+    <div style="border-top:1px solid var(--border); margin:16px 0 14px;"></div>
     ${(()=>{
       const key = state.widgetFontScaleTarget;
       const label = (WIDGET_TYPES.find(t=>t[0]===key)||['','위젯'])[1];
@@ -9432,7 +9444,11 @@ function settingsDetailHead(tab){
   return `<div class="st-dhead"><span class="st-ic" style="background:${m.color};">${m.icon()}</span><span class="st-txt"><b>${m.label}</b><small>${m.desc}</small></span></div>`;
 }
 // 섹션 제목(예전 설정 카드 스타일): 굵은 제목 + 카드
-function settingsOldHead(tab){ return ''; }
+function settingsOldHead(tab){
+  const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+  if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<div class="st-note">${ICON.info || ''}<span>핸드폰 홈 화면의 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가해요</span></div>`;
+  return '';
+}
 function settingsSectionHtml(tab){
   const themeOv = getThemeOverride();
   const fontPct = getFontPct();
@@ -9441,7 +9457,6 @@ function settingsSectionHtml(tab){
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
   return settingsOldHead(tab) + `
     <div class="card" style="margin-top:10px;">
-      ${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<p class="set-title"><span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span></p>` : ''}
 
       ${state.settingsTab==='display' ? `
       <p class="set-label">테마</p>
