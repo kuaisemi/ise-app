@@ -570,7 +570,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .meal-body{flex:1; min-width:0;}
 .meal-title{margin:0 0 6px; font-size:11.5px; font-weight:600; line-height:1.2; color:var(--text);}
 .meal-body .chip-row{margin:0 0 6px;}
-.gusia-card{margin-top:14px; padding:14px 16px;}
+.gusia-card{margin-top:18px; padding:14px 16px;}
 .gusia-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:12.5px; font-weight:800; color:var(--amber);}
 .gusia-head svg{width:16px; height:16px; flex-shrink:0;}
 .gusia-head em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 9px; margin-left:auto;}
@@ -6461,14 +6461,14 @@ function renderMealTab(){
         <p style="font-size:9px; color:var(--text-faint); margin:8px 0 0;">※ 미래관 교직원식당은 중식만 운영합니다.</p>
       ` : `<div class="empty" style="padding:14px 6px;"><p>미래관 식단 정보가 없습니다.</p></div>`}
     </div>
-    <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라옵니다. 그 전에는 지난주 식단이 보이거나 비어 있을 수 있어요.</p>
     ${council ? `
     <div style="display:flex; gap:8px; margin-top:12px;">
       <button class="btn btn-ghost btn-sm" data-action="edit-meal" data-date="${state.mealDate}" style="flex:1;">식단 직접 수정</button>
       <button class="btn btn-primary btn-sm" data-action="fetch-meal-page" id="fetch-meal-btn" style="flex:1.3;">${ICON.refresh} 식단 새로고침</button>
     </div>` : ''}
     <div id="fetch-meal-status" style="font-size:11.5px; color:var(--text-faint); margin-top:8px; line-height:1.6;"></div>
-    <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
+    <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:12px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
+    <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6; text-align:center;">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라옵니다.<br>그 전에는 지난주 식단이 보이거나 비어 있을 수 있어요.</p>
     <div class="card gusia-card">
       <div class="gusia-head">${ICON.utensils}<span>구시아푸드</span><em>학생회관 1층</em></div>
       <div class="gusia-row"><span class="gusia-day">평일</span><span class="gusia-time">10:00 ~ 19:30</span><span class="gusia-last">라스트오더 19:00</span></div>
