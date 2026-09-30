@@ -9721,9 +9721,9 @@ function settingsSectionHtml(tab){
         <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>친구 요청</b><small>친구 요청이 오거나 수락됐을 때</small></span></span>
         <button type="button" class="tgl ${np.friendRequest!==false?'on':''}" data-action="toggle-notify" data-key="friendRequest" role="switch" aria-checked="${np.friendRequest!==false}"></button>
       </div>
-      </div><p class="st-cap">방해 금지</p><div class="card">
+      </div><p class="st-cap">방해 금지<span class="fs-hint">꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</span></p><div class="card">
       <div class="notify-row">
-        <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
+        <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b></span></span>
         <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
       </div>
       </div><p class="st-cap">시간표</p><div class="card">
