@@ -353,6 +353,19 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-list-row-meta{font-size:10.5px; color:var(--text-faint); font-weight:600; display:flex; align-items:center; gap:6px;}
 .tt-list-row-del{background:none; border:none; color:var(--text-faint); padding:2px; display:flex; cursor:pointer;}
 .tt-list-add-row{padding:10px 12px; font-size:11.5px; font-weight:700; color:var(--teal); display:flex; align-items:center; gap:5px; cursor:pointer;}
+.tt-list-card{background:var(--surface-2); border:1px solid var(--border); border-radius:16px; padding:4px 6px 6px; margin-bottom:10px;}
+.tt-list-card.folded{padding-bottom:4px;}
+.tt-list-head{display:flex; align-items:center; justify-content:space-between; padding:9px 8px; border-radius:12px; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.tt-list-head:active{background:var(--surface-3);}
+.tt-list-head-txt{display:flex; align-items:center; gap:7px; min-width:0;}
+.tt-list-head-txt b{font-size:13px;}
+.tt-list-badge{font-style:normal; font-size:9.5px; font-weight:800; color:var(--teal); background:rgba(224,172,85,.16); border-radius:10px; padding:2px 7px;}
+.tt-list-row{gap:10px; padding:9px 10px;}
+.tt-list-row-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.tt-list-dot{width:18px; height:18px; border-radius:50%; border:1.5px solid var(--border-light); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff;}
+.tt-list-dot svg{width:11px; height:11px;}
+.tt-list-row.active .tt-list-dot{background:var(--crimson); border-color:var(--crimson);}
+.tt-list-add-row{margin:2px 4px 0; padding:9px 10px; border:1px dashed var(--border-light); border-radius:12px; justify-content:center;}
 .tt-list-add-input-row{display:flex; gap:6px; padding:6px 12px;}
 .tt-list-add-input{flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--text); font-family:var(--font-display);}
 
@@ -371,7 +384,13 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .opt-name{flex:0 0 44px; font-size:11px; font-weight:600; color:var(--text-dim);}
 .opt-hint{margin:2px 0 0; font-size:10px; line-height:1.5; color:var(--text-faint);}
 .opt-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; font-size:11.5px; color:var(--text);}
-.opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px;}
+.opt-two{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.opt-col{min-width:0;}
+.opt-two .swatches{gap:5px;}
+.opt-two .swatch{width:24px; height:24px; font-size:11px;}
+.opt-two .swatch.line-default{font-size:8px;}
+.opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px; transition:opacity .25s ease;}
+.opt-sub.off{opacity:.32; pointer-events:none;}
 /* 스위치로 켜고 끄는 하위 줄: 높이가 0 ↔ 실제 높이로 부드럽게 바뀌고, 살짝 위에서 내려오며 나타난다 */
 .opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s cubic-bezier(.3,.7,.3,1), opacity .24s ease;}
 .opt-collapse.open{grid-template-rows:1fr; opacity:1;}
@@ -514,9 +533,9 @@ html.is-ios .bottomnav{padding-top:9px; padding-bottom:calc(6px + var(--safe-bot
 html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .navbtn span{font-size:9.5px; font-weight:700;}
 
-.modal-overlay{position:fixed; inset:0; background:rgba(4,6,10,.75); z-index:50; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .18s; backdrop-filter:blur(3px);}
+.modal-overlay{position:fixed; inset:0; background:rgba(4,6,10,.75); z-index:50; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .26s ease; backdrop-filter:blur(3px);}
 .modal-overlay.open{opacity:1; pointer-events:auto;}
-.modal-sheet{width:100%; max-width:480px; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom)); max-height:88vh; overflow-y:auto; transform:translateY(20px); transition:transform .2s;}
+.modal-sheet{width:100%; max-width:480px; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom)); max-height:88vh; overflow-y:auto; transform:translateY(100%); transition:transform .26s cubic-bezier(.4,0,1,1); will-change:transform;}
 /* 가입자가 늘면 380px 목록으로는 감당이 안 돼서, 이 모달만 화면 위쪽까지 쓴다.
    :has()를 못 쓰는 브라우저에서도 시트 자체가 스크롤되므로 목록이 잘리지는 않는다. */
 .modal-sheet:has(#users-list-body){max-height:96vh;}
@@ -524,7 +543,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .user-search-wrap{position:relative; margin-bottom:10px;}
 .user-search-input{width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; color:var(--text); outline:none; font-family:var(--font-display);}
 .user-search-input:focus{border-color:var(--teal);}
-.modal-overlay.open .modal-sheet{transform:translateY(0);}
+.modal-overlay.open .modal-sheet{transform:translateY(0); transition:transform .42s cubic-bezier(.22,1,.36,1);}
 .modal-handle{width:38px; height:4px; background:var(--border-light); border-radius:3px; margin:0 auto 14px; cursor:grab; touch-action:none;
   position:relative;}
 .modal-handle::before{content:''; position:absolute; inset:-14px -30px; }
@@ -1711,6 +1730,11 @@ const COLORS = [
   {name:'purple',hex:'#8338EC'},
 ];
 
+// 일정 추가의 기본 색: 빨 · 주 · 노 · 초 · 파 · 보 · 검 (그 뒤에 "+"로 직접 고르기)
+const SCHED_COLORS = [
+  {name:'red', hex:'#E71D36'}, {name:'orange', hex:'#FF8A1F'}, {name:'yellow', hex:'#FFD23F'},
+  {name:'green', hex:'#2EC46A'}, {name:'blue', hex:'#3A7BFF'}, {name:'purple', hex:'#8338EC'}, {name:'black', hex:'#1B1B1F'},
+];
 const BUILDINGS = ['가속기ICT융합관','과학기술1관','과학기술2관','농심국제관','산학협력관','미래관','공공정책관','석원경상관'];
 
 const state = {
@@ -4975,6 +4999,7 @@ const ICON = {
   bug:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="8" height="10" rx="4"/><path d="M12 8V5M9 5l-1.5-1.5M15 5l1.5-1.5M4 12h4M16 12h4M5 18l3-2M19 18l-3-2M9 9 6.5 6.5M15 9l2.5-2.5"/></svg>`,
   inbox:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2 3h6l2-3h4"/><path d="M5.5 5h13l2.5 7v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6Z"/></svg>`,
   gear:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+  tick:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
   close:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
   chevL:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`,
   chevR:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>`,
@@ -5968,8 +5993,8 @@ function ttBgAttrs(){
   return { cls: cls.join(' '), style: style.join(' ') };
 }
 const TT_CHECK_SVG = '';
-const TT_LINE_PRESETS = ['#FFFFFF', '#9CA3AF', '#000000', '#E0AC55', '#A72A3A'];
-const TT_BG_PRESETS = ['#000000', '#0F1626', '#26262B', '#FFFFFF', '#EEDFC7'];
+const TT_LINE_PRESETS = ['#FFFFFF', '#000000', '#E0AC55'];
+const TT_BG_PRESETS = ['#000000', '#26262B', '#FFFFFF'];
 // 배경 색 견본의 선택 표시: 흰 배경·검은 배경 어디서든 보이도록 검은 테두리를 깐 체크 그림(글자 ✓는 반반 원에서 네모 자국처럼 보였다)
 const TT_CHECK_SVG_OLD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#000" stroke-opacity=".6" stroke-width="5.4"/><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#fff" stroke-width="3"/></svg>';
 function ttOptionsModal(){
@@ -5998,19 +6023,25 @@ function ttOptionsModal(){
         <p id="tt-row-scale-warn" class="opt-hint" style="color:var(--amber); ${rowScale<=0.8?'':'display:none;'}">⚠ 너무 줄이면 글자가 잘릴 수 있어요.</p>
       </div>
       <div class="opt-sec">
+        <div class="opt-two">
+          <div class="opt-col">
         <p class="set-label sm">배경 색상</p>
         <div class="swatches" id="tt-bg-color-swatches" data-selected="${o.bgColor||''}">
           <button type="button" class="swatch tt-bg-pending ${!o.bgColor ? 'selected' : ''}" data-hex="" title="기본(테마 색)" style="background:transparent;"><svg width="100%" height="100%" viewBox="0 0 30 30" style="display:block;"><path d="M15 0a15 15 0 0 0 0 30z" fill="#fff"/><path d="M15 0a15 15 0 0 1 0 30z" fill="#000"/><circle cx="15" cy="15" r="14.5" fill="none" stroke="rgba(128,128,128,.55)"/></svg></button>
           ${TT_BG_PRESETS.map(hex => `<button type="button" class="swatch tt-bg-pending ${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);">${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? TT_CHECK_SVG : ''}</button>`).join('')}
           ${inlineColorSwatchHtml('ttbg', o.bgColor || '#000000', !!o.bgColor && !TT_BG_PRESETS.some(h=>h.toLowerCase()===o.bgColor.toLowerCase()))}
         </div>
-        ${inlineColorPanelHtml('ttbg', o.bgColor || '#000000')}
-        <p class="set-label sm" style="margin-top:14px;">줄 색상</p>
+          </div>
+          <div class="opt-col">
+        <p class="set-label sm">줄 색상</p>
         <div class="swatches" id="tt-line-color-swatches" data-selected="${o.gridColor||''}">
           <button type="button" class="swatch tt-line-pending line-default ${!o.gridColor ? 'selected' : ''}" data-hex="" title="기본">기본</button>
           ${TT_LINE_PRESETS.map(hex => `<button type="button" class="swatch tt-line-pending ${(o.gridColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>`).join('')}
           ${inlineColorSwatchHtml('ttline', o.gridColor || '#FFFFFF', !!o.gridColor && !TT_LINE_PRESETS.some(h=>h.toLowerCase()===o.gridColor.toLowerCase()))}
         </div>
+          </div>
+        </div>
+        ${inlineColorPanelHtml('ttbg', o.bgColor || '#000000')}
         ${inlineColorPanelHtml('ttline', o.gridColor || '#FFFFFF')}
       </div>
       <div class="opt-sec">
@@ -6020,14 +6051,14 @@ function ttOptionsModal(){
           <span>${label}</span>
           <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
         </div>${key==='currentTime' ? `
-        <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-sub">
+        <div id="tt-now-color-section" class="opt-sub ${o.currentTime ? '' : 'off'}">
           <span class="opt-name">선 색상</span>
           <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
             ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
             ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
           </div>
           ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
-        </div></div></div>` : ''}`).join('')}
+        </div>` : ''}`).join('')}
       </div>
     </div>
     <div class="modal-actions" style="gap:8px;">
@@ -6047,7 +6078,7 @@ function setupTtOptionsModalListeners(){
       btn.classList.toggle('on', next);
       btn.setAttribute('aria-checked', String(next));
       if(btn.dataset.opt==='currentTime' && colorSection){
-        colorSection.classList.toggle('open', next);   // 위에서 아래로 펼쳐지고 접히는 애니메이션(CSS)
+        colorSection.classList.toggle('off', !next);   // 꺼져 있으면 흐리게(자리는 그대로라 화면이 출렁이지 않는다)
       }
     };
   });
@@ -6750,7 +6781,7 @@ function renderExamCalTab(){
 function scheduleModal(preselectedDate, isCouncilEvent = false, ev = null, reminder = null){
   const isEdit = !!ev;
   const targetDate = ev ? ev.startDate : (preselectedDate || state.selectedExamDate || todayStr());
-  const defaultColor = ev ? (ev.color || (isCouncilEvent ? COLORS[2].hex : COLORS[0].hex)) : (isCouncilEvent ? COLORS[2].hex : COLORS[0].hex);
+  const defaultColor = ev ? (ev.color || (isCouncilEvent ? SCHED_COLORS[0].hex : SCHED_COLORS[4].hex)) : (isCouncilEvent ? SCHED_COLORS[0].hex : SCHED_COLORS[4].hex);
   const parsed = ev ? parseEventDetails(ev.description) : { time:'', room:'', description:'' };
   const remindAt = reminder && reminder.at ? new Date(reminder.at) : null;
 
@@ -6780,8 +6811,8 @@ function scheduleModal(preselectedDate, isCouncilEvent = false, ev = null, remin
       <div class="field">
         <label>일정 색상</label>
         <div class="swatches" id="schedule-swatches-wrap">
-          ${COLORS.map(col => `<div class="swatch ${col.hex.toLowerCase() === defaultColor.toLowerCase() ? 'selected' : ''}" data-action="pick-schedule-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === defaultColor.toLowerCase() ? '✓' : ''}</div>`).join('')}
-          ${inlineColorSwatchHtml('schedcolor', defaultColor, !COLORS.some(c=>c.hex.toLowerCase()===defaultColor.toLowerCase()))}
+          ${SCHED_COLORS.map(col => `<div class="swatch ${col.hex.toLowerCase() === defaultColor.toLowerCase() ? 'selected' : ''}" data-action="pick-schedule-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === defaultColor.toLowerCase() ? '✓' : ''}</div>`).join('')}
+          ${inlineColorSwatchHtml('schedcolor', defaultColor, !SCHED_COLORS.some(c=>c.hex.toLowerCase()===defaultColor.toLowerCase()))}
         </div>
         ${inlineColorPanelHtml('schedcolor', defaultColor)}
       </div>
@@ -10237,28 +10268,44 @@ function isSemOpen(k){
   const past = semesterSortValue(k) < semesterSortValue(currentSemesterKey());
   return !(past && k !== state.activeSemester);
 }
+// 이미 그려진 목록의 접힘 상태만 바꾼다(다시 그리지 않으므로 깜빡임 없이 부드럽게 접히고 펼쳐진다)
+function applyTtListFold(){
+  document.querySelectorAll('.tt-list-card').forEach(card=>{
+    const open = isSemOpen(card.dataset.sem);
+    card.classList.toggle('folded', !open);
+    const body = card.querySelector('.opt-collapse'); if(body) body.classList.toggle('open', open);
+    const ch = card.querySelector('.tt-list-chev'); if(ch) ch.style.transform = 'rotate(' + (open ? 180 : 0) + 'deg)';
+  });
+  const btn = document.querySelector('.tt-list-foldall');
+  if(btn) btn.textContent = sortedSemesterKeys().some(isSemOpen) ? '모두 접기' : '모두 펼치기';
+}
 function timetableListModal(){
   const keys = sortedSemesterKeys();
   const anyOpen = keys.some(isSemOpen);
+  const curKey = currentSemesterKey();
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">시간표 목록<button data-action="open-semester-picker" title="학기 추가">${ICON.plus}</button></div>
-    ${keys.length > 1 ? `<div style="display:flex; justify-content:flex-end; margin:-4px 0 6px;"><button type="button" class="tt-list-foldall" data-action="tt-list-toggle-all">${anyOpen ? '모두 접기' : '모두 펼치기'}</button></div>` : ''}
+    ${keys.length > 1 ? `<div style="display:flex; justify-content:flex-end; margin:-4px 0 8px;"><button type="button" class="tt-list-foldall" data-action="tt-list-toggle-all">${anyOpen ? '모두 접기' : '모두 펼치기'}</button></div>` : ''}
     <div class="tt-list-scroll">
       ${keys.length===0 ? `<p style="font-size:11.5px; color:var(--text-faint); text-align:center; padding:30px 0;">아직 추가한 학기가 없어요.<br>+ 버튼으로 학기를 추가해보세요.</p>` : keys.map(k=>{
         const variants = semesterVariants(k);
         const open = isSemOpen(k);
         return `
-        <div class="tt-list-group ${open?'':'folded'}">
-          <div class="tt-list-sem-title fold" data-action="toggle-tt-sem" data-key="${k}">
-            <span>${semesterLabel(k)}<span class="tt-list-sem-count">${variants.length}개</span></span>
+        <div class="tt-list-card ${open?'':'folded'}" data-sem="${k}">
+          <div class="tt-list-head" data-action="toggle-tt-sem" data-key="${k}">
+            <span class="tt-list-head-txt"><b>${semesterLabel(k)}</b>${k===curKey ? '<em class="tt-list-badge">이번 학기</em>' : ''}<span class="tt-list-sem-count">${variants.length}개</span></span>
             <span class="tt-list-chev" style="transform:rotate(${open?180:0}deg);">${ICON.chevDown}</span>
           </div>
-          ${open ? variants.map((v,i)=>`
-            <div class="tt-list-row ${k===state.activeSemester && i===state.activeVariant?'active':''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
-              <span>${escapeHtml(v.name)}</span>
+          <div class="opt-collapse ${open?'open':''}"><div class="opt-collapse-in">
+            ${variants.map((v,i)=>{ const act = k===state.activeSemester && i===state.activeVariant; return `
+            <div class="tt-list-row ${act?'active':''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
+              <span class="tt-list-dot">${act ? ICON.tick : ''}</span>
+              <span class="tt-list-row-name">${escapeHtml(v.name)}</span>
               <span class="tt-list-row-meta">${v.slots.length}개 수업 <button type="button" class="tt-list-row-del" data-action="delete-variant" data-key="${k}" data-idx="${i}">${ICON.close}</button></span>
-            </div>`).join('') + `<div class="tt-list-add-row" data-action="show-add-variant-input" data-key="${k}">${ICON.plus} 새 시간표 추가</div>` : ''}
+            </div>`; }).join('')}
+            <div class="tt-list-add-row" data-action="show-add-variant-input" data-key="${k}">${ICON.plus} 새 시간표 추가</div>
+          </div></div>
         </div>`;
       }).join('')}
     </div>`;
@@ -10639,9 +10686,21 @@ function deleteAccountModal(){
 }
 
 /* ===== 모달/토스트 ===== */
+// 모달을 닫았다 다시 여는 게 아니라, 열려 있는 시트 안의 내용만 바꾼다(다시 열면 아래에서 올라오는 애니메이션이 또 돌아 "나갔다 들어오는" 것처럼 깜빡인다)
+function swapModal(html){
+  const sheet = document.querySelector('#modal-overlay .modal-sheet');
+  if(!sheet){ openModal(html); return; }
+  sheet.innerHTML = html;
+}
 function openModal(html){
   const root=document.getElementById('modal-root');
   if(!root) return;
+  // 이미 열려 있는 모달 안에서 다른 내용으로 바뀔 때(목록 → 학기 선택 등)는 시트를 새로 만들지 않고 안쪽만 바꾼다 — 아래에서 다시 올라오는 깜빡임이 없다
+  const openOv = document.getElementById('modal-overlay');
+  if(openOv && openOv.classList.contains('open')){
+    const sh = openOv.querySelector('.modal-sheet');
+    if(sh){ sh.style.transform = ''; sh.style.transition = ''; sh.innerHTML = html; sh.scrollTop = 0; setupModalDragToDismiss(openOv); return; }
+  }
   root.innerHTML = `<div class="modal-overlay" id="modal-overlay"><div class="modal-sheet">${html}</div></div>`;
   const ov=document.getElementById('modal-overlay');
   if(ov){
@@ -10695,7 +10754,7 @@ function closeModal(){
   const ov=document.getElementById('modal-overlay');
   if(!ov) return;
   ov.classList.remove('open');
-  setTimeout(()=>{ const r=document.getElementById('modal-root'); if(r) r.innerHTML=''; },180);
+  setTimeout(()=>{ const cur=document.getElementById('modal-overlay'); if(cur && cur.classList.contains('open')) return; const r=document.getElementById('modal-root'); if(r) r.innerHTML=''; },290);
 }
 // 브라우저 기본 confirm()은 "example.com의 내용:" 같은 시스템 문구가 강제로 붙어서
 // 이걸 없애기 위해 앱 테마에 맞는 자체 확인창을 새로 만듦 (기존 confirm 자리에 그대로 대체)
@@ -12621,8 +12680,12 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'open-semester-picker'){ openModal(semesterPickerModal()); }
     else if(a === 'open-timetable-list'){ state.ttListOpen = {}; openModal(timetableListModal()); }
-    else if(a === 'toggle-tt-sem'){ const k = el.dataset.key; state.ttListOpen = { ...(state.ttListOpen||{}), [k]: !isSemOpen(k) }; openModal(timetableListModal()); }
-    else if(a === 'tt-list-toggle-all'){ const keys = sortedSemesterKeys(); const open = !keys.some(isSemOpen); state.ttListOpen = Object.fromEntries(keys.map(k=>[k, open])); openModal(timetableListModal()); }
+    else if(a === 'toggle-tt-sem'){
+      const k = el.dataset.key; const open = !isSemOpen(k);
+      state.ttListOpen = { ...(state.ttListOpen||{}), [k]: open };
+      applyTtListFold();
+    }
+    else if(a === 'tt-list-toggle-all'){ const keys = sortedSemesterKeys(); const open = !keys.some(isSemOpen); state.ttListOpen = Object.fromEntries(keys.map(k=>[k, open])); applyTtListFold(); }
     else if(a === 'open-tt-more-menu'){ openModal(ttMoreMenuModal()); }
     else if(a === 'pick-semester'){
       state.activeSemester = el.dataset.key;
@@ -12659,7 +12722,7 @@ document.addEventListener('click', async (e)=>{
       state.activeVariant = list.length-1;
       syncActiveTimetable();
       if(state.user) await saveTimetable(state.user.uid, []);
-      openModal(timetableListModal());
+      swapModal(timetableListModal());
       renderMain();
     }
     else if(a === 'delete-variant'){
@@ -12691,7 +12754,7 @@ document.addEventListener('click', async (e)=>{
         dirtySet('tt', state.user.uid, Date.now());
         try{ await withSaveTimeout(setDoc(doc(db,'timetables',state.user.uid), { bySemester: state.timetablesBySemester, activeSemester: state.activeSemester, updatedAt: ts }), 12000); dirtySet('tt', state.user.uid, 0); ttVerQueue(); }catch(e){ scheduleDirtyFlush(); }
       }
-      openModal(timetableListModal());
+      swapModal(timetableListModal());
       renderMain();
     }
     else if(a === 'rename-variant'){ if(state.activeSemester) openModal(renameVariantModal()); }
