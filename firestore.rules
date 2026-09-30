@@ -297,9 +297,10 @@ service cloud.firestore {
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nicknames'])
           && request.resource.data.nicknames.diff(resource.data.get('nicknames', {})).affectedKeys().hasOnly([request.auth.uid]))
         // 콕 찌르기: 내 쪽 키(pokes.<내 uid>)만 시각 숫자로 바꿀 수 있다(상대방 몫은 건드릴 수 없음).
-        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pokes'])
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pokes', 'pokeStreak'])
           && request.resource.data.pokes.diff(resource.data.get('pokes', {})).affectedKeys().hasOnly([request.auth.uid])
-          && request.resource.data.pokes[request.auth.uid] is number)
+          && request.resource.data.pokes[request.auth.uid] is number
+          && (!('pokeStreak' in request.resource.data) || (request.resource.data.pokeStreak is number && request.resource.data.pokeStreak >= 1 && request.resource.data.pokeStreak <= 100000)))
         // 시간표 버전: 내가 시간표를 바꿨다는 표시(ttVer.<내 uid> = 시각 숫자). 친구는 이걸 보고 내 시간표를 다시 읽는다.
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ttVer'])
           && request.resource.data.ttVer.diff(resource.data.get('ttVer', {})).affectedKeys().hasOnly([request.auth.uid])
