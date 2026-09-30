@@ -462,7 +462,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-slot-del{position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%; border:none; background:var(--surface-3); color:var(--text); font-size:14px; line-height:1; padding:0; cursor:pointer;}
 .swatches.av-swatches.av-five{display:grid; grid-template-columns:repeat(5, 1fr); justify-items:center; align-items:center; gap:8px; flex-wrap:nowrap;}
 .px-wrap{transition:max-width .25s cubic-bezier(.3,.7,.3,1);}
-.av-duo{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px;}
+.av-duo{display:grid; grid-template-columns:1fr; gap:14px; margin-top:14px;}
+#av-color-swatches{grid-template-columns:repeat(5, 1fr) !important; gap:8px 4px !important;}
+#av-bg-swatches{grid-template-columns:repeat(7, 1fr) !important; gap:8px 2px !important;}
+#av-color-swatches .swatch, #av-bg-swatches .swatch{width:30px; height:30px;}
 .av-half{min-width:0;}
 .av-half .set-label{margin-bottom:8px;}
 .swatches.av-swatches.av-four{display:grid; grid-template-columns:repeat(4, 1fr); justify-items:center; align-items:center; gap:2px; flex-wrap:nowrap;}
@@ -606,7 +609,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 #settings-page #st-sec-profile .card{padding:16px 14px !important;}
 /* 아이콘·이모지 격자: 3줄 높이(칸 크기는 폭에서 계산), 그 안에서 스크롤 */
 .av-scroll-box{container-type:inline-size;}
-.av-scroll{position:relative; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; max-height:200px; border-radius:12px;}
+.av-scroll{position:relative; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; max-height:200px; border-radius:0;}
 .av-scroll.icon{max-height:calc((100cqw - 30px) / 2 + 12px);}
 .av-scroll.emoji{max-height:calc(3 * (100cqw - 28px) / 8 + 8px);}
 .av-scroll::-webkit-scrollbar{width:0;}
@@ -9372,8 +9375,10 @@ const AV_ICON_CATS = [
   ['도형', ['triangle','hexagon','rhombus','cross','yinyang','shield']],
 ];
 
-const AV_COLORS = ['', '#E0AC55', '#6FA3F5'];
-const AV_BGS = ['', '#0F1626', '#EEDFC7'];
+// 맨 앞은 "기본"(빈 값). 빨주노초파보 파스텔 다음에 몇 가지를 더 둔다(맨 뒤 + 칸은 직접 고르기).
+AV_EMOJIS.push(...(["😂","🥹","😊","🙂","😉","😌","😋","😛","🤭","🤫","🤐","🥱","😒","🙄","😬","😪","😵","🤯","🤠","😈","👿","🤡","👹","👺","🎃","😺","😸","😹","😻","😼","😽","🙀","🥺","😢","😭","😤","😱","😳","🥴","🤤","🥰","😘","😚","😙","🐭","🐹","🐰","🐻","🐨","🐯","🦁","🐮","🐷","🐵","🙈","🙉","🙊","🐔","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦋","🐛","🐝","🐞","🦂","🐍","🦖","🦕","🦑","🦐","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍","🐘","🦒","🦘","🐫","🐑","🐐","🦌","🐕","🐩","🐈","🦚","🦜","🦢","🦩","🐇","🦔","🌵","🎄","🌲","🌳","🌴","🌱","🌿","🍁","🍂","🍃","🌺","🌻","🌹","🌷","🌼","💐","🍄","🌾","🌍","🌎","🌏","🌕","🌖","🌗","🌘","🌑","🌒","🌓","🌔","🌛","🌜","🌟","💫","💥","❄️","⛄","🌊","💧","☔","🍏","🍊","🍋","🍌","🍉","🍇","🍓","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🥑","🍆","🥔","🥕","🌽","🥒","🥬","🥦","🍞","🥐","🥖","🧀","🥚","🍳","🥞","🥓","🥩","🍗","🍖","🌭","🍟","🥪","🌮","🌯","🥗","🍝","🍜","🍲","🍛","🍱","🍙","🍚","🍘","🍥","🥟","🍢","🍡","🍧","🍨","🍦","🥧","🧁","🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍪","🥛","🍵","🥤","🍺","🍷","🥂","🍸","⚽","🏀","🏈","⚾","🎾","🏐","🏉","🎱","🏓","🏸","🥊","🥋","🎽","🛹","⛸️","🎿","🏂","🎯","🎳","🎲","🧩","🎨","🎭","🎬","🎤","🎼","🎹","🥁","🎷","🎺","🎸","🎻","🚗","🚕","🚙","🚌","🚓","🚑","🚒","🚜","🚲","🛵","🏍️","🚂","🚄","🚅","🛸","🚁","✈️","⛵","🚢","⚓","🗼","🗽","🏰","🏯","🎡","🎢","🎠","⛲","🏖️","🏝️","🏕️","⛺","🌋","🗻","⌚","📱","💻","⌨️","🖥️","🖨️","🖱️","💽","💾","📷","📹","🎥","📺","📻","🔋","🔌","🔦","📡","🧬","💊","🧲","🔧","🔨","⚙️","🧱","🔑","🔒","🔓","📦","📖","📝","✏️","📌","📎","✂️","📐","📏","🎁","🎈","🎀","💎","👑","🎩","🧢","👕","👟","⌛","⏰","🔔","📣","💬","💭","🧡","🤎","💔","💕","💞","💓","💗","💘","💯","✅","❗","❓","☮️","☯️","⚛️"]).filter(e=>!AV_EMOJIS.includes(e)));
+const AV_COLORS = ['', '#FF9AA2', '#FFB88C', '#FFE29A', '#A8E6B0', '#9CC9FF', '#CDB4F6', '#FFFFFF', '#1A1A1F'];
+const AV_BGS = ['', '#FF9AA2', '#FFB88C', '#FFE29A', '#A8E6B0', '#9CC9FF', '#CDB4F6', '#FFC8DD', '#B5EAD7', '#0F1626', '#1F2937', '#EEDFC7'];
 const PX_PALETTE = ['#000000','#FFFFFF','#A72A3A','#FF6B6B','#FFB454','#E0AC55','#6FA3F5','#3ED6B5'];
 const AV_DEFAULT = { kind:'preset', id:'chip', color:'', bg:'' };
 
@@ -9570,7 +9575,7 @@ function avStyle(av){
 
 let avMore = { icon:false, emoji:false }, avSlotSel = -1, avEditor = false, avEditorAnim = false, avBrush = 1;
 const AV_PX_SIZES = { s:['작게', 190], m:['보통', 260], l:['크게', 320] };
-function avPxSizeKey(){ const k = localGet('avatar_px_size', 'm'); return AV_PX_SIZES[k] ? k : 'm'; }
+function avPxSizeKey(){ return 'l'; }   // 그림판 크기는 항상 가장 크게
 let avDraft = null, avTab = 'icon', avPx = [], avPxColor = '#000000', avPxTool = 'pen', avPxUndo = [];
 function openAvatarEditor(){
   const oldOv = document.getElementById('av-ov'); if(oldOv) oldOv.remove();
@@ -9663,8 +9668,8 @@ function avEditorHtml(){
     + '<button type="button" class="btn btn-sm '+(avPxTool === 'fill' ? 'btn-primary' : 'btn-ghost')+'" data-action="av-px-tool" data-tool="fill">채우기</button>'
     + '<span style="flex:1;"></span><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-undo">되돌리기</button><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-clear">비우기</button></div>'
     + '<div class="opt-slider" style="margin-bottom:10px;"><span class="opt-name" style="flex:0 0 52px;">펜 굵기</span><input type="range" id="av-brush-range" min="1" max="8" step="1" value="'+avBrush+'"><span class="range-val"><b id="av-brush-val" style="min-width:14px; text-align:right;">'+avBrush+'</b><b>px</b></span></div>'
-    + '<div class="px-wrap" style="max-width:'+AV_PX_SIZES[avPxSizeKey()][1]+'px;"><canvas id="av-canvas" width="32" height="32"></canvas><div class="px-grid"></div></div>'
-    + '<div class="row-between" style="margin-top:12px;"><p class="set-label sm" style="margin:0;">그리는 색</p><button type="button" class="btn btn-ghost btn-sm" id="av-px-size-btn" data-action="av-px-size" style="width:auto; padding:4px 10px; font-size:10.5px;">캔버스 '+AV_PX_SIZES[avPxSizeKey()][0]+'</button></div>'
+    + '<div class="px-wrap" style="max-width:none;"><canvas id="av-canvas" width="32" height="32"></canvas><div class="px-grid"></div></div>'
+    + '<div class="row-between" style="margin-top:12px;"><p class="set-label sm" style="margin:0;">그리는 색</p></div>'
     + '<div class="swatches av-swatches" id="px-palette">' + PX_PALETTE.map(h=>'<button type="button" class="swatch '+(avPxColor.toLowerCase() === h.toLowerCase() ? 'selected' : '')+'" data-action="av-px-color" data-hex="'+h+'" style="background:'+h+'; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>').join('')
     + inlineColorSwatchHtml('pxcolor', avPxColor, !PX_PALETTE.some(h=>h.toLowerCase() === avPxColor.toLowerCase())) + '</div>'
     + inlineColorPanelHtml('pxcolor', avPxColor)
