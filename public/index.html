@@ -181,6 +181,7 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .btn-primary{background:var(--crimson); color:#fff;}
 .btn-ghost{background:var(--surface-2); color:var(--text-dim); border:none;}
 .btn-teal{background:var(--teal); color:var(--teal-ink); font-weight:800;}
+.btn-blue{background:var(--blue); color:#fff; font-weight:800;}
 .btn-sm{width:auto; padding:8px 14px; font-size:11.5px;}
 .btn-danger{background:transparent; color:var(--danger); border:1px solid rgba(var(--danger-rgb),.35);}
 .btn[disabled]{opacity:.5; pointer-events:none;}
@@ -569,6 +570,14 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .meal-body{flex:1; min-width:0;}
 .meal-title{margin:0 0 6px; font-size:11.5px; font-weight:600; line-height:1.2; color:var(--text);}
 .meal-body .chip-row{margin:0 0 6px;}
+.gusia-card{margin-top:14px; padding:14px 16px;}
+.gusia-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:12.5px; font-weight:800; color:var(--amber);}
+.gusia-head svg{width:16px; height:16px; flex-shrink:0;}
+.gusia-head em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 9px; margin-left:auto;}
+.gusia-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--hairline); font-size:11.5px;}
+.gusia-day{flex:0 0 46px; font-weight:800; color:var(--text);}
+.gusia-time{flex:1; font-family:var(--font-mono); font-weight:600; color:var(--text);}
+.gusia-last{font-size:10.5px; color:var(--text-faint); white-space:nowrap;}
 .chip-row{display:grid; grid-template-columns:repeat(var(--cols,2), 1fr); gap:6px; margin:0 0 6px 27px;}
 .chip-tgl{border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; line-height:1.2; padding:5px 4px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .22s, color .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
 .chip-tgl em{font-style:normal; font-size:10px; font-weight:600; opacity:.8; margin-left:5px;}
@@ -2810,7 +2819,7 @@ function otaCooldownTick(){
   const left = otaCooldownLeft();
   const btn = document.getElementById('ota-check-btn'), cd = document.getElementById('ota-check-cd');
   if(btn){ if(left > 0) btn.setAttribute('disabled', ''); else btn.removeAttribute('disabled'); }
-  if(cd) cd.textContent = left > 0 ? left + '초' : '';
+  if(cd) cd.textContent = left > 0 ? '(' + left + '초)' : '';
   if(left <= 0 && otaCooldownTimer){ clearInterval(otaCooldownTimer); otaCooldownTimer = null; }
 }
 function startOtaCooldown(){
@@ -3276,12 +3285,16 @@ if(!window.__subtabBound){
     if(!sd || e.pointerId !== sd.id) return;
     const { bar, moved, tab } = sd; sd = null;
     if(!moved || !tab) return;
-    window.__suppressClickUntil = Date.now() + 500;
     if(e.type === 'pointercancel' || tab.classList.contains('active')){
-      const cur = bar.querySelector('.subtab.active'); if(cur) place(bar, cur, true); return;
+      const cur = bar.querySelector('.subtab.active'); if(cur) place(bar, cur, true);
+      window.__suppressClickUntil = Date.now() + 500;
+      return;
     }
     bar.querySelectorAll('.subtab').forEach(t=>t.classList.toggle('active', t === tab));
     tab.dataset.slid = '1'; tab.click();
+    // 손을 뗀 뒤 따라오는 진짜 클릭은 버린다. 반드시 위의 tab.click() 다음에 걸어야 한다
+    // (먼저 걸면 우리가 보낸 클릭까지 막혀서 탭이 바뀌어도 화면이 안 넘어간다).
+    window.__suppressClickUntil = Date.now() + 500;
   };
   document.addEventListener('pointerup', endDrag, true);
   document.addEventListener('pointercancel', endDrag, true);
@@ -4859,9 +4872,9 @@ function renderShell(){
   const dateLabel = `${d.getMonth()+1}.${d.getDate()} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
   APP.innerHTML = `
     <div class="shell">
-      <div class="topbar" style="${state.view==='timetable' ? 'padding-top:calc(6px + var(--safe-top)); padding-bottom:6px;' : ''}">
-        <div class="topbar-row" style="${state.view==='timetable' ? 'justify-content:flex-end;' : ''}">
-          ${state.view!=='timetable' ? `
+      <div class="topbar">
+        <div class="topbar-row">
+          ${true ? `
           <div class="brand-mini"><span class="mark">${ICON.chipMini}</span><b>ISE</b>
             <span class="role-badge ${myRole()}">${roleLabel(myRole())}</span>
           </div>` : ''}
@@ -6065,7 +6078,7 @@ function renderExamCalTab(){
     <div style="display:flex; gap:6px; margin-bottom:12px;">
       <button class="btn btn-teal btn-sm" data-action="add-student-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 일정 추가</button>
       <button class="btn btn-primary btn-sm" data-action="add-exam-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 시험 추가</button>
-      ${council ? `<button class="btn btn-primary btn-sm" data-action="add-council-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 학생회 일정</button>` : ''}
+      ${council ? `<button class="btn btn-blue btn-sm" data-action="add-council-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 학생회 일정</button>` : ''}
     </div>
 
     ${(()=>{
@@ -6455,7 +6468,12 @@ function renderMealTab(){
       <button class="btn btn-primary btn-sm" data-action="fetch-meal-page" id="fetch-meal-btn" style="flex:1.3;">${ICON.refresh} 식단 새로고침</button>
     </div>` : ''}
     <div id="fetch-meal-status" style="font-size:11.5px; color:var(--text-faint); margin-top:8px; line-height:1.6;"></div>
-    <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>`;
+    <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
+    <div class="card gusia-card">
+      <div class="gusia-head">${ICON.utensils}<span>구시아푸드</span><em>학생회관 1층</em></div>
+      <div class="gusia-row"><span class="gusia-day">평일</span><span class="gusia-time">10:00 ~ 19:30</span><span class="gusia-last">라스트오더 19:00</span></div>
+      <div class="gusia-row"><span class="gusia-day">토 · 일</span><span class="gusia-time">11:00 ~ 15:00</span><span class="gusia-last">라스트오더 14:40</span></div>
+    </div>`;
 }
 
 function mealModal(date){
@@ -8015,10 +8033,7 @@ function updateCheckModal(loading){
     ${(isNativeApp && otaEnabled() && !loading) ? (otaReady
       ? `<p style="font-size:12px; color:var(--crimson); font-weight:700; margin:0 0 6px;">새 화면 업데이트가 있어요. 아래 버튼을 눌러 패치하세요.</p>
          <button type="button" class="btn btn-primary" data-action="ota-apply" style="width:100%; margin-bottom:8px;">${ICON.download} 패치하기</button>`
-      : `<div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-           <button type="button" id="ota-check-btn" class="btn btn-primary" data-action="ota-check" style="flex:1; min-width:0;"${otaCooldownLeft() > 0 ? ' disabled' : ''}>${ICON.download} 화면 업데이트 확인</button>
-           <span id="ota-check-cd" style="min-width:34px; text-align:right; font-size:12px; font-family:var(--font-mono); color:var(--text-faint);">${otaCooldownLeft() > 0 ? otaCooldownLeft() + '초' : ''}</span>
-         </div>`) : ''}
+      : `<button type="button" id="ota-check-btn" class="btn btn-primary" data-action="ota-check" style="width:100%; margin-bottom:8px;"${otaCooldownLeft() > 0 ? ' disabled' : ''}>${ICON.download} 화면 업데이트 확인<span id="ota-check-cd" style="font-family:var(--font-mono); font-weight:600; margin-left:2px;">${otaCooldownLeft() > 0 ? '(' + otaCooldownLeft() + '초)' : ''}</span></button>`) : ''}
     ${(!loading && hasUpdate) ? `<a href="${APK_DOWNLOAD_URL}" class="btn btn-primary" style="text-decoration:none; display:block; text-align:center;">${ICON.download} 새 버전 다운로드</a>` : ''}`;
 }
 function bugReportModal(){

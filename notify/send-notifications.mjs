@@ -609,11 +609,14 @@ async function main() {
     mirae: (mealsByDate[today] && mealsByDate[today].staff) || null,
   };
   const newMealKeys = [];
-  for (const cafe of MEAL_CAFETERIAS) {
-    const todayMeal = todayMealsByCafeteria[cafe.key];
-    if (!todayMeal) continue;
-    for (const slot of MEAL_SLOTS) {
+  // 같은 끼니에 진리관·미래관 알림이 둘 다 나가는 사람은 알림이 두 번 오지 않도록 한 통으로 합쳐서 보낸다.
+  // (예: 중식은 두 식당 모두 있어서, 둘 다 켜 둔 사람에게 10시 30분에 알림이 2개 왔다.)
+  for (const slot of MEAL_SLOTS) {
+    const entries = [];
+    for (const cafe of MEAL_CAFETERIAS) {
       if (!cafe.slots.includes(slot.key)) continue;
+      const todayMeal = todayMealsByCafeteria[cafe.key];
+      if (!todayMeal) continue;
       const dedupKey = `${today}_${cafe.key}_${slot.key}`;
       if (sentMealKeys.has(dedupKey)) continue;
       if (!isDue(slot.h, slot.m, slot.grace)) continue;
@@ -622,11 +625,32 @@ async function main() {
       const tokens = mealTokensFor(cafe.key, slot.key);
       if (!tokens.length) { newMealKeys.push(dedupKey); continue; }
       // 저장된 메뉴는 "[한식] 밥, 국..." 처럼 줄바꿈으로 구분되어 있어 한 줄로 합쳐 보낸다.
-      const body = menu.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).join(' / ').slice(0, 200);
-      console.log(`식단 알림(${cafe.label} ${slot.label}):`, body.slice(0, 40));
-      await sendToTokens(tokens, `오늘의 ${slot.label} (${cafe.label})`, body, 'meal');
-      newMealKeys.push(dedupKey);
+      const body = menu.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join(' / ');
+      entries.push({ cafe, dedupKey, body, tokens });
     }
+    if (!entries.length) continue;
+    const tokenSets = entries.map((e) => new Set(e.tokens));
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      // 다른 식당 알림도 함께 받는 토큰은 뺀다(아래 합친 알림으로 한 번만 보낸다).
+      const solo = e.tokens.filter((t) => !tokenSets.some((set, j) => j !== i && set.has(t)));
+      if (solo.length) {
+        console.log(`식단 알림(${e.cafe.label} ${slot.label}):`, e.body.slice(0, 40));
+        await sendToTokens(solo, `오늘의 ${slot.label} (${e.cafe.label})`, e.body.slice(0, 200), 'meal');
+      }
+    }
+    if (entries.length > 1) {
+      const both = entries[0].tokens.filter((t) => tokenSets.slice(1).every((set) => set.has(t)));
+      const uniqueBoth = [...new Set(both)];
+      if (uniqueBoth.length) {
+        const short = { jinri: '진리관', mirae: '미래관' };
+        const per = Math.floor(190 / entries.length) - 6;
+        const body = entries.map((e) => `${short[e.cafe.key] || e.cafe.label} ${e.body.slice(0, per)}`).join(' | ');
+        console.log(`식단 알림(합침 ${slot.label}, ${uniqueBoth.length}명):`, body.slice(0, 40));
+        await sendToTokens(uniqueBoth, `오늘의 ${slot.label}`, body.slice(0, 200), 'meal');
+      }
+    }
+    for (const e of entries) newMealKeys.push(e.dedupKey);
   }
 
   // 친구 요청/수락, 학생회 채팅 공지 갱신 알림은 클라이언트가 enqueuePush()로 notifyQueue에
