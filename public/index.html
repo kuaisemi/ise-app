@@ -8279,9 +8279,26 @@ function nickCheck(t){
   const v = String(t || '').trim();
   if(!v) return { ok:true, value:'' };
   if([...v].length > NICK_MAX) return { ok:false, msg:'별명은 '+NICK_MAX+'글자까지예요' };
-  if(/[<>&"'`]/.test(v)) return { ok:false, msg:'쓸 수 없는 문자가 있어요' };
+  if(!/^[A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]+$/.test(v)) return { ok:false, msg:'별명은 한글과 영어만 쓸 수 있어요 (숫자·띄어쓰기·특수문자·이모지는 안 돼요)' };
   if(nickHasBanned(v)) return { ok:false, msg:'쓸 수 없는 표현이 들어 있어요 (욕설·성적인 표현·성적/학점 관련 단어는 안 돼요)' };
   return { ok:true, value:v };
+}
+if(!window.__nickInputBound){
+  window.__nickInputBound = true;
+  document.addEventListener('input', (e)=>{
+    const t = e.target;
+    if(!t || t.id !== 'av-nick') return;
+    if(t.dataset.composing === '1') return;   // 한글 조합 중에는 건드리지 않는다
+    const clean = t.value.replace(/[^A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/g, '');
+    if(clean !== t.value) t.value = clean;
+  }, true);
+  document.addEventListener('compositionstart', (e)=>{ if(e.target && e.target.id === 'av-nick') e.target.dataset.composing = '1'; }, true);
+  document.addEventListener('compositionend', (e)=>{
+    const t = e.target; if(!t || t.id !== 'av-nick') return;
+    t.dataset.composing = '0';
+    const clean = t.value.replace(/[^A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/g, '');
+    if(clean !== t.value) t.value = clean;
+  }, true);
 }
 function getNickname(){ const v = localGet('nickname', ''); return (typeof v === 'string' && nickCheck(v).ok) ? v.trim() : ''; }
 const AV_HEX = /^#[0-9a-fA-F]{6}$/;
