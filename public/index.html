@@ -572,21 +572,19 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .meal-body .chip-row{margin:0 0 6px;}
 .fetch-status{font-size:11.5px; color:var(--text-faint); margin-top:10px; line-height:1.6;}
 .fetch-status:empty{display:none;}
-.gusia-card{margin-top:18px; padding:6px 16px 10px;}
-.gusia-head{display:flex; align-items:center; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--border); font-size:12.5px; font-weight:800; color:var(--text);}
-.gusia-head svg{width:16px; height:16px; flex-shrink:0;}
-.shop-sec{padding-top:12px; padding-bottom:8px;}
-.shop-sec + .shop-sec{margin-top:6px; border-top:1px solid var(--border);}
-.shop-name{display:flex; align-items:center; gap:9px; margin-bottom:4px;}
-.shop-ico{flex:none; width:24px; display:flex; align-items:center; justify-content:center; color:var(--amber);}
-.shop-ico svg{width:22px; height:22px;}
-.shop-name b{font-size:12.5px; font-weight:800; color:var(--text);}
-.shop-name em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 9px; margin-left:auto;}
-.shop-foot{margin:12px 0 0; padding-top:10px; border-top:1px solid var(--hairline); font-size:10px; line-height:1.6; color:var(--text-faint);}
-.gusia-row{display:flex; align-items:center; gap:10px; padding:7px 0; font-size:11.5px;}
-.gusia-day{flex:0 0 62px; font-weight:800; color:var(--text);}
-.gusia-time{flex:1; font-family:var(--font-mono); font-weight:600; color:var(--text);}
-.gusia-last{font-size:10.5px; color:var(--text-faint); white-space:nowrap;}
+.shop-card{margin-top:14px; padding:4px 16px 10px;}
+.shop-block{display:grid; grid-template-columns:18px 60px 44px minmax(0,1fr) auto; column-gap:6px; align-items:center; padding:9px 0;}
+.shop-block + .shop-block{border-top:1px solid var(--border);}
+.shop-ico{grid-column:1; display:flex; align-items:center; justify-content:center; color:var(--amber);}
+.shop-ico svg{width:15px; height:15px;}
+.shop-ico.is-fork svg{width:14px; height:14px;}
+.shop-name{grid-column:2; display:flex; flex-direction:column; gap:1px; min-width:0;}
+.shop-name b{font-size:12px; font-weight:800; color:var(--text); white-space:nowrap;}
+.shop-name small{font-size:9px; color:var(--text-faint); white-space:nowrap;}
+.shop-day{grid-column:3; font-size:11px; font-weight:800; color:var(--text); white-space:nowrap; padding:3px 0;}
+.shop-time{grid-column:4; font-family:var(--font-mono); font-size:11px; font-weight:600; color:var(--text); white-space:nowrap; padding:3px 0;}
+.shop-last{grid-column:5; font-size:10px; color:var(--text-faint); white-space:nowrap; text-align:right; padding:3px 0;}
+.shop-foot{margin:2px 0 0; padding-top:8px; border-top:1px solid var(--border); font-size:10px; line-height:1.6; color:var(--text-faint);}
 .chip-row{display:grid; grid-template-columns:repeat(var(--cols,2), 1fr); gap:6px; margin:0 0 6px 27px;}
 .chip-tgl{border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; line-height:1.2; padding:5px 4px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .22s, color .22s, border-color .22s; -webkit-tap-highlight-color:transparent;}
 .chip-tgl em{font-style:normal; font-size:10px; font-weight:600; opacity:.8; margin-left:5px;}
@@ -4558,8 +4556,8 @@ const ICON = {
   chevDown:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`,
   more:`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`,
   pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-6.1 7-12A7 7 0 0 0 5 9.5c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
-  gimbap:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-45 12 12)"><rect x="1.5" y="7.6" width="21" height="8.8" rx="4.4"/><path d="M8.2 7.6v8.8M15.8 7.6v8.8"/><circle cx="19.2" cy="12" r="1.5"/></g></svg>`,
-  drumstick:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15.4 15.63a7.875 6 135 1 1 6.23-6.23 4.5 3.43 135 0 0-6.23 6.23"/><path d="m8.29 12.71-2.6 2.6a2.5 2.5 0 1 0-.97 4 2.5 2.5 0 1 0 4-.97l2.6-2.6"/></svg>`,
+  gimbap:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="7.5" rx="7.5" ry="3.3"/><path d="M4.5 7.5v9.2c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3V7.5"/><path d="M4.5 12.1c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3"/><circle cx="10.2" cy="7.1" r=".9" fill="currentColor" stroke="none"/><circle cx="13.8" cy="7.9" r=".9" fill="currentColor" stroke="none"/></svg>`,
+  drumstick:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="14.6" cy="9.4" rx="6.8" ry="5.2" transform="rotate(-45 14.6 9.4)"/><path d="M9.8 14.2 6.4 17.6"/><circle cx="6.5" cy="19.1" r="1.5"/><circle cx="4.9" cy="17.5" r="1.5"/></svg>`,
   thumbtack:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 7 3.2 3.2V15H6.8v-1.8L10 10z"/><path d="M12 15v6.5"/></svg>`,
   android:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16a7.5 7.5 0 0 1 15 0z"/><path d="M6.9 10.6 5 8M17.1 10.6 19 8"/><circle cx="9.4" cy="12.7" r=".9" fill="currentColor" stroke="none"/><circle cx="14.6" cy="12.7" r=".9" fill="currentColor" stroke="none"/></svg>`,
   clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
@@ -6479,20 +6477,23 @@ function renderMealTab(){
     </div>` : ''}
     <div id="fetch-meal-status" class="fetch-status"></div>
     <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:12px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
-    <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6; text-align:center;">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라옵니다.<br>그 전에는 지난주 식단이 보이거나 비어 있을 수 있어요.</p>
-    <div class="card gusia-card">
-      <div class="shop-sec">
-        <div class="shop-name"><span class="shop-ico">${ICON.utensils}</span><b>구시아푸드</b><em>학생회관 1층</em></div>
-        <div class="gusia-row"><span class="gusia-day">평일</span><span class="gusia-time">10:00 ~ 19:30</span><span class="gusia-last">라스트오더 19:00</span></div>
-        <div class="gusia-row"><span class="gusia-day">토 · 일</span><span class="gusia-time">11:00 ~ 15:00</span><span class="gusia-last">라스트오더 14:40</span></div>
+    <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라옵니다.<br>그 전에는 지난주 식단이 보이거나 비어 있을 수 있어요.</p>
+    <div class="card shop-card">
+      <div class="shop-block" style="--n:2;">
+        <span class="shop-ico is-fork" style="grid-row:1 / span 2;">${ICON.utensils}</span>
+        <span class="shop-name" style="grid-row:1 / span 2;"><b>구시아푸드</b><small>학생회관 1층</small></span>
+        <span class="shop-day" style="grid-row:1;">평일</span><span class="shop-time" style="grid-row:1;">10:00~19:30</span><span class="shop-last" style="grid-row:1;">라스트오더 19:00</span>
+        <span class="shop-day" style="grid-row:2;">토·일</span><span class="shop-time" style="grid-row:2;">11:00~15:00</span><span class="shop-last" style="grid-row:2;">라스트오더 14:40</span>
       </div>
-      <div class="shop-sec">
-        <div class="shop-name"><span class="shop-ico">${ICON.gimbap}</span><b>휴김밥</b><em>호익플라자 1층</em></div>
-        <div class="gusia-row"><span class="gusia-day">월 ~ 금</span><span class="gusia-time">08:00 ~ 19:00</span><span class="gusia-last">주말 미운영</span></div>
+      <div class="shop-block">
+        <span class="shop-ico">${ICON.gimbap}</span>
+        <span class="shop-name"><b>휴김밥</b><small>호익플라자 1층</small></span>
+        <span class="shop-day">월~금</span><span class="shop-time">08:00~19:00</span><span class="shop-last">주말 미운영</span>
       </div>
-      <div class="shop-sec">
-        <div class="shop-name"><span class="shop-ico">${ICON.drumstick}</span><b>bbq</b><em>호익플라자 2층</em></div>
-        <div class="gusia-row"><span class="gusia-day">월~금 · 일</span><span class="gusia-time">10:00 ~ 22:00</span><span class="gusia-last">토요일 미운영</span></div>
+      <div class="shop-block">
+        <span class="shop-ico">${ICON.drumstick}</span>
+        <span class="shop-name"><b>bbq</b><small>호익플라자 2층</small></span>
+        <span class="shop-day">월~금·일</span><span class="shop-time">10:00~22:00</span><span class="shop-last">토요일 미운영</span>
       </div>
       <p class="shop-foot">※ 교직원식당 · 학생식당 · 휴김밥은 주말과 공휴일에, bbq는 공휴일에 운영하지 않아요. bbq는 단체 · 예약 주문이면 토요일도 가능해요.</p>
     </div>`;
