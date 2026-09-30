@@ -21,6 +21,9 @@
 <script src="./vendor/capacitor-core.js"></script>
 <script src="./vendor/capacitor-local-notifications.js"></script>
 <script src="./vendor/capacitor-push-notifications.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -52,7 +55,7 @@
   --bg-rgb:0,0,0;
   --capture-bg:#000000; --capture-border:#FFFFFF;
   --radius-lg:22px; --radius:18px; --radius-sm:14px;
-  --font-display:'Pretendard Variable','Pretendard',-apple-system,sans-serif;
+  --font-display:'IBM Plex Sans KR','Pretendard Variable','Pretendard',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --safe-bottom:env(safe-area-inset-bottom,0px);
   --safe-top:env(safe-area-inset-top,0px);
@@ -74,7 +77,7 @@
   --bg-rgb:250,245,239;
   --capture-bg:#FFFFFF; --capture-border:#191F28;
   --radius-lg:22px; --radius:18px; --radius-sm:14px;
-  --font-display:'Pretendard Variable','Pretendard',-apple-system,sans-serif;
+  --font-display:'IBM Plex Sans KR','Pretendard Variable','Pretendard',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --safe-bottom:env(safe-area-inset-bottom,0px);
   --safe-top:env(safe-area-inset-top,0px);
@@ -9541,6 +9544,7 @@ function avSlotSaveTo(i){
 }
 function renderAvBody(){
   const body = document.getElementById('av-body'); if(!body) return;
+  if(!avDraft) avDraft = JSON.parse(JSON.stringify(getAvatar()));
   const bgHalf = '<div class="av-half"><p class="set-label sm">배경 색</p>' + avSwatchRow('av-bg-swatches', AV_BGS, avDraft.bg || '', 'av-color', 'bg') + '</div>';
   const bgRow = '<div class="av-duo">' + bgHalf + '</div>' + avPanelHtml('bg', avDraft.bg);
   let html = '';
@@ -9675,14 +9679,25 @@ function settingsOldHead(tab){
   if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<p class="st-cap">대표 시간표<span class="fs-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러 위젯 → KU ISE에서 추가해요</span></p>`;
   return '';
 }
-// 프로필 탭: 계정 카드(누르면 프로필 편집) + 계정 관리 줄
+// 프로필 탭: 모달 없이 그 자리에서 바로 고치는 프로필 편집기(아이콘·이모지·직접 그리기, 별명). 내용은 예전 팝업 편집기와 같은 함수·요소를 쓴다.
 function settingsProfileHtml(){
   if(!state.user) return '';
-  const row = (action, icon, label, cls)=>`<div class="link-row ${cls || ''}" data-action="${action}"><span class="link-row-label"><span class="lr-ic">${icon}</span> ${label}</span> <span class="sub">${ICON.chevR}</span></div>`;
-  const div = '<div class="divider" style="margin:0;"></div>';
-  return settingsAccountHtml()
-    + '<p class="st-cap">계정</p>'
-    + `<div class="card">${row('change-password', ICON.key, '비밀번호 변경')}${div}${row('reset-all-timetables', ICON.trash, '모든 시간표 삭제', 'danger')}${div}${row('delete-account', ICON.personOff, '회원 탈퇴', 'danger')}</div>`;
+  const tabs = [['icon','아이콘'],['emoji','이모지'],['pixel','직접 그리기']];
+  const i = Math.max(0, tabs.findIndex(t=>t[0] === avTab));
+  return `<div class="card">
+    <div class="av-preview-row"><div id="av-preview" class="mypage-avatar av-big"></div><div style="flex:1; min-width:0;"><b style="font-size:13.5px;">${escapeHtml(state.user.name)}</b><div class="opt-hint" style="margin:3px 0 7px;">MY 탭 이름 옆에 보여요</div><input type="text" id="av-nick" class="av-nick" maxlength="${NICK_MAX}" value="${escapeHtml(getNickname())}" placeholder="별명 (나에게만 보여요)" autocomplete="off"></div></div>
+    <div class="seg-group av-tabs" id="av-tabs"><span class="seg-thumb" style="--n:3; --i:${i};"></span>${tabs.map(t=>`<button type="button" class="${avTab === t[0] ? 'on' : ''}" data-action="av-tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
+    <div id="av-body"></div>
+    <div class="modal-actions" style="gap:8px;"><button type="button" class="btn btn-ghost" data-action="av-reset" style="flex:0 0 auto; width:auto; padding-left:16px; padding-right:16px;">기본으로</button><button type="button" class="btn btn-primary" data-action="av-save" style="flex:1;">저장</button></div>
+  </div>`;
+}
+// 프로필 탭을 열 때마다 저장된 프로필로 편집기 상태를 새로 잡는다(이미 편집 중이면 갱신이 덮어쓰지 않는다)
+function avInitInline(){
+  avDraft = JSON.parse(JSON.stringify(getAvatar()));
+  avTab = avDraft.kind === 'pixel' ? 'pixel' : (avDraft.kind === 'emoji' ? 'emoji' : 'icon');
+  avPx = avDraft.kind === 'pixel' ? pxDecode(avDraft) : new Array(1024).fill('');
+  avPxUndo = []; avPxTool = 'pen'; avPxColor = '#000000';
+  renderAvBody();
 }
 function settingsSectionHtml(tab){
   if(tab === 'profile') return settingsProfileHtml();
@@ -9815,7 +9830,7 @@ function settingsAccountHtml(){
 }
 function settingsPanelHtml(){
   const prev = state.settingsTab;
-  const tabs = ['display','notify','profile'].concat(isIOSDevice() ? [] : ['widget']);
+  const tabs = ['display','profile','notify'].concat(isIOSDevice() ? [] : ['widget']);
   const cur = tabs.includes(prev) ? prev : 'display';
   try{
     state.settingsTab = cur;
@@ -9858,6 +9873,7 @@ function openSettingsPage(opts){
     requestAnimationFrame(()=>{ wrap.style.transition = ''; });
   } else { requestAnimationFrame(()=>wrap.classList.add('open')); uiLayerOpened(); }
   renderMain();   // 위젯 슬라이더 같은 것을 새 화면에 연결한다
+  refreshSettingsPage();   // 메인 화면이 없어 renderMain이 갱신을 못 불러도 프로필 편집기는 여기서 준비한다(이미 했으면 건너뜀)
 }
 function closeSettingsPage(){
   const w = document.getElementById('settings-page');
@@ -9870,9 +9886,13 @@ function closeSettingsPage(){
 function refreshSettingsPage(){
   const body = document.getElementById('settings-page-body');
   if(!body) return;
+  const cur = ['display','profile','notify','widget'].includes(state.settingsTab) ? state.settingsTab : 'display';
+  if(cur === 'profile' && body.dataset.cur === 'profile') return;   // 편집 중인 프로필(그림판·입력 중인 별명)을 덮어쓰지 않는다
   const t = document.createElement('template');
   t.innerHTML = settingsPanelHtml();
   morphChildren(body, t.content);
+  body.dataset.cur = cur;
+  if(cur === 'profile') avInitInline();
 }
 // 테마·글씨 크기는 화면 전체를 다시 그려서(renderApp) 그 위의 설정 창도 같이 사라진다 — 열려 있었으면 같은 스크롤 위치로 바로 되살린다.
 function rerenderAppKeepSettings(){
@@ -13511,7 +13531,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'av-slot-del'){ const slots = avSlots(); slots[Number(el.dataset.i)] = null; localSet('avatar_slots', slots); syncProfileToServer(); if(avSlotSel === Number(el.dataset.i)) avSlotSel = -1; renderAvBody(); }
     else if(a === 'av-save'){ avSaveAvatar(); }
-    else if(a === 'av-reset'){ localSet('avatar', { ...AV_DEFAULT }); syncProfileToServer(); closeModal(); if(state.view === 'mypage') renderMain(); toast('기본 아이콘으로 되돌렸어요'); }
+    else if(a === 'av-reset'){ localSet('avatar', { ...AV_DEFAULT }); syncProfileToServer(); closeModal(); if(state.view === 'mypage') renderMain(); if(document.getElementById('av-body') && document.getElementById('settings-page-body')) avInitInline(); toast('기본 아이콘으로 되돌렸어요'); }
     else if(a === 'toggle-mypage-settings'){
       // 톱니가 90도 도는 동안 기다렸다가 패널을 열고 닫는다(화면을 다시 그리면 돌아가는 모습이 끊긴다)
       if(window.__gearBusy) return;
