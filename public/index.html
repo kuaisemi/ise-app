@@ -515,9 +515,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-fab-backdrop{position:fixed; inset:0; z-index:14; background:transparent;}
 .tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px + 5px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
 @media (max-width:480px){ .tt-fab-option{right:23px;} }
-.tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,.35); white-space:nowrap;}
+.tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px;  white-space:nowrap;}
 .tt-fab-option-circle svg{width:18px; height:18px; display:block;}
-.tt-fab-option-circle{flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.35);}
+.tt-fab-option-circle{flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; }
 .tt-fab-option:active .tt-fab-option-circle{transform:scale(0.94);}
 @keyframes tt-fab-out{from{opacity:1; transform:translateY(0) scale(1);}to{opacity:0; transform:translateY(8px) scale(.9);}}
 .tt-fab-option.closing{animation:tt-fab-out .18s ease both; animation-delay:calc((1 - var(--i)) * 0.03s);}
