@@ -8856,8 +8856,7 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `
-      <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
-      <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>
+      ${isDirectorPlus() ? `<div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
       ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
@@ -12214,7 +12213,11 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'set-theme'){ setThemeOverride(el.dataset.themeV); }
     else if(a === 'open-avatar-editor'){ openAvatarEditor(); }
     else if(a === 'clear-app-cache'){
-      if(!await showConfirm('저장해 둔 공지·학식·친구 시간표 사본을 지우고 서버에서 다시 받습니다.\n로그인과 설정은 그대로예요.', { okLabel:'비우기' })) return;
+      // 남발하면 서버 읽기가 다시 늘어나므로 10분에 한 번만. 평소에는 앱이 알아서 정리한다.
+      const wait = 10 * 60 * 1000 - (Date.now() - localGet('cache_cleared_at', 0));
+      if(wait > 0){ toast('캐시는 10분에 한 번만 비울 수 있어요\n약 ' + Math.ceil(wait/60000) + '분 뒤에 다시 눌러 주세요'); return; }
+      if(!await showConfirm('평소에는 앱이 알아서 캐시를 정리해요.\n화면이 이상할 때만 비워 주세요(10분에 한 번).\n\n저장해 둔 공지·학식·친구 시간표 사본을 지우고 서버에서 다시 받아요. 로그인과 설정은 그대로예요.', { okLabel:'비우기' })) return;
+      localSet('cache_cleared_at', Date.now());
       clearAppCaches(); toast('캐시를 비웠어요'); setTimeout(()=>location.reload(), 400);
     }
     else if(a === 'poke-friend'){ await pokeFriend(el.dataset.pair, el.dataset.uid); }
