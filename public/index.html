@@ -420,6 +420,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .swatches{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
 .swatch{width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11.5px; font-weight:800;}
 .swatch.selected{border-color:#fff; transform:scale(1.08);}
+.swatch[data-action="toggle-inline-color"]{text-shadow:0 0 3px rgba(0,0,0,.65);}
 #tt-bg-color-swatches .swatch{width:30px; height:30px; flex:none; padding:0;}
 
 .text-swatch{width:26px; height:26px; border-radius:50%; border:2px solid var(--border-light); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800;}
@@ -3926,7 +3927,7 @@ const INLINE_COLOR_HANDLERS = {};
 function inlineColorSwatchHtml(id, hex, selected){
   return `<div class="swatch ${selected?'selected':''}" title="색상 직접 선택"
     style="background:${selected?hex:'var(--surface-2)'};"
-    data-action="toggle-inline-color" data-id="${id}">${selected?'✓':'+'}</div>`;
+    data-action="toggle-inline-color" data-id="${id}">+</div>`;
 }
 function inlineColorPanelHtml(id, hex){
   return `<div id="cp-wrap-${id}" style="display:none;">${renderColorPickerPanel(id, hex)}</div>`;
@@ -5578,7 +5579,7 @@ function ttOptionsModal(){
           <span style="color:var(--text); font-size:11.5px;">${label}</span>
           <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
         </div>`).join('')}
-      <div id="tt-now-color-section" style="margin-top:6px; padding-top:12px; border-top:1px solid var(--border); ${o.currentTime ? '' : 'opacity:.4; pointer-events:none;'}">
+      <div id="tt-now-color-section" style="margin-top:6px; padding-top:12px; border-top:1px solid var(--border); ${o.currentTime ? '' : 'display:none;'}">
         <div style="font-size:11.5px; font-weight:700; margin-bottom:8px; color:var(--text-dim);">현재 시간 표시선 색상</div>
         <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
           ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
@@ -5604,8 +5605,7 @@ function setupTtOptionsModalListeners(){
       btn.classList.toggle('on', next);
       btn.setAttribute('aria-checked', String(next));
       if(btn.dataset.opt==='currentTime' && colorSection){
-        colorSection.style.opacity = next ? '1' : '.4';
-        colorSection.style.pointerEvents = next ? 'auto' : 'none';
+        colorSection.style.display = next ? '' : 'none';
       }
     };
   });
@@ -11636,7 +11636,7 @@ INLINE_COLOR_HANDLERS['classcolor'] = (hex)=>{
   document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
-    s.innerHTML = isPicker ? '✓' : '';
+    s.innerHTML = isPicker ? '+' : '';
     if(isPicker) s.style.background = hex;
   });
 };
@@ -11646,7 +11646,7 @@ INLINE_COLOR_HANDLERS['schedcolor'] = (hex)=>{
   document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
-    s.innerHTML = isPicker ? '✓' : '';
+    s.innerHTML = isPicker ? '+' : '';
     if(isPicker) s.style.background = hex;
   });
 };
@@ -11656,7 +11656,7 @@ INLINE_COLOR_HANDLERS['ttnow'] = (hex)=>{
   document.querySelectorAll('#tt-now-color-swatches .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
-    s.innerHTML = isPicker ? '✓' : '';
+    s.innerHTML = isPicker ? '+' : '';
     if(isPicker) s.style.background = hex;
   });
 };
@@ -11666,7 +11666,7 @@ INLINE_COLOR_HANDLERS['ttbg'] = (hex)=>{
   document.querySelectorAll('#tt-bg-color-swatches .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
-    s.innerHTML = isPicker ? TT_CHECK_SVG : '';
+    s.innerHTML = isPicker ? '+' : '';
     if(isPicker) s.style.background = hex;
   });
 };
@@ -11676,7 +11676,7 @@ INLINE_COLOR_HANDLERS['widget-accent'] = (hex)=>{
   document.querySelectorAll('#widget-accent-swatches-wrap .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
-    s.innerHTML = isPicker ? '✓' : '';
+    s.innerHTML = isPicker ? '+' : '';
     if(isPicker) s.style.background = hex;
   });
 };
