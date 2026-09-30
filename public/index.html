@@ -711,11 +711,20 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 #settings-page .card + .card{margin-top:12px !important;}
 .fs-hint{margin-left:8px; font-size:10.5px; font-weight:500; color:var(--text-faint);}
 /* 알림: 카드 위아래와 줄 간격을 촘촘하게 */
-#st-sec-notify .card{padding:2px 14px;}
-#st-sec-notify .notify-row{padding:6px 2px; min-height:42px;}
-#st-sec-notify .notify-row:first-of-type{padding-top:6px;}
-#st-sec-notify .card p[style*="font-size:10"]{margin:6px 2px 8px !important;}
-#st-sec-notify .meal-wrap{padding:6px 2px;}
+#st-sec-notify .card{padding:0 14px;}
+#st-sec-notify .notify-row{padding:3px 2px; min-height:34px; gap:10px;}
+#st-sec-notify .notify-row:first-of-type{padding-top:3px;}
+#st-sec-notify .notify-label{gap:9px;}
+#st-sec-notify .notify-label > svg{width:13px; height:13px; padding:6px; border-radius:8px;}
+#st-sec-notify .notify-label-text{gap:1px;}
+#st-sec-notify .notify-label-text b{line-height:1.25;}
+#st-sec-notify .notify-label-text small{line-height:1.3;}
+#st-sec-notify .card p[style*="font-size:10"]{margin:4px 2px 6px !important;}
+#st-sec-notify .meal-wrap{padding:4px 2px;}
+#st-sec-notify .meal-ico{width:25px; height:25px; border-radius:8px;}
+#st-sec-notify .meal-ico svg{width:13px; height:13px;}
+#st-sec-notify .chip-row{margin-bottom:5px;}
+#st-sec-notify .chip-tgl{padding:4px 4px;}
 .st-cap{margin:14px 4px 7px; font-size:12px; font-weight:800; color:var(--text);}
 .st-sec > .st-cap:first-child{margin-top:2px;}
 .st-tight{padding-bottom:8px !important;}
