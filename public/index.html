@@ -406,6 +406,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 12px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,.35); white-space:nowrap;}
 .tt-fab-option-circle{flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.35);}
 .tt-fab-option:active .tt-fab-option-circle{transform:scale(0.94);}
+@keyframes tt-fab-out{from{opacity:1; transform:translateY(0) scale(1);}to{opacity:0; transform:translateY(8px) scale(.9);}}
+.tt-fab-option.closing{animation:tt-fab-out .18s ease both; animation-delay:calc((1 - var(--i)) * 0.03s);}
 @keyframes tt-fab-pop{from{opacity:0; transform:translateY(8px) scale(.9);}to{opacity:1; transform:translateY(0) scale(1);}}
 
 .bottomnav{position:fixed; left:0; right:0; bottom:0; z-index:20; max-width:480px; margin:0 auto; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); border-top:1px solid var(--border); display:flex; padding:8px 6px calc(8px + var(--safe-bottom));}
@@ -5640,8 +5642,17 @@ function setTtFab(open){
   state.ttFabOpen = !!open;
   const wrap = document.querySelector('.tt-fab-wrap');
   if(!wrap){ renderMain(); return; }
-  wrap.querySelectorAll('.tt-fab-backdrop, .tt-fab-option').forEach(n=>n.remove());
-  if(state.ttFabOpen) wrap.insertAdjacentHTML('afterbegin', ttFabOptionsHtml());
+  if(wrap.__fabTimer){ clearTimeout(wrap.__fabTimer); wrap.__fabTimer = null; }
+  wrap.querySelectorAll('.tt-fab-backdrop').forEach(n=>n.remove());
+  const opts = wrap.querySelectorAll('.tt-fab-option');
+  if(state.ttFabOpen){
+    opts.forEach(n=>n.remove());
+    wrap.insertAdjacentHTML('afterbegin', ttFabOptionsHtml());
+  } else if(opts.length){
+    // 닫을 때도 열 때처럼 애니메이션: 메뉴 항목이 아래로 흐려지며 들어간 뒤에 없앤다
+    opts.forEach(n=>{ n.classList.add('closing'); n.style.pointerEvents = 'none'; });
+    wrap.__fabTimer = setTimeout(()=>{ wrap.querySelectorAll('.tt-fab-option.closing').forEach(n=>n.remove()); wrap.__fabTimer = null; }, 240);
+  }
   wrap.classList.toggle('open', state.ttFabOpen);
 }
 
