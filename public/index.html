@@ -2546,8 +2546,10 @@ const MEMO_DOC_MAX_BYTES = 200000; // 전체 메모 문서 크기 상한 (1MiB �
 async function loadMemos(uidStr){
   const localVal = localGet('memos_'+uidStr, null);
   const localAt = localGet('memos_at_'+uidStr, 0);
+  if(localVal && ownSyncFresh('memos', uidStr)) return localVal;
   try{
     const snap = await getDoc(doc(db,'memos',uidStr));
+    ownSyncMark('memos', uidStr);
     if(snap && snap.exists()){
       const d = snap.data() || {};
       if((d.updatedAt||0) >= localAt){
@@ -2692,13 +2694,21 @@ function rosterEntry(v){
 }
 async function saveRoster(m){ return await saveShared('roster',{map:m}); }
 
+// 내 시간표·메모는 이 기기에 저장해 둔 사본을 쓰고, 서버에서는 "새벽 3시(한국 시간)를 지나 처음 켰을 때" 하루 한 번만 다시 읽는다.
+// (바꿀 때는 바로 서버에 쓰므로 이 기기에서 바꾼 내용은 항상 최신이다. 다른 기기에서 바꾼 것은 다음 날 첫 실행이나 새로고침 버튼으로 반영된다.)
+function ownSyncDay(){ return new Date(Date.now() + 6 * 3600 * 1000).toISOString().slice(0, 10); }
+function ownSyncFresh(kind, uidStr){ return localGet('own_sync_' + kind + '_' + uidStr, '') === ownSyncDay(); }
+function ownSyncMark(kind, uidStr){ localSet('own_sync_' + kind + '_' + uidStr, ownSyncDay()); }
+function ownSyncReset(){ try{ if(state.user){ localSet('own_sync_tt_' + state.user.uid, ''); localSet('own_sync_memos_' + state.user.uid, ''); } }catch(e){} }
 async function loadTimetable(uidStr){
   const localVal = localGet('tt_'+uidStr, null); // 최신 형식: { bySemester, activeSemester }
   const localAt = localGet('tt_at_'+uidStr, 0);
+  if(localVal && localVal.bySemester && ownSyncFresh('tt', uidStr)) return localVal;
   try{
     const snap = await getDoc(doc(db,'timetables',uidStr));
     if(snap && snap.exists()){
       const d = snap.data();
+      ownSyncMark('tt', uidStr);
       if(d && (d.updatedAt||0) >= localAt){
         if(d.bySemester){
           localSet('tt_'+uidStr, { bySemester: d.bySemester, activeSemester: d.activeSemester });
@@ -12103,6 +12113,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'set-signup-role'){ state.signupRole = el.dataset.role; renderAuth(); }
     else if(a === 'global-refresh'){
+      ownSyncReset();   // 새로고침 버튼은 내 시간표·메모도 서버에서 다시 읽게 한다
       location.reload();
     }
     else if(a === 'nav'){
