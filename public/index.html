@@ -595,7 +595,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 환경설정 창: 예전 MY 탭 안 패널보다 넉넉하게(카드 둥글게, 제목·글자 조금 크게, 줄 간격 넓게) */
 #settings-page .fp-body{padding-top:16px;}
 .st-sect{margin:0 2px 10px;}
-.st-acct{display:flex; align-items:center; gap:14px; padding:16px; margin-bottom:26px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
+.st-acct{display:flex; align-items:center; gap:14px; padding:16px; margin-bottom:12px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
 .st-acct:active{background:var(--surface-3);}
 .st-acct .mypage-avatar{flex-shrink:0;}
 .st-acct-tx{flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px;}
@@ -689,6 +689,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .st-in.st-back > *{animation-name:stInBack;}
 @keyframes stIn{from{opacity:0; transform:translateX(18px);} to{opacity:1; transform:none;}}
 @keyframes stInBack{from{opacity:0; transform:translateX(-18px);} to{opacity:1; transform:none;}}
+#settings-page .card + .card{margin-top:12px !important;}
 #settings-page .card{margin-top:0 !important; padding:18px 16px 20px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border);}
 #settings-page .subtabs{margin-bottom:18px; border-radius:14px;}
 #settings-page .set-label{font-size:13px; margin-bottom:11px;}
@@ -4788,8 +4789,7 @@ function renderWidgetSettingsTab(){
       <div class="link-row pick-box" data-action="open-primary-timetable">
         <span style="font-size:12px; font-weight:600;">${escapeHtml(widgetPrimaryLabel())}</span> <span class="sub">${ICON.chevR}</span>
       </div>
-    </div>
-
+    </div></div><div class="card">
     <div class="field" style="margin-bottom:10px;">
       <p class="set-label">꾸밀 위젯 고르기</p>
       <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:2px;">
@@ -4806,13 +4806,14 @@ function renderWidgetSettingsTab(){
       </div>
     </div>
 
+    </div><div class="card">
     ${(()=>{
       const key = state.widgetFontScaleTarget;
       const label = (WIDGET_TYPES.find(t=>t[0]===key)||['','위젯'])[1];
       const w = getWidgetSettings(key);
       return `
-      <div class="card" style="background:var(--surface-2); padding:12px; margin-bottom:12px;">
-        <p style="margin:0 0 12px; font-size:11.5px; font-weight:800; color:var(--teal);">${escapeHtml(label)} 설정</p>
+      <div>
+        <p class="set-label">${escapeHtml(label)} 설정</p>
 
         <div class="field" style="margin-bottom:14px;">
           <p class="set-label sm">배경</p>
@@ -5501,7 +5502,7 @@ const ICON = {
 const DEFAULT_HOME_ORDER = ['timetable','recruits','meal','shuttle','calendar','mine'];
 
 /* ===== 렌더 ===== */
-function renderApp(){ if(!state.user) renderAuth(); else renderShell(); }
+function renderApp(){ if(!state.user) renderAuth(); else renderShell(); if(!window.__uiSkipSync) uiSyncLayers(); }
 function versionFooter(){ return `<div class="app-version">ISE · ${APP_VERSION}</div>`; }
 
 // 네이티브 앱(APK) 안이 아니면서, UA가 안드로이드인 브라우저(삼성 인터넷·크롬 등)에서만 true.
@@ -9454,16 +9455,15 @@ function settingsSectionHtml(tab){
         일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
       </p>` : ''}
 
-      <p class="set-label" style="margin-top:20px;">글씨 크기 <span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
+      </div><div class="card"><p class="set-label">글씨 크기 <span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
       <div class="fs-row"><span class="fs-a s">가</span><input type="range" id="font-pct" min="${FONT_PCT_MIN}" max="${FONT_PCT_MAX}" step="10" value="${fontPct}"><span class="fs-a l">가</span></div>
       <div class="fs-ticks"><span>작게</span><span>기본</span><span>크게</span></div>
       <p style="font-size:10.5px; color:var(--text-faint); margin:8px 2px 0; line-height:1.55;">
         글씨뿐 아니라 버튼·여백까지 함께 커지고 작아져요.
       </p>
 
-      <div style="border-top:1px solid var(--border); margin:20px 0 0;"></div>
-
-      <div class="row-between" style="margin:18px 0 2px; align-items:center;">
+      </div><div class="card">
+      <div class="row-between" style="margin:0 0 2px; align-items:center;">
         <p class="set-label" style="margin:0;">홈 화면 보기 설정</p>
         <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
       </div>
@@ -9495,6 +9495,7 @@ function settingsSectionHtml(tab){
       ` : ''}
 
       ${state.settingsTab==='notify' ? `
+      <p class="set-label">소식</p>
       <div class="notify-row">
         <span class="notify-label">${ICON.megaphone}<span class="notify-label-text"><b>공지</b><small>새 공지가 올라올 때</small></span></span>
         <button type="button" class="tgl ${np.notice?'on':''}" data-action="toggle-notify" data-key="notice" role="switch" aria-checked="${!!np.notice}"></button>
@@ -9511,10 +9512,14 @@ function settingsSectionHtml(tab){
         <span class="notify-label">${ICON.person}<span class="notify-label-text"><b>친구 요청</b><small>친구 요청이 오거나 수락됐을 때</small></span></span>
         <button type="button" class="tgl ${np.friendRequest!==false?'on':''}" data-action="toggle-notify" data-key="friendRequest" role="switch" aria-checked="${np.friendRequest!==false}"></button>
       </div>
+      </div><div class="card">
+      <p class="set-label">방해 금지</p>
       <div class="notify-row">
         <span class="notify-label">${ICON.moon}<span class="notify-label-text"><b>야간 알림 (22시~7시)</b><small>꺼두면 그 시간에 온 공지 · 투표는 푸시로 안 오고, 아침에 앱에서 확인돼요</small></span></span>
         <button type="button" class="tgl ${np.night?'on':''}" data-action="toggle-notify" data-key="night" role="switch" aria-checked="${!!np.night}"></button>
       </div>
+      </div><div class="card">
+      <p class="set-label">시간표</p>
       <div class="notify-row tt-alert-row">
         <span class="notify-label">${ICON.calendar}<span class="notify-label-text"><b>오늘의 시간표</b><small>${!isNativeApp ? '앱(APK)에서만 사용할 수 있어요' : (np.timetable ? `평일 아침 ${np.timetableHour}시에 수업 안내` : '알림 꺼짐')}</small></span></span>
         <div class="seg-group tt-seg ${isNativeApp ? '' : 'disabled'}"><span class="seg-thumb" style="--n:4; --i:${np.timetable ? 1 + Math.max(0, [7,8,9].indexOf(np.timetableHour)) : 0};"></span>
@@ -9522,6 +9527,8 @@ function settingsSectionHtml(tab){
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
         </div>
       </div>
+      </div><div class="card">
+      <p class="set-label">학식</p>
       <div class="meal-wrap">
         <span class="meal-ico">${ICON.utensils}</span>
         <div class="meal-body">
@@ -9591,7 +9598,11 @@ function morphChildren(dst, src){
     if(n.nodeType !== 1){ if(d.nodeValue !== n.nodeValue) d.nodeValue = n.nodeValue; continue; }
     if(d.isEqualNode(n)) continue;
     Array.from(d.attributes).forEach(a=>{ if(!n.hasAttribute(a.name)) d.removeAttribute(a.name); });
-    Array.from(n.attributes).forEach(a=>{ if(d.getAttribute(a.name) !== a.value) d.setAttribute(a.name, a.value); });
+    Array.from(n.attributes).forEach(a=>{
+      let v = a.value;
+      if(a.name === 'class' && d.classList.contains('has-thumb') && !/\bhas-thumb\b/.test(v)) v += ' has-thumb';   // 탭 줄의 선택 칸 표시는 전역 코드가 붙인 것이라 지우지 않는다
+      if(d.getAttribute(a.name) !== v) d.setAttribute(a.name, v);
+    });
     morphChildren(d, n);
   }
   for(let i=sk.length;i<dk.length;i++) dst.removeChild(dk[i]);
@@ -9609,13 +9620,15 @@ function openSettingsPage(opts){
     wrap.style.transition = 'none'; wrap.classList.add('open');
     body.scrollTop = opts.scroll || 0;
     requestAnimationFrame(()=>{ wrap.style.transition = ''; });
-  } else requestAnimationFrame(()=>wrap.classList.add('open'));
+  } else { requestAnimationFrame(()=>wrap.classList.add('open')); uiLayerOpened(); }
   renderMain();   // 위젯 슬라이더 같은 것을 새 화면에 연결한다
 }
 function closeSettingsPage(){
   const w = document.getElementById('settings-page');
   if(!w) return;
+  const wasOpen = w.classList.contains('open');
   w.classList.remove('open');
+  if(wasOpen) uiLayerClosed();
   setTimeout(()=>{ if(!w.classList.contains('open')) w.remove(); }, 320);
 }
 function refreshSettingsPage(){
@@ -9629,7 +9642,8 @@ function refreshSettingsPage(){
 function rerenderAppKeepSettings(){
   const b = document.getElementById('settings-page-body');
   const keep = b ? { scroll: b.scrollTop } : null;
-  renderApp();
+  window.__uiSkipSync = true;
+  try{ renderApp(); } finally { window.__uiSkipSync = false; }
   if(keep) openSettingsPage({ instant:true, scroll: keep.scroll });
 }
 
@@ -9990,6 +10004,7 @@ async function openFriendsPage(){
   placeBelowTopbar(wrap);
   (document.querySelector('.shell') || document.body).appendChild(wrap);
   requestAnimationFrame(()=>wrap.classList.add('open'));
+  uiLayerOpened();
   setupFriendsModalListeners();
   await refreshFriendsData();
   setupFriendsModalListeners();
@@ -9997,7 +10012,9 @@ async function openFriendsPage(){
 function closeFriendsPage(){
   const w = document.getElementById('friends-page');
   if(!w) return;
+  const wasOpen = w.classList.contains('open');
   w.classList.remove('open');
+  if(wasOpen) uiLayerClosed();
   teardownSocialTab();
   setTimeout(()=>{ if(!w.classList.contains('open')) w.remove(); }, 320);
 }
@@ -11310,7 +11327,54 @@ function deleteAccountModal(){
     </form>`;
 }
 
-/* ===== 모달/토스트 ===== */
+/* ===== 뒤로가기 키 =====
+ * 팝업(모달)·확인창·친구 창·환경설정 창이 열리면 history에 한 칸을 쌓고, 폰의 뒤로가기(popstate)가 오면 맨 위 창부터 닫는다.
+ * 버튼으로 닫을 때는 쌓아 둔 칸을 조용히 되돌린다(uiIgnorePop). 화면 전체가 다시 그려져서 창이 조용히 사라진 경우는 uiSyncLayers가 칸을 맞춘다. */
+function uiS(){ return window.__ui || (window.__ui = { pushed:0, ignore:0, byPop:false }); }
+function uiLayerOpened(){ try{ history.pushState({ iseLayer:1 }, ''); uiS().pushed++; }catch(_){} }
+function uiLayerClosed(){
+  const u = uiS();
+  if(u.byPop || u.pushed <= 0) return;
+  u.pushed--; u.ignore++;
+  try{ history.back(); }catch(_){ u.ignore--; }
+}
+function uiOpenLayerCount(){
+  return document.querySelectorAll('.confirm-overlay.open').length
+    + (document.querySelector('#modal-overlay.open') ? 1 : 0)
+    + (document.querySelector('#settings-page.open') ? 1 : 0)
+    + (document.querySelector('#friends-page.open') ? 1 : 0);
+}
+function uiSyncLayers(){
+  const u = uiS(); const extra = u.pushed - uiOpenLayerCount();
+  if(extra > 0){ u.pushed -= extra; u.ignore++; try{ history.go(-extra); }catch(_){ u.ignore--; } }
+}
+function closeTopLayer(){
+  const cf = document.querySelector('.confirm-overlay.open');
+  if(cf && cf.__close){ cf.__close(); return true; }
+  if(document.querySelector('#modal-overlay.open')){ closeModal(); return true; }
+  if(document.querySelector('#settings-page.open')){ closeSettingsPage(); return true; }
+  const fp = document.querySelector('#friends-page.open');
+  if(fp){
+    const scr = state.friendsUI && state.friendsUI.screen;
+    if(scr && scr !== 'list'){   // 친구 시간표·별명 화면에서는 한 단계씩 돌아간다
+      state.friendsUI.screen = (scr === 'nickname') ? 'detail' : 'list';
+      refreshFriendsModalBody();
+      uiLayerOpened();   // 이 창은 아직 열려 있으니 닫힌 칸을 다시 채운다
+      return true;
+    }
+    closeFriendsPage(); return true;
+  }
+  return false;
+}
+window.addEventListener('popstate', ()=>{
+  const u = uiS();
+  if(u.ignore > 0){ u.ignore--; return; }
+  if(u.pushed <= 0) return;
+  u.pushed--; u.byPop = true;
+  try{ closeTopLayer(); } finally { u.byPop = false; }
+});
+
+/* ===== 모달/토스트 =====
 // 모달을 닫았다 다시 여는 게 아니라, 열려 있는 시트 안의 내용만 바꾼다(다시 열면 아래에서 올라오는 애니메이션이 또 돌아 "나갔다 들어오는" 것처럼 깜빡인다)
 function swapModal(html){
   const sheet = document.querySelector('#modal-overlay .modal-sheet');
@@ -11327,6 +11391,7 @@ function openModal(html){
     if(sh){ sh.style.transform = ''; sh.style.transition = ''; sh.innerHTML = html; sh.scrollTop = 0; setupModalDragToDismiss(openOv); return; }
   }
   root.innerHTML = `<div class="modal-overlay" id="modal-overlay"><div class="modal-sheet">${html}</div></div>`;
+  uiLayerOpened();
   const ov=document.getElementById('modal-overlay');
   if(ov){
     ov.addEventListener('click', e=>{ if(e.target.id==='modal-overlay') closeModal(); });
@@ -11378,7 +11443,9 @@ function setupModalDragToDismiss(overlay){
 function closeModal(){
   const ov=document.getElementById('modal-overlay');
   if(!ov) return;
+  const wasOpen = ov.classList.contains('open');
   ov.classList.remove('open');
+  if(wasOpen) uiLayerClosed();
   setTimeout(()=>{ const cur=document.getElementById('modal-overlay'); if(cur && cur.classList.contains('open')) return; const r=document.getElementById('modal-root'); if(r) r.innerHTML=''; },290);
 }
 // 브라우저 기본 confirm()은 "example.com의 내용:" 같은 시스템 문구가 강제로 붙어서
@@ -11400,11 +11467,16 @@ function showConfirm(message, opts={}){
       </div>`;
     document.body.appendChild(wrap);
     requestAnimationFrame(()=>wrap.classList.add('open'));
+    uiLayerOpened();
     const cleanup=(result)=>{
+      if(wrap.__closed){ return; }
+      wrap.__closed = true;
+      uiLayerClosed();
       wrap.classList.remove('open');
       setTimeout(()=>wrap.remove(),160);
       resolve(result);
     };
+    wrap.__close = ()=>cleanup(false);
     wrap.addEventListener('click', e=>{
       if(e.target.dataset.act==='ok') cleanup(true);
       else if(e.target.dataset.act==='cancel' || e.target===wrap) cleanup(false);
