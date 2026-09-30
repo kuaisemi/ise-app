@@ -6069,7 +6069,7 @@ function renderTimetable(isCapture=false){
   let timeLabels='';
   for(let r=0;r<=rows;r++){
     const mins = TIME_START + r*TIMETABLE_GRID_STEP;
-    if(mins>visibleEnd) break;
+    if(mins>=visibleEnd) break;   // 맨 아래 끝 시각(예: 19시까지면 19)의 왼쪽 시간 글자는 그리지 않는다
     if(mins%60===0) timeLabels += `<div class="tt-timelabel" style="grid-row:${r+2}">${Math.floor(mins/60)}</div>`;
   }
   let cells='';
