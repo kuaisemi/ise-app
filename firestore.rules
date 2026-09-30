@@ -221,11 +221,8 @@ service cloud.firestore {
     // 직급·가입일 같은 정보까지 다 새어나가므로, 이 용도로만 쓸 아주 작은 문서를 따로 둔다.
     match /studentDirectory/{uid} {
       allow read: if isSignedIn();
-      // avatar: 프로필 아이콘(작은 JSON 문자열). 친구 시간표 화면에서 이름 옆에 보여주는 용도라 크기를 제한한다.
       allow write: if isSignedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['studentId', 'name', 'avatar'])
-        && (!('avatar' in request.resource.data)
-            || (request.resource.data.avatar is string && request.resource.data.avatar.size() <= 8000));
+        && request.resource.data.keys().hasOnly(['studentId', 'name']);
     }
 
     // 가입 시 명단과 안 맞은 사람이 남기는 문의. 가입 절차상 이 시점엔 이미 본인 Auth

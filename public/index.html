@@ -8515,7 +8515,6 @@ function avSaveAvatar(){
   const av = avCurrent();
   if(av.kind === 'pixel' && !avPx.some(Boolean)){ toast('먼저 그림을 그려 주세요'); return; }
   localSet('avatar', av);
-  ensureStudentDirectoryEntry();
   closeModal();
   if(state.view === 'mypage') renderMain();
   toast('프로필 아이콘을 바꿨어요');
@@ -9010,14 +9009,8 @@ function moveFriendOrder(pairId, dir){
 // 로그인/재접속 때마다(부팅 시 한 번) 올려둔다.
 async function ensureStudentDirectoryEntry(){
   if(!state.user) return;
-  const ref = doc(db,'studentDirectory',state.user.uid);
-  const base = { studentId: state.user.studentId, name: state.user.name };
-  const av = avatarForSync();
-  try{ await setDoc(ref, av ? { ...base, avatar: av } : base); }
-  catch(e){
-    console.warn('[studentDirectory]', e);
-    if(av){ try{ await setDoc(ref, base); }catch(e2){ console.warn('[studentDirectory]', e2); } }   // 아바타 때문에 실패했더라도 이름·학번은 남긴다
-  }
+  try{ await setDoc(doc(db,'studentDirectory',state.user.uid), { studentId: state.user.studentId, name: state.user.name }); }
+  catch(e){ console.warn('[studentDirectory]', e); }
 }
 
 // 예전엔 친구 화면이 모달(팝업)이었는데, 학생사회 탭의 "소셜" 탭으로 옮겨서 상시
@@ -9225,7 +9218,6 @@ function friendDetailBody(){
   return `
     <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
       <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
-      ${friendAvatarBadge(ui.activeAvatar)}
       <b style="font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(ui.activeName)} ${nicknameHtml}</b>
       <button type="button" class="btn btn-ghost btn-sm" data-action="set-friend-nickname" style="width:auto; padding:3px 8px; font-size:10px; flex-shrink:0;">별명설정</button>
       <button type="button" class="btn btn-ghost btn-sm" data-action="unfriend" style="width:auto; padding:3px 8px; font-size:10px; color:var(--danger); flex-shrink:0;">친구삭제</button>
@@ -9416,8 +9408,6 @@ function openFriendDetail(uid, name, pairId){
   state.friendsUI.screen = 'detail';
   state.friendsUI.activeUid = uid;
   state.friendsUI.activeName = name;
-  state.friendsUI.activeAvatar = (friendAvatarCache[uid] && friendAvatarCache[uid].av) || null;
-  loadFriendAvatar(uid);
   state.friendsUI.activePairId = pairId;
   state.friendsUI.myShareOn = !rec || rec.shareTimetable[state.user.uid] !== false;
   state.friendsUI.myClearedAt = (rec && rec.clearedAt && rec.clearedAt[state.user.uid]) || 0;
@@ -12587,7 +12577,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'av-slot-del'){ const slots = avSlots(); slots[Number(el.dataset.i)] = null; localSet('avatar_slots', slots); if(avSlotSel === Number(el.dataset.i)) avSlotSel = -1; renderAvBody(); }
     else if(a === 'av-save'){ avSaveAvatar(); }
-    else if(a === 'av-reset'){ localSet('avatar', { ...AV_DEFAULT }); ensureStudentDirectoryEntry(); closeModal(); if(state.view === 'mypage') renderMain(); toast('기본 아이콘으로 되돌렸어요'); }
+    else if(a === 'av-reset'){ localSet('avatar', { ...AV_DEFAULT }); closeModal(); if(state.view === 'mypage') renderMain(); toast('기본 아이콘으로 되돌렸어요'); }
     else if(a === 'toggle-mypage-settings'){
       // 톱니가 90도 도는 동안 기다렸다가 패널을 열고 닫는다(화면을 다시 그리면 돌아가는 모습이 끊긴다)
       if(window.__gearBusy) return;
