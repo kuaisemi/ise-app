@@ -554,6 +554,44 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 @media (max-width:480px){ .tt-fab-option{right:23px;} }
 .tt-fab-option-label{border:1px solid var(--border-light); background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px;  white-space:nowrap;}
 .meal-side{font-size:.86em; color:var(--text-dim);}
+/* ===== 친구 시간표 전체 화면 창 ===== */
+.friends-page{position:fixed; inset:0; z-index:45; max-width:480px; margin:0 auto; background:var(--bg); display:flex; flex-direction:column; padding-top:env(safe-area-inset-top, 0px); transform:translateY(100%); transition:transform .4s cubic-bezier(.22,1,.36,1);}
+.friends-page.open{transform:none;}
+.fp-head{display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border);}
+.fp-head b{flex:1; text-align:center; font-size:14px; font-weight:800;}
+.fp-close{width:34px; height:34px; border-radius:11px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;}
+.fp-head-sp{width:34px;}
+.fp-body{flex:1; overflow-y:auto; padding:14px 16px calc(24px + var(--safe-bottom, 0px)); zoom:var(--font-scale, 1);}
+.fp-body.fit{overflow:hidden; padding-bottom:12px;}
+.fp-sec{font-size:12px; font-weight:800; color:var(--text); margin:14px 2px 8px; display:flex; align-items:center; gap:6px;}
+.fp-sec em{font-style:normal; font-size:10px; font-weight:800; color:var(--teal); background:rgba(224,172,85,.16); border-radius:10px; padding:1px 7px;}
+.fp-listhead{display:flex; align-items:center; justify-content:space-between; margin:14px 0 8px;}
+.fp-actions{display:flex; gap:6px; align-items:center;}
+.fp-btn{border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); border-radius:12px; padding:6px 11px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; -webkit-tap-highlight-color:transparent;}
+.fp-btn svg{width:13px; height:13px;}
+.fp-btn.ok{background:var(--crimson); border-color:var(--crimson); color:#fff;}
+.fp-btn:active{transform:scale(.95);}
+.fp-card{background:var(--surface-2); border:1px solid var(--border); border-radius:18px; overflow:hidden;}
+.fp-row{display:flex; align-items:center; gap:12px; padding:12px 14px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
+.fp-row + .fp-row{border-top:1px solid var(--border);}
+.fp-row:active{background:var(--surface-3);}
+.fp-row.static{cursor:default;}
+.fp-row.static:active{background:transparent;}
+.fp-av{width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#fff; flex-shrink:0; text-shadow:0 1px 2px rgba(0,0,0,.25);}
+.fp-info{flex:1; min-width:0;}
+.fp-info b{display:block; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.fp-info small{display:block; font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+.fp-right{display:flex; align-items:center; gap:12px; flex-shrink:0;}
+.fp-chev{display:flex; color:var(--text-faint);}
+.fp-share{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; margin-bottom:2px; border-radius:16px; border:1px solid var(--border); background:var(--surface-2);}
+.fp-share-txt b{display:block; font-size:13px;}
+.fp-share-txt small{display:block; font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+.fp-del{border:none; background:rgba(var(--danger-rgb),.14); color:var(--danger); border-radius:10px; padding:6px 10px; font-size:11px; font-weight:800; cursor:pointer; flex-shrink:0;}
+.fp-empty{display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:38px 20px; border:1.5px dashed var(--border-light); border-radius:18px;}
+.fp-empty-ic{width:52px; height:52px; border-radius:16px; background:rgba(224,172,85,.16); color:var(--teal); display:flex; align-items:center; justify-content:center; margin-bottom:4px;}
+.fp-empty-ic svg{width:26px; height:26px;}
+.fp-empty b{font-size:14px;}
+.fp-empty small{font-size:11px; color:var(--text-dim); line-height:1.5;}
 .cp-hex-wrap{flex:1; min-width:0; display:flex; align-items:center; gap:4px; height:38px; padding:0 12px; border-radius:12px; background:var(--surface-3); border:1.5px solid var(--border); transition:border-color .2s, box-shadow .2s;}
 .cp-hex-wrap:focus-within{border-color:var(--teal); box-shadow:0 0 0 3px rgba(224,172,85,.14);}
 .cp-hex-wrap.bad{border-color:var(--danger); box-shadow:0 0 0 3px rgba(var(--danger-rgb),.14);}
@@ -5285,6 +5323,7 @@ const ICON = {
   inbox:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2 3h6l2-3h4"/><path d="M5.5 5h13l2.5 7v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6Z"/></svg>`,
   gear:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
   tick:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
+  users:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
   close:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
   chevL:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`,
   chevR:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>`,
@@ -5954,6 +5993,7 @@ function renderSemesterTabs(){
         <span class="tt-switcher-name">${escapeHtml(activeVariantName())} ${ICON.chevDown}</span>
       </button>
       <div class="tt-switcher-divider"></div>
+      <button type="button" class="tt-switcher-icon-btn" data-action="open-friends-page" title="친구 시간표">${ICON.users}</button>
       <button type="button" class="tt-switcher-icon-btn" data-action="open-tt-options" title="화면 표시 설정">${ICON.gear}</button>
       <button type="button" class="tt-switcher-icon-btn" data-action="open-tt-more-menu" title="더보기">${ICON.more}</button>
     </div>`;
@@ -8065,7 +8105,7 @@ function renderLikeUI(item, itemType){
 
 /* ===== 학생사회 ===== */
 function renderCouncil(){
-  const tabs = [['notice','공지사항'],['poll','투표'],['recruitment','구인글'],['suggestion','건의'],['social','소셜']];
+  const tabs = [['notice','공지사항'],['poll','투표'],['recruitment','구인글'],['suggestion','건의']];
   const valid = tabs.some(([k])=>k===state.councilTab);
   if(!valid) state.councilTab='notice';
   const labels = tabs.map(([k,l])=>`<div class="subtab ${state.councilTab===k?'active':''}" data-action="council-tab" data-tab="${k}">${l}</div>`).join('');
@@ -8074,7 +8114,6 @@ function renderCouncil(){
   else if(state.councilTab==='suggestion') body=renderSuggestionTab();
   else if(state.councilTab==='poll') body=renderPollTab();
   else if(state.councilTab==='recruitment') body=renderRecruitmentTab();
-  else if(state.councilTab==='social') body=renderSocialTab();
   return `<div class="subtabs">${labels}</div>${body}`;
 }
 
@@ -9706,17 +9745,30 @@ async function ensureStudentDirectoryEntry(){
 // 예전엔 친구 화면이 모달(팝업)이었는데, 학생사회 탭의 "소셜" 탭으로 옮겨서 상시
 // 화면으로 바꿨다 — 그대로 쓰던 화면전환 로직(list/detail/nickname/councilChat)은
 // friendsModalBody()가 그대로 재사용한다.
-async function openSocialTab(){
+// 친구는 시간표를 위한 기능이라 학생사회의 "소셜" 탭에서 빼고, 시간표 화면 위쪽의 친구 버튼으로 여는 전체 화면 창으로 옮겼다.
+// 알림을 눌러 들어오는 등 예전 진입점은 openSocialTab()이 그대로 이 창을 연다.
+async function openSocialTab(){ await openFriendsPage(); }
+async function openFriendsPage(){
   if(!state.user) return;
-  state.view = 'council';
-  state.councilTab = 'social';
+  if(document.getElementById('friends-page')) return;
+  closeModal();
   state.friendsUI.screen = 'list';
-  renderShell();
+  const wrap = document.createElement('div');
+  wrap.className = 'friends-page';
+  wrap.id = 'friends-page';
+  wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="close-friends-page" aria-label="닫기">${ICON.chevL}</button><b>친구 시간표</b><span class="fp-head-sp"></span></div><div class="fp-body" id="friends-modal-body">${friendsModalBody()}</div>`;
+  document.body.appendChild(wrap);
+  requestAnimationFrame(()=>wrap.classList.add('open'));
+  setupFriendsModalListeners();
   await refreshFriendsData();
   setupFriendsModalListeners();
 }
-function renderSocialTab(){
-  return `<div id="friends-modal-body">${friendsModalBody()}</div>`;
+function closeFriendsPage(){
+  const w = document.getElementById('friends-page');
+  if(!w) return;
+  w.classList.remove('open');
+  teardownSocialTab();
+  setTimeout(()=>{ if(!w.classList.contains('open')) w.remove(); }, 320);
 }
 function friendsModalBody(){
   if(state.friendsUI.screen === 'detail') return friendDetailBody();
@@ -9731,10 +9783,11 @@ function setFriendScrollLock(on){
 }
 function refreshFriendsModalBody(){
   const el = document.getElementById('friends-modal-body');
-  if(el){ el.innerHTML = friendsModalBody(); setupFriendsModalListeners(); }
-  const vf = document.querySelector('#main-content .app-version');
-  if(vf) vf.style.display = (state.friendsUI.screen === 'detail') ? 'none' : '';
-  setFriendScrollLock(state.friendsUI.screen === 'detail' && state.view === 'council' && state.councilTab === 'social');
+  if(el){
+    el.innerHTML = friendsModalBody();
+    el.classList.toggle('fit', state.friendsUI.screen === 'detail');   // 친구 시간표는 창에 딱 맞게 그려서 스크롤이 없다
+    setupFriendsModalListeners();
+  }
   refreshAddFriendModalIfOpen();
 }
 // "친구 추가" 버튼이 여는 팝업은 친구 목록 화면(#friends-modal-body)과 다른 DOM이라,
@@ -9834,68 +9887,68 @@ async function refreshFriendsData(){
   await startFriendLinksListener();
 }
 
+// 이름 첫 글자를 색 동그라미에 넣은 아바타(색은 사람마다 고정)
+function fpAvHtml(uid, name){
+  let h = 0; for(const ch of String(uid || name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const col = CLASS_PALETTE[h % CLASS_PALETTE.length];
+  return `<span class="fp-av" style="background:${col};">${escapeHtml(String(name || '?').trim().slice(0, 1) || '?')}</span>`;
+}
 function friendListBody(){
   const { incoming, friends } = state.friendsUI.data;
-  return `
-    ${incoming.length ? `
-    <div class="section-title">받은 친구 요청 (${incoming.length})</div>
-    <div class="card" style="padding:14px 12px; margin-bottom:12px;">
-      ${incoming.map((r)=>`
-        <div class="list-item">
-          <div class="row-between">
-            <div><b style="font-size:13.5px;">${escapeHtml(r.name)}</b><div class="meta">${escapeHtml(r.studentId)}</div></div>
-            <div style="display:flex; gap:6px;">
-              <button type="button" class="btn btn-primary btn-sm" data-action="accept-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">수락</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}" style="width:auto; padding:5px 10px; font-size:11.5px;">거절</button>
-            </div>
-          </div>
-        </div>`).join('')}
-    </div>` : ''}
-
-    <div class="row-between" style="margin-bottom:8px;">
-      <div class="section-title" style="margin:0;">내 친구 (${friends.length})</div>
-      <div style="display:flex; gap:6px; align-items:center;">
-        ${friends.length ? `<span style="display:inline-flex; align-items:center; gap:5px; margin-right:4px;"><span style="font-size:10.5px; color:var(--text-dim);">모두에게 시간표 공개</span><button type="button" class="tgl sm ${friends.every(f=>(f.shareTimetable||{})[state.user.uid]!==false)?'on':''}" id="friends-share-all" role="switch" title="모든 친구에게 내 시간표 공개"></button></span>` : ''}
-        ${friends.length ? `<button type="button" class="btn btn-ghost btn-sm" data-action="toggle-friends-edit-mode" style="width:auto; padding:4px 9px; font-size:10.5px;">${state.friendsUI.editMode ? '완료' : '편집'}</button>` : ''}
-        <button type="button" class="btn btn-primary btn-sm" data-action="open-add-friend" style="width:auto; padding:4px 9px; font-size:10.5px;">친구 추가</button>
+  const allOn = friends.every(f=>(f.shareTimetable||{})[state.user.uid]!==false);
+  const editing = !!state.friendsUI.editMode;
+  const reqs = incoming.length ? `
+    <div class="fp-sec">받은 친구 요청 <em>${incoming.length}</em></div>
+    <div class="fp-card">
+      ${incoming.map(r=>`
+      <div class="fp-row static">
+        ${fpAvHtml(r.uid, r.name)}
+        <span class="fp-info"><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.studentId)}</small></span>
+        <button type="button" class="fp-btn ok" data-action="accept-friend-request" data-pair="${escapeHtml(r.pairId)}">수락</button>
+        <button type="button" class="fp-btn" data-action="decline-friend-request" data-pair="${escapeHtml(r.pairId)}">거절</button>
+      </div>`).join('')}
+    </div>` : '';
+  const share = friends.length ? `
+    <div class="fp-share">
+      <span class="fp-share-txt"><b>내 시간표 공개</b><small>모든 친구에게 한 번에 켜고 꺼요</small></span>
+      <button type="button" class="tgl ${allOn?'on':''}" id="friends-share-all" role="switch" title="모든 친구에게 내 시간표 공개"></button>
+    </div>` : '';
+  const head = `
+    <div class="fp-listhead">
+      <div class="fp-sec" style="margin:0;">내 친구 <em>${friends.length}</em></div>
+      <div class="fp-actions">
+        ${friends.length ? `<button type="button" class="fp-btn" data-action="toggle-friends-edit-mode">${editing ? '완료' : '편집'}</button>` : ''}
+        <button type="button" class="fp-btn ok" data-action="open-add-friend">${ICON.plus} 친구 추가</button>
       </div>
-    </div>
-    ${(()=>{
-      if(!friends.length) return `<div class="empty"><p>아직 친구가 없어요. 학번을 입력해 추가해보세요.</p></div>`;
-      const sorted = sortFriendsByOrder(friends);
-      // 친구가 많아도 한 화면에 다 펼치지 않고, 기기 화면 비율에 맞춰 보이는 만큼만
-      // 보여주고 나머지는 이 박스 안에서 스크롤 — 몇 명인지는 화면 크기에 따라 달라진다.
-      return `<div class="card" style="padding:14px 12px; max-height:60vh; overflow-y:auto;">
-        ${sorted.map((f,i)=>{
-          const sp = '';
-          if(state.friendsUI.editMode){
-            return `
-            <div class="list-item friend-row" data-pair="${escapeHtml(f.pairId)}" style="${sp}">
-              <div class="row-between">
-                <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
-                  <button type="button" class="btn btn-danger btn-sm" data-action="delete-friend-direct" data-pair="${escapeHtml(f.pairId)}" data-name="${escapeHtml(f.name)}" style="width:auto; padding:4px 9px; font-size:10.5px; flex-shrink:0;">친구 삭제</button>
-                  <div style="min-width:0;">
-                    <b style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}
-                  </div>
-                </div>
-                <span class="home-drag-handle friend-drag-handle" title="끌어서 순서 변경">${ICON.grip}</span>
-              </div>
-            </div>`;
-          }
-          return `
-          <div class="list-item" style="cursor:pointer; ${sp}" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
-            <div class="row-between">
-              <div><b style="font-size:13.5px;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}</div>
-              <span style="display:flex; align-items:center; gap:12px;">
-                ${pokeButtonHtml(f)}
-                <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
-              </span>
-            </div>
-          </div>`;
-        }).join('')}
+    </div>`;
+  if(!friends.length){
+    return reqs + head + `
+    <div class="fp-empty">
+      <span class="fp-empty-ic">${ICON.users}</span>
+      <b>아직 친구가 없어요</b>
+      <small>학번으로 친구를 추가하면 서로의 시간표를 볼 수 있어요</small>
+    </div>`;
+  }
+  const sorted = sortFriendsByOrder(friends);
+  const rows = sorted.map(f=>{
+    const nick = f.nickname ? `<small>${escapeHtml(f.nickname)}</small>` : '';
+    if(editing){
+      return `
+      <div class="fp-row friend-row" data-pair="${escapeHtml(f.pairId)}">
+        <button type="button" class="fp-del" data-action="delete-friend-direct" data-pair="${escapeHtml(f.pairId)}" data-name="${escapeHtml(f.name)}">삭제</button>
+        ${fpAvHtml(f.uid, f.name)}
+        <span class="fp-info"><b>${escapeHtml(f.name)}</b>${nick}</span>
+        <span class="home-drag-handle friend-drag-handle" title="끌어서 순서 변경">${ICON.grip}</span>
       </div>`;
-    })()}
-  `;
+    }
+    return `
+    <div class="fp-row" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
+      ${fpAvHtml(f.uid, f.name)}
+      <span class="fp-info"><b>${escapeHtml(f.name)}</b>${nick}</span>
+      <span class="fp-right">${pokeButtonHtml(f)}<span class="fp-chev">${ICON.chevR}</span></span>
+    </div>`;
+  }).join('');
+  return reqs + share + head + `<div class="fp-card">${rows}</div>`;
 }
 
 // 콕 찌르기(핑퐁): 처음에는 검지손가락을 펴고 있고 눌러서 찌를 수 있다. 찌르고 나면 주먹이 되고(흐리게), 상대가 찌를 때까지는
@@ -10253,7 +10306,8 @@ async function loadFriendTimetableCard(uid){
     // 화면 크기에 맞춰 높이를 정한다: 카드 위쪽부터 화면 아래(하단 탭 위)까지를 시간표로 채운다.
     const topY = card.getBoundingClientRect().top;
     const nav = document.querySelector('.bottomnav');
-    const bottomY = nav ? nav.getBoundingClientRect().top : window.innerHeight - 90;
+    const host = document.getElementById('friends-page');
+    const bottomY = host ? host.getBoundingClientRect().bottom - 14 : (nav ? nav.getBoundingClientRect().top : window.innerHeight - 90);
     // 카드 안쪽 여백(위아래) + 학기 글자 줄 + 요일 머리 줄을 빼고 남은 높이가 곧 시간표 높이다
     const gridH = Math.max(300, Math.floor(bottomY - topY - 104));
     card.innerHTML = renderFriendTimetableGrid(slots, semKey, gridH);
@@ -12992,6 +13046,8 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
     else if(a === 'open-friends'){ closeModal(); await openSocialTab(); }
+    else if(a === 'open-friends-page'){ await openFriendsPage(); }
+    else if(a === 'close-friends-page'){ closeFriendsPage(); }
     else if(a === 'open-update-check'){
       // 웹은 물어볼 APK가 없으니 곧바로 결과 화면을 띄운다(로딩 단계 자체가 불필요).
       if(!isNativeApp){ openModal(updateCheckModal()); return; }
