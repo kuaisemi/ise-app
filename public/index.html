@@ -208,6 +208,8 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .top-actions{display:flex; align-items:center; gap:6px;}
 .btn-top-refresh{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; width:29px; height:29px; padding:0; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none;}
 .btn-top-refresh:active{transform:scale(0.9); color:var(--teal);}
+.btn-top-refresh.cooling{color:var(--text-faint); cursor:default;}
+.btn-top-refresh .rf-n{font-family:var(--font-mono); font-size:12px; font-weight:700; line-height:1;}
 .btn-top-bell{position:relative;}
 .btn-top-bell .bell-dot{position:absolute; top:5px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--crimson); border:1.5px solid var(--surface-2);}
 .date-pill{font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:4px 8px; border-radius:20px; cursor:pointer;}
@@ -5156,6 +5158,22 @@ function renderSignupForm(){
     </form>`;
 }
 
+// 새로고침 버튼은 남발하지 못하게 5초에 한 번만: 누르면 다시 불러오고, 그 뒤 5초 동안은 버튼에 5,4,3,2,1이 표시되며 눌러도 동작하지 않는다.
+// (페이지를 다시 불러와도 이어지도록 끝나는 시각을 저장해 둔다.)
+const REFRESH_COOLDOWN_MS = 5000;
+function refreshCdLeft(){ return Math.max(0, Math.ceil((Number(localGet('refresh_cd_until', 0)) - Date.now()) / 1000)); }
+let refreshCdTimer = null;
+function refreshCdTick(){
+  const left = refreshCdLeft();
+  document.querySelectorAll('.btn-top-refresh').forEach(btn=>{
+    if(left > 0){ btn.classList.add('cooling'); btn.innerHTML = '<span class="rf-n">' + left + '</span>'; }
+    else if(btn.classList.contains('cooling')){ btn.classList.remove('cooling'); btn.innerHTML = ICON.refresh; }
+  });
+  if(left <= 0 && refreshCdTimer){ clearInterval(refreshCdTimer); refreshCdTimer = null; }
+}
+function refreshCdStart(){
+  if(refreshCdLeft() > 0){ refreshCdTick(); if(!refreshCdTimer) refreshCdTimer = setInterval(refreshCdTick, 250); }
+}
 function renderShell(){
   const d=new Date();
   const dateLabel = `${d.getMonth()+1}.${d.getDate()} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
@@ -5189,6 +5207,7 @@ function renderShell(){
       <div id="toast" class="toast"></div>
     </div>`;
   renderMain();
+  refreshCdStart();
 }
 function navBtn(view, icon, label){
   return `<button class="navbtn ${state.view===view?'active':''}" data-action="nav" data-view="${view}">${icon}<span>${label}</span></button>`;
@@ -12113,6 +12132,8 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'set-signup-role'){ state.signupRole = el.dataset.role; renderAuth(); }
     else if(a === 'global-refresh'){
+      if(refreshCdLeft() > 0) return;   // 5초에 한 번만
+      localSet('refresh_cd_until', Date.now() + REFRESH_COOLDOWN_MS);
       ownSyncReset();   // 새로고침 버튼은 내 시간표·메모도 서버에서 다시 읽게 한다
       location.reload();
     }
