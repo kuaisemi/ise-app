@@ -5,11 +5,12 @@ import android.app.NotificationManager;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.widget.Toast;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import androidx.activity.OnBackPressedCallback;
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebSettingsCompat;
@@ -67,7 +68,7 @@ public class MainActivity extends BridgeActivity {
      * 웹뷰에 되돌아갈 기록이 있으면 한 칸 뒤로 가서 그 창을 닫고, 없으면(맨 화면) 기본 동작(앱 종료)으로 넘긴다.
      * Capacitor 코어는 이 처리를 App 플러그인에 맡기는데 이 앱에는 그 플러그인이 없어서, 지금까지는 팝업이 떠 있어도 뒤로가기가 앱을 꺼버렸다.
      */
-    private AlertDialog exitDialog;
+    private long lastRootBackAt = 0;
 
     private void setupBackButton() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -78,14 +79,21 @@ public class MainActivity extends BridgeActivity {
                     webView.goBack();
                     return;
                 }
-                // 더 돌아갈 화면이 없는 기본 화면: 바로 끄지 않고 한 번 물어본다
-                if (exitDialog != null && exitDialog.isShowing()) return;
-                exitDialog = new AlertDialog.Builder(MainActivity.this)
-                    .setMessage("앱을 종료할까요?")
-                    .setPositiveButton("종료", (d, w) -> finish())
-                    .setNegativeButton("취소", null)
-                    .create();
-                exitDialog.show();
+                // 더 돌아갈 화면이 없는 기본 화면: 한 번 누르면 "한번 더 뒤로가기 누르면 종료됩니다" 알림만 띄우고,
+                // 2초 안에 한 번 더 누르면 앱을 끈다(알림은 웹의 토스트, 웹이 못 띄우면 안드로이드 토스트).
+                long now = SystemClock.uptimeMillis();
+                if (now - lastRootBackAt < 2000) {
+                    finish();
+                    return;
+                }
+                lastRootBackAt = now;
+                if (webView != null) {
+                    webView.evaluateJavascript(
+                        "(function(){ if(window.__iseBackAtRoot){ window.__iseBackAtRoot(); return 'ok'; } return 'none'; })()",
+                        value -> { if (value == null || !value.contains("ok")) Toast.makeText(MainActivity.this, "한번 더 뒤로가기 누르면 종료됩니다", Toast.LENGTH_SHORT).show(); });
+                } else {
+                    Toast.makeText(MainActivity.this, "한번 더 뒤로가기 누르면 종료됩니다", Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
