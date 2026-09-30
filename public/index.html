@@ -549,9 +549,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-fab-backdrop{position:fixed; inset:0; z-index:14; background:transparent;}
 .tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px + 5px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
 @media (max-width:480px){ .tt-fab-option{right:23px;} }
-.tt-fab-option-label{background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px;  white-space:nowrap;}
+.tt-fab-option-label{border:1px solid var(--border-light); background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px;  white-space:nowrap;}
+.meal-side{font-size:.86em; color:var(--text-dim);}
 .tt-fab-option-circle svg{width:18px; height:18px; display:block;}
-.tt-fab-option-circle{flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; }
+.tt-fab-option-circle{box-sizing:border-box; border:1px solid var(--border-light); flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; }
 .tt-fab-option:active .tt-fab-option-circle{transform:scale(0.94);}
 @keyframes tt-fab-out{from{opacity:1; transform:translateY(0) scale(1);}to{opacity:0; transform:translateY(8px) scale(.9);}}
 .tt-fab-option.closing{animation:tt-fab-out .18s ease both; animation-delay:calc((1 - var(--i)) * 0.03s);}
@@ -2112,8 +2113,20 @@ async function loadTodayVisitors(){
     const el = document.getElementById('today-visitors'); if(el) el.textContent = String(todayVisitorsCount);
   }catch(e){ console.warn('[todayVisitors]', e); }
 }
+// 글자만 쓰는 곳(위젯 등)용: 메인*소스 → 메인(소스). 원본 데이터는 그대로 두고 보여 줄 때만 바꾼다
+function mealParen(raw){ return raw ? String(raw).replace(/\*([^,·\n]+)/g, '($1)') : raw; }
+// 화면용: 항목마다 * 뒤를 괄호로 감싸 작게 보여 준다
+function mealTextHtml(str){
+  return String(str).split(' · ').map(item=>{
+    const i = item.indexOf('*');
+    if(i < 0) return escapeHtml(item);
+    const main = item.slice(0, i).trim(), side = item.slice(i + 1).trim();
+    return side ? `${escapeHtml(main)}<span class="meal-side">(${escapeHtml(side)})</span>` : escapeHtml(main);
+  }).join(' · ');
+}
 function formatMealText(raw){
   if(!raw) return '';
+  raw = mealParen(raw);
   return String(raw).split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
     .map(line => line.split(/[,·•]+|\s{2,}/).map(x=>x.trim()).filter(Boolean).join(' · '))
     .join('\n');
@@ -2134,10 +2147,10 @@ function mealCatClass(cat){
 }
 function mealLineHtml(line){
   const m = line.match(/^\[([^\]]+)\]\s*(.*)$/);
-  if(!m) return `<div class="meal-line"><span class="meal-line-text">${escapeHtml(line)}</span></div>`;
+  if(!m) return `<div class="meal-line"><span class="meal-line-text">${mealTextHtml(line)}</span></div>`;
   const cat = m[1].trim();
   const rest = m[2].trim();
-  return `<div class="meal-line ${mealCatClass(cat)}"><b class="meal-cat">${escapeHtml(cat)}</b><span class="meal-line-text">${escapeHtml(rest)}</span></div>`;
+  return `<div class="meal-line ${mealCatClass(cat)}"><b class="meal-cat">${escapeHtml(cat)}</b><span class="meal-line-text">${mealTextHtml(rest)}</span></div>`;
 }
 function formatMealHtml(raw){
   if(!raw) return '';
@@ -4682,8 +4695,8 @@ async function pushWidgetData(){
       classes,
       weekClasses,
       meals: {
-        today: { breakfast: st.breakfast||'', lunch: st.lunch||'', dinner: st.dinner||'', staffLunch: staff.lunch||'' },
-        tomorrow: { breakfast: stTom.breakfast||'', lunch: stTom.lunch||'', dinner: stTom.dinner||'', staffLunch: staffTom.lunch||'' },
+        today: { breakfast: mealParen(st.breakfast||''), lunch: mealParen(st.lunch||''), dinner: mealParen(st.dinner||''), staffLunch: mealParen(staff.lunch||'') },
+        tomorrow: { breakfast: mealParen(stTom.breakfast||''), lunch: mealParen(stTom.lunch||''), dinner: mealParen(stTom.dinner||''), staffLunch: mealParen(staffTom.lunch||'') },
       },
       events,
       markedDates,

@@ -668,7 +668,7 @@ async function main() {
       const tokens = mealTokensFor(cafe.key, slot.key);
       if (!tokens.length) { newMealKeys.push(dedupKey); continue; }
       // 저장된 메뉴는 "[한식] 밥, 국..." 처럼 줄바꿈으로 구분되어 있어 한 줄로 합쳐 보낸다.
-      const body = menu.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join(' / ');
+      const body = menu.replace(/\*([^,\n]+)/g, '($1)').split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join(' / ');
       entries.push({ cafe, dedupKey, body, tokens });
     }
     if (!entries.length) continue;
