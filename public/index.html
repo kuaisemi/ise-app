@@ -11374,7 +11374,7 @@ window.addEventListener('popstate', ()=>{
   try{ closeTopLayer(); } finally { u.byPop = false; }
 });
 
-/* ===== 모달/토스트 =====
+/* ===== 모달/토스트 ===== */
 // 모달을 닫았다 다시 여는 게 아니라, 열려 있는 시트 안의 내용만 바꾼다(다시 열면 아래에서 올라오는 애니메이션이 또 돌아 "나갔다 들어오는" 것처럼 깜빡인다)
 function swapModal(html){
   const sheet = document.querySelector('#modal-overlay .modal-sheet');
