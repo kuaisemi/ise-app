@@ -2625,15 +2625,6 @@ function accentPickerHtml(){
   const own = `<button type="button" class="acc-dot own ${cur === 'custom' ? 'on' : ''}" data-action="toggle-inline-color" data-id="accent" style="--c:${cur === 'custom' ? custom : 'transparent'};" aria-label="직접 고르기"><i>${cur === 'custom' ? '✓' : '+'}</i></button>`;
   return `<p class="set-label" style="margin-top:16px;">포인트 색</p><div class="acc-row">${dots}${own}</div>${inlineColorPanelHtml('accent', custom)}`;
 }
-INLINE_COLOR_HANDLERS['accent'] = (hex)=>{
-  localSet('accent_custom', hex); localSet('accent', 'custom');
-  applyAccent('custom');
-  document.querySelectorAll('#settings-page .acc-dot').forEach(d=>{
-    const own = d.classList.contains('own');
-    d.classList.toggle('on', own);
-    if(own){ d.style.setProperty('--c', hex); const i = d.querySelector('i'); if(i) i.textContent = '✓'; }
-  });
-};
 
 /* ===== 글씨 크기 =====
    이 앱은 폰트 크기가 전부 px 하드코딩(인라인 스타일 포함)이라 rem 전환이 현실적이지 않다.
@@ -13171,6 +13162,16 @@ INLINE_COLOR_HANDLERS['ttline'] = (hex)=>{
   });
 };
 // 위젯 강조 색 — 폼 제출이 없으므로(설정은 바로 적용) 여기서 곧장 저장까지 한다.
+// 포인트 색 직접 고르기(환경설정). INLINE_COLOR_HANDLERS 선언보다 앞에서 쓰면 시작할 때 오류가 나므로 여기서 등록한다.
+INLINE_COLOR_HANDLERS['accent'] = (hex)=>{
+  localSet('accent_custom', hex); localSet('accent', 'custom');
+  applyAccent('custom');
+  document.querySelectorAll('#settings-page .acc-dot').forEach(d=>{
+    const own = d.classList.contains('own');
+    d.classList.toggle('on', own);
+    if(own){ d.style.setProperty('--c', hex); const i = d.querySelector('i'); if(i) i.textContent = '✓'; }
+  });
+};
 INLINE_COLOR_HANDLERS['widget-accent'] = (hex)=>{
   setWidgetSetting(state.widgetFontScaleTarget, { accent: hex });
   document.querySelectorAll('#widget-accent-swatches-wrap .swatch').forEach(s=>{
