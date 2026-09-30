@@ -2006,7 +2006,39 @@ function localGet(key, fallback){
     return legacy ? JSON.parse(legacy) : fallback;
   }catch(e){ return fallback; }
 }
-function localSet(key, val){ try{ localStorage.setItem('ku_ise_'+key, JSON.stringify(val)); }catch(e){} }
+function localSet(key, val){
+  try{ localStorage.setItem('ku_ise_'+key, JSON.stringify(val)); }
+  catch(e){
+    // 저장 공간이 찼으면 지워도 되는 캐시(서버에서 다시 받을 수 있는 것)부터 비우고 한 번 더 시도한다
+    try{ clearAppCaches(); localStorage.setItem('ku_ise_'+key, JSON.stringify(val)); }catch(_){}
+  }
+}
+// 캐시로만 쓰는 저장분(공용 문서 사본·친구 시간표 사본). 지워도 서버에서 다시 받으면 되고 로그인·설정에는 영향이 없다.
+const CACHE_PREFIXES = ['ku_ise_shared_', 'ku_ise_friend_tt_'];
+function cacheKeys(){
+  const out = [];
+  try{ for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if(k && CACHE_PREFIXES.some(p=>k.startsWith(p))) out.push(k); } }catch(e){}
+  return out;
+}
+function cacheBytes(){
+  let n = 0;
+  try{ cacheKeys().forEach(k=>{ n += k.length + (localStorage.getItem(k) || '').length; }); }catch(e){}
+  return n * 2; // 글자당 2바이트
+}
+function clearAppCaches(){ cacheKeys().forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} }); }
+// 알아서 정리: 지금 친구가 아니거나 30일 넘게 안 본 친구 시간표 사본은 지운다.
+function pruneCaches(){
+  try{
+    const friendUids = new Set(((state.friendsUI && state.friendsUI.data && state.friendsUI.data.friends) || []).map(f=>f.uid));
+    const limit = Date.now() - 30 * 24 * 3600 * 1000;
+    cacheKeys().forEach(k=>{
+      if(!k.startsWith('ku_ise_friend_tt_')) return;
+      const uid = k.slice('ku_ise_friend_tt_'.length);
+      let at = 0; try{ at = (JSON.parse(localStorage.getItem(k)) || {}).at || 0; }catch(e){}
+      if(at < limit || (friendUids.size && !friendUids.has(uid))) localStorage.removeItem(k);
+    });
+  }catch(e){}
+}
 
 /* ===== 테마(다크/라이트) — 기기 설정을 기본값으로 따르되, 수동으로 강제 지정 가능 ===== */
 function applyTheme(theme){
@@ -2074,8 +2106,33 @@ if(window.matchMedia){
   });
 }
 
+// 공용 문서 캐시: shared/ver 문서 하나에 "문서 이름 → 마지막으로 바뀐 시각"을 적어 두고(쓰는 쪽이 저장할 때 같이 갱신),
+// 읽는 쪽은 그 문서 하나만 읽어서 내 폰에 저장해 둔 사본이 최신인지 본다. 같으면 서버에서 문서를 읽지 않고 사본을 쓴다.
+// (예전에는 접속할 때·탭을 옮길 때마다 문서를 전부 다시 읽었다.) 값을 못 읽거나 이 문서에 시각이 없으면 예전처럼 읽는다.
+let sharedVerPromise = null, sharedVerAt = 0;
+function getSharedVers(){
+  if(sharedVerPromise && Date.now() - sharedVerAt < 5000) return sharedVerPromise;
+  sharedVerAt = Date.now();
+  sharedVerPromise = (async()=>{
+    try{ const sn = await getDoc(doc(db,'shared','ver')); return sn.exists() ? (sn.data() || {}) : {}; }
+    catch(e){ return null; }
+  })();
+  return sharedVerPromise;
+}
+const SHARED_NOVER_TTL = 30 * 60 * 1000;
 async function loadShared(name, fallback){
   const localVal = localGet('shared_'+name, fallback);
+  const cachedRaw = localGet('shared_'+name, null);
+  const vers = auth.currentUser ? await getSharedVers() : null;
+  const serverVer = vers ? vers[name] : undefined;
+  let sawVer = serverVer;
+  if(vers && cachedRaw !== null){
+    const cachedVer = localGet('shared_ver_'+name, null);
+    const fresh = (serverVer !== undefined)
+      ? cachedVer === serverVer
+      : (Date.now() - localGet('shared_at_'+name, 0) < SHARED_NOVER_TTL);
+    if(fresh) return cachedRaw;
+  }
   // 로그인 직후(onAuthStateChanged 콜백 안에서) 여러 shared/* 문서를 한꺼번에 Promise.all로
   // 불러오면, 인증 토큰이 아직 Firestore SDK에 완전히 붙기 전이라 이 중 일부가 조용히
   // permission-denied로 실패하는 경우가 있었다(같은 계정으로 새로고침 버튼을 눌러 다시
@@ -2094,6 +2151,8 @@ async function loadShared(name, fallback){
       if(snap && snap.exists()){
         const remote = snap.data();
         localSet('shared_'+name, remote);
+        localSet('shared_ver_'+name, sawVer === undefined ? null : sawVer);
+        localSet('shared_at_'+name, Date.now());
         return remote;
       }
       break; // 문서가 진짜 없는 것뿐이면(exists()===false) 재시도해도 의미 없다
@@ -2116,6 +2175,15 @@ function approxDocBytes(data){
   try{ return new Blob([JSON.stringify(data)]).size; }
   catch(e){ try{ return JSON.stringify(data).length; }catch(_){ return 0; } }
 }
+// 문서를 저장한 뒤 shared/ver에 이 문서의 변경 시각을 남긴다(다른 기기가 사본을 새로 읽어야 한다는 신호). 내 기기 사본은 이미 최신이다.
+async function bumpSharedVer(name){
+  const ts = Date.now();
+  try{
+    await setDoc(doc(db,'shared','ver'), { [name]: ts }, { merge:true });
+    localSet('shared_ver_'+name, ts); localSet('shared_at_'+name, ts);
+    sharedVerPromise = null;
+  }catch(e){ console.warn('[shared ver]', name, e && e.code); localSet('shared_ver_'+name, null); }
+}
 async function saveShared(name, data){
   localSet('shared_'+name, data);
   if(!auth.currentUser){
@@ -2130,6 +2198,7 @@ async function saveShared(name, data){
   }
   try{
     await setDoc(doc(db,'shared',name), data);
+    await bumpSharedVer(name);
     LAST_SAVE_ERROR = '';
     return true;
   }catch(e){
@@ -2143,6 +2212,7 @@ async function saveShared(name, data){
 // mutate(list)는 새 배열을 돌려주거나, 바꿀 게 없으면 null을 돌려준다.
 async function mutateSharedList(name, field, mutate){
   const ref = doc(db,'shared',name);
+  let bumpTs = 0;
   if(!auth.currentUser){ LAST_SAVE_ERROR = 'unauthenticated'; return null; }
   try{
     const result = await runTransaction(db, async (tx)=>{
@@ -2152,10 +2222,13 @@ async function mutateSharedList(name, field, mutate){
       const nextList = mutate(list);
       if(!nextList) return null;
       tx.set(ref, { ...cur, [field]: nextList });
+      bumpTs = Date.now();
+      tx.set(doc(db,'shared','ver'), { [name]: bumpTs }, { merge:true });
       return nextList;
     });
     if(result){
       localSet('shared_'+name, { [field]: result });
+      localSet('shared_ver_'+name, bumpTs); localSet('shared_at_'+name, bumpTs); sharedVerPromise = null;
       LAST_SAVE_ERROR = '';
     }
     return result;
@@ -2779,6 +2852,7 @@ function boot(){
           recordDailyVisit();
           shareSchedule();
           ttVerSchedule();
+          setTimeout(pruneCaches, 15000);
           setupPresenceHeartbeat();
           setupTimetableResizeListener();
           startRoleRealtimeListener();
@@ -8781,6 +8855,7 @@ function renderMypage(){
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
       <!-- 웹은 새로고침하면 그 자리에서 이미 최신 코드를 받으므로 "업데이트 확인"이 의미가
            없다. APK만 수동 업데이트가 필요해서 이 메뉴도 APK 전용으로 되돌린다. -->
+      <div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
@@ -12140,6 +12215,10 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'reset-timetable'){ await resetTimetable(); }
     else if(a === 'set-theme'){ setThemeOverride(el.dataset.themeV); }
     else if(a === 'open-avatar-editor'){ openAvatarEditor(); }
+    else if(a === 'clear-app-cache'){
+      if(!await showConfirm('저장해 둔 공지·학식·친구 시간표 사본을 지우고 서버에서 다시 받습니다.\n로그인과 설정은 그대로예요.', { okLabel:'비우기' })) return;
+      clearAppCaches(); toast('캐시를 비웠어요'); setTimeout(()=>location.reload(), 400);
+    }
     else if(a === 'poke-friend'){ await pokeFriend(el.dataset.pair, el.dataset.uid); }
     else if(a === 'load-unvoted'){ el.textContent = '불러오는 중…'; await ensureAllUsers(true); renderMain(); }
     else if(a === 'av-tab'){ avTab = el.dataset.tab; renderAvBody(); }

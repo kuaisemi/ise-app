@@ -259,6 +259,26 @@ function parseOfficialScheduleHTML(html, doc) {
   return items;
 }
 
+// 앱이 공용 문서를 다시 읽을지 판단하는 shared/ver에 "이 문서가 바뀌었다"는 시각을 남긴다.
+async function bumpShared(name) {
+  await db.collection('shared').doc('ver').set({ [name]: Date.now() }, { merge: true });
+}
+// 내용이 그대로면(updatedAt만 다르면) 쓰지 않는다 — 안 바뀌었는데 매시간 앱들이 다시 읽지 않도록.
+function stableJson(o) {
+  return JSON.stringify(o, (k, v) => {
+    if (k === 'updatedAt') return undefined;
+    if (v && typeof v === 'object' && !Array.isArray(v)) return Object.fromEntries(Object.keys(v).sort().map((x) => [x, v[x]]));
+    return v;
+  });
+}
+async function setSharedIfChanged(name, data) {
+  const ref = db.collection('shared').doc(name);
+  const snap = await ref.get();
+  if (snap.exists && stableJson(snap.data()) === stableJson(data)) return false;
+  await ref.set(data);
+  await bumpShared(name);
+  return true;
+}
 async function runOfficialSchedule() {
   const html = await fetchHtml(OFFICIAL_SCHEDULE_URL);
   if (!html || html.length < 1000 || !/학사일정/.test(html)) {
@@ -281,6 +301,7 @@ async function runOfficialSchedule() {
     }));
   if (additions.length) {
     await ref.set({ events: [...events, ...additions] });
+    await bumpShared('calendarEvents');
   }
   return additions.length;
 }
@@ -294,7 +315,7 @@ async function runDeptNotices() {
   const dom = new JSDOM(html).window.document;
   const items = parseDeptNoticeTable(dom);
   if (!items.length) throw new Error('공지 목록 구조를 인식하지 못함');
-  await db.collection('shared').doc('deptNotices').set({ items, updatedAt: Date.now() });
+  await setSharedIfChanged('deptNotices', { items, updatedAt: Date.now() });
   return items.length;
 }
 
@@ -339,7 +360,7 @@ async function runMeals() {
   for (const date of Object.keys(byDate)) {
     if (date < monday || date > sunday) delete byDate[date];
   }
-  await db.collection('shared').doc('meals').set({ byDate });
+  await setSharedIfChanged('meals', { byDate });
   return dayCount;
 }
 
@@ -408,7 +429,7 @@ async function runShuttle() {
     : [];
 
   const data = { weekday, sunday, fridayOffNos, updatedAt: Date.now() };
-  await db.collection('shared').doc('shuttle').set(data);
+  await setSharedIfChanged('shuttle', data);
   return weekday.length + sunday.length;
 }
 
@@ -460,7 +481,7 @@ async function runHolidays() {
     if (list.length < 10) throw new Error(`${year}년 공휴일 ${list.length}건 — 응답이 이상함`);
     byYear[String(year)] = list;
   }
-  await db.collection('shared').doc('holidays').set({ byYear, updatedAt: Date.now() });
+  await setSharedIfChanged('holidays', { byYear, updatedAt: Date.now() });
   return Object.values(byYear).reduce((n, v) => n + v.length, 0);
 }
 
