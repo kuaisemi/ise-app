@@ -306,6 +306,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .subtabs{display:flex; gap:5px; margin-bottom:14px; background:var(--surface-2); padding:4px; border-radius:12px; border:1px solid var(--border); overflow-x:auto;}
 .subtab{flex:1; min-width:62px; text-align:center; padding:9px 4px; border-radius:9px; font-size:11.5px; font-weight:700; color:var(--text-dim); cursor:pointer; white-space:nowrap;}
 .subtab.active{background:var(--crimson); color:#fff;}
+/* 위쪽 탭(학사정보·학생사회·환경설정 등): 네모 배경은 그대로 두고, 선택 칸(크림슨)이 미끄러지며 옮겨 간다 */
+.subtabs{position:relative;}
+.subtabs.has-thumb .subtab{position:relative; z-index:1; background:transparent !important;}
+.subtabs.has-thumb .subtab.active{color:#fff;}
+.subtab-thumb{position:absolute; top:4px; bottom:4px; left:0; width:0; border-radius:9px; background:var(--crimson); z-index:0; pointer-events:none; transition:transform .26s cubic-bezier(.3,.7,.3,1), width .26s cubic-bezier(.3,.7,.3,1);}
 
 /* 위(main의 padding-top 16px)와 아래(margin-bottom 12px) 간격이 안 맞아 보이던 것을
    맞춤 — main의 전역 여백은 다른 탭에도 쓰이니 건드리지 않고, 이 줄만 4px 끌어올려서
@@ -3222,6 +3227,43 @@ if(!window.__rangeFillBound){
   const syncAll = ()=>document.querySelectorAll('input[type=range]:not(.cp-hue)').forEach(sync);
   const start = ()=>{ syncAll(); new MutationObserver(syncAll).observe(document.body, { childList:true, subtree:true }); };
   if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+}
+// 위쪽 탭 줄(.subtabs)마다 선택 칸(.subtab-thumb)을 하나 두고 선택된 탭 위치에 맞춘다.
+// 화면이 새로 그려질 때마다(탭을 눌러 이동할 때 포함) 처음 한 번은 애니메이션 없이 제자리에 놓는다.
+if(!window.__subtabBound){
+  window.__subtabBound = true;
+  const place = (bar, tab, anim)=>{
+    let th = bar.querySelector(':scope > .subtab-thumb');
+    if(!th){ th = document.createElement('span'); th.className = 'subtab-thumb'; bar.insertBefore(th, bar.firstChild); anim = false; }
+    if(!anim){ th.style.transition = 'none'; }
+    th.style.width = tab.offsetWidth + 'px';
+    th.style.transform = 'translateX(' + tab.offsetLeft + 'px)';
+    if(!anim){ void th.offsetWidth; th.style.transition = ''; }
+    bar.classList.add('has-thumb');
+  };
+  const syncAll = ()=>{
+    document.querySelectorAll('.subtabs').forEach(bar=>{
+      const tab = bar.querySelector('.subtab.active'); if(!tab) return;
+      const th = bar.querySelector(':scope > .subtab-thumb');
+      const w = tab.offsetWidth + 'px', x = 'translateX(' + tab.offsetLeft + 'px)';
+      if(!th || th.style.width !== w || th.style.transform !== x) place(bar, tab, false);
+    });
+  };
+  let raf = 0;
+  const schedule = ()=>{ if(raf) return; raf = requestAnimationFrame(()=>{ raf = 0; syncAll(); }); };
+  new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
+  window.addEventListener('resize', schedule);
+  document.addEventListener('click', (e)=>{
+    const tab = e.target.closest && e.target.closest('.subtabs .subtab');
+    if(!tab) return;
+    if(tab.dataset.slid){ delete tab.dataset.slid; return; }
+    const bar = tab.closest('.subtabs');
+    if(!bar || !bar.classList.contains('has-thumb') || tab.classList.contains('active')) return;
+    e.stopPropagation(); e.preventDefault();
+    bar.querySelectorAll('.subtab').forEach(t=>t.classList.toggle('active', t === tab));
+    place(bar, tab, true);
+    setTimeout(()=>{ tab.dataset.slid = '1'; tab.click(); }, 240);
+  }, true);
 }
 function setupHomeReorderDrag(){
   document.querySelectorAll('.home-drag-handle').forEach(h=>{
