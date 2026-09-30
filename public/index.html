@@ -6532,7 +6532,11 @@ function ocrModal(){
       <div class="ocr-step"><i>2</i><span>시간표 <b>전체가 한 장에 보이게</b> 찍으면 더 정확해요</span></div>
       <div class="ocr-step"><i>3</i><span>아래에서 그 사진을 고르면 <b>자동으로 인식</b>돼요</span></div>
     </div>
-    <div class="ocr-note">인식은 대략적인 틀만 읽어서 강의실·시간은 확인 후 고쳐 주세요. 시작은 <b style="color:var(--text);">정각</b>, 끝은 <b style="color:var(--text);">50분</b>으로 맞춰져요(예: 9:00 시작이면 9:50 종료). 30분으로 뚜렷하게 읽힌 시간은 30분 그대로 둬요. <b style="color:var(--danger);">등록하면 기존 시간표는 인식 결과로 교체돼요.</b></div>
+    <div class="ocr-note">
+      <div>인식은 대략적인 틀만 읽어서 강의실·시간은 확인 후 고쳐 주세요.</div>
+      <div style="margin-top:6px;">시작은 <b style="color:var(--text);">정각</b>, 끝은 <b style="color:var(--text);">50분</b>으로 맞춰져요(예: 9:00 시작이면 9:50 종료). 30분으로 뚜렷하게 읽힌 시간은 30분 그대로 둬요.</div>
+      <div style="margin-top:6px;"><b style="color:var(--danger);">등록하면 기존 시간표는 인식 결과로 교체돼요.</b></div>
+    </div>
     <div class="ocr-drop" id="ocr-dropzone">
       <div class="ocr-drop-ic">${ICON.camera}</div>
       <b style="font-size:12px; display:block; margin-bottom:3px;">에브리타임 캡처 사진 고르기</b>
