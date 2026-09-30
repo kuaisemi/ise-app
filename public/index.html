@@ -592,6 +592,18 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .fp-empty-ic svg{width:26px; height:26px;}
 .fp-empty b{font-size:14px;}
 .fp-empty small{font-size:11px; color:var(--text-dim); line-height:1.5;}
+/* 환경설정 창: 예전 MY 탭 안 패널보다 넉넉하게(카드 둥글게, 제목·글자 조금 크게, 줄 간격 넓게) */
+#settings-page .fp-body{padding-top:16px;}
+#settings-page .card{margin-top:0 !important; padding:18px 16px 20px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border);}
+#settings-page .subtabs{margin-bottom:18px; border-radius:14px;}
+#settings-page .set-label{font-size:13px; margin-bottom:11px;}
+#settings-page .set-label::before{height:14px;}
+#settings-page .seg-group button{font-size:12.5px; padding:11px 2px;}
+#settings-page .notify-row{padding:14px 2px;}
+#settings-page .notify-row.hp-row{padding:8px 2px; min-height:46px;}
+#settings-page .notify-label-text b{font-size:12.5px;}
+#settings-page .notify-label-text small{font-size:10.5px;}
+#settings-page .notify-row svg{width:17px; height:17px;}
 .cp-hex-wrap{flex:1; min-width:0; display:flex; align-items:center; gap:4px; height:38px; padding:0 12px; border-radius:12px; background:var(--surface-3); border:1.5px solid var(--border); transition:border-color .2s, box-shadow .2s;}
 .cp-hex-wrap:focus-within{border-color:var(--teal); box-shadow:0 0 0 3px rgba(224,172,85,.14);}
 .cp-hex-wrap.bad{border-color:var(--danger); box-shadow:0 0 0 3px rgba(var(--danger-rgb),.14);}
@@ -9312,6 +9324,7 @@ function settingsPanelHtml(){
       ${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<p class="set-title"><span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span></p>` : ''}
       <div class="subtabs" style="margin-bottom:12px;">
         <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
+        <div class="subtab ${state.settingsTab==='home'?'active':''}" data-action="settings-tab" data-tab="home">홈 화면</div>
         <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
         ${!isIOSDevice() ? `<div class="subtab ${state.settingsTab==='widget'?'active':''}" data-action="settings-tab" data-tab="widget">위젯</div>` : ''}
       </div>
@@ -9338,9 +9351,10 @@ function settingsPanelHtml(){
         글씨뿐 아니라 버튼·여백까지 함께 커지고 작아져요.
       </p>
 
-      <div style="border-top:1px solid var(--border); margin:20px 0 0;"></div>
+      ` : ''}
 
-      <div class="row-between" style="margin:18px 0 2px; align-items:center;">
+      ${state.settingsTab==='home' ? `
+      <div class="row-between" style="margin:0 0 2px; align-items:center;">
         <p class="set-label" style="margin:0;">홈 화면 보기 설정</p>
         <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
       </div>
