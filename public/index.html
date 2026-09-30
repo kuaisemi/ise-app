@@ -390,8 +390,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 글씨 크기 배율이 바뀌어도 항상 한 줄에 들어가도록, 색 칸이 남는 폭에 맞춰 같이 줄어들고 늘어난다(최대 28px) */
 .opt-two .swatch{flex:1 1 0; min-width:0; max-width:28px; width:auto; height:auto; aspect-ratio:1 / 1; font-size:11px;}
 .opt-two .swatch.line-default{font-size:8px;}
-.opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px; transition:opacity .25s ease;}
-.opt-sub.off{opacity:.32; pointer-events:none;}
+.opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px;}
+.now-inline{margin-left:auto; margin-right:12px; gap:5px; flex-wrap:nowrap; transition:opacity .25s ease;}
+.now-inline .swatch{width:22px; height:22px; font-size:10px;}
+.now-inline.hide{opacity:0; pointer-events:none;}
 /* 스위치로 켜고 끄는 하위 줄: 높이가 0 ↔ 실제 높이로 부드럽게 바뀌고, 살짝 위에서 내려오며 나타난다 */
 .opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s cubic-bezier(.3,.7,.3,1), opacity .24s ease;}
 .opt-collapse.open{grid-template-rows:1fr; opacity:1;}
@@ -6000,7 +6002,7 @@ const TT_BG_PRESETS = ['#000000', '#FFFFFF'];
 const TT_CHECK_SVG_OLD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#000" stroke-opacity=".6" stroke-width="5.4"/><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#fff" stroke-width="3"/></svg>';
 function ttOptionsModal(){
   const o = state.ttOpts;
-  const colors = ['#FF6B6B', '#3ED6B5', '#5B9DFF', '#FFB454', '#B98CFF', '#FFFFFF'];
+  const colors = ['#FF6B6B', '#5B9DFF', '#FFB454', '#FFFFFF'];
   const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘 요일 강조'], ['currentTime', '현재 시간 표시선']];
   const fontScale = o.fontScale || 1;
   const rowScale = o.rowScale || 1;
@@ -6050,16 +6052,12 @@ function ttOptionsModal(){
         ${opts.map(([key, label]) => `
         <div class="opt-row">
           <span>${label}</span>
-          <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
-        </div>${key==='currentTime' ? `
-        <div id="tt-now-color-section" class="opt-sub ${o.currentTime ? '' : 'off'}">
-          <span class="opt-name">선 색상</span>
-          <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
+          ${key==='currentTime' ? `<div class="swatches now-inline ${o.currentTime ? '' : 'hide'}" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
             ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
             ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
-          </div>
-          ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
-        </div>` : ''}`).join('')}
+          </div>` : ''}
+          <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
+        </div>${key==='currentTime' ? inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B') : ''}`).join('')}
       </div>
     </div>
     <div class="modal-actions" style="gap:8px;">
@@ -6071,7 +6069,7 @@ function ttOptionsModal(){
 function setupTtOptionsModalListeners(){
   const panel = document.getElementById('tt-opts-panel');
   if(!panel) return;
-  const colorSection = document.getElementById('tt-now-color-section');
+  const colorSection = document.getElementById('tt-now-color-swatches');
   panel.querySelectorAll('.tt-opt-pending').forEach(btn=>{
     btn.onclick = ()=>{
       const next = btn.dataset.checked !== '1';
@@ -6079,7 +6077,8 @@ function setupTtOptionsModalListeners(){
       btn.classList.toggle('on', next);
       btn.setAttribute('aria-checked', String(next));
       if(btn.dataset.opt==='currentTime' && colorSection){
-        colorSection.classList.toggle('off', !next);   // 꺼져 있으면 흐리게(자리는 그대로라 화면이 출렁이지 않는다)
+        colorSection.classList.toggle('hide', !next);   // 꺼지면 색 칸이 서서히 사라진다(같은 줄 안이라 화면이 출렁이지 않는다)
+        if(!next){ const cp = document.getElementById('cp-wrap-ttnow'); if(cp) cp.style.display = 'none'; }
       }
     };
   });
