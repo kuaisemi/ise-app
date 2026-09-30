@@ -410,6 +410,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .poke-btn{display:flex; align-items:center; justify-content:center; width:34px; height:30px; border:none; background:transparent; color:var(--text-faint); cursor:pointer; padding:0; -webkit-tap-highlight-color:transparent; transition:transform .15s, color .2s;}
 .poke-btn:active{transform:scale(.86);}
 .poke-btn.pending{color:var(--crimson);}
+.poke-btn.sent{opacity:.28;}
+.poke-btn.idle{color:var(--text-dim);}
 .poke-btn.pending svg{animation:poke-nudge 1.4s ease-in-out infinite;}
 @keyframes poke-nudge{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px) rotate(-6deg);}}
 .av-tools{display:flex; gap:6px; align-items:center; margin-bottom:10px;}
@@ -9370,21 +9372,28 @@ function friendListBody(){
   `;
 }
 
-// 콕 찌르기: 상대가 나를 찔렀는데 내가 아직 안 찔렀으면 검지손가락(눌러서 되찌르기), 아니면 주먹.
-// 실시간이 아니라 친구 목록을 열거나 새로고침할 때 반영되고, 푸시 알림은 보내지 않는다(토큰 절약).
-function pokePending(f){
+// 콕 찌르기(핑퐁): 처음에는 주먹을 쥐고 있고, 눌러서 먼저 찌를 수 있다. 내가 찔렀으면 상대가 찌를 때까지는 다시 못 찌른다
+// (흐리게 표시). 상대가 나를 찔렀으면 검지손가락이 되고, 눌러서 되찌를 수 있다. 실시간이 아니라 친구 목록을 열거나
+// 새로고침할 때 반영되고, 푸시 알림은 보내지 않는다(토큰 절약).
+function pokeState(f){
   const pk = f.pokes || {};
-  return Number(pk[f.uid] || 0) > Number(pk[state.user.uid] || 0);
+  const mine = Number(pk[state.user.uid] || 0), theirs = Number(pk[f.uid] || 0);
+  if(theirs > mine) return 'pending';   // 상대가 찔렀고 나는 아직 답 안 함
+  if(mine > theirs) return 'sent';      // 내가 이미 찔렀고 상대의 답을 기다리는 중
+  return 'idle';
 }
 function pokeButtonHtml(f){
-  const pend = pokePending(f);
-  return '<button type="button" class="poke-btn '+(pend ? 'pending' : '')+'" data-action="poke-friend" data-pair="'+escapeHtml(f.pairId)+'" data-uid="'+escapeHtml(f.uid)+'" title="'+(pend ? '나를 콕 찔렀어요 · 눌러서 되찌르기' : '콕 찌르기')+'">'+(pend ? ICON.pokeFinger : ICON.pokeFist)+'</button>';
+  const st = pokeState(f);
+  const title = st === 'pending' ? '나를 콕 찔렀어요 · 눌러서 되찌르기' : (st === 'sent' ? '이미 찔렀어요 · 상대가 찌르면 다시 찌를 수 있어요' : '콕 찌르기');
+  return '<button type="button" class="poke-btn '+st+'" data-action="poke-friend" data-pair="'+escapeHtml(f.pairId)+'" data-uid="'+escapeHtml(f.uid)+'" title="'+title+'">'+(st === 'pending' ? ICON.pokeFinger : ICON.pokeFist)+'</button>';
 }
 const pokeCooldown = {};
 async function pokeFriend(pairId, uid){
   if(!state.user) return;
+  const f0 = (state.friendsUI.data.friends || []).find(x=>x.pairId === pairId);
+  if(f0 && pokeState(f0) === 'sent'){ toast('이미 찔렀어요. 상대가 찌르면 다시 찌를 수 있어요'); return; }
   const last = pokeCooldown[pairId] || 0;
-  if(Date.now() - last < 30000){ toast('조금 뒤에 다시 찔러 주세요'); return; }
+  if(Date.now() - last < 5000) return;
   pokeCooldown[pairId] = Date.now();
   const ts = now();
   try{
@@ -9670,7 +9679,7 @@ async function loadFriendTimetableCard(uid){
   }
 }
 function renderFriendTimetableGrid(slots, semKey){
-  const GRID_H = 420;
+  const GRID_H = 620;
   const minStart = 9*60, maxEnd = 21*60, totalMin = maxEnd-minStart, pxPerMin = GRID_H/totalMin;
   const hours = []; for(let h=9; h<=20; h++) hours.push(h);
   const hourLabels = hours.map(h => {
