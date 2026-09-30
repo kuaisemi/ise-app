@@ -4445,7 +4445,7 @@ function renderColorPickerPanel(id, hex){
       <input type="range" class="cp-hue" id="cp-hue-${id}" min="0" max="359" value="${Math.round(h)}">
       <div class="cp-row">
         <span class="cp-preview" id="cp-preview-${id}" style="background:${hex};"></span>
-        <label class="cp-hex-wrap"><span class="cp-hash">#</span><input type="text" id="cp-hex-${id}" maxlength="6" value="${hex.replace('#','').toUpperCase()}" spellcheck="false" autocomplete="off" autocapitalize="characters" placeholder="RRGGBB"></label>
+        <div class="cp-hex-wrap"><span class="cp-hash">#</span><input type="text" id="cp-hex-${id}" maxlength="6" value="${hex.replace('#','').toUpperCase()}" spellcheck="false" autocomplete="off" autocapitalize="characters" placeholder="RRGGBB"></div>
       </div>
     </div>`;
 }
@@ -4494,6 +4494,7 @@ function setupColorPicker(id, onChange){
 
   // 색 코드: 0-9 A-F만 받고, 6자리(또는 3자리)가 되는 순간 바로 색에 반영한다. 틀린 코드는 테두리가 붉게 변한다.
   const hexWrap = hexInput.closest('.cp-hex-wrap');
+  if(hexWrap) hexWrap.onclick = ()=>hexInput.focus();
   const parseHex = (raw)=>{
     const t = String(raw || '').replace(/[^0-9a-fA-F]/g, '').toUpperCase();
     if(t.length === 6) return '#' + t;
@@ -6442,8 +6443,8 @@ function classModal(cls){
       <input type="hidden" name="textColor" id="class-text-color-input" value="${escapeHtml(textColor)}">
       <div class="field"><label>과목명</label><input type="text" name="subject" style="font-family:var(--font-display)" value="${escapeHtml(subject)}" required placeholder="예: 반도체소자 및 실습"></div>
       <div class="field"><label>교수님 성함 (선택)</label><input type="text" name="professor" style="font-family:var(--font-display)" value="${escapeHtml(professor)}" placeholder="담당 교수님 성함"></div>
-      <div class="field-row">
-        <div class="field" style="flex:1.4;">
+      <div>
+        <div class="field">
           <label>배경 색상</label>
           <div class="swatches" id="class-swatches-wrap">
             ${COLORS.map(col => `<div class="swatch ${col.hex.toLowerCase() === color.toLowerCase() ? 'selected' : ''}" data-action="pick-color" data-hex="${col.hex}" style="background:${col.hex}">${col.hex.toLowerCase() === color.toLowerCase() ? '✓' : ''}</div>`).join('')}
@@ -6451,7 +6452,7 @@ function classModal(cls){
           </div>
           ${inlineColorPanelHtml('classcolor', color)}
         </div>
-        <div class="field" style="flex:0.8;">
+        <div class="field">
           <label>글씨 색상</label>
           <div class="swatches" id="class-text-swatches-wrap">
             <div class="text-swatch ${textColor === '#FFFFFF' ? 'selected' : ''}" data-action="pick-text-color" data-color="#FFFFFF" style="background:#FFFFFF; color:#000;">${textColor === '#FFFFFF' ? '✓' : ''}</div>
