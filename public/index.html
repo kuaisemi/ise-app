@@ -474,14 +474,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .ttm-icbtn:active{transform:scale(.92);}
 .ttm-icbtn svg{width:16px; height:16px;}
 .ttm-icbtn.danger{color:var(--danger);}
-.ttm-hero{display:flex; align-items:center; gap:12px; margin:10px 0; padding:14px; border-radius:16px; border:1px solid rgba(224,172,85,.4); background:var(--surface-2); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s, background .15s;}
-.ttm-hero:active{transform:scale(.985); background:var(--surface-3);}
-.ttm-hero-txt{flex:1; min-width:0;}
-.ttm-hero-txt b{display:block; font-size:14px;}
-.ttm-hero-txt small{display:block; font-size:11px; color:var(--teal); margin-top:3px; font-weight:600;}
-.ttm-hero-go{color:var(--text-faint); display:flex;}
-.ttm-ic.big{width:44px; height:44px; border-radius:14px; background:rgba(224,172,85,.16); color:var(--teal); --c:var(--teal);}
-.ttm-ic.big svg{width:22px; height:22px;}
+.ttm-grid.c4{grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px;}
+.ttm-grid.c4 .ttm-tile{padding:12px 2px 10px;}
+.ttm-grid.c4 .ttm-tile b{font-size:11px; white-space:nowrap;}
+.ttm-grid.c4 .ttm-tile small{font-size:9px; white-space:nowrap;}
 .ttm-grid{display:grid; gap:8px;}
 .ttm-grid.c2{grid-template-columns:1fr 1fr;}
 .ttm-grid.c3{grid-template-columns:repeat(3,1fr);}
@@ -5656,15 +5652,11 @@ function ttMoreMenuModal(){
       <button type="button" class="ttm-icbtn" data-action="rename-variant" title="이름 변경">${ICON.pencil}</button>
       <button type="button" class="ttm-icbtn danger" data-action="reset-timetable" title="이 시간표 지우기">${ICON.trash}</button>
     </div>
-    <div class="ttm-hero" data-action="ocr-timetable">
-      <span class="ttm-ic big">${ICON.camera}</span>
-      <span class="ttm-hero-txt"><b>사진으로 등록</b><small>캡처해서 한 번에</small></span>
-      <span class="ttm-hero-go">${ICON.chevR}</span>
-    </div>
-    <div class="ttm-grid c3">
-      <div class="ttm-tile" data-action="add-class" style="--c:var(--teal); --c-rgb:224,172,85;"><span class="ttm-ic">${ICON.plus}</span><b>직접 추가</b></div>
-      <div class="ttm-tile" data-action="open-capture-mode" style="--c:var(--blue); --c-rgb:var(--blue-rgb);"><span class="ttm-ic">${ICON.frame}</span><b>캡처 모드</b></div>
-      <div class="ttm-tile" data-action="open-timetable-list" style="--c:var(--amber); --c-rgb:var(--amber-rgb);"><span class="ttm-ic">${ICON.clipboard}</span><b>시간표 목록</b></div>
+    <div class="ttm-grid c4">
+      <div class="ttm-tile" data-action="ocr-timetable" style="--c:var(--teal); --c-rgb:224,172,85;"><span class="ttm-ic">${ICON.camera}</span><b>사진 등록</b><small>캡처해서 한 번에</small></div>
+      <div class="ttm-tile" data-action="add-class" style="--c:#4ECDC4; --c-rgb:78,205,196;"><span class="ttm-ic">${ICON.plus}</span><b>직접 추가</b><small>하나씩 입력</small></div>
+      <div class="ttm-tile" data-action="open-capture-mode" style="--c:var(--blue); --c-rgb:var(--blue-rgb);"><span class="ttm-ic">${ICON.frame}</span><b>캡처 모드</b><small>시간표만 보기</small></div>
+      <div class="ttm-tile" data-action="open-timetable-list" style="--c:var(--purple); --c-rgb:var(--purple-rgb);"><span class="ttm-ic">${ICON.clipboard}</span><b>시간표 목록</b><small>학기 · 전환</small></div>
     </div>
   `;
 }
