@@ -3293,7 +3293,7 @@ function boot(){
         // 화면이 그려진 뒤에 안내를 띄운다(부팅 중 흰 화면 위에 뜨는 것 방지)
         setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
         setTimeout(()=>{ maybeShowApkInstallPopup(); }, 2200);
-        // 웹에서 새 버전으로 처음 들어온 경우에만 패치내역을 한 번 띄운다.
+        // 새 버전(웹·앱 모두)으로 처음 들어온 경우에만 패치내역을 한 번 띄운다.
         // APK 설치 안내 팝업과 겹치지 않도록 그보다 늦게 띄우고, 그 팝업이 떠 있으면 건너뛴다.
         setTimeout(()=>{ if(!document.querySelector('.apk-popup-overlay.open')) maybeShowWebPatchNotes(); }, 3400);
       } else {
@@ -5436,7 +5436,8 @@ function closeWebPatchPopup(){
   setTimeout(()=>el.remove(), 200);
 }
 function maybeShowWebPatchNotes(){
-  if(isNativeApp || patchPopupShownThisLoad) return;
+  // 설치형 앱(APK)도 이제 새 화면을 자동으로 받아(OTA) 조용히 바뀌므로, 웹과 똑같이 새 버전으로 처음 들어왔을 때 한 번 띄운다
+  if(patchPopupShownThisLoad) return;
   const seen = localGet('patch_seen_version', null);
   // 저장값이 없으면(이번 기능이 처음 들어간 시점) 이번 한 번은 보여주고 그 뒤로 조용해진다.
   if(seen && versionSortValue(seen) >= versionSortValue(APP_VERSION)){ return; }
