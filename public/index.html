@@ -9247,6 +9247,7 @@ async function applyFriendLinksSnapshot(snap){
       muted: !!(data.mutedBy && data.mutedBy[state.user.uid]),
       pokes: data.pokes || {},
       pokeStreak: Number(data.pokeStreak || 0),
+      pokeWeek: Number(data.pokeWeek || 0),
     };
     if((data.status||'accepted') === 'pending'){
       if(data.requestedBy === state.user.uid) outgoing.push(entry); else incoming.push(entry);
@@ -9353,8 +9354,10 @@ function pokeState(f){
   if(mine > theirs) return 'sent';      // 내가 이미 찔렀고 상대의 답을 기다리는 중
   return 'idle';
 }
-// 이 친구와 콕 찌른 누적 횟수(서로 찌른 걸 합쳐서, 찌를 때마다 +1). 사라지지 않고 계속 쌓인다.
-function pokeStreakNow(f){ return Number(f.pokeStreak || 0); }
+// 이 친구와 이번 주에 콕 찌른 횟수(서로 찌른 걸 합쳐서, 찌를 때마다 +1). 주(월요일 시작, 한국 시간)가 바뀌면 1부터 다시 센다.
+// 서버에서 지우는 작업은 없다 — 값에 주 번호(pokeWeek)를 같이 적어 두고, 이번 주 번호와 다르면 옛 값으로 보고 무시한다.
+function pokeWeekNow(){ return Math.floor((Math.floor((Date.now() + 9 * 3600 * 1000) / 86400000) + 3) / 7); }
+function pokeStreakNow(f){ return (f.pokeWeek === pokeWeekNow()) ? Number(f.pokeStreak || 0) : 0; }
 function pokeButtonHtml(f){
   const st = pokeState(f);
   const streak = pokeStreakNow(f);
@@ -9371,11 +9374,12 @@ async function pokeFriend(pairId, uid){
   pokeCooldown[pairId] = Date.now();
   const ts = now();
   const prev = (state.friendsUI.data.friends || []).find(x=>x.pairId === pairId);
-  const streak = (prev ? Number(prev.pokeStreak || 0) : 0) + 1;
+  const streak = (prev ? pokeStreakNow(prev) : 0) + 1;
+  const week = pokeWeekNow();
   try{
-    await updateDoc(doc(db,'friendLinks',pairId), { ['pokes.'+state.user.uid]: ts, pokeStreak: streak });
+    await updateDoc(doc(db,'friendLinks',pairId), { ['pokes.'+state.user.uid]: ts, pokeStreak: streak, pokeWeek: week });
     const f = (state.friendsUI.data.friends || []).find(x=>x.pairId === pairId);
-    if(f){ f.pokes = { ...(f.pokes || {}), [state.user.uid]: ts }; f.pokeStreak = streak; }
+    if(f){ f.pokes = { ...(f.pokes || {}), [state.user.uid]: ts }; f.pokeStreak = streak; f.pokeWeek = week; }
     toast('콕 찔렀어요');
     if(state.friendsUI.screen !== 'detail') refreshFriendsModalBody();
   }catch(e){
