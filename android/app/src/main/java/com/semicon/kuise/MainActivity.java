@@ -9,6 +9,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebSettingsCompat;
@@ -66,6 +67,8 @@ public class MainActivity extends BridgeActivity {
      * 웹뷰에 되돌아갈 기록이 있으면 한 칸 뒤로 가서 그 창을 닫고, 없으면(맨 화면) 기본 동작(앱 종료)으로 넘긴다.
      * Capacitor 코어는 이 처리를 App 플러그인에 맡기는데 이 앱에는 그 플러그인이 없어서, 지금까지는 팝업이 떠 있어도 뒤로가기가 앱을 꺼버렸다.
      */
+    private AlertDialog exitDialog;
+
     private void setupBackButton() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -75,9 +78,14 @@ public class MainActivity extends BridgeActivity {
                     webView.goBack();
                     return;
                 }
-                setEnabled(false);
-                getOnBackPressedDispatcher().onBackPressed();
-                setEnabled(true);
+                // 더 돌아갈 화면이 없는 기본 화면: 바로 끄지 않고 한 번 물어본다
+                if (exitDialog != null && exitDialog.isShowing()) return;
+                exitDialog = new AlertDialog.Builder(MainActivity.this)
+                    .setMessage("앱을 종료할까요?")
+                    .setPositiveButton("종료", (d, w) -> finish())
+                    .setNegativeButton("취소", null)
+                    .create();
+                exitDialog.show();
             }
         });
     }
