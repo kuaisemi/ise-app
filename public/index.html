@@ -453,7 +453,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-swap{display:contents;}
 .av-less{grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border:1px dashed var(--border); border-radius:12px; background:transparent; color:var(--text-dim); font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;}
 .av-less svg{width:16px; height:16px;}
-.av-slots{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;}
+.av-slots{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px;}
+.av-cat{grid-column:1 / -1; margin:8px 0 0; font-size:10.5px; font-weight:800; color:var(--text-faint); letter-spacing:.02em;}
+.av-cat:first-child{margin-top:0;}
 .av-slot{position:relative; height:58px; border:1px solid var(--border); background:var(--surface-2); border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-faint); font-size:20px; -webkit-tap-highlight-color:transparent;}
 .av-slot.empty{border-style:dashed;}
 .av-slot.selected{border-color:var(--crimson);}
@@ -465,7 +467,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-half .set-label{margin-bottom:8px;}
 .swatches.av-swatches.av-four{display:grid; grid-template-columns:repeat(4, 1fr); justify-items:center; align-items:center; gap:2px; flex-wrap:nowrap;}
 .av-four .swatch{width:30px; height:30px;}
-.av-duo.av-duo-px{grid-template-columns:3fr 7fr;}
+.av-duo.av-duo-px{grid-template-columns:1fr;}
 .av-duo-px .av-swatches.av-four{grid-template-columns:repeat(2, 1fr); gap:8px 2px;}
 .av-editor{margin-top:14px; padding-top:14px; border-top:1px solid var(--hairline);}
 .av-in{animation:av-in .28s cubic-bezier(.3,.7,.3,1) both;}
@@ -9311,6 +9313,65 @@ AV_ICONS.push(...[
   ['antenna','안테나','<path d="M12 12v9M7 8a7 7 0 0 1 10 0M4.5 5a11 11 0 0 1 15 0"/><circle cx="12" cy="10" r="1.5"/>'],
 ].filter(n=>!AV_ICONS.some(x=>x[0] === n[0])));
 
+// 반도체·회로·통신·스포츠 아이콘 추가 + 종류별 묶음
+AV_ICONS.push(...[
+  // 트랜지스터·소자
+  ['nmos','NMOS','<path d="M3 12h5M8 7.5v9"/><path d="M11 6.5v3M11 10.5v3M11 14.5v3"/><path d="M11 8h7V3M11 16h7v5M11 12h4"/><path d="M13.5 16 11.8 14.8M13.5 16 11.8 17.2"/>'],
+  ['pmos','PMOS','<path d="M3 12h2.4M8 7.5v9"/><circle cx="6.6" cy="12" r="1.1"/><path d="M11 6.5v3M11 10.5v3M11 14.5v3"/><path d="M11 8h7V3M11 16h7v5M11 12h4"/><path d="M11.8 8 13.6 6.8M11.8 8 13.6 9.2"/>'],
+  ['npn','BJT (NPN)','<circle cx="13" cy="12" r="8.5"/><path d="M3 12h6M9 7.5v9"/><path d="M9 10.5 16 6V3M9 13.5 16 18v3"/><path d="M16 18l-3.2-.4M16 18l-1.4-2.9"/>'],
+  ['pnp','BJT (PNP)','<circle cx="13" cy="12" r="8.5"/><path d="M3 12h6M9 7.5v9"/><path d="M9 10.5 16 6V3M9 13.5 16 18v3"/><path d="M9 10.5l3.2.4M9 10.5l1.400 2.9" transform="translate(0 0)"/>'],
+  ['diode','다이오드','<path d="M2 12h6M16 12h6M8 6v12l8-6zM16 6v12"/>'],
+  ['inductor','인덕터','<path d="M2 12h3c0-5 4-5 4 0 0-5 4-5 4 0 0-5 4-5 4 0h3"/>'],
+  ['ground','접지','<path d="M12 3v9M5 12h14M8 16h8M10.5 20h3"/>'],
+  ['vdd','전원(VDD)','<path d="M6 5h12M12 5v16M9 21h6"/>'],
+  ['switch','스위치','<path d="M2 16h5M17 16h5"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/><path d="M9 15 16 8"/>'],
+  ['opamp','연산증폭기','<path d="M5 4v16l15-8z"/><path d="M2 8h3M2 16h3M20 12h2.500M6.500 8h2.500M6.500 16h2.500M7.750 14.750v2.500"/>'],
+  ['flipflop','플립플롭','<rect x="6" y="4" width="12" height="16" rx="1"/><path d="M2 8h4M2 16h4M18 8h4M18 16h4M6 14l3 2-3 2"/>'],
+  ['clocksig','클럭 신호','<path d="M2 17h4V7h5v10h5V7h6"/>'],
+  ['led','LED','<path d="M12 3a5 5 0 0 1 5 5v5H7V8a5 5 0 0 1 5-5zM9 13v8M15 13v8"/>'],
+  // 로직 게이트
+  ['buffer','버퍼','<path d="M2 12h4M6 5v14l12-7zM18 12h4"/>'],
+  ['notgate','NOT (인버터)','<path d="M2 12h4M6 5v14l10-7zM18.600 12H22"/><circle cx="17.300" cy="12" r="1.300"/>'],
+  ['andgate','AND','<path d="M2 8.500h4M2 15.500h4M6 5h6a7 7 0 0 1 0 14H6zM19 12h3"/>'],
+  ['nandgate','NAND','<path d="M2 8.500h4M2 15.500h4M6 5h5a7 7 0 0 1 0 14H6z"/><circle cx="19.200" cy="12" r="1.300"/><path d="M20.500 12H22"/>'],
+  ['orgate','OR','<path d="M2 9h4.500M2 15h4.500M4 5c3 3.500 3 10.500 0 14 6 0 11-2.500 16-7-5-4.500-10-7-16-7z"/><path d="M20 12h2"/>'],
+  ['norgate','NOR','<path d="M2 9h4M2 15h4M4 5c3 3.500 3 10.500 0 14 5 0 9-2 12.500-7C13 7 9 5 4 5z"/><circle cx="17.800" cy="12" r="1.300"/><path d="M19.100 12H22"/>'],
+  ['xorgate','XOR','<path d="M6 5c3 3.500 3 10.500 0 14 5 0 9-2 12.500-7C15 7 11 5 6 5z"/><path d="M3 5c3 3.500 3 10.500 0 14M1.500 9H6M1.500 15H6M18.500 12H22"/>'],
+  ['xnorgate','XNOR','<path d="M5.500 5c3 3.500 3 10.500 0 14 4 0 8-2 11-7-3-5-7-7-11-7z"/><path d="M2.500 5c3 3.500 3 10.500 0 14M1 9h5M1 15h5"/><circle cx="17.800" cy="12" r="1.300"/><path d="M19.100 12H22"/>'],
+  // 통신
+  ['bluetooth','블루투스','<path d="M7 7l10 10-5 4V3l5 4L7 17"/>'],
+  ['signalbars','신호 세기','<path d="M4 20v-3M9 20v-7M14 20V9M19 20V4"/>'],
+  ['usb','USB','<path d="M12 21V6M12 3l-2 3h4zM12 14l-4-2.500V9.500M12 11l4-3V6.500"/><circle cx="8" cy="8.500" r="1.200"/><rect x="15" y="4.500" width="2.600" height="2.600"/>'],
+  // 스포츠
+  ['basketball','농구','<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.500 5.500c4 3.500 4 9.500 0 13M18.500 5.500c-4 3.500-4 9.500 0 13"/>'],
+  ['baseball','야구','<circle cx="12" cy="12" r="9"/><path d="M6.500 5.500c3 2.500 3 10.500 0 13M17.500 5.500c-3 2.500-3 10.500 0 13M5 9l1.500.5M5 12.500l1.800.2M5.500 16l1.500-.7M19 9l-1.500.5M19 12.500l-1.800.2M18.500 16l-1.500-.7"/>'],
+  ['tennis','테니스','<circle cx="12" cy="12" r="9"/><path d="M4.500 6.500c4 3 4 8 0 11M19.500 6.500c-4 3-4 8 0 11"/>'],
+  ['volleyball','배구','<circle cx="12" cy="12" r="9"/><path d="M12 3c-2 5-1 9 4 13M3.500 9c5-1 9 1 11.500 6M20 10c-4-3-8-3-12-1"/>'],
+  ['football','럭비·미식축구','<path d="M3.500 20.500C2 11 11 2 20.500 3.500 22 13 13 22 3.500 20.500z"/><path d="M9 15l6-6M10.500 10.500l1.500 1.500M12.500 12.500 14 14"/>'],
+  ['golf','골프','<path d="M12 3v14M12 3l7 3-7 3"/><ellipse cx="12" cy="19.500" rx="6" ry="1.800"/>'],
+  ['bowling','볼링','<circle cx="11" cy="14" r="7"/><circle cx="9" cy="11.500" r=".9" fill="currentColor" stroke="none"/><circle cx="12.500" cy="11" r=".9" fill="currentColor" stroke="none"/><circle cx="11" cy="14.500" r=".9" fill="currentColor" stroke="none"/><path d="M19 4.500c0 2 1 3 1 5s-1 3-1 3-1-1-1-3 1-3 1-5z"/>'],
+  ['shuttlecock','배드민턴','<path d="M9 12 6 3M12 12V2.500M15 12l3-9M8 12h8l-1.500 4h-5z"/><circle cx="12" cy="19" r="2.500"/>'],
+  ['pingpong','탁구','<circle cx="9.500" cy="9.500" r="6.500"/><path d="M14 14l6 6M18 13.500l1.500-1.500"/><circle cx="19" cy="6" r="1.500"/>'],
+  ['boxing','권투 글러브','<path d="M6 12V9a5 5 0 0 1 10 0v4h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H9a4 4 0 0 1-4-4z"/><path d="M9 20v-3"/>'],
+  ['medal','메달','<circle cx="12" cy="15" r="5.500"/><path d="M8.500 10.500 6 3h4l2 4 2-4h4l-2.500 7.500M12 12.500v5"/>'],
+  ['whistle','호루라기','<circle cx="8" cy="15" r="4.500"/><path d="M12 12h9v3h-5M8 10.500V7h3M5 15h6"/>'],
+  ['skateboard','스케이트보드','<path d="M3 11h18c0 2-2 3-4 3H7c-2 0-4-1-4-3z"/><circle cx="8" cy="18" r="1.500"/><circle cx="16" cy="18" r="1.500"/>'],
+].filter(n=>!AV_ICONS.some(x=>x[0] === n[0])));
+// 종류별 묶음(목록에 없는 아이콘은 '기타'로 맨 뒤에 모인다)
+const AV_ICON_CATS = [
+  ['반도체 · 소자', ['chip','wafer','transistor','nmos','pmos','npn','pnp','diode','led','resistor','capacitor','inductor','ground','vdd','switch','opamp','flipflop','clocksig','circuit','ram','battery','scope','bolt','magnet','atom']],
+  ['로직 게이트', ['buffer','notgate','andgate','nandgate','orgate','norgate','xorgate','xnorgate']],
+  ['통신 · 연결', ['wifi','bluetooth','signalbars','antenna','radar','satellite','usb','phone','mail','chat','globe']],
+  ['컴퓨터 · 코드', ['monitor','laptop','keyboard','terminal','code','server','database','robot','android','apple','sigma','pi','infinity']],
+  ['스포츠', ['soccer','basketball','baseball','tennis','volleyball','football','golf','bowling','shuttlecock','pingpong','boxing','dumbbell','skateboard','trophy','medal','whistle','target']],
+  ['안경 · 기기', ['glasses','glasses2','sunglasses','goggles','labgoggles','vr','headphones','camera','gamepad','music']],
+  ['동물', ['cat','paw','dog','rabbit','bear','fish','bird','butterfly','turtle','ghost','smile']],
+  ['자연 · 날씨', ['sun','moon','cloud','fire','flower','leaf','tree','mountain','wave','snow','drop','umbrella','sparkle','star','starfill','heart','heartfill']],
+  ['탈것 · 장소', ['rocket','car','bike','train','plane','sailboat','anchor','compass','pin','flag','home']],
+  ['사물 · 음식', ['coffee','crown','diamond','book','pencil','key','lock','bell','gift','scissors','palette','hourglass','clock','calendar','flask','bulb','microscope','telescope','dna','pizza','cupcake','icecream','cherry','burger']],
+  ['도형', ['triangle','hexagon','rhombus','cross','yinyang','shield']],
+];
+
 const AV_COLORS = ['', '#E0AC55', '#6FA3F5'];
 const AV_BGS = ['', '#0F1626', '#EEDFC7'];
 const PX_PALETTE = ['#000000','#FFFFFF','#A72A3A','#FF6B6B','#FFB454','#E0AC55','#6FA3F5','#3ED6B5'];
@@ -9383,7 +9444,7 @@ function avSlotOk(sl){
 function profileSnapshot(){
   const av = getAvatar();
   const isDefault = av.kind === 'preset' && av.id === 'chip' && !av.color && !av.bg;
-  const slots = [0,1,2].map(i => { const a = localGet('avatar_slots', []); return (Array.isArray(a) && avSlotOk(a[i])) ? { pal:a[i].pal, rle:a[i].rle } : null; });
+  const slots = [0,1,2,3,4].map(i => { const a = localGet('avatar_slots', []); return (Array.isArray(a) && avSlotOk(a[i])) ? { pal:a[i].pal, rle:a[i].rle } : null; });
   return {
     nick: getNickname(),
     avatar: isDefault ? '' : JSON.stringify(av).slice(0, 7600),
@@ -9414,9 +9475,9 @@ function mergeProfileFromServer(pf){
         let av = null; try{ av = avSanitize(JSON.parse(pf.avatar)); }catch(_){ av = null; }
         localSet('avatar', av || { ...AV_DEFAULT });
       } else { localSet('avatar', { ...AV_DEFAULT }); }
-      let slots = [null, null, null];
+      let slots = [null, null, null, null, null];
       if(typeof pf.slots === 'string' && pf.slots){
-        try{ const a = JSON.parse(pf.slots); if(Array.isArray(a)) slots = [0,1,2].map(i => avSlotOk(a[i]) ? { pal:a[i].pal, rle:a[i].rle } : null); }catch(_){}
+        try{ const a = JSON.parse(pf.slots); if(Array.isArray(a)) slots = [0,1,2,3,4].map(i => avSlotOk(a[i]) ? { pal:a[i].pal, rle:a[i].rle } : null); }catch(_){}
       }
       localSet('avatar_slots', slots);
       localSet('profile_at', Number(pf.at));
@@ -9564,23 +9625,35 @@ function avCellsHtml(kind, from, to){
 // 나머지가 아래로 이어지며, 목록의 맨 마지막에 '줄이기' 버튼이 온다.
 function avN(kind){ return kind === 'icon' ? 6 : 8; }
 function avMoreBtn(kind){ return '<button type="button" class="av-cell av-more" data-action="av-more" data-k="'+kind+'" title="더보기">'+AV_DOTS+'</button>'; }
+function avIconCell(it){ return '<button type="button" class="av-cell '+((avDraft.id || 'chip') === it[0] ? 'selected' : '')+'" data-action="av-pick-icon" data-id="'+it[0]+'" title="'+it[1]+'">'+avIconSvg(it[0], 24)+'</button>'; }
 function avGridBlock(kind){
-  const total = kind === 'icon' ? AV_ICONS.length : AV_EMOJIS.length;
   const cls = kind === 'icon' ? 'av-grid' : 'av-grid av-emoji';
+  let inner = '';
+  if(kind === 'icon'){   // 종류별로 묶어서 제목을 붙인다
+    const used = new Set();
+    AV_ICON_CATS.forEach(([label, ids])=>{
+      const items = ids.map(id=>AV_ICONS.find(x=>x[0] === id)).filter(Boolean);
+      if(!items.length) return;
+      items.forEach(it=>used.add(it[0]));
+      inner += '<p class="av-cat">'+label+'</p>' + items.map(avIconCell).join('');
+    });
+    const rest = AV_ICONS.filter(it=>!used.has(it[0]));
+    if(rest.length) inner += '<p class="av-cat">기타</p>' + rest.map(avIconCell).join('');
+  } else inner = avCellsHtml(kind, 0, AV_EMOJIS.length);
   // 한 번에 3줄만 보이고 그 안에서 스크롤한다(펼치기 없음)
-  return '<div class="av-scroll-box"><div class="av-scroll '+kind+'"><div class="'+cls+'">'+avCellsHtml(kind, 0, total)+'</div></div></div>';
+  return '<div class="av-scroll-box"><div class="av-scroll '+kind+'"><div class="'+cls+'">'+inner+'</div></div></div>';
 }
 /* 내가 그린 그림 보관함(3칸) */
-function avSlots(){ const a = localGet('avatar_slots', []); return [0,1,2].map(i => (Array.isArray(a) && a[i]) ? a[i] : null); }
+function avSlots(){ const a = localGet('avatar_slots', []); return [0,1,2,3,4].map(i => (Array.isArray(a) && a[i]) ? a[i] : null); }
 function avSlotsHtml(){
   const slots = avSlots(); let cells = '';
-  for(let i = 0; i < 3; i++){
+  for(let i = 0; i < 5; i++){
     const sl = slots[i];
     cells += sl
       ? '<div class="av-slot '+(avSlotSel === i ? 'selected' : '')+'" data-action="av-slot-load" data-i="'+i+'" title="눌러서 편집">'+pxSvg(sl, 40)+'<button type="button" class="av-slot-del" data-action="av-slot-del" data-i="'+i+'" title="삭제">×</button></div>'
       : '<div class="av-slot empty" data-action="av-slot-fill" data-i="'+i+'" title="눌러서 새로 그리기">+</div>';
   }
-  return '<div class="av-half"><div class="row-between" style="margin-bottom:8px;"><p class="set-label sm" style="margin:0;">내 그림 <span class="opt-hint" style="display:inline; margin-left:4px;">최대 3개</span></p><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-new" style="width:auto; padding:3px 9px; font-size:10px;">새로 그리기</button></div><div class="av-slots">'+cells+'</div></div>';
+  return '<div class="av-half"><div class="row-between" style="margin-bottom:8px;"><p class="set-label sm" style="margin:0;">내 그림 <span class="opt-hint" style="display:inline; margin-left:4px;">최대 5개</span></p><button type="button" class="btn btn-ghost btn-sm" data-action="av-px-new" style="width:auto; padding:3px 9px; font-size:10px;">새로 그리기</button></div><div class="av-slots">'+cells+'</div></div>';
 }
 function avEditorHtml(){
   const bi = Math.max(0, [1,2,3].indexOf(avBrush));
