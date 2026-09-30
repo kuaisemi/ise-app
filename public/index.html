@@ -8858,17 +8858,6 @@ function renderMypage(){
     </div>
     ` : ''}
 
-    ${isPresident() ? `
-    <div class="section-title">권한 및 관리</div>
-    <div class="card" style="padding-top:8px; padding-bottom:8px;">
-      ${isPresident() ? `
-        <div class="link-row" data-action="manage-roster">학생 명단(로스터) 관리 <span class="sub">${ICON.chevR}</span></div>
-        <div class="divider" style="margin:2px 0;"></div>
-        <div class="link-row" data-action="view-audit-log">삭제 기록 보기 <span class="sub">${ICON.chevR}</span></div>
-      ` : ''}
-    </div>
-    ` : ''}
-
     <div class="section-title">계정</div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
       <div class="link-row" data-action="change-password">비밀번호 변경 <span class="sub">${ICON.chevR}</span></div>
@@ -8892,14 +8881,26 @@ function renderMypage(){
       ${isCouncil() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>
-      ${isPresident() ? `<div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div><div class="divider" style="margin:2px 0;"></div>` : ''}
       <div class="link-row" data-action="open-chat-report-inbox"><span class="link-row-label">${ICON.flag} 채팅 신고함</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="open-suspension-list"><span class="link-row-label">${ICON.ban} 경고 · 정지 목록</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isDeveloper() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isDeveloper() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isPresident() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="view-users-list"><span class="link-row-label">${ICON.person} 전체 가입자 및 직급 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isPresident() ? `
+      <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
+      <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회장 전용</p>
+      <div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="manage-roster"><span class="link-row-label">${ICON.person} 학생 명단(로스터) 관리</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="view-audit-log"><span class="link-row-label">${ICON.clipboard} 삭제 기록 보기</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="view-users-list"><span class="link-row-label">${ICON.person} 전체 가입자 및 직급 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isDeveloper() ? `
+      <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
+      <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">개발자 전용</p>
+      <div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ` : ''}
     </div>
 
@@ -10814,7 +10815,7 @@ function usersListPanel(){
                 <span class="tag ${roleLevel(u.role)>=1?'tag-crimson':'tag-blue'}" style="font-size:9px; padding:1px 6px;">${publicRoleLabel(u.role)}</span>
                 ${u.withdrawn ? `<span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">1년+ 미접속(잠김)</span>` : (u.dormant ? `<span class="tag tag-dim" style="font-size:9px; padding:1px 6px;">6개월+ 휴면</span>` : '')}
               </div>
-              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)}) · ${fmtLastSeen(u.lastSeen)}${u.platform ? ' · <span style="color:var(--text-faint);">' + escapeHtml(platformLabel(u.platform)) + '</span>' : ''}</div>
+              <div class="meta" style="margin-top:2px;">${escapeHtml(u.studentId)} (${fmtStudentYear(u.studentId)})</div>
             </div>
             ${u.withdrawn && isPresident() ? `<button type="button" class="btn btn-ghost btn-sm" data-action="reactivate-user" data-uid="${escapeHtml(u.uid||'')}" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" style="width:auto; padding:6px 8px; font-size:10.5px;">잠금 해제</button>` : ''}
             <button type="button" class="btn btn-ghost btn-sm" data-action="open-assign-role" data-sid="${escapeHtml(u.studentId)}" data-name="${escapeHtml(u.name)}" data-role="${escapeHtml(u.role)}" style="width:auto; max-width:110px; padding:6px 8px; font-size:11.5px; white-space:nowrap; display:flex; align-items:center; gap:3px;">${roleLabel(u.role)} ${ICON.chevDown}</button>
