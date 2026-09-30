@@ -572,13 +572,14 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .meal-body .chip-row{margin:0 0 6px;}
 .fetch-status{font-size:11.5px; color:var(--text-faint); margin-top:10px; line-height:1.6;}
 .fetch-status:empty{display:none;}
-.gusia-card{margin-top:18px; padding:14px 16px;}
+.gusia-card{margin-top:18px; padding:6px 16px 10px;}
 .gusia-head{display:flex; align-items:center; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--border); font-size:12.5px; font-weight:800; color:var(--text);}
 .gusia-head svg{width:16px; height:16px; flex-shrink:0;}
-.shop-sec{padding-top:12px; padding-bottom:6px;}
+.shop-sec{padding-top:12px; padding-bottom:8px;}
 .shop-sec + .shop-sec{margin-top:6px; border-top:1px solid var(--border);}
 .shop-name{display:flex; align-items:center; gap:9px; margin-bottom:4px;}
-.shop-ico{flex:none; width:28px; height:28px; border-radius:9px; background:rgba(var(--amber-rgb),.14); color:var(--amber); display:flex; align-items:center; justify-content:center;}
+.shop-ico{flex:none; width:24px; display:flex; align-items:center; justify-content:center; color:var(--amber);}
+.shop-ico svg{width:22px; height:22px;}
 .shop-name b{font-size:12.5px; font-weight:800; color:var(--text);}
 .shop-name em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 9px; margin-left:auto;}
 .shop-foot{margin:12px 0 0; padding-top:10px; border-top:1px solid var(--hairline); font-size:10px; line-height:1.6; color:var(--text-faint);}
@@ -4557,8 +4558,8 @@ const ICON = {
   chevDown:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`,
   more:`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`,
   pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-6.1 7-12A7 7 0 0 0 5 9.5c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
-  gimbap:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.4"/><circle cx="10.2" cy="10.8" r="1" fill="currentColor" stroke="none"/><circle cx="13.9" cy="10.9" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1" fill="currentColor" stroke="none"/></svg>`,
-  drumstick:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3.6a5.6 5.6 0 0 1 4 9.5 5.6 5.6 0 0 1-6.6.9L11 12.4l-.4-.4-.9-1.6a5.6 5.6 0 0 1 5.5-6.8z"/><path d="m10.6 12.2-3.4 3.4"/><circle cx="5.6" cy="16.2" r="1.7"/><circle cx="8" cy="18.6" r="1.7"/></svg>`,
+  gimbap:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-45 12 12)"><rect x="1.5" y="7.6" width="21" height="8.8" rx="4.4"/><path d="M8.2 7.6v8.8M15.8 7.6v8.8"/><circle cx="19.2" cy="12" r="1.5"/></g></svg>`,
+  drumstick:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15.4 15.63a7.875 6 135 1 1 6.23-6.23 4.5 3.43 135 0 0-6.23 6.23"/><path d="m8.29 12.71-2.6 2.6a2.5 2.5 0 1 0-.97 4 2.5 2.5 0 1 0 4-.97l2.6-2.6"/></svg>`,
   thumbtack:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 7 3.2 3.2V15H6.8v-1.8L10 10z"/><path d="M12 15v6.5"/></svg>`,
   android:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16a7.5 7.5 0 0 1 15 0z"/><path d="M6.9 10.6 5 8M17.1 10.6 19 8"/><circle cx="9.4" cy="12.7" r=".9" fill="currentColor" stroke="none"/><circle cx="14.6" cy="12.7" r=".9" fill="currentColor" stroke="none"/></svg>`,
   clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
@@ -6480,7 +6481,6 @@ function renderMealTab(){
     <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:12px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
     <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6; text-align:center;">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라옵니다.<br>그 전에는 지난주 식단이 보이거나 비어 있을 수 있어요.</p>
     <div class="card gusia-card">
-      <div class="gusia-head"><span>교내 매장 운영시간</span></div>
       <div class="shop-sec">
         <div class="shop-name"><span class="shop-ico">${ICON.utensils}</span><b>구시아푸드</b><em>학생회관 1층</em></div>
         <div class="gusia-row"><span class="gusia-day">평일</span><span class="gusia-time">10:00 ~ 19:30</span><span class="gusia-last">라스트오더 19:00</span></div>
@@ -6491,10 +6491,10 @@ function renderMealTab(){
         <div class="gusia-row"><span class="gusia-day">월 ~ 금</span><span class="gusia-time">08:00 ~ 19:00</span><span class="gusia-last">주말 미운영</span></div>
       </div>
       <div class="shop-sec">
-        <div class="shop-name"><span class="shop-ico">${ICON.drumstick}</span><b>bb.q</b><em>호익플라자 2층</em></div>
+        <div class="shop-name"><span class="shop-ico">${ICON.drumstick}</span><b>bbq</b><em>호익플라자 2층</em></div>
         <div class="gusia-row"><span class="gusia-day">월~금 · 일</span><span class="gusia-time">10:00 ~ 22:00</span><span class="gusia-last">토요일 미운영</span></div>
       </div>
-      <p class="shop-foot">※ 교직원식당 · 학생식당 · 휴김밥은 주말과 공휴일에, bb.q는 공휴일에 운영하지 않아요. bb.q는 단체 · 예약 주문이면 토요일도 가능해요.</p>
+      <p class="shop-foot">※ 교직원식당 · 학생식당 · 휴김밥은 주말과 공휴일에, bbq는 공휴일에 운영하지 않아요. bbq는 단체 · 예약 주문이면 토요일도 가능해요.</p>
     </div>`;
 }
 
