@@ -572,6 +572,8 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .meal-body .chip-row{margin:0 0 6px;}
 .fetch-status{font-size:11.5px; color:var(--text-faint); margin-top:10px; line-height:1.6;}
 .fetch-status:empty{display:none;}
+.week-note-wrap{container-type:inline-size; margin:10px 2px 0;}
+.week-note{margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.6; color:var(--text-faint); font-size:min(10.5px, 4cqw);}
 .shop-card{margin-top:14px; padding:4px 16px 10px;}
 .shop-block{display:grid; grid-template-columns:18px 60px 44px minmax(0,1fr) auto; column-gap:6px; align-items:center; padding:9px 0;}
 .shop-block + .shop-block{border-top:1px solid var(--border);}
@@ -6477,7 +6479,7 @@ function renderMealTab(){
     </div>` : ''}
     <div id="fetch-meal-status" class="fetch-status"></div>
     <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:12px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
-    <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6;">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라옵니다.<br>그 전에는 지난주 식단이 보이거나 비어 있을 수 있어요.</p>
+    <div class="week-note-wrap"><p class="week-note">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라와요</p></div>
     <div class="card shop-card">
       <div class="shop-block" style="--n:2;">
         <span class="shop-ico is-fork" style="grid-row:1 / span 2;">${ICON.utensils}</span>
