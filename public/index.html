@@ -321,9 +321,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
    맞춤 — main의 전역 여백은 다른 탭에도 쓰이니 건드리지 않고, 이 줄만 4px 끌어올려서
    위쪽 실제 여백도 12px로 맞춘다. */
 .tt-switcher{display:flex; align-items:center; gap:8px; margin-top:-4px; margin-bottom:12px;}
-.tt-switcher-label{display:flex; align-items:baseline; gap:8px; flex:1; min-width:0; background:none; border:none; padding:2px 0; text-align:left; cursor:pointer;}
-.tt-switcher-sem{font-size:11.5px; color:var(--text-faint); font-weight:600; flex-shrink:0;}
-.tt-switcher-name{font-size:15.5px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.tt-switcher-label{display:flex; align-items:center; gap:8px; flex:1; min-width:0; background:none; border:none; padding:2px 0; text-align:left; cursor:pointer;}
+.tt-switcher-sem{font-size:11.5px; color:var(--text-faint); font-weight:600; flex-shrink:0; display:inline-flex; align-items:center; gap:3px; line-height:1;}
+.tt-switcher-sem svg, .tt-switcher-name svg{display:block; flex:0 0 auto;}
+.tt-switcher-name{font-size:15.5px; font-weight:800; color:var(--text); line-height:1.1; display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .tt-switcher-empty{background:none; border:none; padding:2px 0; font-size:13.5px; font-weight:700; color:var(--text-dim); display:flex; align-items:center; gap:5px; cursor:pointer;}
 .tt-switcher-icon-btn{flex-shrink:0; width:35px; height:35px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 /* 아이콘 SVG마다 width/height 속성이 제각각이라(plus 24, gear 15, more 18) 나란히 놓으면
@@ -551,6 +552,33 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 @media (max-width:480px){ .tt-fab-option{right:23px;} }
 .tt-fab-option-label{border:1px solid var(--border-light); background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px;  white-space:nowrap;}
 .meal-side{font-size:.86em; color:var(--text-dim);}
+/* 예쁜 체크박스: 눌리면 크림슨으로 차고 체크 표시가 통통 튀며 나온다 */
+.ck{position:relative; display:inline-flex; width:24px; height:24px; flex-shrink:0; cursor:pointer;}
+.ck input{position:absolute; inset:0; width:100%; height:100%; opacity:0; margin:0; cursor:pointer;}
+.ck-box{width:24px; height:24px; border-radius:8px; border:1.5px solid var(--border-light); background:var(--surface-3); display:flex; align-items:center; justify-content:center; transition:background .18s, border-color .18s, transform .12s;}
+.ck-box::after{content:''; width:6px; height:11px; border:solid #fff; border-width:0 2.5px 2.5px 0; transform:rotate(45deg) scale(0); margin-top:-2px; transition:transform .2s cubic-bezier(.34,1.56,.64,1);}
+.ck input:checked + .ck-box{background:var(--crimson); border-color:var(--crimson);}
+.ck input:checked + .ck-box::after{transform:rotate(45deg) scale(1);}
+.ck input:active + .ck-box{transform:scale(.9);}
+/* 시간표 사진 인식 안내 */
+.ocr-steps{display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:14px; background:var(--surface-2); border:1px solid var(--border); margin-bottom:10px;}
+.ocr-step{display:flex; align-items:center; gap:10px; font-size:11.5px; color:var(--text-dim); line-height:1.4;}
+.ocr-step i{font-style:normal; width:22px; height:22px; border-radius:50%; background:rgba(224,172,85,.16); color:var(--teal); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.ocr-step b{color:var(--text);}
+.ocr-note{font-size:10.5px; color:var(--text-dim); line-height:1.6; padding:10px 12px; border-radius:12px; border:1px solid rgba(var(--amber-rgb),0.25); background:rgba(var(--amber-rgb),0.07); margin-bottom:12px;}
+.ocr-drop{border:1.5px dashed var(--border-light); border-radius:16px; padding:22px 12px; text-align:center; background:var(--surface-2); margin-bottom:12px; cursor:pointer; transition:background .15s, border-color .15s;}
+.ocr-drop:active{background:var(--surface-3); border-color:var(--teal);}
+.ocr-drop-ic{width:44px; height:44px; border-radius:14px; background:rgba(224,172,85,.16); color:var(--teal); display:flex; align-items:center; justify-content:center; margin:0 auto 8px;}
+.ocr-drop-ic svg{width:22px; height:22px;}
+.ocr-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); cursor:pointer;}
+.ocr-row:last-child{border-bottom:none;}
+/* MY 추가기능: 제보 · 제안하기 카드 */
+.mys-ic{width:34px; height:34px; border-radius:11px; background:rgba(var(--amber-rgb),.16); color:var(--amber); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.mys-ic svg{width:18px; height:18px;}
+.mys-report{display:flex; align-items:center; gap:12px;}
+.mys-txt{flex:1; min-width:0;}
+.mys-txt b{display:block; font-size:13px;}
+.mys-txt small{display:block; font-size:10.5px; color:var(--text-faint); margin-top:2px;}
 .tt-fab-option-circle svg{width:18px; height:18px; display:block;}
 .tt-fab-option-circle{box-sizing:border-box; border:1px solid var(--border-light); flex-shrink:0; width:42px; height:42px; border-radius:50%; background:var(--surface-2); color:var(--text); display:flex; align-items:center; justify-content:center; }
 .tt-fab-option:active .tt-fab-option-circle{transform:scale(0.94);}
@@ -1120,13 +1148,23 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.1';
+const APP_VERSION = 'Beta 0.5.2';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 174;
 const PATCH_NOTES = [
+  { version:'Beta 0.5.2', date:'2026-09-30', items:[
+    { title:'앱 전체 화면과 움직임을 대대적으로 다듬었어요', text:'창이 아래에서 부드럽게 올라오고, 펼치고 접히는 모든 곳(알림 받기, 색상판, 달력, 선택지 추가 등)이 같은 결의 애니메이션으로 통일됐어요. 창 안에서 다른 창으로 넘어갈 때 깜빡이던 것도 없앴어요.' },
+    { title:'시간표 화면 개편', text:'오른쪽 아래 + 버튼에서 사진 인식 → 직접 추가 → 더보기 순으로 고를 수 있고, 더보기에서 시간표 이름 변경·삭제(이름 줄 오른쪽 아이콘), 사진 등록, 직접 추가, 캡처 모드, 시간표 목록을 한 화면에서 쓸 수 있어요. 시간표 목록은 학기 칩으로 학기를 고르고 시간표를 제목 목록으로 보여 주며, 기본 3개만 보이고 "더보기"로 펼쳐요. 새 시간표는 목록 아래에서 바로 이름을 입력해 만들어요.' },
+    { title:'시간표 사진 인식이 더 쉬워졌어요', text:'에브리타임에서 시간표를 캡처해 오면 돼요. 안내 화면과 인식된 수업 목록(체크 칸)을 새로 꾸몄고, 정각 단위로 보정할 때 끝나는 시간은 50분으로 맞춰요(예: 10:00 → 9:50).' },
+    { title:'시간 고르기가 편해졌어요', text:'시·분의 ▲▼를 꾹 누르고 있으면 계속 올라가거나 내려가고, 약 3초에 걸쳐 점점 빨라져요. 오전/오후·시·분은 칸 가운데로 정렬했고 누른 뒤 화살표 색이 남아 있던 문제도 고쳤어요.' },
+    { title:'화면 표시 설정 · 일정 · 투표 정리', text:'배경·줄 색상을 한 줄에 나란히 두고 색 칸은 글씨 크기와 상관없이 항상 같은 동그라미로 유지돼요. 현재 시간 표시선 스위치를 켜면 선 색상 줄이 위에서 아래로 펼쳐져요. 일정의 기본 색은 빨·주·노·초·파·보·검 7가지, 투표 만들기는 마감 일시·복수 선택·알림 발송을 정리하고 선택지가 "뿅" 하고 나타나요. 구인글 노출 시간은 슬라이드로 고르고 건의 답변의 "비공개 답변"도 스위치로 바뀌었어요.' },
+    { title:'식단표의 소스 표시', text:'"생선까스*타르타르S"처럼 * 뒤에 붙던 소스·드레싱을 "생선까스 (타르타르S)"로 작은 글씨 괄호로 보여 줘요. 식단 알림과 위젯에도 같은 모양으로 나와요.' },
+    { title:'제보 · 제안하기', text:'MY 탭 추가기능에서 버그 제보뿐 아니라 "이런 기능이 있으면 좋겠어요" 하는 기능 제안도 보낼 수 있어요.' },
+    { title:'친구 · 콕 찌르기', text:'친구와 이번 주에 콕 찌른 횟수가 손가락 옆에 작게 표시돼요(주가 바뀌면 다시 시작). 알림 설정에서 친구 요청 알림을 따로 켜고 끌 수 있고, 새로고침 버튼은 5초에 한 번 눌러져요.' },
+  ]},
   { version:'Beta 0.5.1', date:'2026-09-30', items:[
     { title:'친구에게 콕 찌르기', text:'소셜의 친구 이름 옆에서 검지손가락을 눌러 콕 찌를 수 있어요. 한 번 찌르면 주먹으로 바뀌고 상대가 찌를 때까지는 다시 못 찌르며, 상대가 나를 찌르면 다시 검지손가락이 돼요. 친구 목록을 열거나 새로고침할 때 반영되고 알림은 가지 않아요' },
     { title:'친구 1:1 채팅을 없앴어요', text:'서버 사용량을 줄이기 위해 채팅과 채팅 알림 설정을 없앴어요. 친구 화면의 시간표는 스크롤 없이 화면에 딱 맞게 보이고, 시간표 공개 스위치는 이름 줄과 친구 목록(전체 공개)으로 옮겼어요.' },
@@ -2180,6 +2218,12 @@ function parseBuildingAndDetail(fullRoom){
   return { building:'__custom__', detail:fullRoom, isCustom:true };
 }
 
+// 수업 종료 시각은 정각 단위로 맞춘 뒤 50분으로 보정한다(예: 10:00 → 9:50). 시작 시각과 겹치지 않을 때만.
+function snapClassEnd(start, rawEnd){
+  let e = snapToSchoolPeriod(rawEnd);
+  if(e % 60 === 0 && e - 10 > start) e -= 10;
+  return e;
+}
 function snapToSchoolPeriod(mins){
   const rem = mins % 60;
   if(rem >= 45) return mins + (60 - rem);
@@ -6421,25 +6465,26 @@ function ocrModal(){
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">시간표 사진 인식<button data-action="close-modal">${ICON.close}</button></div>
-    <div style="background:rgba(var(--amber-rgb),0.08); border:1px solid rgba(var(--amber-rgb),0.25); border-radius:var(--radius-sm); padding:11px; margin-bottom:12px; font-size:11px; color:var(--text-dim); line-height:1.55;">
-      <b style="color:var(--amber);">시간표 인식 안내</b><br>
-      인식 정확도가 높지 않고 대략적인 틀만 파싱되므로, 세부 강의실 및 시간대는 직접 확인 후 추가·수정해주세요.<br>
-      <b style="color:var(--danger);">등록 시 기존 시간표는 인식 결과로 교체됩니다.</b>
+    <div class="ocr-steps">
+      <div class="ocr-step"><i>1</i><span><b>에브리타임</b>에서 내 시간표 화면을 <b>캡처</b>해 주세요</span></div>
+      <div class="ocr-step"><i>2</i><span>시간표 <b>전체가 한 장에 보이게</b> 찍으면 더 정확해요</span></div>
+      <div class="ocr-step"><i>3</i><span>아래에서 그 사진을 고르면 <b>자동으로 인식</b>돼요</span></div>
     </div>
-    <div style="border:2px dashed var(--border-light); border-radius:var(--radius); padding:20px 12px; text-align:center; background:var(--surface-2); margin-bottom:12px; cursor:pointer;" id="ocr-dropzone">
-      <div style="color:var(--teal); margin-bottom:6px;">${ICON.camera}</div>
-      <b style="font-size:11.5px; display:block; margin-bottom:3px;">시간표 이미지 파일 선택</b>
-      <span style="font-size:10.5px; color:var(--text-faint);">갤러리 또는 파일에서 시간표 이미지를 선택하세요</span>
+    <div class="ocr-note">인식은 대략적인 틀만 읽어서 강의실·시간은 확인 후 고쳐 주세요. 시간은 정각 단위로 맞추고 <b style="color:var(--text);">끝나는 시간은 50분으로 보정</b>돼요(예: 10:00 → 9:50). <b style="color:var(--danger);">등록하면 기존 시간표는 인식 결과로 교체돼요.</b></div>
+    <div class="ocr-drop" id="ocr-dropzone">
+      <div class="ocr-drop-ic">${ICON.camera}</div>
+      <b style="font-size:12px; display:block; margin-bottom:3px;">에브리타임 캡처 사진 고르기</b>
+      <span style="font-size:10.5px; color:var(--text-faint);">갤러리에서 시간표 캡처를 선택하세요</span>
       <input type="file" id="ocr-file-input" accept="image/*" style="display:none;">
     </div>
     <div id="ocr-preview-wrap" style="display:none; margin-bottom:12px; text-align:center;">
-      <img id="ocr-img-preview" style="max-width:100%; max-height:180px; border-radius:8px; border:1px solid var(--border); display:block; margin:0 auto 8px;">
+      <img id="ocr-img-preview" style="max-width:100%; max-height:180px; border-radius:12px; border:1px solid var(--border); display:block; margin:0 auto 8px;">
       <button type="button" class="btn btn-ghost btn-sm" id="ocr-reselect-btn" style="width:auto; margin:0 auto;">다른 사진 선택</button>
     </div>
     <div id="ocr-status-box" style="font-size:11.5px; color:var(--text-dim); margin-bottom:12px; display:none; line-height:1.5;"></div>
     <div id="ocr-results-wrap" style="display:none;">
       <div class="section-title" style="margin:8px 0 6px;">인식된 수업 (<span id="ocr-count">0</span>개)</div>
-      <div id="ocr-items-list" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; background:var(--surface-2); margin-bottom:12px;"></div>
+      <div id="ocr-items-list" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:14px; padding:2px 12px; background:var(--surface-2); margin-bottom:12px;"></div>
       <div class="modal-actions"><button type="button" class="btn btn-primary" id="btn-save-ocr-classes">선택한 수업 등록하기</button></div>
     </div>`;
 }
@@ -6483,7 +6528,7 @@ async function parseCalendarWithGeminiVision(file){
 예시: [{"title":"제1학기 개강","startDate":"2026-03-03","endDate":"2026-03-03","category":"event"}]
 설명 없이 JSON 배열만 반환하세요.`;
 
-  const models=['gemini-3.6-flash','gemini-flash-latest','gemini-3.5-flash'];
+  const models = await getGeminiFlashModels();
   let lastErr=null;
   // 시간표 인식과 동일하게, 빠른 설정으로 먼저 시도하고 아무것도 못 읽었을 때만 다시 시도한다.
   const attempts = [{ thinkingLevel:'low' }, null];
@@ -6558,8 +6603,8 @@ function setupCalendarOcrModalListeners(){
       state.ocrParsedCalendar=items;
       statusBox.style.display='none';
       itemsList.innerHTML=items.map((it,i)=>`
-        <label style="display:flex; align-items:flex-start; gap:8px; padding:7px 0; border-bottom:1px solid var(--border); font-size:11.5px; cursor:pointer;">
-          <input type="checkbox" class="cal-ocr-check-item" data-idx="${i}" checked style="margin-top:2px;">
+        <label style="display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:11.5px; cursor:pointer;">
+          <span class="ck"><input type="checkbox" class="cal-ocr-check-item" data-idx="${i}" checked><span class="ck-box"></span></span>
           <span><span class="tag ${catTag(it.category)}" style="margin-right:5px;">${catLabel(it.category)}</span><b>${escapeHtml(it.title)}</b><br><span style="color:var(--text-faint); font-family:var(--font-mono); font-size:10.5px;">${it.startDate}${it.endDate!==it.startDate?' ~ '+it.endDate:''}</span></span>
         </label>`).join('');
       countEl.textContent=items.length;
@@ -9239,7 +9284,7 @@ function renderMypage(){
       <span class="dev-card-visitors">오늘 방문자 <b id="today-visitors">${traffic.todayVisitors}</b>명</span>
     </div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
-      <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 버그 제보하기</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="link-row mys-report" data-action="open-bug-report"><span class="mys-ic">${ICON.bug}</span><span class="mys-txt"><b>제보 · 제안하기</b><small>버그 제보와 기능 제안을 보내 주세요</small></span><span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
       <!-- 웹은 새로고침하면 그 자리에서 이미 최신 코드를 받으므로 "업데이트 확인"이 의미가
@@ -9252,7 +9297,7 @@ function renderMypage(){
       ${isPresident() ? `
       <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회장 전용</p>
-      <div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 버그 제보함</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 제보 · 제안함</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="manage-roster"><span class="link-row-label">${ICON.person} 학생 명단(로스터) 관리</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
@@ -9337,15 +9382,20 @@ function updateCheckModal(loading){
 function bugReportModal(){
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${ICON.bug} 버그 제보하기</span><button data-action="close-modal">${ICON.close}</button></div>
-    <div style="background:rgba(var(--amber-rgb),0.08); border:1px solid rgba(var(--amber-rgb),0.25); border-radius:var(--radius-sm); padding:11px; margin-bottom:12px; font-size:11px; color:var(--text-dim); line-height:1.55;">
+    <div class="modal-title"><span class="modal-title-text">${ICON.bug} 제보 · 제안하기</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div class="seg-group" id="bug-kind-seg" style="margin-bottom:12px;"><span class="seg-thumb" style="--n:2; --i:0;"></span>
+      <button type="button" class="on" data-action="bug-kind" data-kind="bug">버그 제보</button>
+      <button type="button" data-action="bug-kind" data-kind="idea">기능 제안</button>
+    </div>
+    <div id="bug-intro" style="background:rgba(var(--amber-rgb),0.08); border:1px solid rgba(var(--amber-rgb),0.25); border-radius:var(--radius-sm); padding:11px; margin-bottom:12px; font-size:11px; color:var(--text-dim); line-height:1.55;">
       이상하게 동작하는 부분을 발견하면 알려주세요. 어떤 화면에서 무엇을 했더니 어떻게 됐는지 최대한 자세히 적어주시면 좋아요. 스크린샷도 첨부할 수 있어요.
     </div>
     <form id="bug-report-form">
-      <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" required placeholder="예: 학과 공지 좋아요 버튼 눌러도 안 눌림"></div>
-      <div class="field"><label>자세한 내용</label><textarea name="content" style="min-height:110px" required placeholder="어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요"></textarea></div>
+      <input type="hidden" name="kind" value="bug">
+      <div class="field"><label>제목</label><input type="text" name="title" id="bug-title-input" style="font-family:var(--font-display)" required placeholder="예: 학과 공지 좋아요 버튼 눌러도 안 눌림"></div>
+      <div class="field"><label>자세한 내용</label><textarea name="content" id="bug-content-input" style="min-height:110px" required placeholder="어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요"></textarea></div>
       <div class="field">
-        <label>스크린샷 (선택)</label>
+        <label id="bug-img-label">스크린샷 (선택)</label>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-bug-img" style="width:100%;">${ICON.camera} 이미지 선택</button>
         <input type="file" id="bug-file-input" accept="image/*" style="display:none;">
         <div id="bug-img-preview-box" style="margin-top:8px; display:none;">
@@ -9353,7 +9403,7 @@ function bugReportModal(){
           <button type="button" class="btn btn-danger btn-sm" id="btn-del-bug-img" style="width:auto; font-size:10.5px;">사진 제거</button>
         </div>
       </div>
-      <div class="modal-actions"><button type="submit" class="btn btn-primary">제보 보내기</button></div>
+      <div class="modal-actions"><button type="submit" class="btn btn-primary" id="bug-submit-btn">제보 보내기</button></div>
     </form>`;
 }
 
@@ -9388,8 +9438,9 @@ function setupBugReportModalListeners(){
       const content=(fd.get('content')||'').trim();
       if(!title||!content){ toast('제목과 내용을 입력해주세요'); return; }
       const latest=await loadBugReports();
+      const kind = (fd.get('kind') === 'idea') ? 'idea' : 'bug';
       const report={
-        id:uid(), title, content, imageUrl:imageData,
+        id:uid(), kind, title, content, imageUrl:imageData,
         studentId:state.user.studentId, name:state.user.name,
         appVersion:APP_VERSION, page:state.view,
         createdAt:now(), status:'접수'
@@ -9398,8 +9449,8 @@ function setupBugReportModalListeners(){
       const ok=await saveBugReports(next);
       state.bugReports=next;
       closeModal();
-      if(ok) enqueuePush({ audience:'bugAlert', title:'새 버그 제보가 있어요', body:`제목: ${title}` });
-      saveResultToast(ok, '제보가 접수되었습니다. 확인해볼게요!');
+      if(ok) enqueuePush({ audience:'bugAlert', title: kind === 'idea' ? '새 기능 제안이 있어요' : '새 버그 제보가 있어요', body:`제목: ${title}` });
+      saveResultToast(ok, kind === 'idea' ? '제안이 접수되었습니다. 소중한 의견 고마워요!' : '제보가 접수되었습니다. 확인해볼게요!');
     };
   }
 }
@@ -9717,7 +9768,7 @@ function friendListBody(){
           <div class="list-item" style="cursor:pointer; ${sp}" data-action="open-friend-detail" data-uid="${escapeHtml(f.uid)}" data-name="${escapeHtml(f.name)}" data-pair="${escapeHtml(f.pairId)}">
             <div class="row-between">
               <div><b style="font-size:13.5px;">${escapeHtml(f.name)}</b>${f.nickname ? `<div class="meta">${escapeHtml(f.nickname)}</div>` : ''}</div>
-              <span style="display:flex; align-items:center; gap:4px;">
+              <span style="display:flex; align-items:center; gap:12px;">
                 ${pokeButtonHtml(f)}
                 <span style="color:var(--text-dim); display:flex;">${ICON.chevR}</span>
               </span>
@@ -10208,12 +10259,12 @@ function bugReportInboxModal(){
   const list=live(state.bugReports).sort((a,b)=>b.createdAt-a.createdAt);
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title"><span class="modal-title-text">${ICON.inbox} 버그 제보함</span><button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.inbox} 제보 · 제안함</span><button data-action="close-modal">${ICON.close}</button></div>
     <div style="max-height:64vh; overflow-y:auto;">
       ${list.length ? list.map(r=>`
         <div class="card" style="margin-bottom:10px;">
           <div class="row-between" style="margin-bottom:4px;">
-            <b style="font-size:12px;">${escapeHtml(r.title)}</b>
+            <b style="font-size:12px;">${r.kind==='idea' ? '<span class="tag tag-teal" style="margin-right:6px;">제안</span>' : '<span class="tag tag-red" style="margin-right:6px;">버그</span>'}${escapeHtml(r.title)}</b>
             <span class="tag ${r.status==='해결'?'tag-blue':'tag-amber'}">${escapeHtml(r.status||'접수')}</span>
           </div>
           <div class="meta" style="margin-bottom:6px;">${escapeHtml(r.name||'')} (${escapeHtml(r.studentId||'')}) · ${fmtDateTime(r.createdAt)} · ${escapeHtml(r.appVersion||'')}</div>
@@ -11103,16 +11154,16 @@ function setupOcrModalListeners(){
   const renderItems=(list)=>{
     if(!itemsList) return;
     itemsList.innerHTML=list.map((c,i)=>`
-      <div style="padding:8px 0; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:6px;">
-        <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+      <label class="ocr-row">
+        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
           <span class="tag tag-teal" style="font-size:10.5px;">${DAYS[c.day]}</span>
           <div style="min-width:0;">
             <b style="font-size:11.5px; display:block; color:var(--text);">${escapeHtml(c.subject)}</b>
             <span style="font-size:10.5px; color:var(--text-dim); font-family:var(--font-mono);">${minutesToLabel(c.start)}–${minutesToLabel(c.end)} · ${escapeHtml(c.room||'-')}</span>
           </div>
         </div>
-        <input type="checkbox" class="ocr-check-item" data-idx="${i}" checked style="width:16px; height:16px; flex-shrink:0;">
-      </div>`).join('');
+        <span class="ck"><input type="checkbox" class="ocr-check-item" data-idx="${i}" checked><span class="ck-box"></span></span>
+      </label>`).join('');
   };
 
   if(dropzone && fileInput){
@@ -11146,7 +11197,7 @@ function setupOcrModalListeners(){
         if(resultsWrap) resultsWrap.style.display='none';
         return;
       }
-      if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${recognized.length}개 수업 인식 및 정각 단위 보정 완료</span>`;
+      if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${recognized.length}개 수업 인식 · 정각 단위 보정 완료 (끝나는 시간은 50분으로 맞췄어요)</span>`;
       if(countEl) countEl.textContent=recognized.length;
       renderItems(recognized);
       if(resultsWrap) resultsWrap.style.display='block';
@@ -11173,6 +11224,35 @@ function setupOcrModalListeners(){
   }
 }
 
+// Gemini Flash 모델은 코드에 이름을 박아 두지 않고, 이 키로 쓸 수 있는 모델 목록에서 가장 새 버전의 Flash를 골라 쓴다(12시간 동안 폰에 저장).
+// 목록을 못 가져오면(오프라인·키 문제) 아래 예비 목록으로 동작한다. 새 버전이 나와도 앱을 고치지 않아도 자동으로 따라간다.
+const GEMINI_FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+async function getGeminiFlashModels(){
+  const cached = localGet('gemini_flash_models', null);
+  if(cached && Array.isArray(cached.list) && cached.list.length && Date.now() - cached.at < 12 * 3600 * 1000) return cached.list;
+  try{
+    const keys = await getGeminiKeys();
+    if(keys.length){
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers:{ 'x-goog-api-key': String(keys[0]).trim() }, signal: AbortSignal.timeout(7000) });
+      if(res.ok){
+        const data = await res.json();
+        const found = (data.models || [])
+          .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+          .map(m => String(m.name || '').replace(/^models\//, ''))
+          .map(n => { const mt = n.match(/^gemini-(\d+(?:\.\d+)?)-flash(-[a-z0-9-]+)?$/); if(!mt) return null; const [ma, mi] = mt[1].split('.').map(Number); return { n, v: ma * 1000 + (mi || 0), suffix: mt[2] || '' }; })
+          .filter(x => x && !/lite|image|tts|live|audio|thinking|embedding/.test(x.suffix))
+          .sort((a, b) => b.v - a.v || ((/preview|exp/.test(a.suffix) ? 1 : 0) - (/preview|exp/.test(b.suffix) ? 1 : 0)) || a.suffix.length - b.suffix.length);
+        const names = [...new Set(found.map(x => x.n))].slice(0, 3);
+        if(names.length){
+          const list = [...names, ...GEMINI_FALLBACK_MODELS.filter(x => !names.includes(x))];
+          localSet('gemini_flash_models', { at: Date.now(), list });
+          return list;
+        }
+      }
+    }
+  }catch(e){ /* 목록 조회에 실패하면 예비 목록을 쓴다 */ }
+  return GEMINI_FALLBACK_MODELS;
+}
 async function parseTimetableWithGeminiVision(file){
   const base64 = await new Promise(res=>{
     const r=new FileReader();
@@ -11181,16 +11261,12 @@ async function parseTimetableWithGeminiVision(file){
   });
   const prompt = `이 한국 대학교 주간 강의 시간표 이미지에서 모든 수업을 찾아 JSON 배열로만 반환하세요.
 요일(0=월,1=화,2=수,3=목,4=금), 시작시각(HH:MM), 종료시각(HH:MM), 과목명, 교수명(있는 경우), 강의실.
-종료 시각 판단은 이 인식에서 가장 자주 틀리는 부분이니 서두르지 말고 격자선·시간축을 충분히 살펴본 뒤 신중하게 결정하세요. 한국 대학교 수업의 종료 시각은 절대다수(체감상 90% 이상)가 정각(00분) 단위로 끝나고 (예: 10:00, 11:00, 13:00), 30분 단위로 끝나는 경우는 그 시간표만의 특수한 설정일 때뿐으로 극히 드뭅니다. 그러니 종료 시각이 격자선과 살짝 겹쳐 보이거나 애매하면, 눈금이 정확히 30분 위치에 걸려 있다는 게 뚜렷이 보이지 않는 한 가장 가까운 정각(00분) 단위로 판단하세요. 시작 시각은 이미지에 보이는 그대로 정확히 기록하세요.
+종료 시각 판단은 이 인식에서 가장 자주 틀리는 부분이니 서두르지 말고 격자선·시간축을 충분히 살펴본 뒤 신중하게 결정하세요. 한국 대학교 수업의 종료 시각은 절대다수(체감상 90% 이상)가 정각(00분) 단위로 끝나고 (예: 10:00, 11:00, 13:00), 30분 단위로 끝나는 경우는 그 시간표만의 특수한 설정일 때뿐으로 극히 드뭅니다. 그러니 종료 시각이 격자선과 살짝 겹쳐 보이거나 애매하면, 눈금이 정확히 30분 위치에 걸려 있다는 게 뚜렷이 보이지 않는 한 가장 가까운 정각(00분) 단위로 판단하세요. 시작 시각은 이미지에 보이는 그대로 정확히 기록하세요. 종료 시각은 격자에서 보이는 정각(00분)으로 기록하세요(앱이 이후 50분으로 보정합니다).
 같은 요일의 두 수업이 시간적으로 겹치는 일은 실제로는 절대 없습니다(시간표 자체가 겹치지 않게 짜여 있음). 인식 결과에서 같은 요일의 두 수업이 겹친다면 그건 시작·종료 시각을 잘못 읽은 것이니, 겹치지 않도록 시각을 다시 확인해서 고치세요.
 JSON으로만 작성하세요.
 예시: [{"day":0,"startTime":"09:00","endTime":"10:00","subject":"반도체의 이해","professor":"김교수","room":"과학기술1관 301호"}]`;
 
-  const models=[
-    'gemini-3.6-flash',
-    'gemini-flash-latest',
-    'gemini-3.5-flash',
-  ];
+  const models = await getGeminiFlashModels();
   let lastErr=null;
   // 'low'는 응답이 빠르지만 격자가 복잡한 시간표에서는 판단이 얕아질 수 있다.
   // 그래서 빠른 설정으로 먼저 시도하고, 인식 결과가 비어 있으면 기본 추론 강도로 한 번 더 시도한다.
@@ -11223,7 +11299,7 @@ JSON으로만 작성하세요.
             return {
               day:Number(it.day),
               start:snapToSchoolPeriod(rawStart),
-              end:snapToSchoolPeriod(rawEnd),
+              end:snapClassEnd(snapToSchoolPeriod(rawStart), rawEnd),
               subject:it.subject,
               professor:it.professor||'',
               room:it.room||''
@@ -12775,6 +12851,18 @@ document.addEventListener('click', async (e)=>{
       if(sheet) sheet.innerHTML = patchNotesModal();
     }
     else if(a === 'open-bug-report'){ openModal(bugReportModal()); setupBugReportModalListeners(); }
+    else if(a === 'bug-kind'){
+      // 버그 제보 ↔ 기능 제안: 창을 다시 열지 않고 안내 문구·입력 안내·버튼 글자만 바꾼다
+      const idea = el.dataset.kind === 'idea';
+      const set = (id, fn)=>{ const n = document.getElementById(id); if(n) fn(n); };
+      const form = document.getElementById('bug-report-form');
+      const kindInput = form && form.querySelector('input[name="kind"]'); if(kindInput) kindInput.value = idea ? 'idea' : 'bug';
+      set('bug-intro', n=>{ n.textContent = idea ? '있으면 좋겠다고 생각한 기능이나 바뀌었으면 하는 점을 자유롭게 적어 주세요. 어떤 상황에서 왜 필요한지 함께 적어 주시면 큰 도움이 돼요.' : '이상하게 동작하는 부분을 발견하면 알려주세요. 어떤 화면에서 무엇을 했더니 어떻게 됐는지 최대한 자세히 적어주시면 좋아요. 스크린샷도 첨부할 수 있어요.'; });
+      set('bug-title-input', n=>{ n.placeholder = idea ? '예: 시간표를 위젯에서 바로 추가하고 싶어요' : '예: 학과 공지 좋아요 버튼 눌러도 안 눌림'; });
+      set('bug-content-input', n=>{ n.placeholder = idea ? '어떤 기능이 있으면 좋을지, 왜 필요한지 적어주세요' : '어떤 화면 → 무엇을 했더니 → 어떻게 됐는지 적어주세요'; });
+      set('bug-img-label', n=>{ n.textContent = idea ? '참고 이미지 (선택)' : '스크린샷 (선택)'; });
+      set('bug-submit-btn', n=>{ n.textContent = idea ? '제안 보내기' : '제보 보내기'; });
+    }
     else if(a === 'open-bug-report-inbox'){ state.bugReports = await loadBugReports(); openModal(bugReportInboxModal()); }
     else if(a === 'open-friends'){ closeModal(); await openSocialTab(); }
     else if(a === 'open-update-check'){
