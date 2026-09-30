@@ -570,12 +570,19 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .meal-body{flex:1; min-width:0;}
 .meal-title{margin:0 0 6px; font-size:11.5px; font-weight:600; line-height:1.2; color:var(--text);}
 .meal-body .chip-row{margin:0 0 6px;}
+.fetch-status{font-size:11.5px; color:var(--text-faint); margin-top:10px; line-height:1.6;}
+.fetch-status:empty{display:none;}
 .gusia-card{margin-top:18px; padding:14px 16px;}
-.gusia-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:12.5px; font-weight:800; color:var(--amber);}
+.gusia-head{display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12.5px; font-weight:800; color:var(--amber);}
 .gusia-head svg{width:16px; height:16px; flex-shrink:0;}
-.gusia-head em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 9px; margin-left:auto;}
-.gusia-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--hairline); font-size:11.5px;}
-.gusia-day{flex:0 0 46px; font-weight:800; color:var(--text);}
+.shop-sec{padding-top:12px;}
+.shop-sec + .shop-sec{margin-top:4px; border-top:1px solid var(--border);}
+.shop-name{display:flex; align-items:center; gap:8px; margin-bottom:2px;}
+.shop-name b{font-size:12.5px; font-weight:800; color:var(--text);}
+.shop-name em{font-style:normal; font-size:10px; font-weight:700; color:var(--text-dim); background:var(--surface-3); border-radius:999px; padding:2px 9px; margin-left:auto;}
+.shop-foot{margin:12px 0 0; padding-top:10px; border-top:1px solid var(--hairline); font-size:10px; line-height:1.6; color:var(--text-faint);}
+.gusia-row{display:flex; align-items:center; gap:10px; padding:7px 0; font-size:11.5px;}
+.gusia-day{flex:0 0 62px; font-weight:800; color:var(--text);}
 .gusia-time{flex:1; font-family:var(--font-mono); font-weight:600; color:var(--text);}
 .gusia-last{font-size:10.5px; color:var(--text-faint); white-space:nowrap;}
 .chip-row{display:grid; grid-template-columns:repeat(var(--cols,2), 1fr); gap:6px; margin:0 0 6px 27px;}
@@ -584,7 +591,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .chip-tgl.on{background:var(--crimson); border-color:var(--crimson); color:#fff;}
 .range-val{display:inline-flex; align-items:center; gap:3px; flex-shrink:0; max-width:50%;}
 .range-val b{font-size:11.5px; font-weight:700; color:var(--text-dim);}
-.range-num{width:3.1em; max-width:3.1em; box-sizing:border-box; text-align:right; font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text); background:var(--surface-3); border:1px solid var(--border); border-radius:8px; padding:5px 5px; -moz-appearance:textfield; appearance:textfield;}
+.range-num{width:2.5em; max-width:2.5em; box-sizing:border-box; text-align:right; font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text); background:var(--surface-3); border:1px solid var(--border); border-radius:8px; padding:5px 4px; -moz-appearance:textfield; appearance:textfield;}
 .range-num::-webkit-inner-spin-button, .range-num::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
 .range-num:focus{outline:none; border-color:var(--crimson);}
 .divider{height:1px; background:var(--border); margin:14px 0;}
@@ -6466,13 +6473,25 @@ function renderMealTab(){
       <button class="btn btn-ghost btn-sm" data-action="edit-meal" data-date="${state.mealDate}" style="flex:1;">식단 직접 수정</button>
       <button class="btn btn-primary btn-sm" data-action="fetch-meal-page" id="fetch-meal-btn" style="flex:1.3;">${ICON.refresh} 식단 새로고침</button>
     </div>` : ''}
-    <div id="fetch-meal-status" style="font-size:11.5px; color:var(--text-faint); margin-top:8px; line-height:1.6;"></div>
+    <div id="fetch-meal-status" class="fetch-status"></div>
     <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:12px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
     <p style="font-size:10.5px; color:var(--text-faint); margin:10px 2px 0; line-height:1.6; text-align:center;">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라옵니다.<br>그 전에는 지난주 식단이 보이거나 비어 있을 수 있어요.</p>
     <div class="card gusia-card">
-      <div class="gusia-head">${ICON.utensils}<span>구시아푸드</span><em>학생회관 1층</em></div>
-      <div class="gusia-row"><span class="gusia-day">평일</span><span class="gusia-time">10:00 ~ 19:30</span><span class="gusia-last">라스트오더 19:00</span></div>
-      <div class="gusia-row"><span class="gusia-day">토 · 일</span><span class="gusia-time">11:00 ~ 15:00</span><span class="gusia-last">라스트오더 14:40</span></div>
+      <div class="gusia-head">${ICON.utensils}<span>교내 매장 운영시간</span></div>
+      <div class="shop-sec">
+        <div class="shop-name"><b>구시아푸드</b><em>학생회관 1층</em></div>
+        <div class="gusia-row"><span class="gusia-day">평일</span><span class="gusia-time">10:00 ~ 19:30</span><span class="gusia-last">라스트오더 19:00</span></div>
+        <div class="gusia-row"><span class="gusia-day">토 · 일</span><span class="gusia-time">11:00 ~ 15:00</span><span class="gusia-last">라스트오더 14:40</span></div>
+      </div>
+      <div class="shop-sec">
+        <div class="shop-name"><b>휴김밥</b><em>호익플라자 1층</em></div>
+        <div class="gusia-row"><span class="gusia-day">월 ~ 금</span><span class="gusia-time">08:00 ~ 19:00</span><span class="gusia-last">주말 미운영</span></div>
+      </div>
+      <div class="shop-sec">
+        <div class="shop-name"><b>bb.q</b><em>호익플라자 2층</em></div>
+        <div class="gusia-row"><span class="gusia-day">월~금 · 일</span><span class="gusia-time">10:00 ~ 22:00</span><span class="gusia-last">토요일 미운영</span></div>
+      </div>
+      <p class="shop-foot">※ 교직원식당 · 학생식당 · 휴김밥은 주말과 공휴일에, bb.q는 공휴일에 운영하지 않아요. bb.q는 단체 · 예약 주문이면 토요일도 가능해요.</p>
     </div>`;
 }
 
