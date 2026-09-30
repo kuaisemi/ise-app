@@ -300,6 +300,10 @@ service cloud.firestore {
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pokes'])
           && request.resource.data.pokes.diff(resource.data.get('pokes', {})).affectedKeys().hasOnly([request.auth.uid])
           && request.resource.data.pokes[request.auth.uid] is number)
+        // 시간표 버전: 내가 시간표를 바꿨다는 표시(ttVer.<내 uid> = 시각 숫자). 친구는 이걸 보고 내 시간표를 다시 읽는다.
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ttVer'])
+          && request.resource.data.ttVer.diff(resource.data.get('ttVer', {})).affectedKeys().hasOnly([request.auth.uid])
+          && request.resource.data.ttVer[request.auth.uid] is number)
         // 새 메시지를 보낼 때 "마지막 메시지 시각·보낸 사람"만 같이 남긴다 — 상대가 채팅을
         // 열어보지 않아도 상단 알림 벨에 "새 채팅 있음"을 띄우기 위한 가벼운 커서.
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessageAt', 'lastMessageBy'])

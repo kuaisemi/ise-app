@@ -2690,7 +2690,7 @@ async function saveTimetable(uidStr, arr){
   catch(e){ payload = { bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts }; }
   scheduleTimetableReminders(arr);
   pushWidgetData();
-  try{ await setDoc(doc(db,'timetables',uidStr), payload); LAST_SAVE_ERROR=''; return true; }
+  try{ await setDoc(doc(db,'timetables',uidStr), payload); LAST_SAVE_ERROR=''; ttVerQueue(); return true; }
   catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; console.error('시간표 저장 실패', e); return false; }
 }
 // 현재 활성 학기/시간표 이름만 바꿔서 저장 (수업 목록은 그대로 유지)
@@ -2705,7 +2705,7 @@ async function renameActiveVariant(uidStr, newName){
   const ts = now();
   localSet('tt_'+uidStr, { bySemester: state.timetablesBySemester, activeSemester: sem });
   localSet('tt_at_'+uidStr, ts);
-  try{ await setDoc(doc(db,'timetables',uidStr), { bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts }); return true; }
+  try{ await setDoc(doc(db,'timetables',uidStr), { bySemester: state.timetablesBySemester, activeSemester: sem, updatedAt: ts }); ttVerQueue(); return true; }
   catch(e){ return false; }
 }
 
@@ -2805,6 +2805,7 @@ function boot(){
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
           recordDailyVisit();
           shareSchedule();
+          ttVerSchedule();
           setupPresenceHeartbeat();
           setupTimetableResizeListener();
           startRoleRealtimeListener();
@@ -9272,6 +9273,8 @@ async function applyFriendLinksSnapshot(snap){
       studentId: (data.studentIds&&data.studentIds[otherUid]) || '',
       shareTimetable: (()=>{ const base = data.shareTimetable || {}; const sp = sharePendingGet(); return (sp && sp.map[d.id] !== undefined) ? { ...base, [state.user.uid]: sp.map[d.id] } : base; })(),
       shareServer: (data.shareTimetable || {})[state.user.uid] !== false,
+      theirShare: (data.shareTimetable || {})[otherUid] !== false,
+      ttVer: Number((data.ttVer || {})[otherUid] || 0),
       clearedAt: data.clearedAt || {},
       nickname: (data.nicknames && data.nicknames[state.user.uid]) || '',
       muted: !!(data.mutedBy && data.mutedBy[state.user.uid]),
@@ -9629,6 +9632,31 @@ async function handleNicknameSubmit(fd){
   }
 }
 
+// 내가 시간표를 저장하면 10분 뒤 친구 연결 문서에 ttVer(변경 시각)를 남긴다. 친구는 실시간으로 이미 받고 있는 그 값이 바뀌었을 때만
+// 내 시간표를 다시 읽고, 그 전에는 폰에 저장해 둔 것을 쓴다(그래서 친구 시간표를 열 때 읽기가 안 나간다).
+let ttVerTimer = null;
+function ttVerQueue(){
+  if(!state.user) return;
+  const p = localGet('tt_ver_pending', null);
+  if(!p || p.uid !== state.user.uid) localSet('tt_ver_pending', { uid: state.user.uid, due: Date.now() + SHARE_DELAY });
+  ttVerSchedule();
+}
+function ttVerSchedule(){
+  clearTimeout(ttVerTimer);
+  const p = localGet('tt_ver_pending', null);
+  if(!p || !state.user || p.uid !== state.user.uid) return;
+  ttVerTimer = setTimeout(ttVerFlush, Math.max(1000, p.due - Date.now()));
+}
+async function ttVerFlush(){
+  const p = localGet('tt_ver_pending', null);
+  if(!p || !state.user || p.uid !== state.user.uid) return;
+  if(Date.now() < p.due){ ttVerSchedule(); return; }
+  const fr = (state.friendsUI.data && state.friendsUI.data.friends) || [];
+  localSet('tt_ver_pending', null);
+  const ts = Date.now();
+  try{ await Promise.all(fr.map(f=>updateDoc(doc(db,'friendLinks',f.pairId), { ['ttVer.'+state.user.uid]: ts }))); }
+  catch(e){ console.warn('[ttVer]', e); localSet('tt_ver_pending', { uid: p.uid, due: Date.now() + 60000 }); ttVerSchedule(); }
+}
 // 시간표 공개 변경은 서버 쓰기를 아끼려고 10분 동안 모았다가 한 번에 저장한다(화면에는 바로 반영, 앱을 꺼도 다음에 켤 때 이어서 저장).
 // 저장할 때 서버에 이미 있는 값과 같은 친구는 쓰지 않는다.
 const SHARE_DELAY = 10 * 60 * 1000;
@@ -9693,13 +9721,30 @@ async function toggleChatMute(on){
 async function loadFriendTimetableCard(uid){
   const card = document.getElementById('friend-tt-card');
   if(!card) return;
+  const fr = (state.friendsUI.data.friends || []).find(x=>x.uid === uid) || {};
+  // 친구가 공개를 꺼 뒀으면(친구 연결 문서에 이미 와 있는 값) 시간표를 읽지 않는다
+  if(fr.theirShare === false){
+    card.innerHTML = `<div class="empty"><p>이 친구가 시간표를 공개하지 않았어요.</p></div>`;
+    return;
+  }
+  const ckey = 'friend_tt_' + uid;
+  let data = null;
+  const cached = localGet(ckey, null);
+  // 폰에 저장해 둔 것은 친구가 시간표를 바꿔서 ttVer가 달라질 때까지 그대로 쓴다(ttVer를 아직 안 남긴 친구는 6시간)
+  if(cached && cached.ver === (fr.ttVer || 0) && ((fr.ttVer || 0) > 0 || Date.now() - cached.at < 6 * 3600 * 1000)) data = cached.data;
   try{
-    const snap = await getDoc(doc(db,'timetables',uid));
-    if(!snap.exists() || !snap.data().bySemester){
+    if(!data){
+      const snap = await getDoc(doc(db,'timetables',uid));
+      data = snap.exists() ? (snap.data() || {}) : {};
+      const slim = { activeSemester: data.activeSemester, bySemester: data.bySemester ? Object.fromEntries(Object.entries(data.bySemester).map(([k,v])=>[k, [ (v && v[0]) ? { slots: v[0].slots || [] } : { slots: [] } ]])) : null };
+      localSet(ckey, { ver: fr.ttVer || 0, at: Date.now(), data: slim });
+      data = slim;
+    }
+    if(!data.bySemester){
       card.innerHTML = `<div class="empty"><p>아직 등록된 시간표가 없어요.</p></div>`;
       return;
     }
-    const d = snap.data();
+    const d = data;
     const semKey = d.activeSemester || Object.keys(d.bySemester)[0];
     const variants = d.bySemester[semKey];
     const slots = (variants && variants[0] && variants[0].slots) || [];
@@ -11595,7 +11640,7 @@ async function resetAllTimetables(){
   let ok = false;
   if(!auth.currentUser){ LAST_SAVE_ERROR='unauthenticated'; }
   else{
-    try{ await setDoc(doc(db,'timetables',uidStr), { bySemester: {}, activeSemester: state.activeSemester, updatedAt: ts }); LAST_SAVE_ERROR=''; ok=true; }
+    try{ await setDoc(doc(db,'timetables',uidStr), { bySemester: {}, activeSemester: state.activeSemester, updatedAt: ts }); LAST_SAVE_ERROR=''; ok=true; ttVerQueue(); }
     catch(e){ LAST_SAVE_ERROR=(e&&e.code)||'unknown'; }
   }
   renderMain();
@@ -12979,7 +13024,7 @@ document.addEventListener('click', async (e)=>{
         const ts=now();
         localSet('tt_'+state.user.uid, { bySemester: state.timetablesBySemester, activeSemester: state.activeSemester });
         localSet('tt_at_'+state.user.uid, ts);
-        try{ await setDoc(doc(db,'timetables',state.user.uid), { bySemester: state.timetablesBySemester, activeSemester: state.activeSemester, updatedAt: ts }); }catch(e){}
+        try{ await setDoc(doc(db,'timetables',state.user.uid), { bySemester: state.timetablesBySemester, activeSemester: state.activeSemester, updatedAt: ts }); ttVerQueue(); }catch(e){}
       }
       openModal(timetableListModal());
       renderMain();
