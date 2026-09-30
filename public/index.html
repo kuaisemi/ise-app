@@ -745,7 +745,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 #settings-page #st-sec-notify .meal-ico svg{width:16px; height:16px;}
 #settings-page #st-sec-notify .chip-row{margin-bottom:5px;}
 #settings-page #st-sec-notify .chip-tgl{padding:4px 4px;}
-.st-cap{margin:14px 4px 7px; font-size:12px; font-weight:800; color:var(--text);}
+.st-cap{margin:14px 4px 7px; font-size:12px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:0; min-height:22px;}
+.st-cap .fs-val{margin-left:auto;}
+.st-cap .btn{margin-left:auto;}
 .st-sec > .st-cap:first-child{margin-top:2px;}
 .st-tight{padding-bottom:8px !important;}
 .st-tight .fs-ticks{margin-bottom:0;}
@@ -2652,7 +2654,7 @@ function accentPickerHtml(){
   const cur = getAccent(), light = getTheme() === 'light', custom = getCustomAccent();
   const dots = ACCENTS.map(a=>`<button type="button" class="acc-dot ${cur === a.key ? 'on' : ''}" data-action="set-accent" data-accent="${a.key}" style="--c:${light ? a.light : a.dark};" aria-label="${a.label}"><i>✓</i></button>`).join('');
   const own = `<button type="button" class="acc-dot own ${cur === 'custom' ? 'on' : ''}" data-action="toggle-inline-color" data-id="accent" style="--c:${cur === 'custom' ? custom : 'transparent'};" aria-label="직접 고르기"><i>${cur === 'custom' ? '✓' : '+'}</i></button>`;
-  return `<p class="set-label" style="margin-top:16px;">포인트 색</p><div class="acc-row">${dots}${own}</div>${inlineColorPanelHtml('accent', custom)}`;
+  return `<div class="acc-row">${dots}${own}</div>${inlineColorPanelHtml('accent', custom)}`;
 }
 
 /* ===== 글씨 크기 =====
@@ -4943,6 +4945,23 @@ function wpIsDarkHex(hex){
   const n = parseInt(f, 16) || 0;
   return (0.299*((n>>16)&255) + 0.587*((n>>8)&255) + 0.114*(n&255)) < 140;
 }
+// 설정을 바꾸는 동안 미리보기도 같이 움직인다: 슬라이더는 끄는 중에도(저장은 손을 뗄 때), 색은 고르는 즉시.
+function refreshWidgetPreview(){
+  const st = document.querySelector('#settings-page .wp-stage'); if(!st) return;
+  const t = document.createElement('template');
+  t.innerHTML = widgetPreviewHtml(state.widgetFontScaleTarget, getWidgetSettings(state.widgetFontScaleTarget));
+  const neu = t.content.firstElementChild; if(neu) st.replaceWith(neu);
+}
+if(!window.__wpLiveBound){
+  window.__wpLiveBound = true;
+  document.addEventListener('input', (e)=>{
+    const t = e.target; if(!t || !t.id) return;
+    const wp = document.querySelector('#settings-page .wp'); if(!wp) return;
+    const v = parseInt(t.value, 10); if(!isFinite(v)) return;
+    if(t.id === 'widget-opacity' || t.id === 'widget-opacity-val') wp.style.background = wpRgba(wp.dataset.base, Math.min(100, Math.max(20, v)) / 100);
+    else if(t.id === 'widget-font-scale' || t.id === 'widget-font-scale-val') wp.style.fontSize = (11 * Math.min(150, Math.max(80, v)) / 100) + 'px';
+  });
+}
 function widgetPreviewHtml(key, w){
   const dark = w.bg === 'custom' ? wpIsDarkHex(w.customBg) : (w.bg === 'dark' || (w.bg === 'system' && getTheme() !== 'light'));
   const base = w.bg === 'custom' ? w.customBg : (dark ? '#1B1B21' : '#FFFFFF');
@@ -4973,7 +4992,7 @@ function widgetPreviewHtml(key, w){
   } else if(key === 'date'){
     body = `<div class="wp-date"><b style="color:${acc};">15</b><span>수요일</span></div>` + (w.dateShowEvents ? `<div class="wp-sub" style="color:${dim};">중간고사 기간</div>` : '');
   }
-  return `<div class="wp-stage"><div class="wp" style="background:${wpRgba(base, (w.opacity || 92) / 100)}; color:${fg}; font-size:${fs}px; --wp-line:${line};">${body}</div><p class="wp-cap">미리보기 (예시 내용)</p></div>`;
+  return `<div class="wp-stage"><div class="wp" data-base="${base}" style="background:${wpRgba(base, (w.opacity || 92) / 100)}; color:${fg}; font-size:${fs}px; --wp-line:${line};">${body}</div><p class="wp-cap">미리보기 (예시 내용)</p></div>`;
 }
 
 function renderWidgetSettingsTab(){
@@ -9631,6 +9650,7 @@ function settingsDetailHead(tab){
 // 섹션 제목(예전 설정 카드 스타일): 굵은 제목 + 카드
 function settingsOldHead(tab){
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+  if(tab === 'display') return '<p class="st-cap">테마</p>';
   if(tab === 'notify') return '<p class="st-cap">소식</p>';
   if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<div class="st-note">${ICON.info || ''}<span>핸드폰 홈 화면의 빈 곳을 길게 눌러 <b>위젯 → KU ISE</b>에서 추가해요</span></div><p class="st-cap">대표 시간표</p>`;
   return '';
@@ -9645,7 +9665,6 @@ function settingsSectionHtml(tab){
     <div class="card" style="margin-top:10px;">
 
       ${state.settingsTab==='display' ? `
-      <p class="set-label">테마</p>
       <div class="seg-group"><span class="seg-thumb" style="--n:3; --i:${Math.max(0, ['system','light','dark'].indexOf(themeOv))};"></span>
         ${[['system','기기 설정'],['light','라이트'],['dark','다크']].map(([v,label])=>`
           <button type="button" class="${themeOv===v?'on':''}" data-action="set-theme" data-theme-v="${v}">${label}</button>
@@ -9656,17 +9675,13 @@ function settingsSectionHtml(tab){
         일부 브라우저(삼성 인터넷 등)는 기기가 다크모드일 때 색을 강제로 바꿔버려요. 앱으로 설치하면 여기서 고른 색이 그대로 나옵니다.
       </p>` : ''}
 
+      </div><p class="st-cap">포인트 색</p><div class="card">
       ${accentPickerHtml()}
-      </div><div class="card st-tight"><p class="set-label">글씨 크기 <span class="fs-hint">버튼·여백까지 함께 조절돼요</span><span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p>
+      </div><p class="st-cap">글씨 크기 <span class="fs-hint">버튼·여백까지 함께 조절돼요</span><span class="fs-val">${fontPct}%</span>${fontPct !== 100 ? `<button type="button" class="fs-reset" data-action="font-reset">기본으로</button>` : ''}</p><div class="card st-tight">
       <div class="fs-row"><span class="fs-a s">가</span><input type="range" id="font-pct" min="${FONT_PCT_MIN}" max="${FONT_PCT_MAX}" step="10" value="${fontPct}"><span class="fs-a l">가</span></div>
       <div class="fs-ticks"><span>작게</span><span>기본</span><span>크게</span></div>
 
-      </div><div class="card">
-      <div class="row-between" style="margin:0 0 2px; align-items:center;">
-        <p class="set-label" style="margin:0; flex:1; min-width:0;">홈 화면 보기 설정${state.homeReorderMode ? `<span class="fs-hint">손잡이를 잡고 위아래로 끌어요</span>` : ''}</p>
-        <button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button>
-      </div>
-      <div style="height:2px;"></div>
+      </div><p class="st-cap">홈 화면 보기 설정${state.homeReorderMode ? `<span class="fs-hint">손잡이를 잡고 위아래로 끌어요</span>` : ''}<button type="button" class="btn ${state.homeReorderMode?'btn-primary':'btn-ghost'} btn-sm" data-action="toggle-home-reorder" style="width:auto; padding:4px 10px; font-size:11px;">순서 변경</button></p><div class="card">
       <div class="notify-row hp-row ${(!state.homeReorderMode && hp.hideVotedPolls) ? 'is-off' : ''}">
         <span class="notify-label">${ICON.ballot}<span class="notify-label-text"><b>진행 중인 투표</b><small>${state.homeReorderMode ? '항상 맨 위에 고정돼요' : '내가 이미 참여한 투표는 목록에서 숨겨요'}</small></span></span>
         ${state.homeReorderMode ? '' : homePrefToggleHtml('hideVotedPolls', hp.hideVotedPolls)}
@@ -13202,6 +13217,7 @@ INLINE_COLOR_HANDLERS['accent'] = (hex)=>{
 };
 INLINE_COLOR_HANDLERS['widget-accent'] = (hex)=>{
   setWidgetSetting(state.widgetFontScaleTarget, { accent: hex });
+  refreshWidgetPreview();
   document.querySelectorAll('#widget-accent-swatches-wrap .swatch').forEach(s=>{
     const isPicker = s.dataset.action === 'toggle-inline-color';
     s.classList.toggle('selected', isPicker);
@@ -13909,6 +13925,7 @@ document.addEventListener('click', async (e)=>{
         if(isPicker) s.style.background = 'var(--surface-2)';
       });
       el.classList.add('selected'); el.innerHTML = '✓';
+      refreshWidgetPreview();
     }
     else if(a==='open-color-modal'){
       const target = el.dataset.target;
