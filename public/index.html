@@ -9330,7 +9330,7 @@ function friendListBody(){
     <div class="row-between" style="margin-bottom:8px;">
       <div class="section-title" style="margin:0;">내 친구 (${friends.length})</div>
       <div style="display:flex; gap:6px; align-items:center;">
-        ${friends.length ? `<span style="display:inline-flex; align-items:center; gap:5px; margin-right:4px;"><span style="font-size:10.5px; color:var(--text-dim);">시간표 공개</span><button type="button" class="tgl sm ${friends.every(f=>(f.shareTimetable||{})[state.user.uid]!==false)?'on':''}" id="friends-share-all" role="switch" title="모든 친구에게 내 시간표 공개"></button></span>` : ''}
+        ${friends.length ? `<span style="display:inline-flex; align-items:center; gap:5px; margin-right:4px;"><span style="font-size:10.5px; color:var(--text-dim);">모두에게 시간표 공개</span><button type="button" class="tgl sm ${friends.every(f=>(f.shareTimetable||{})[state.user.uid]!==false)?'on':''}" id="friends-share-all" role="switch" title="모든 친구에게 내 시간표 공개"></button></span>` : ''}
         ${friends.length ? `<button type="button" class="btn btn-ghost btn-sm" data-action="toggle-friends-edit-mode" style="width:auto; padding:4px 9px; font-size:10.5px;">${state.friendsUI.editMode ? '완료' : '편집'}</button>` : ''}
         <button type="button" class="btn btn-primary btn-sm" data-action="open-add-friend" style="width:auto; padding:4px 9px; font-size:10.5px;">친구 추가</button>
       </div>
@@ -9418,6 +9418,7 @@ function friendDetailBody(){
     <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
       <button type="button" class="btn-settings-mini" data-action="friends-back" title="목록으로" style="flex-shrink:0;">${ICON.chevL}</button>
       <b style="font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(ui.activeName)} ${nicknameHtml}</b>
+      <span style="font-size:10.5px; color:var(--text-dim); flex-shrink:0; white-space:nowrap;">시간표 공개</span>
       <button type="button" class="tgl sm ${shareOn?'on':''}" id="friend-share-toggle" data-on="${shareOn?'1':'0'}" role="switch" title="이 친구에게 내 시간표 공개" style="flex-shrink:0;"></button>
       <button type="button" class="btn btn-ghost btn-sm" data-action="set-friend-nickname" style="width:auto; padding:3px 8px; font-size:10px; flex-shrink:0;">별명설정</button>
       <button type="button" class="btn btn-ghost btn-sm" data-action="unfriend" style="width:auto; padding:3px 8px; font-size:10px; color:var(--danger); flex-shrink:0;">친구삭제</button>
@@ -9435,14 +9436,14 @@ function setupFriendsModalListeners(){
   const shareAll = document.getElementById('friends-share-all');
   if(shareAll) shareAll.addEventListener('click', async () => {
     const newOn = !shareAll.classList.contains('on');
+    shareAll.classList.toggle('on', newOn);   // 먼저 스위치를 움직여 애니메이션이 보이게 한다(서버 저장 뒤 다시 그려져도 이미 움직인 상태)
     shareAll.disabled = true;
     try{
       const fr = state.friendsUI.data.friends || [];
       await Promise.all(fr.map(f=>updateDoc(doc(db,'friendLinks',f.pairId), { shareTimetable: { ...(f.shareTimetable||{}), [state.user.uid]: newOn } })));
       fr.forEach(f=>{ f.shareTimetable = { ...(f.shareTimetable||{}), [state.user.uid]: newOn }; });
-      shareAll.classList.toggle('on', newOn);
       toast(newOn ? '모든 친구에게 시간표를 공개했어요' : '모든 친구에게 시간표를 숨겼어요');
-    }catch(e){ toast('변경 실패 (' + (e.code||'알 수 없음') + ')'); }
+    }catch(e){ shareAll.classList.toggle('on', !newOn); toast('변경 실패 (' + (e.code||'알 수 없음') + ')'); }
     shareAll.disabled = false;
   });
 
