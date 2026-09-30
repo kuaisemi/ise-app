@@ -8508,24 +8508,30 @@ function pollModal(){
         </div>`).join('')}
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-action="add-poll-option" style="width:100%; margin-bottom:12px;">+ 선택지 추가</button>
-      <div class="poll-opts" style="margin-bottom:14px;">
-        <div class="row-between" style="gap:8px;">
-          <label for="poll-multi-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">복수 선택 허용</label>
-          <label class="switch"><input type="checkbox" name="multi" id="poll-multi-check"><span class="slider"></span></label>
+      <div class="poll-opts" style="display:flex; gap:14px; margin-bottom:14px; position:relative;">
+        <!-- 왼쪽 열: 복수 선택 허용 → 마감 일시 설정 → 알림 발송 -->
+        <div style="flex:1; min-width:0;">
+          <div class="row-between" style="gap:8px;">
+            <label for="poll-multi-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">복수 선택 허용</label>
+            <label class="switch"><input type="checkbox" name="multi" id="poll-multi-check"><span class="slider"></span></label>
+          </div>
+          <div class="row-between" style="gap:8px; margin-top:14px;">
+            <label for="poll-deadline-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">마감 일시 설정</label>
+            <label class="switch"><input type="checkbox" id="poll-deadline-check" data-action="toggle-poll-deadline"><span class="slider"></span></label>
+          </div>
+          <div class="row-between" style="gap:8px; margin-top:14px;">
+            <label for="poll-push-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">알림 발송</label>
+            <label class="switch"><input type="checkbox" name="sendPush" id="poll-push-check"><span class="slider"></span></label>
+          </div>
+          <p style="font-size:10px; color:var(--text-faint); margin:5px 0 0; line-height:1.5;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림이 나갑니다</p>
         </div>
-        <div class="row-between" style="gap:8px; margin-top:14px;">
-          <label for="poll-deadline-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">마감 일시 설정</label>
-          <label class="switch"><input type="checkbox" id="poll-deadline-check" data-action="toggle-poll-deadline"><span class="slider"></span></label>
+        <!-- 오른쪽 열: 마감 날짜·시간(마감 일시 설정을 켜야 활성화). 달력은 이 칸 안이 아니라 전체 폭으로 떠올라서 좌우로 늘어나지 않는다 -->
+        <div class="date-field-pop" style="flex:1; min-width:0; border-left:1px solid var(--border); padding-left:14px;">
+          <div id="poll-deadline-inputs" style="display:flex; flex-direction:column; gap:6px; align-items:stretch; margin-top:34px; opacity:.4; pointer-events:none;">
+            ${dateFieldHtml('poll_deadline_date', addDays(todayStr(),1))}
+            ${renderTimePicker('poll_deadline_time', 23*60+59)}
+          </div>
         </div>
-        <div id="poll-deadline-inputs" style="display:flex; flex-direction:column; gap:6px; align-items:stretch; margin-top:8px; opacity:.4; pointer-events:none;">
-          ${dateFieldHtml('poll_deadline_date', addDays(todayStr(),1))}
-          ${renderTimePicker('poll_deadline_time', 23*60+59)}
-        </div>
-        <div class="row-between" style="gap:8px; margin-top:14px;">
-          <label for="poll-push-check" style="margin:0; cursor:pointer; font-size:12px; color:var(--text);">알림 발송</label>
-          <label class="switch"><input type="checkbox" name="sendPush" id="poll-push-check"><span class="slider"></span></label>
-        </div>
-        <p style="font-size:10px; color:var(--text-faint); margin:5px 0 0; line-height:1.5;">투표 시작 · 마감 30분 전 · 매일 저녁 8시 알림이 나갑니다</p>
       </div>
       <div class="modal-actions"><button type="submit" class="btn btn-primary">투표 게시</button></div>
     </form>`;
