@@ -372,6 +372,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .opt-hint{margin:2px 0 0; font-size:10px; line-height:1.5; color:var(--text-faint);}
 .opt-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; font-size:11.5px; color:var(--text);}
 .opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px;}
+/* 스위치로 켜고 끄는 하위 줄: 높이가 0 ↔ 실제 높이로 부드럽게 바뀌고, 살짝 위에서 내려오며 나타난다 */
+.opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s cubic-bezier(.3,.7,.3,1), opacity .24s ease;}
+.opt-collapse.open{grid-template-rows:1fr; opacity:1;}
+.opt-collapse-in{overflow:hidden; min-height:0; transform:translateY(-8px); transition:transform .32s cubic-bezier(.3,.7,.3,1);}
+.opt-collapse.open .opt-collapse-in{transform:none;}
 .opt-sub .swatches{gap:5px;}
 .opt-sub .swatch{width:24px; height:24px; font-size:10px;}
 .mypage-avatar.av-edit{position:relative; cursor:pointer; -webkit-tap-highlight-color:transparent; overflow:visible;}
@@ -6015,14 +6020,14 @@ function ttOptionsModal(){
           <span>${label}</span>
           <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
         </div>${key==='currentTime' ? `
-        <div id="tt-now-color-section" class="opt-sub" style="${o.currentTime ? '' : 'display:none;'}">
+        <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-sub">
           <span class="opt-name">선 색상</span>
           <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
             ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
             ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
           </div>
           ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
-        </div>` : ''}`).join('')}
+        </div></div></div>` : ''}`).join('')}
       </div>
     </div>
     <div class="modal-actions" style="gap:8px;">
@@ -6042,7 +6047,7 @@ function setupTtOptionsModalListeners(){
       btn.classList.toggle('on', next);
       btn.setAttribute('aria-checked', String(next));
       if(btn.dataset.opt==='currentTime' && colorSection){
-        colorSection.style.display = next ? '' : 'none';
+        colorSection.classList.toggle('open', next);   // 위에서 아래로 펼쳐지고 접히는 애니메이션(CSS)
       }
     };
   });
