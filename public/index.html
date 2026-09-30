@@ -9757,7 +9757,8 @@ async function openFriendsPage(){
   wrap.className = 'friends-page';
   wrap.id = 'friends-page';
   wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="close-friends-page" aria-label="닫기">${ICON.chevL}</button><b>친구 시간표</b><span class="fp-head-sp"></span></div><div class="fp-body" id="friends-modal-body">${friendsModalBody()}</div>`;
-  document.body.appendChild(wrap);
+  // 친구 추가 같은 팝업(#modal-root)은 .shell 안에 있어서, 이 창을 body에 직접 붙이면 팝업이 창 뒤로 가려진다 — 같은 층(.shell)에 붙여 팝업(z-index 50)이 위에 뜨게 한다
+  (document.querySelector('.shell') || document.body).appendChild(wrap);
   requestAnimationFrame(()=>wrap.classList.add('open'));
   setupFriendsModalListeners();
   await refreshFriendsData();
