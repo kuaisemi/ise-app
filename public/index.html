@@ -2657,11 +2657,16 @@ function smoothToggleBox(box, show){
       const before = sheet ? sheet.getBoundingClientRect().height : 0;
       box.style.display = '';
       const delta = sheet ? sheet.getBoundingClientRect().height - before : 0;
-      if(sheet && delta > 0) sheet.animate([{ transform:'translateY(' + delta + 'px)' }, { transform:'translateY(0)' }], { duration:340, easing:'cubic-bezier(.22,1,.36,1)' });
-      box.animate([{ opacity:0 }, { opacity:1 }], { duration:300, delay:60, easing:'ease-out', fill:'backwards' });
+      if(sheet && delta > 0) sheet.animate([{ transform:'translateY(' + delta + 'px)' }, { transform:'translateY(0)' }], { duration:500, easing:'cubic-bezier(.22,1,.36,1)' });
+      box.animate([{ opacity:0, transform:'translateY(-12px)' }, { opacity:1, transform:'none' }], { duration:460, delay:70, easing:'cubic-bezier(.22,1,.36,1)', fill:'backwards' });
     } else {
-      const an = box.animate([{ opacity:1 }, { opacity:0 }], { duration:150, easing:'ease-in', fill:'forwards' });
-      an.onfinish = ()=>{ box.style.display = 'none'; try{ an.cancel(); }catch(_){} };
+      // 닫을 때: 먼저 위로 살짝 올라가며 흐려지고, 그다음 높이가 부드럽게 접힌다(아래 내용이 툭 끊기지 않고 위로 스르륵 올라온다)
+      const h0 = box.getBoundingClientRect().height;
+      const fade = box.animate([{ opacity:1, transform:'none' }, { opacity:0, transform:'translateY(-10px)' }], { duration:200, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
+      fade.onfinish = ()=>{
+        const col = box.animate([{ height:h0 + 'px', overflow:'hidden' }, { height:'0px', overflow:'hidden' }], { duration:340, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
+        col.onfinish = ()=>{ box.style.display = 'none'; try{ col.cancel(); fade.cancel(); }catch(_){} };
+      };
     }
   }catch(_){ box.style.display = show ? '' : 'none'; }
 }
@@ -3803,11 +3808,16 @@ if(!window.__revealBound){
       if(cs.display === 'none') return;
       const floating = cs.position === 'fixed' || cs.position === 'absolute';
       const h = parseFloat(cs.height);
-      const easing = 'cubic-bezier(.3,.7,.3,1)';
+      const easing = 'cubic-bezier(.22,1,.36,1)';
+      // 위에서 살짝 내려오며 높이가 부드럽게 늘고, 내용은 조금 늦게 서서히 나타난다(표시 설정의 선 색상 줄과 같은 움직임)
       if(!floating && h > 0 && cs.display !== 'inline'){
-        el.animate([{ height:'0px', opacity:0, overflow:'hidden' }, { height:h + 'px', opacity:1, overflow:'hidden' }], { duration:280, easing });
+        el.animate([
+          { height:'0px', opacity:0, transform:'translateY(-12px)', overflow:'hidden', offset:0 },
+          { opacity:0, overflow:'hidden', offset:.14 },
+          { height:h + 'px', opacity:1, transform:'none', overflow:'hidden', offset:1 }
+        ], { duration:500, easing });
       } else {
-        el.animate([{ opacity:0, transform:'translateY(-6px)' }, { opacity:1, transform:'none' }], { duration:240, easing });
+        el.animate([{ opacity:0, transform:'translateY(-10px)' }, { opacity:1, transform:'none' }], { duration:380, easing });
       }
     }catch(_){}
   };
@@ -3825,9 +3835,13 @@ if(!window.__revealBound){
         el.setAttribute('style', newStyle); settle(); return;
       }
       const frames = floating
-        ? [{ opacity:1, transform:'none' }, { opacity:0, transform:'translateY(-6px)' }]
-        : [{ height:h + 'px', opacity:1, overflow:'hidden' }, { height:'0px', opacity:0, overflow:'hidden' }];
-      const a = el.animate(frames, { duration:220, easing:'cubic-bezier(.3,.7,.3,1)', fill:'forwards' });
+        ? [{ opacity:1, transform:'none' }, { opacity:0, transform:'translateY(-10px)' }]
+        : [
+            { height:h + 'px', opacity:1, transform:'none', overflow:'hidden', offset:0 },
+            { opacity:0, overflow:'hidden', offset:.5 },
+            { height:'0px', opacity:0, transform:'translateY(-12px)', overflow:'hidden', offset:1 }
+          ];
+      const a = el.animate(frames, { duration:380, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
       a.onfinish = ()=>{
         try{ a.cancel(); }catch(_){}
         // 애니메이션 도중 화면 코드가 다시 이 요소의 스타일을 바꿨다면(다시 열기 등) 그쪽을 존중한다
@@ -13059,7 +13073,18 @@ document.addEventListener('click', async (e)=>{
       if(!wrap) return;
       const show = wrap.style.display === 'none';
       wrap.style.display = show ? 'block' : 'none';
-      if(show) setupColorPicker(id, (hex)=>{ const fn = INLINE_COLOR_HANDLERS[id]; if(fn) fn(hex); });
+      if(show){
+        setupColorPicker(id, (hex)=>{ const fn = INLINE_COLOR_HANDLERS[id]; if(fn) fn(hex); });
+        // 색상판이 펼쳐지다가 창이 더 커질 수 없으면(화면 높이의 88%), 늘어나는 동안 창 안을 같이 부드럽게 스크롤해서
+        // 색상판이 끝까지 보이게 한다(예전엔 아래가 잘린 채로 늘어나다 멈춰서 어색했다)
+        requestAnimationFrame(()=>{
+          const sheet = wrap.closest('.modal-sheet');
+          if(!sheet) return;
+          const wr = wrap.getBoundingClientRect(), sr = sheet.getBoundingClientRect();
+          const need = (wr.top + wrap.scrollHeight) - (sr.bottom - 18);
+          if(need > 0) sheet.scrollBy({ top: need, behavior:'smooth' });
+        });
+      }
     }
     else if(a==='pick-widget-font-target'){ state.widgetFontScaleTarget = el.dataset.key; renderMain(); }
     else if(a==='toggle-widget-date-events'){ setWidgetSetting('date', { dateShowEvents: !getWidgetSettings('date').dateShowEvents }); renderMain(); }
