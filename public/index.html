@@ -2701,7 +2701,7 @@ async function saveRoster(m){ return await saveShared('roster',{map:m}); }
 function ownSyncDay(){ return new Date(Date.now() + 6 * 3600 * 1000).toISOString().slice(0, 10); }
 function ownSyncFresh(kind, uidStr){ return localGet('own_sync_' + kind + '_' + uidStr, '') === ownSyncDay(); }
 function ownSyncMark(kind, uidStr){ localSet('own_sync_' + kind + '_' + uidStr, ownSyncDay()); }
-function ownSyncReset(){ try{ if(state.user){ localSet('own_sync_tt_' + state.user.uid, ''); localSet('own_sync_memos_' + state.user.uid, ''); } }catch(e){} }
+function ownSyncReset(){ try{ if(state.user){ localSet('own_sync_tt_' + state.user.uid, ''); localSet('own_sync_memos_' + state.user.uid, ''); localSet('own_sync_remind_' + state.user.uid, ''); } }catch(e){} }
 async function loadTimetable(uidStr){
   const localVal = localGet('tt_'+uidStr, null); // 최신 형식: { bySemester, activeSemester }
   const localAt = localGet('tt_at_'+uidStr, 0);
@@ -3190,7 +3190,6 @@ function setupPresenceHeartbeat(){
     if(document.hidden) return;
     // 접속 기록 쓰기는 하지 않는다(앱을 켤 때와 백그라운드에서 오래 있다 돌아올 때만 쓴다).
     // 직급은 실시간 리스너(startRoleRealtimeListener)가 이미 따라가므로 여기서 다시 읽지 않는다.
-    if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot);
     checkForUpdate();
   }, 10*60*1000);
   checkForUpdate();
@@ -3276,6 +3275,7 @@ const SERVER_NOTIFY_KEYS = ['notice', 'poll', 'mealJinri', 'mealMirae', 'mealBre
 async function setNotifyPref(key, value){
   localSet('notif_'+key, value);
   if(SERVER_NOTIFY_KEYS.includes(key) && state.user){
+    localSet('notif_synced_sig', '');
     try{ await setDoc(doc(db,'users',state.user.uid), { notifyPrefs: { [key]: !!value } }, { merge:true }); }catch(e){}
     if(value) await ensurePushToken();
   }
@@ -3291,7 +3291,10 @@ async function syncNotifyPrefsToServer(np){
   if(!state.user) return;
   const prefs = {};
   SERVER_NOTIFY_KEYS.forEach(k => { prefs[k] = !!np[k]; });
-  try{ await setDoc(doc(db,'users',state.user.uid), { notifyPrefs: prefs }, { merge:true }); }catch(e){}
+  // 마지막으로 서버에 맞춘 값과 같으면 쓰지 않는다(앱을 켤 때마다 쓰기 1번이 나가던 것을 줄인다)
+  const sig = state.user.uid + '|' + JSON.stringify(prefs);
+  if(localGet('notif_synced_sig', '') === sig) return;
+  try{ await setDoc(doc(db,'users',state.user.uid), { notifyPrefs: prefs }, { merge:true }); localSet('notif_synced_sig', sig); }catch(e){}
 }
 // 홈 화면에 뭘 보여줄지는 순전히 이 기기에서만 보이는 표시 설정이라, 알림 설정과 달리
 // 서버(Firestore)에 동기화할 필요가 없어 localStorage에만 저장한다.
@@ -3901,6 +3904,7 @@ async function setupForegroundMessageListener(){
       if(n.title || n.body){
         toast(`${n.title||'알림'}${n.body ? ' — '+n.body : ''}`);
         recordReceivedNotif(n.title||'알림', n.body||'', data.category || '');
+        if(isCouncil()) refreshAdminBadgeCounts().then(refreshBellDot); // 새 제보·신청 알림이 오면 그때 배지를 다시 센다
         fireForegroundAlert(n.title||'알림', n.body||'', data.category, data);
       }
     });
@@ -4460,8 +4464,10 @@ const NOTIF_FEED_WINDOW_MS = 48*60*60*1000;
 // 학생회용 "처리할 게 있어요" 배지. 개인 알림(공지·투표)과 달리 이건 "몇 건 밀려있는지"가
 // 중요해서 읽음 처리 없이, 큐가 비면(전부 처리하면) 저절로 사라진다.
 state.adminBadge = { bugReports:0, chatReports:0, signupInquiries:0 };
+let adminBadgeAt = 0;
 async function refreshAdminBadgeCounts(){
   if(!state.user) return;
+  adminBadgeAt = Date.now();
   try{
     if(isCouncil()){
       const [br, cr] = await Promise.all([
@@ -4541,7 +4547,19 @@ async function loadSentReminders(){
     const snap = await getDocs(query(collection(db,'notifyQueue'), where('uid','==',state.user.uid)));
     const cutoff = now() - NOTIF_FEED_WINDOW_MS;
     return snap.docs.map(d=>({ id:d.id, ...d.data() })).filter(x=>x.sent && (x.sentAt||0) >= cutoff);
-  }catch(e){ return []; }
+  }catch(e){ return null; }
+}
+// 알림 목록(벨)에 채울 "내 예약 알림 중 이미 발송된 것"은 하루 한 번(새벽 3시 이후 첫 실행)과 벨을 열 때(마지막 조회 10분 뒤부터)만 서버에서 읽는다.
+// 알림 자체는 서버(워커)가 푸시로 보내므로 이 조회와 무관하다.
+async function loadSentRemindersCached(force){
+  if(!state.user) return [];
+  const u = state.user.uid;
+  const cached = localGet('sent_reminders_'+u, null);
+  if(!force && cached && ownSyncFresh('remind', u)) return cached;
+  const list = await loadSentReminders();
+  if(list === null) return cached || [];
+  localSet('sent_reminders_'+u, list); localSet('sent_reminders_at_'+u, Date.now()); ownSyncMark('remind', u);
+  return list;
 }
 function notifCategoryAction(category){
   if(category==='notice') return 'go-notice-tab';
@@ -4734,7 +4752,7 @@ async function loadAllData(preloadedUsers){
       (state.user ? loadMemos(state.user.uid) : Promise.resolve({})).catch(()=>({})),
       loadShuttle().catch(()=>({weekday:[],sunday:[],fridayOffNos:[],updatedAt:0})),
       loadHolidays().catch(()=>({byYear:{},updatedAt:0})),
-      loadSentReminders().catch(()=>[]),
+      loadSentRemindersCached().catch(()=>[]),
     ]);
     state.timetablesBySemester = (ttData && ttData.bySemester) || {};
     state.activeSemester = (ttData && ttData.activeSemester) || sortedSemesterKeys()[0] || null;
@@ -12252,6 +12270,12 @@ document.addEventListener('click', async (e)=>{
       openModal(usersListModal());
     }
     else if(a === 'open-notif-feed'){
+      // 벨을 열 때 목록을 새로 채운다(하루 한 번 캐시를 쓰다가, 마지막 조회가 10분 넘었으면 다시 읽음). 학생회는 배지도 다시 센다.
+      try{
+        const at = Number(localGet('sent_reminders_at_' + (state.user ? state.user.uid : ''), 0));
+        if(Date.now() - at > 10 * 60 * 1000) state.sentReminders = await loadSentRemindersCached(true);
+        if(isCouncil() && Date.now() - adminBadgeAt > 2 * 60 * 1000) await refreshAdminBadgeCounts();
+      }catch(e){}
       markNotificationsSeen();
       openModal(notifFeedModal());
       // renderMain()은 #main-content만 다시 그리고 상단바(벨)는 그대로 두므로, 점은 직접 지운다.
