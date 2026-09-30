@@ -2804,6 +2804,7 @@ function boot(){
           trackUserPresence(state.user, true);
           ensureStudentDirectoryEntry(); // 친구 찾기(학번 검색)가 되려면 매번 로그인할 때 여기 올라가 있어야 한다
           recordDailyVisit();
+          shareSchedule();
           setupPresenceHeartbeat();
           setupTimetableResizeListener();
           startRoleRealtimeListener();
@@ -4841,7 +4842,7 @@ const ICON = {
   gimbap:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="7.5" rx="7.5" ry="3.3"/><path d="M4.5 7.5v9.2c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3V7.5"/><path d="M4.5 12.1c0 1.8 3.4 3.3 7.5 3.3s7.5-1.5 7.5-3.3"/><circle cx="10.2" cy="7.1" r=".9" fill="currentColor" stroke="none"/><circle cx="13.8" cy="7.9" r=".9" fill="currentColor" stroke="none"/></svg>`,
   drumstick:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="14.6" cy="9.4" rx="6.8" ry="5.2" transform="rotate(-45 14.6 9.4)"/><path d="M9.8 14.2 6.4 17.6"/><circle cx="6.5" cy="19.1" r="1.5"/><circle cx="4.9" cy="17.5" r="1.5"/></svg>`,
   pokeFinger:`<svg width="14" height="20" viewBox="0 0 24 24" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>`,
-  pokeFist:`<svg width="14" height="20" viewBox="0 0 24 24" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 11V9a1.8 1.8 0 0 1 3.5 0"/><path d="M10 9V7.8a1.8 1.8 0 0 1 3.5 0V9"/><path d="M13.5 9V8.3a1.8 1.8 0 0 1 3.5 0V12"/><path d="M6.5 11.2v3.2a5.6 5.6 0 0 0 5.6 5.6h1.5a4.4 4.4 0 0 0 4.4-4.4V12"/><path d="M17 12.2a1.7 1.7 0 0 1 3.4 0V15a6 6 0 0 1-5 5.9"/></svg>`,
+  pokeFist:`<svg width="17" height="20" viewBox="0 0 24 24" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5a2.5 2.5 0 0 1 2.5-2.5h9a2.5 2.5 0 0 1 2.5 2.5V15a5.5 5.5 0 0 1-5.5 5.5h-3A5.5 5.5 0 0 1 5 15z"/><path d="M8.6 8v5M12 8v5M15.4 8v5"/><path d="M5 13.4h14"/></svg>`,
   thumbtack:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 7 3.2 3.2V15H6.8v-1.8L10 10z"/><path d="M12 15v6.5"/></svg>`,
   android:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16a7.5 7.5 0 0 1 15 0z"/><path d="M6.9 10.6 5 8M17.1 10.6 19 8"/><circle cx="9.4" cy="12.7" r=".9" fill="currentColor" stroke="none"/><circle cx="14.6" cy="12.7" r=".9" fill="currentColor" stroke="none"/></svg>`,
   clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
@@ -9269,7 +9270,8 @@ async function applyFriendLinksSnapshot(snap){
       pairId: d.id, uid: otherUid,
       name: (data.names&&data.names[otherUid]) || '(이름 없음)',
       studentId: (data.studentIds&&data.studentIds[otherUid]) || '',
-      shareTimetable: data.shareTimetable || {},
+      shareTimetable: (()=>{ const base = data.shareTimetable || {}; const sp = sharePendingGet(); return (sp && sp.map[d.id] !== undefined) ? { ...base, [state.user.uid]: sp.map[d.id] } : base; })(),
+      shareServer: (data.shareTimetable || {})[state.user.uid] !== false,
       clearedAt: data.clearedAt || {},
       nickname: (data.nicknames && data.nicknames[state.user.uid]) || '',
       muted: !!(data.mutedBy && data.mutedBy[state.user.uid]),
@@ -9434,17 +9436,15 @@ function setupFriendsModalListeners(){
   if(addInput) addInput.addEventListener('keydown', e => { if(e.key==='Enter') sendFriendRequest(); });
 
   const shareAll = document.getElementById('friends-share-all');
-  if(shareAll) shareAll.addEventListener('click', async () => {
+  if(shareAll && !shareAll.__bound && (shareAll.__bound = true)) shareAll.addEventListener('click', () => {
     const newOn = !shareAll.classList.contains('on');
-    shareAll.classList.toggle('on', newOn);   // 먼저 스위치를 움직여 애니메이션이 보이게 한다(서버 저장 뒤 다시 그려져도 이미 움직인 상태)
-    shareAll.disabled = true;
-    try{
-      const fr = state.friendsUI.data.friends || [];
-      await Promise.all(fr.map(f=>updateDoc(doc(db,'friendLinks',f.pairId), { shareTimetable: { ...(f.shareTimetable||{}), [state.user.uid]: newOn } })));
-      fr.forEach(f=>{ f.shareTimetable = { ...(f.shareTimetable||{}), [state.user.uid]: newOn }; });
-      toast(newOn ? '모든 친구에게 시간표를 공개했어요' : '모든 친구에게 시간표를 숨겼어요');
-    }catch(e){ shareAll.classList.toggle('on', !newOn); toast('변경 실패 (' + (e.code||'알 수 없음') + ')'); }
-    shareAll.disabled = false;
+    shareAll.classList.toggle('on', newOn);   // 바로 움직여서 보여 주고, 서버 저장은 10분 모아서 한 번에 한다
+    (state.friendsUI.data.friends || []).forEach(f=>{
+      if((f.shareTimetable||{})[state.user.uid] !== false === newOn) return;
+      f.shareTimetable = { ...(f.shareTimetable||{}), [state.user.uid]: newOn };
+      shareQueue(f.pairId, newOn);
+    });
+    toast((newOn ? '모든 친구에게 시간표를 공개해요' : '모든 친구에게 시간표를 숨겨요') + '\n10분 뒤 반영돼요');
   });
 
   if(state.friendsUI.screen !== 'detail') return;
@@ -9453,11 +9453,9 @@ function setupFriendsModalListeners(){
   // 버튼 클릭은 되는데(=이벤트는 붙음) 화면 표시가 안 바뀌던 버그: 서버에는 저장됐지만
   // 버튼 자신의 data-on·글자·색을 다시 그려주는 코드가 없어서 눌러도 "켜짐"에 그대로
   // 멈춰 있는 것처럼 보였다 — 성공하면 버튼 자신을 직접 갱신한다.
-  if(shareToggle) shareToggle.addEventListener('click', async () => {
+  if(shareToggle && !shareToggle.__bound && (shareToggle.__bound = true)) shareToggle.addEventListener('click', async () => {
     const newOn = shareToggle.dataset.on !== '1';
-    shareToggle.disabled = true;
-    const ok = await toggleShareTimetable(newOn);
-    shareToggle.disabled = false;
+    const ok = toggleShareTimetable(newOn);
     if(ok){
       shareToggle.dataset.on = newOn ? '1' : '0';
       shareToggle.classList.toggle('on', newOn);
@@ -9631,20 +9629,49 @@ async function handleNicknameSubmit(fd){
   }
 }
 
-async function toggleShareTimetable(on){
-  const rec = state.friendsUI.data.friends.find(f=>f.pairId===state.friendsUI.activePairId);
+// 시간표 공개 변경은 서버 쓰기를 아끼려고 10분 동안 모았다가 한 번에 저장한다(화면에는 바로 반영, 앱을 꺼도 다음에 켤 때 이어서 저장).
+// 저장할 때 서버에 이미 있는 값과 같은 친구는 쓰지 않는다.
+const SHARE_DELAY = 10 * 60 * 1000;
+let sharePendingTimer = null;
+function sharePendingGet(){
+  const p = localGet('share_pending', null);
+  return (p && state.user && p.uid === state.user.uid && p.map) ? p : null;
+}
+function shareQueue(pairId, on){
+  const p = sharePendingGet() || { uid: state.user.uid, due: Date.now() + SHARE_DELAY, map: {} };
+  p.map[pairId] = on;
+  localSet('share_pending', p);
+  shareSchedule();
+}
+function shareSchedule(){
+  clearTimeout(sharePendingTimer);
+  const p = sharePendingGet();
+  if(!p) return;
+  sharePendingTimer = setTimeout(shareFlush, Math.max(1000, p.due - Date.now()));
+}
+async function shareFlush(){
+  const p = sharePendingGet();
+  if(!p || !state.user) return;
+  if(Date.now() < p.due){ shareSchedule(); return; }
+  localSet('share_pending', null);
+  const fr = (state.friendsUI.data && state.friendsUI.data.friends) || [];
+  const todo = Object.entries(p.map).filter(([pid, on])=>{ const f = fr.find(x=>x.pairId === pid); return !f || f.shareServer !== on; });
   try{
-    await updateDoc(doc(db,'friendLinks',state.friendsUI.activePairId), {
-      shareTimetable: { ...(rec?.shareTimetable||{}), [state.user.uid]: on },
-    });
-    state.friendsUI.myShareOn = on;
-    if(rec) rec.shareTimetable = { ...(rec.shareTimetable||{}), [state.user.uid]: on };
-    toast(on ? '이 친구에게 시간표를 공개했어요' : '이 친구에게 시간표를 숨겼어요');
-    return true;
+    await Promise.all(todo.map(([pid, on])=>updateDoc(doc(db,'friendLinks',pid), { ['shareTimetable.'+state.user.uid]: on })));
+    todo.forEach(([pid, on])=>{ const f = fr.find(x=>x.pairId === pid); if(f) f.shareServer = on; });
   }catch(e){
-    toast('변경 실패 (' + (e.code||'알 수 없음') + ')');
-    return false;
+    console.warn('[shareFlush]', e);
+    localSet('share_pending', { uid: p.uid, due: Date.now() + 60000, map: p.map });
+    shareSchedule();
   }
+}
+function toggleShareTimetable(on){
+  const rec = state.friendsUI.data.friends.find(f=>f.pairId===state.friendsUI.activePairId);
+  state.friendsUI.myShareOn = on;
+  if(rec) rec.shareTimetable = { ...(rec.shareTimetable||{}), [state.user.uid]: on };
+  shareQueue(state.friendsUI.activePairId, on);
+  toast((on ? '이 친구에게 시간표를 공개해요' : '이 친구에게 시간표를 숨겨요') + '\n10분 뒤 반영돼요');
+  return true;
 }
 // 이 친구 채팅만 콕 집어 알림을 끈다 (전체 "채팅 알림" 설정은 그대로 두고, 이 대화만 예외).
 async function toggleChatMute(on){
