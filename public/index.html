@@ -9958,11 +9958,8 @@ async function refreshFriendsData(){
 }
 
 // 이름 첫 글자를 색 동그라미에 넣은 아바타(색은 사람마다 고정)
-function fpAvHtml(uid, name){
-  let h = 0; for(const ch of String(uid || name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const col = CLASS_PALETTE[h % CLASS_PALETTE.length];
-  return `<span class="fp-av" style="background:${col};">${escapeHtml(String(name || '?').trim().slice(0, 1) || '?')}</span>`;
-}
+// 친구 목록에는 프로필 사진·이니셜 동그라미를 두지 않는다(이름과 별명만 보여 준다)
+function fpAvHtml(){ return ''; }
 function friendListBody(){
   const { incoming, friends } = state.friendsUI.data;
   const allOn = friends.every(f=>(f.shareTimetable||{})[state.user.uid]!==false);
