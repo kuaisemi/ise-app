@@ -466,7 +466,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 아이콘 색·배경 색은 각각 한 줄에 전부 보인다 */
 #av-color-swatches{grid-template-columns:repeat(10, 1fr) !important; gap:0 2px !important;}
 #av-bg-swatches{grid-template-columns:repeat(11, 1fr) !important; gap:0 2px !important;}
-#av-color-swatches .swatch, #av-bg-swatches .swatch{width:26px; height:26px; font-size:8px;}
+#av-color-swatches .swatch, #av-bg-swatches .swatch{width:26px; height:26px; font-size:8px; box-sizing:border-box;}
 .av-half{min-width:0;}
 .av-half .set-label{margin-bottom:8px;}
 .swatches.av-swatches.av-four{display:grid; grid-template-columns:repeat(4, 1fr); justify-items:center; align-items:center; gap:2px; flex-wrap:nowrap;}
@@ -9937,7 +9937,7 @@ function settingsSectionHtml(tab){
           ${[7,8,9].map(h=>`<button type="button" class="${np.timetable && np.timetableHour===h ? 'on' : ''}" data-action="set-tt-alert" data-val="${h}">${h}시</button>`).join('')}
         </div>
       </div>
-      </div><p class="st-cap">학식<span class="fs-hint">알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식 둘 다 켜야 진리관 중식 알림이 와요)</span></p><div class="card">
+      </div><p class="st-cap">학식<span class="fs-hint">알림이 오려면 지점과 끼니를 둘 다 켜야 해요 (예: 진리관+중식)</span></p><div class="card">
       <div class="meal-wrap">
         <span class="meal-ico">${ICON.utensils}</span>
         <div class="meal-body">
