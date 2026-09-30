@@ -709,6 +709,17 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .acc-dot:active i{transform:scale(.9);}
 .acc-dot.on i{color:#fff; box-shadow:0 0 0 2px var(--surface-2), 0 0 0 4px var(--c);}
 #settings-page .card + .card{margin-top:12px !important;}
+/* 화면 탭(테마·글씨 크기·홈 화면)도 카드 위아래와 줄 간격을 촘촘하게 */
+#settings-page #st-sec-display .card{padding:10px 14px !important;}
+#settings-page #st-sec-display .set-label{margin-bottom:8px;}
+#settings-page #st-sec-display .notify-row.hp-row{padding:3px 2px; min-height:38px;}
+#settings-page #st-sec-display .notify-label{gap:9px;}
+#settings-page #st-sec-display .notify-label > svg{width:13px; height:13px; padding:6px; border-radius:8px;}
+#settings-page #st-sec-display .notify-label-text{gap:1px;}
+#settings-page #st-sec-display .acc-row{margin-top:0;}
+#settings-page #st-sec-display .st-tight{padding-bottom:8px !important;}
+#settings-page #st-sec-display .fs-ticks{margin-top:0;}
+#settings-page #st-sec-display .card p[style*="font-size:10"]{margin:6px 2px 2px !important;}
 .fs-hint{margin-left:8px; font-size:10.5px; font-weight:500; color:var(--text-faint);}
 /* 알림: 카드 위아래와 줄 간격을 촘촘하게 */
 #settings-page #st-sec-notify .card{padding:0 14px;}
