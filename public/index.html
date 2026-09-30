@@ -382,8 +382,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .av-swap{display:contents;}
 .av-less{grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border:1px dashed var(--border); border-radius:12px; background:transparent; color:var(--text-dim); font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;}
 .av-less svg{width:16px; height:16px;}
-.av-slots{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:8px;}
-.av-slot{position:relative; height:64px; border:1px solid var(--border); background:var(--surface-2); border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-faint); font-size:20px; -webkit-tap-highlight-color:transparent;}
+.av-slots{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;}
+.av-slot{position:relative; height:44px; border:1px solid var(--border); background:var(--surface-2); border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-faint); font-size:20px; -webkit-tap-highlight-color:transparent;}
 .av-slot.empty{border-style:dashed;}
 .av-slot.selected{border-color:var(--crimson);}
 .av-slot-del{position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%; border:none; background:var(--surface-3); color:var(--text); font-size:14px; line-height:1; padding:0; cursor:pointer;}
@@ -8347,10 +8347,11 @@ function avSlotsHtml(){
   for(let i = 0; i < 3; i++){
     const sl = slots[i];
     cells += sl
-      ? '<div class="av-slot '+(avSlotSel === i ? 'selected' : '')+'" data-action="av-slot-load" data-i="'+i+'">'+pxSvg(sl, 44)+'<button type="button" class="av-slot-del" data-action="av-slot-del" data-i="'+i+'" title="삭제">×</button></div>'
+      ? '<div class="av-slot '+(avSlotSel === i ? 'selected' : '')+'" data-action="av-slot-load" data-i="'+i+'">'+pxSvg(sl, 32)+'<button type="button" class="av-slot-del" data-action="av-slot-del" data-i="'+i+'" title="삭제">×</button></div>'
       : '<div class="av-slot empty" data-action="av-slot-fill" data-i="'+i+'" title="현재 그림을 여기에 저장">+</div>';
   }
-  return '<div class="row-between" style="margin-top:14px;"><p class="set-label sm" style="margin:0;">내 그림 <span class="opt-hint" style="display:inline; margin-left:4px;">최대 3개</span></p><button type="button" class="btn btn-ghost btn-sm" data-action="av-slot-save" style="width:auto; padding:4px 10px; font-size:10.5px;">현재 그림 저장</button></div><div class="av-slots">'+cells+'</div>';
+  // 왼쪽 반: 내 그림(최대 3개). 오른쪽 반의 배경 색과 한 줄에 나란히 놓인다.
+  return '<div class="av-half"><div class="row-between" style="margin-bottom:8px;"><p class="set-label sm" style="margin:0;" title="최대 3개">내 그림</p><button type="button" class="btn btn-ghost btn-sm" data-action="av-slot-save" style="width:auto; padding:3px 9px; font-size:10px;">저장</button></div><div class="av-slots">'+cells+'</div></div>';
 }
 function avSlotSaveTo(i){
   if(!avPx.some(Boolean)){ toast('먼저 그림을 그려 주세요'); return; }
@@ -8378,7 +8379,7 @@ function renderAvBody(){
       + '<div class="row-between" style="margin-top:12px;"><p class="set-label sm" style="margin:0;">그리는 색</p><button type="button" class="btn btn-ghost btn-sm" id="av-px-size-btn" data-action="av-px-size" style="width:auto; padding:4px 10px; font-size:10.5px;">캔버스 '+AV_PX_SIZES[avPxSizeKey()][0]+'</button></div>'
       + '<div class="swatches av-swatches" id="px-palette">' + PX_PALETTE.map(h=>'<button type="button" class="swatch '+(avPxColor.toLowerCase() === h.toLowerCase() ? 'selected' : '')+'" data-action="av-px-color" data-hex="'+h+'" style="background:'+h+'; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>').join('')
       + inlineColorSwatchHtml('pxcolor', avPxColor, !PX_PALETTE.some(h=>h.toLowerCase() === avPxColor.toLowerCase())) + '</div>'
-      + inlineColorPanelHtml('pxcolor', avPxColor) + avSlotsHtml() + bgRow;
+      + inlineColorPanelHtml('pxcolor', avPxColor) + '<div class="av-duo">' + avSlotsHtml() + bgHalf + '</div>' + avPanelHtml('bg', avDraft.bg);
   }
   body.innerHTML = html;
   const tabs = document.getElementById('av-tabs');
