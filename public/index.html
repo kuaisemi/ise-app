@@ -278,6 +278,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .list-item:first-child{padding-top:2px;}
 .list-item:last-child{border-bottom:none; padding-bottom:2px;}
 .list-item .title-line{display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; min-width:0;}
+.notice-card{margin-bottom:10px;}
+.notice-card > .list-item{padding:0; border-bottom:none;}
 .list-item .title-line.big-title b{font-size:13px; letter-spacing:-0.01em;}
 .list-item .title-line b{font-size:11.5px; font-weight:700; line-height:1.4; word-break:keep-all; overflow-wrap:break-word;}
 .list-item .meta{font-size:11.5px; color:var(--text-faint); font-family:var(--font-mono);}
@@ -307,7 +309,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .subtab{flex:1; min-width:62px; text-align:center; padding:9px 4px; border-radius:9px; font-size:11.5px; font-weight:700; color:var(--text-dim); cursor:pointer; white-space:nowrap;}
 .subtab.active{background:var(--crimson); color:#fff;}
 /* 위쪽 탭(학사정보·학생사회·환경설정 등): 네모 배경은 그대로 두고, 선택 칸(크림슨)이 미끄러지며 옮겨 간다 */
-.subtabs{position:relative;}
+.subtabs{position:relative; touch-action:pan-y;}
 .subtabs.has-thumb .subtab{position:relative; z-index:1; background:transparent !important;}
 .subtabs.has-thumb .subtab.active{color:#fff;}
 .subtab-thumb{position:absolute; top:4px; bottom:4px; left:0; width:0; border-radius:9px; background:var(--crimson); z-index:0; pointer-events:none; transition:transform .26s cubic-bezier(.3,.7,.3,1), width .26s cubic-bezier(.3,.7,.3,1);}
@@ -351,7 +353,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
    채우기"가 안 되기 때문에, 렌더링 직후 실측해서 --tt-row-h와 이 max-height를 함께 정한다.
    세로는 절대 스크롤되지 않게 hidden — 늦은 수업 때문에 칸이 화면 아래로 넘치면 스크롤 대신
    그냥 잘리게 둔다(칸 높이를 억지로 줄여서 다 욱여넣지 않기 위해). */
-.tt-wrap{overflow-x:auto; overflow-y:hidden; max-height:68vh; overscroll-behavior:contain; background:radial-gradient(ellipse at top, var(--grid-a) 0%, var(--grid-b) 100%);}
+.tt-wrap{overflow-x:auto; overflow-y:hidden; max-height:68vh; overscroll-behavior:contain; background:var(--grid-b);}
 .tt-grid{display:grid; grid-template-columns:20px repeat(5, minmax(24px, 1fr)); min-width:320px; position:relative; --tt-row-h:13px;}
 .tt-head{height:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; color:var(--text-dim); border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(var(--grid-b-rgb),0.95); backdrop-filter:blur(8px); z-index:4;}
 .tt-head.today{color:var(--teal); border-bottom:2px solid var(--teal);}
@@ -370,7 +372,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-now-line{position:absolute; left:21px; right:0; height:2px; opacity:.55; z-index:8; box-shadow:0 0 8px currentColor; pointer-events:none;}
 .tt-options-trigger{width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:5px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:11.5px; font-weight:700; cursor:pointer;}
 
-.tt-fab{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:#fff; border:none; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(140,29,43,.5); cursor:pointer; transition:transform .15s;}
+.tt-fab{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:#fff; border:none; display:flex; align-items:center; justify-content:center; box-shadow:none; cursor:pointer; transition:transform .15s;}
 @media (max-width:480px){ .tt-fab{right:18px;} }
 .tt-fab-wrap.open .tt-fab{transform:rotate(45deg);}
 /* + 버튼을 누르면 "직접 추가"로 바로 들어가던 걸, 사진 인식도 같이 고를 수 있게
@@ -3253,6 +3255,36 @@ if(!window.__subtabBound){
   const schedule = ()=>{ if(raf) return; raf = requestAnimationFrame(()=>{ raf = 0; syncAll(); }); };
   new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
   window.addEventListener('resize', schedule);
+  // 잡고 좌우로 끌면 선택 칸이 손가락 아래의 탭으로 따라오고, 놓으면 그 탭으로 이동한다.
+  let sd = null;
+  const tabAt = (bar, x)=>{
+    const tabs = Array.from(bar.querySelectorAll('.subtab'));
+    let best = tabs[0], bd = Infinity;
+    tabs.forEach(t=>{ const r = t.getBoundingClientRect(); const d = x < r.left ? r.left - x : (x > r.right ? x - r.right : 0); if(d < bd){ bd = d; best = t; } });
+    return best;
+  };
+  document.addEventListener('pointerdown', (e)=>{
+    const bar = e.target.closest && e.target.closest('.subtabs.has-thumb'); if(!bar) return;
+    sd = { bar, x:e.clientX, id:e.pointerId, moved:false, tab:null };
+  }, true);
+  document.addEventListener('pointermove', (e)=>{
+    if(!sd || e.pointerId !== sd.id) return;
+    if(!sd.moved && Math.abs(e.clientX - sd.x) > 8) sd.moved = true;
+    if(sd.moved){ const t = tabAt(sd.bar, e.clientX); if(t !== sd.tab){ sd.tab = t; place(sd.bar, t, true); } }
+  }, true);
+  const endDrag = (e)=>{
+    if(!sd || e.pointerId !== sd.id) return;
+    const { bar, moved, tab } = sd; sd = null;
+    if(!moved || !tab) return;
+    window.__suppressClickUntil = Date.now() + 500;
+    if(e.type === 'pointercancel' || tab.classList.contains('active')){
+      const cur = bar.querySelector('.subtab.active'); if(cur) place(bar, cur, true); return;
+    }
+    bar.querySelectorAll('.subtab').forEach(t=>t.classList.toggle('active', t === tab));
+    tab.dataset.slid = '1'; tab.click();
+  };
+  document.addEventListener('pointerup', endDrag, true);
+  document.addEventListener('pointercancel', endDrag, true);
   document.addEventListener('click', (e)=>{
     const tab = e.target.closest && e.target.closest('.subtabs .subtab');
     if(!tab) return;
@@ -4504,6 +4536,8 @@ const ICON = {
   chevDown:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`,
   more:`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`,
   pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-6.1 7-12A7 7 0 0 0 5 9.5c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
+  thumbtack:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 7 3.2 3.2V15H6.8v-1.8L10 10z"/><path d="M12 15v6.5"/></svg>`,
+  android:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16a7.5 7.5 0 0 1 15 0z"/><path d="M6.9 10.6 5 8M17.1 10.6 19 8"/><circle cx="9.4" cy="12.7" r=".9" fill="currentColor" stroke="none"/><circle cx="14.6" cy="12.7" r=".9" fill="currentColor" stroke="none"/></svg>`,
   clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
   lock:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>`,
   trace:`<svg width="150" height="150" viewBox="0 0 150 150" fill="none"><path d="M0 40 H50 V10 H150 M0 90 H30 V130 H90 V150 M60 0 V25 H150 M20 150 V110 H0" stroke="currentColor" stroke-width="1.4"/><circle cx="50" cy="40" r="3" fill="currentColor"/><circle cx="30" cy="90" r="3" fill="currentColor"/><circle cx="90" cy="130" r="3" fill="currentColor"/><circle cx="60" cy="25" r="3" fill="currentColor"/></svg>`,
@@ -5114,7 +5148,7 @@ function renderHome(){
       ${recentNotices.map(n=>`
         <div class="row-between home-notice" data-action="go-notice-tab" style="padding:4px 0; gap:8px; min-width:0;">
           <div style="display:flex; align-items:center; gap:6px; min-width:0; flex:1; flex-wrap:nowrap;">
-            ${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}
+            ${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>`:''}
             <b class="one-line" style="font-size:12.5px; font-weight:700;">${escapeHtml(n.title)}</b>
           </div>
           <span style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateTime(n.createdAt || n.date)}</span>
@@ -6030,7 +6064,7 @@ function renderExamCalTab(){
 
     <div style="display:flex; gap:6px; margin-bottom:12px;">
       <button class="btn btn-teal btn-sm" data-action="add-student-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 일정 추가</button>
-      <button class="btn btn-danger btn-sm" data-action="add-exam-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 시험 추가</button>
+      <button class="btn btn-primary btn-sm" data-action="add-exam-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 시험 추가</button>
       ${council ? `<button class="btn btn-primary btn-sm" data-action="add-council-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 학생회 일정</button>` : ''}
     </div>
 
@@ -7106,12 +7140,12 @@ function renderNoticeTab(){
       ${council ? `<button class="btn btn-primary btn-sm" data-action="add-notice" style="flex:1;">${ICON.plus} 공지 작성</button>` : ''}
       ${canClearAll ? `<button class="btn btn-danger btn-sm" data-action="clear-all-board" data-type="notice" style="width:auto;">전체 삭제</button>` : ''}
     </div>
-    <div class="card">
-      ${sorted.length ? sorted.map(n=>{
+    ${sorted.length ? sorted.map(n=>{
         const editable = council && canModify(n);
         return `
+        <div class="card notice-card">
         <div class="list-item">
-          <div class="title-line big-title">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.pin}</span>`:''}<b>${escapeHtml(n.title)}</b></div>
+          <div class="title-line big-title">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>`:''}<b>${escapeHtml(n.title)}</b></div>
           <div class="meta">${noticeAuthorHtml(n)} · ${fmtDateTime(n.createdAt || n.date)}</div>
           <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
           ${noticeImagesHtml(n)}
@@ -7124,9 +7158,9 @@ function renderNoticeTab(){
             <button class="btn btn-danger btn-sm" data-action="delete-notice" data-id="${n.id}">삭제</button>`
             : `<span style="font-size:10.5px; color:var(--text-faint);">상위 직급 게시글 — 수정·삭제 불가</span>`}
           </div>` : ''}
+        </div>
         </div>`;
-      }).join('') : `<div class="empty"><p>등록된 공지가 없습니다.</p></div>`}
-    </div>`;
+      }).join('') : `<div class="card"><div class="empty"><p>등록된 공지가 없습니다.</p></div></div>`}`;
 }
 
 // 안드로이드 앱이거나 안드로이드 기기의 브라우저·PWA인가(아이폰·PC는 아님).
@@ -7166,7 +7200,7 @@ function noticeModal(n){
       ${isDeveloper() ? `
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
-          <label for="notice-android-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.download} 안드로이드 사용자에게만 보이기</label>
+          <label for="notice-android-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.android} 안드로이드 사용자에게만 보이기</label>
           <label class="switch"><input type="checkbox" name="androidOnly" id="notice-android-check" ${v.androidOnly ? 'checked' : ''}><span class="slider"></span></label>
         </div>
       </div>` : ''}
@@ -7176,7 +7210,6 @@ function noticeModal(n){
           <label for="notice-push-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.bell} 알림 발송</label>
           <label class="switch"><input type="checkbox" name="sendPush" id="notice-push-check"><span class="slider"></span></label>
         </div>
-        <p style="font-size:10.5px; color:var(--text-faint); margin:4px 0 0;">켜면 알림을 켜둔 학생들에게 푸시가 갑니다</p>
       </div>
       ${isDeveloper() ? `
       <div style="margin:8px 0 0;">
