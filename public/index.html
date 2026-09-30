@@ -804,7 +804,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 학식: 제목 중복 제거, 아이콘에 다른 줄과 같은 네모 칩 */
 #settings-page .meal-title{display:none;}
 #settings-page .meal-wrap{padding:2px 2px 4px;}
-#settings-page .meal-ico{width:30px; height:30px; margin-top:0; border-radius:10px; background:var(--surface-3); color:var(--text-dim);}
+#settings-page .meal-wrap{align-items:center;}
+#settings-page .meal-ico{width:30px; height:30px; margin-top:0; align-self:center; border-radius:10px; background:var(--surface-3); color:var(--text-dim);}
 #settings-page .meal-ico svg{width:16px; height:16px;}
 #settings-page .set-label::before{display:none;}
 #settings-page .set-label{margin-bottom:12px;}
@@ -1438,13 +1439,24 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.2';
+const APP_VERSION = 'Beta 0.5.3';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 174;
+const ANDROID_VERSION_CODE = 175;
 const PATCH_NOTES = [
+  { version:'Beta 0.5.3', date:'2026-10-01', summary:'환경설정이 새로워졌어요! 프로필도 바로 고치고, 앱 색도 고를 수 있어요~', items:[
+    { title:'환경설정이 새로워졌어요', text:'MY 탭 계정 카드의 환경설정에서 화면 · 프로필 · 알림 · 위젯 탭을 오가며 설정해요. 제목은 카드 밖으로 빼고 안내 문구는 제목 옆에 작게 두어서 훨씬 깔끔하고 촘촘해졌어요' },
+    { title:'앱 포인트 색을 고를 수 있어요', text:'화면 탭에서 크림슨 · 핑크 · 블루 · 그린 · 퍼플 · 오렌지 중에 고르거나 직접 색을 정할 수 있어요. 노랑처럼 밝은 색을 골라도 글씨와 상태표시줄이 잘 보이게 자동으로 맞춰져요' },
+    { title:'글씨 크기를 10%씩', text:'슬라이더로 80%~130%를 10% 단위로 고르고, 제목 옆의 "기본으로"로 되돌릴 수 있어요. 버튼 · 여백까지 함께 조절돼요' },
+    { title:'프로필을 그 자리에서 바로 고쳐요', text:'프로필 탭에서 아이콘(반도체 · 로직 게이트 · 스포츠 등 160여 종, 종류별로 묶음) · 이모지(400여 개) · 아이콘 색 · 배경 색 · 별명을 바로 고르고, 위쪽 저장 버튼으로 저장해요. 직접 그리기는 아래로 그림판이 열리고 내 그림은 5개까지 보관해요' },
+    { title:'위젯 미리보기', text:'위젯 탭에서 위젯을 고르면 예시 화면이 보이고, 투명도 · 글씨 크기 · 색을 바꾸는 대로 같이 움직여요. 실제 위젯은 폰 환경에 따라 다를 수 있어요. 강조 색도 빨주노초파보 파스텔로 바뀌었어요' },
+    { title:'친구 시간표를 새 창으로', text:'시간표 화면 위의 친구 버튼으로 친구 시간표 창이 열려요. 목록 디자인을 새로 꾸몄고 "친구 추가" 팝업이 창 위에 뜨게 고쳤어요' },
+    { title:'뒤로가기 키', text:'팝업이나 전체 화면 창이 떠 있을 때 뒤로가기를 누르면 앱이 꺼지지 않고 그 창만 닫혀요. 안드로이드 앱은 새 버전(APK)을 설치해야 적용돼요' },
+    { title:'글꼴을 바꿨어요', text:'앱 전체 글꼴이 IBM Plex Sans KR로 바뀌었어요' },
+    { title:'친구 시간표가 친구에게 안 바뀌던 문제 수정', text:'내가 시간표를 고쳐도 친구 화면에 반영되지 않던 문제를 고쳤고, 반영되는 시간도 10분에서 1분으로 줄였어요. 친구 목록의 순서 변경도 2명일 때 안 되던 것을 고쳤어요', type:'fix' },
+  ]},
   { version:'Beta 0.5.2', date:'2026-09-30', summary:'대대적인 UI 개편! 애니메이션도 훨씬 부드러워졌어요~', items:[
     { title:'앱 전체 화면과 움직임을 대대적으로 다듬었어요', text:'창이 아래에서 부드럽게 올라오고, 펼치고 접히는 모든 곳(알림 받기, 색상판, 달력, 선택지 추가 등)이 같은 결의 애니메이션으로 통일됐어요. 창 안에서 다른 창으로 넘어갈 때 깜빡이던 것도 없앴어요.' },
     { title:'시간표 화면 개편', text:'오른쪽 아래 + 버튼에서 사진 인식 → 직접 추가 → 더보기 순으로 고를 수 있고, 더보기에서 시간표 이름 변경·삭제(이름 줄 오른쪽 아이콘), 사진 등록, 직접 추가, 캡처 모드, 시간표 목록을 한 화면에서 쓸 수 있어요. 시간표 목록은 학기 칩으로 학기를 고르고 시간표를 제목 목록으로 보여 주며, 기본 3개만 보이고 "더보기"로 펼쳐요. 새 시간표는 목록 아래에서 바로 이름을 입력해 만들어요.' },

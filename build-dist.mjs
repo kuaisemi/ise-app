@@ -128,6 +128,7 @@ function listFiles(dir, base = '') {
   }
   return out.sort();
 }
+const OTA_MIN_APK_FLOOR = 174;
 function apkVersionCode() {
   const g = fs.readFileSync(path.join(ROOT, 'android', 'app', 'build.gradle'), 'utf8');
   const m = /versionCode\s+(\d+)/.exec(g);
@@ -138,7 +139,9 @@ function writeOtaManifest(buildId) {
     const buf = fs.readFileSync(path.join(OUT_DIR, p));
     return { path: p, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') };
   });
-  const minApk = Number(process.env.OTA_MIN_APK) || apkVersionCode();
+  // 웹 패치를 받을 수 있는 가장 낮은 APK 버전. APK를 새로 내도 이 값을 올리지 않으면 예전 APK도 계속 웹 패치(OTA)를 받는다.
+  // 새 웹이 새 네이티브 기능을 꼭 필요로 할 때만 올린다(올리면 예전 APK는 웹 패치를 못 받는다).
+  const minApk = Number(process.env.OTA_MIN_APK) || OTA_MIN_APK_FLOOR;
   const manifest = { build: buildId, minApk, files };
   fs.writeFileSync(path.join(OUT_DIR, 'ota-manifest.json'), JSON.stringify(manifest) + '\n', 'utf8');
   return manifest;
