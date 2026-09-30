@@ -6091,14 +6091,14 @@ function ttOptionsModal(){
           <span>${label}</span>
           <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
         </div>${key==='currentTime' ? `
-        <div id="tt-now-color-section" class="opt-sub" style="${o.currentTime ? '' : 'display:none;'}">
+        <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-sub">
           <span class="opt-name">선 색상</span>
           <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
             ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
             ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
           </div>
           ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
-        </div>` : ''}`).join('')}
+        </div></div></div>` : ''}`).join('')}
       </div>
     </div>
     <div class="modal-actions" style="gap:8px;">
@@ -6118,7 +6118,7 @@ function setupTtOptionsModalListeners(){
       btn.classList.toggle('on', next);
       btn.setAttribute('aria-checked', String(next));
       if(btn.dataset.opt==='currentTime' && colorSection){
-        colorSection.style.display = next ? '' : 'none';   // 켜면 펼쳐지고 끄면 접히며 사라진다(공통 나타남·사라짐 애니메이션이 처리)
+        colorSection.classList.toggle('open', next);   // 위에서 아래로 펼쳐지고, 끄면 위로 접히며 사라진다(CSS 애니메이션)
       }
     };
   });
