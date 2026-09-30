@@ -594,6 +594,24 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .fp-empty small{font-size:11px; color:var(--text-dim); line-height:1.5;}
 /* 환경설정 창: 예전 MY 탭 안 패널보다 넉넉하게(카드 둥글게, 제목·글자 조금 크게, 줄 간격 넓게) */
 #settings-page .fp-body{padding-top:16px;}
+.st-cap{margin:18px 4px 8px; font-size:11px; font-weight:800; color:var(--text-faint); letter-spacing:.02em;}
+.st-cap:first-child{margin-top:4px;}
+.st-group{background:var(--surface-2); border:1px solid var(--border); border-radius:20px; overflow:hidden;}
+.st-item{display:flex; align-items:center; gap:13px; padding:14px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .15s;}
+.st-item + .st-item{border-top:1px solid var(--border);}
+.st-item:active{background:var(--surface-3);}
+.st-ic{width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;}
+.st-ic svg{width:19px; height:19px;}
+.st-txt{flex:1; min-width:0;}
+.st-txt b{display:block; font-size:14px; font-weight:800;}
+.st-txt small{display:block; font-size:11px; color:var(--text-dim); margin-top:2px;}
+.st-chev{display:flex; color:var(--text-faint);}
+.st-foot{text-align:center; font-size:10.5px; color:var(--text-faint); margin:22px 0 4px;}
+.st-dhead{display:flex; align-items:center; gap:12px; margin:2px 2px 14px;}
+.st-in > *{animation:stIn .3s cubic-bezier(.22,1,.36,1) both;}
+.st-in.st-back > *{animation-name:stInBack;}
+@keyframes stIn{from{opacity:0; transform:translateX(18px);} to{opacity:1; transform:none;}}
+@keyframes stInBack{from{opacity:0; transform:translateX(-18px);} to{opacity:1; transform:none;}}
 #settings-page .card{margin-top:0 !important; padding:18px 16px 20px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border);}
 #settings-page .subtabs{margin-bottom:18px; border-radius:14px;}
 #settings-page .set-label{font-size:13px; margin-bottom:11px;}
@@ -875,6 +893,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .lr-ic{display:inline-flex; width:16px; height:16px; align-items:center; justify-content:center; flex-shrink:0;}
 .lr-ic svg{width:16px; height:16px;}
 .lr-ic.sm svg{width:13px; height:13px;}
+.link-row-label > svg{width:16px; height:16px; flex-shrink:0;}
 .dept-notice-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 2px; border-bottom:1px solid var(--border); text-decoration:none; color:var(--text);}
 .dept-notice-row:last-child{border-bottom:none;}
 .dept-notice-title{font-size:11.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;}
@@ -9313,21 +9332,51 @@ function placeBelowTopbar(wrap){
 /* ===== 환경설정 창 =====
  * MY 탭 '계정' 카드의 "환경설정"이 여는 전체 화면 창(친구 창과 같은 모양). 예전에는 MY 탭 안에서 펼쳐졌다.
  * 설정을 바꾸면 모두 renderMain()을 다시 부르므로, renderMain 끝에서 이 창도 같이 새로 그린다. */
+const SETTINGS_SECTIONS = {
+  display: { label:'화면',   desc:'테마와 글씨 크기',       color:'#6C8CF5', icon:()=>ICON.sun },
+  home:    { label:'홈 화면', desc:'보일 항목과 순서',       color:'#E0AC55', icon:()=>ICON.home },
+  notify:  { label:'알림',   desc:'받을 알림 고르기',       color:'#E5604D', icon:()=>ICON.bell },
+  widget:  { label:'위젯',   desc:'바탕화면 위젯 꾸미기',   color:'#3FAF98', icon:()=>ICON.grid },
+};
+function settingsDetailHead(tab){
+  const m = SETTINGS_SECTIONS[tab]; if(!m) return '';
+  return `<div class="st-dhead"><span class="st-ic" style="background:${m.color};">${m.icon()}</span><span class="st-txt"><b>${m.label}</b><small>${m.desc}</small></span></div>`;
+}
+// 환경설정 첫 화면: 항목마다 지금 상태를 한 줄로 보여 주고, 누르면 그 화면으로 들어간다
+function settingsHubHtml(themeOv, scale, np, hp){
+  const themeLabel = { system:'기기 설정', light:'라이트', dark:'다크' }[themeOv] || '기기 설정';
+  const scaleLabel = (FONT_SCALES.find(([v])=>v===scale) || FONT_SCALES[1])[1];
+  const hidden = ['hideVotedPolls','hideTodayTimetable','hideRecruits','hideTodayMeal','hideShuttle','hideUpcomingCalendar','hideUpcomingMine'].filter(k=>hp[k]).length;
+  const nOn = [np.notice, np.poll, np.recruit, np.friendRequest !== false, np.night, np.timetable].filter(Boolean).length;
+  const sum = {
+    display: `${themeLabel} · 글씨 ${scaleLabel}`,
+    home: hidden ? `숨긴 항목 ${hidden}개` : '모두 표시 중',
+    notify: nOn ? `${nOn}개 켜짐` : '모두 꺼짐',
+    widget: '바탕화면 위젯',
+  };
+  const item = (k)=>{ const m = SETTINGS_SECTIONS[k]; return `<div class="st-item" data-action="settings-tab" data-tab="${k}"><span class="st-ic" style="background:${m.color};">${m.icon()}</span><span class="st-txt"><b>${m.label}</b><small>${sum[k]}</small></span><span class="st-chev">${ICON.chevR}</span></div>`; };
+  return `
+    <p class="st-cap">보기</p>
+    <div class="st-group">${item('display')}${item('home')}</div>
+    <p class="st-cap">알림 · 기기</p>
+    <div class="st-group">${item('notify')}${isIOSDevice() ? '' : item('widget')}</div>
+    <p class="st-foot">KU ISE · ${escapeHtml(APP_VERSION)}</p>`;
+}
+function settingsTitle(){
+  const m = SETTINGS_SECTIONS[state.settingsTab];
+  return m ? m.label : '환경설정';
+}
 function settingsPanelHtml(){
   const themeOv = getThemeOverride();
   const scale = getFontScale();
   const np = getNotifyPrefs();
   const hp = getHomePrefs();
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-  return `
+  const tab = state.settingsTab;
+  if(!['display','home','notify','widget'].includes(tab) || (tab==='widget' && isIOSDevice())) return settingsHubHtml(themeOv, scale, np, hp);
+  return settingsDetailHead(tab) + `
     <div class="card" style="margin-top:10px;">
       ${(state.settingsTab==='widget' && !isIOSDevice() && isNativeApp) ? `<p class="set-title"><span class="set-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러<br><b>위젯 → KU ISE</b>에서 추가</span></p>` : ''}
-      <div class="subtabs" style="margin-bottom:12px;">
-        <div class="subtab ${state.settingsTab==='display'?'active':''}" data-action="settings-tab" data-tab="display">화면</div>
-        <div class="subtab ${state.settingsTab==='home'?'active':''}" data-action="settings-tab" data-tab="home">홈 화면</div>
-        <div class="subtab ${state.settingsTab==='notify'?'active':''}" data-action="settings-tab" data-tab="notify">알림</div>
-        ${!isIOSDevice() ? `<div class="subtab ${state.settingsTab==='widget'?'active':''}" data-action="settings-tab" data-tab="widget">위젯</div>` : ''}
-      </div>
 
       ${state.settingsTab==='display' ? `
       <p class="set-label">테마</p>
@@ -9447,10 +9496,11 @@ function settingsPanelHtml(){
 }
 function openSettingsPage(){
   if(!state.user || document.getElementById('settings-page')) return;
+  state.settingsTab = 'hub';
   const wrap = document.createElement('div');
   wrap.className = 'friends-page';
   wrap.id = 'settings-page';
-  wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="close-settings-page" aria-label="닫기">${ICON.chevL}</button><b>환경설정</b><span class="fp-head-sp"></span></div><div class="fp-body" id="settings-page-body">${settingsPanelHtml()}</div>`;
+  wrap.innerHTML = `<div class="fp-head"><button type="button" class="fp-close" data-action="settings-back" aria-label="뒤로">${ICON.chevL}</button><b id="settings-page-title">${settingsTitle()}</b><span class="fp-head-sp"></span></div><div class="fp-body" id="settings-page-body" data-tab="${state.settingsTab}">${settingsPanelHtml()}</div>`;
   placeBelowTopbar(wrap);
   (document.querySelector('.shell') || document.body).appendChild(wrap);
   requestAnimationFrame(()=>wrap.classList.add('open'));
@@ -9466,8 +9516,16 @@ function refreshSettingsPage(){
   const body = document.getElementById('settings-page-body');
   if(!body) return;
   const top = body.scrollTop;
+  const moved = body.dataset.tab !== state.settingsTab;   // 다른 화면으로 넘어갈 때만 미끄러지는 효과를 주고 맨 위부터 보여 준다
+  const toHub = state.settingsTab === 'hub';
   body.innerHTML = settingsPanelHtml();
-  body.scrollTop = top;
+  body.scrollTop = moved ? 0 : top;
+  if(moved){
+    body.dataset.tab = state.settingsTab;
+    body.classList.remove('st-in', 'st-back'); void body.offsetWidth;
+    body.classList.add('st-in'); if(toHub) body.classList.add('st-back');
+    const t = document.getElementById('settings-page-title'); if(t) t.textContent = settingsTitle();
+  }
 }
 
 /* ===== 마이페이지 ===== */
@@ -9488,7 +9546,7 @@ function renderMypage(){
         <p style="margin:0; font-size:11px; color:var(--text-dim); font-family:var(--font-mono);">${escapeHtml(state.user.studentId)} (${fmtStudentYear(state.user.studentId)})</p>
         <span class="role-badge ${myRole()}" style="margin-top:5px; display:inline-block; cursor:pointer; user-select:none;" data-action="role-badge-tap">${roleLabel(myRole())}</span>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="open-avatar-editor" title="프로필 편집" style="width:auto; padding:5px 12px; border-radius:999px; font-size:11px; display:inline-flex; align-items:center; gap:5px;">${ICON.pencil} 편집</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="open-avatar-editor" title="프로필 편집" aria-label="프로필 편집" style="width:34px; height:34px; padding:0; border-radius:11px; display:inline-flex; align-items:center; justify-content:center;">${ICON.pencil}</button>
       ${isCouncil() ? `<button type="button" class="btn btn-ghost btn-sm" style="position:absolute; bottom:7px; right:9px; width:auto; padding:3px 11px; border-radius:999px; font-size:9.5px; color:var(--danger); border-color:rgba(var(--danger-rgb),0.35);" data-action="revoke-council">권한 해제</button>` : ''}
     </div>
 
@@ -9516,10 +9574,10 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `
-      ${isDirectorPlus() ? `<div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
+      ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
-      <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
+      <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회장 전용</p>
       <div class="link-row" data-action="open-bug-report-inbox"><span class="link-row-label">${ICON.inbox} 제보 · 제안함</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
@@ -9529,7 +9587,7 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="view-users-list"><span class="link-row-label">${ICON.person} 전체 가입자 및 직급 관리</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isDeveloper() ? `
-      <div style="height:2px; background:var(--border-light); margin:10px 0 2px;"></div>
+      <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">개발자 전용</p>
       <div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
@@ -13125,6 +13183,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'close-friends-page'){ closeFriendsPage(); }
     else if(a === 'open-settings-page'){ openSettingsPage(); }
     else if(a === 'close-settings-page'){ closeSettingsPage(); }
+    else if(a === 'settings-back'){ if(state.settingsTab && state.settingsTab !== 'hub'){ state.settingsTab = 'hub'; renderMain(); } else closeSettingsPage(); }
     else if(a === 'open-update-check'){
       // 웹은 물어볼 APK가 없으니 곧바로 결과 화면을 띄운다(로딩 단계 자체가 불필요).
       if(!isNativeApp){ openModal(updateCheckModal()); return; }
