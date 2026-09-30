@@ -406,10 +406,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .opt-hint{margin:2px 0 0; font-size:10px; line-height:1.5; color:var(--text-faint);}
 .opt-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; font-size:11.5px; color:var(--text);}
 .opt-two{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
-.opt-col{min-width:0;}
+.opt-col{min-width:0; container-type:inline-size;}
 .opt-two .swatches{gap:5px; flex-wrap:nowrap;}
 /* 글씨 크기 배율이 바뀌어도 항상 한 줄에 들어가도록, 색 칸이 남는 폭에 맞춰 같이 줄어들고 늘어난다(최대 28px) */
-.opt-two .swatch{flex:1 1 0; min-width:0; max-width:28px; width:auto; height:auto; aspect-ratio:1 / 1; font-size:11px;}
+.opt-two .swatch{flex:0 0 auto; width:min(24px, calc((100cqw - 15px) / 4)); height:min(24px, calc((100cqw - 15px) / 4)); font-size:11px;}
 .opt-two .swatch.line-default{font-size:8px;}
 .opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px;}
 /* 스위치로 켜고 끄는 하위 줄: 높이가 0 ↔ 실제 높이로 부드럽게 바뀌고, 살짝 위에서 내려오며 나타난다 */
