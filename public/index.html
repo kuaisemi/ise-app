@@ -3198,6 +3198,7 @@ if(!window.__swipeBound){
       if(dy > 10 && dy > dx){ st = null; return; }          // 세로로 스크롤하는 중 — 밀기가 아니다
       if(dx > 10 && dx > dy * 1.5) st.moved = true;
     }
+    if(st) st.lastX = e.clientX;
     if(st && st.moved && st.c.classList.contains('seg-group')){
       st.idx = segIndexAt(st.c, e.clientX);
       const thumb = st.c.querySelector('.seg-thumb');
@@ -3206,16 +3207,16 @@ if(!window.__swipeBound){
   }, true);
   const finish = (e)=>{
     if(!st || e.pointerId !== st.id) return;
-    const { c, moved, x } = st, idx = st.idx;
+    const { c, moved, x } = st; let idx = st.idx;
+    const cancel = e.type === 'pointercancel';
+    const lastX = (typeof st.lastX === 'number') ? st.lastX : x;
     st = null;
-    if(!moved || e.type === 'pointercancel'){
-      if(moved && c.classList.contains('seg-group')){   // 취소면 원래 칸으로 되돌린다
-        const cur = Array.from(c.querySelectorAll('button')).findIndex(b=>b.classList.contains('on'));
-        const t = c.querySelector('.seg-thumb'); if(t && cur >= 0) t.style.setProperty('--i', String(cur));
-      }
-      return;
-    }
-    const dx = e.clientX - x;
+    if(!moved) return;
+    // 빠르게 밀면 브라우저가 중간에 제스처를 끊기도 한다(pointercancel). 그때 되돌리면 "안 바뀌는" 것처럼 보이므로,
+    // 끊긴 경우에도 마지막으로 선택 칸이 가 있던 위치를 그대로 확정한다.
+    const endX = (!cancel && typeof e.clientX === 'number') ? e.clientX : lastX;
+    if(c.classList.contains('seg-group') && !cancel){ const i2 = segIndexAt(c, endX); if(i2 >= 0) idx = i2; }
+    const dx = endX - x;
     if(c.classList.contains('seg-group')){
       const btns = Array.from(c.querySelectorAll('button'));
       const cur = btns.findIndex(b=>b.classList.contains('on'));
@@ -3306,18 +3307,23 @@ if(!window.__subtabBound){
     const { bar, moved } = sd; let tab = sd.tab; sd = null;
     if(!moved || !tab) return;
     // 선택 칸(.subtab-thumb)이 멈춘 자리의 가운데가 걸치는 탭을 목적지로 삼는다
-    const th = bar.querySelector(':scope > .subtab-thumb');
-    if(th){
-      const m = /translateX\(([-\d.]+)px\)/.exec(th.style.transform || '');
-      if(m){
-        const center = parseFloat(m[1]) + (parseFloat(th.style.width) || 0) / 2;
-        const hit = Array.from(bar.querySelectorAll('.subtab')).find(t=> center >= t.offsetLeft && center < t.offsetLeft + t.offsetWidth);
-        if(hit) tab = hit;
+    const cancel = e.type === 'pointercancel';
+    if(cancel){
+      const th = bar.querySelector(':scope > .subtab-thumb');
+      if(th){
+        const m = /translateX\(([-\d.]+)px\)/.exec(th.style.transform || '');
+        if(m){
+          const center = parseFloat(m[1]) + (parseFloat(th.style.width) || 0) / 2;
+          const hit = Array.from(bar.querySelectorAll('.subtab')).find(t=> center >= t.offsetLeft && center < t.offsetLeft + t.offsetWidth);
+          if(hit) tab = hit;
+        }
       }
+    } else if(typeof e.clientX === 'number'){
+      tab = tabAt(bar, e.clientX);
     }
-    if(e.type === 'pointercancel' || tab.classList.contains('active')){
+    if(tab.classList.contains('active')){
       const cur = bar.querySelector('.subtab.active'); if(cur) place(bar, cur, true);
-      if(e.type !== 'pointercancel') window.__suppressClick = { el: bar, until: Date.now() + 500 };
+      if(!cancel) window.__suppressClick = { el: bar, until: Date.now() + 500 };
       return;
     }
     bar.querySelectorAll('.subtab').forEach(t=>t.classList.toggle('active', t === tab));
