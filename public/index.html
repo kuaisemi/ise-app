@@ -1872,7 +1872,8 @@ function parseEventDetails(description){
   return { time, room, description: rest.join('\n').trim() };
 }
 function fmtAuthorBadge(name, sid, role){
-  if(role && role !== 'student') return `${escapeHtml(name)} (${publicRoleLabel(role)})`;
+  // 개발자는 다른 사람 눈에 일반 재학생으로 보이므로 '(재학생)' 대신 일반 학생처럼 '(22학번)'으로 표시한다
+  if(role && role !== 'student' && role !== 'developer') return `${escapeHtml(name)} (${publicRoleLabel(role)})`;
   const yr = fmtStudentYear(sid);
   return yr ? `${escapeHtml(name)} (${yr})` : escapeHtml(name);
 }
