@@ -466,7 +466,19 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 공유 링크로 들어왔을 때 해당 글을 잠깐 강조 */
 .link-flash{animation:linkFlash 2.4s cubic-bezier(.22,1,.36,1);}
 @keyframes linkFlash{0%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), .55);}30%{box-shadow:0 0 0 6px rgba(var(--crimson-rgb, 160,20,40), .28);}100%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), 0);}}
-.share-btn{width:auto; display:inline-flex; align-items:center; gap:4px;}
+.act-bar{display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; margin-top:10px;}
+.act-cell{min-width:0;}
+.act-cell .btn{width:100%; padding-left:4px; padding-right:4px; white-space:nowrap; justify-content:center;}
+.act-cell .share-btn{width:100%;}
+.share-btn{width:auto; flex:none; display:inline-flex; align-items:center; justify-content:center; gap:4px;}
+/* 글쓰기 — 링크 넣기 패널 */
+#link-ins-panel input{width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--text); font:inherit; font-size:12px;}
+.link-chips{display:flex; gap:6px; overflow-x:auto; padding:2px 0 4px; scrollbar-width:none;}
+.link-chips::-webkit-scrollbar{display:none;}
+.link-chip{flex:none; max-width:190px; display:inline-flex; align-items:center; gap:5px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; background:var(--surface-2); color:var(--text-dim); font:inherit; font-size:11px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:0; transform:translateY(-4px);}
+.link-chip b{color:var(--crimson); font-size:10px;}
+.opt-collapse.open .link-chip{animation:ppIn .4s cubic-bezier(.22,1,.36,1) both; animation-delay:calc(var(--i, 0) * 30ms + 90ms);}
+.link-chip:active{background:var(--surface-3);}
 .opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .38s cubic-bezier(.4,0,.2,1), opacity .2s ease;}
 .opt-collapse.open{grid-template-rows:1fr; opacity:1; transition:grid-template-rows .5s cubic-bezier(.22,1,.36,1), opacity .4s ease .06s;}
 .opt-collapse-in{overflow:hidden; min-height:0; transform:translateY(-12px); transition:transform .38s cubic-bezier(.4,0,.2,1); contain:layout paint;}
@@ -1489,6 +1501,7 @@ const PATCH_NOTES = [
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
     { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
     { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
+    { title:'글자에 링크 걸기', text:'게시글을 쓸 때 "링크 넣기"로 보여줄 글자와 주소를 정하면 글자를 눌러 바로 이동해요. 앱 안의 게시글 · 투표는 목록에서 골라 연결하면 앱 안에서 바로 열려요' },
     { title:'꾹 눌러도 글자가 선택되지 않아요', text:'홈·게시판·MY 등에서 꾹 눌렀을 때 글자가 선택되던 동작을 없앴어요. 학사일정·학과공지·학사 달력(내 메모)·학식에서는 그대로 복사할 수 있어요' },
     { title:'게시글 · 투표 링크 공유', text:'게시글과 투표의 "링크" 버튼으로 주소를 공유할 수 있어요. 카카오톡 등에 붙여넣고 링크를 열면 로그인 후 바로 그 글로 이동해요' },
     { title:'공지 · 투표 · 구인글은 하루에 한 번만 새로 받아요', text:'새벽 3시 이후 처음 켤 때, 내가 올릴 때, 관련 알림이 올 때, 새로고침 버튼을 누를 때만 서버에서 다시 받아와요' },
@@ -2251,9 +2264,26 @@ function escapeHtml(s){ if(s==null) return ''; return String(s).replaceAll('&','
 // 공지 등 게시글 본문에 http(s) 링크를 적으면 눌러서 바로 열 수 있게 한다.
 // escapeHtml을 먼저 거친 뒤에만 호출해야 안전하다 — URL 문자열 안에는 <,>,"가 나올
 // 일이 없어서 이스케이프 이후에도 그대로 매치된다.
+// 본문에 [보여줄 글자](https://주소) 라고 쓰면 "보여줄 글자"만 링크로 보인다. 주소만 적어도 링크가 된다.
+// 우리 앱의 게시글·투표 링크(?go=post-… / ?go=poll-…)는 새 창이 아니라 앱 안에서 바로 그 글로 이동한다(아래 클릭 처리).
 function linkifyEscaped(escaped){
-  return String(escaped||'').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--teal); text-decoration:underline; word-break:break-all;">$1</a>');
+  const style = 'color:var(--teal); text-decoration:underline; word-break:break-all;';
+  return String(escaped||'').replace(/\[([^\]\n]{1,60})\]\((https?:\/\/[^\s)<]+)\)|(https?:\/\/[^\s<]+)/g, (all, label, mdUrl, bare)=>{
+    const url = mdUrl || bare;
+    const text = label || bare;
+    const g = url.match(/[?&]go=(post|poll)-([^&\s]+)/);
+    const internal = g && url.indexOf('ku-ise-d95ee.web.app') >= 0;
+    return `<a href="${url}" ${internal ? `data-go="${g[1]}-${g[2]}"` : 'target="_blank" rel="noopener"'} style="${style}">${text}</a>`;
+  });
 }
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest && e.target.closest('a[data-go]');
+  if(!a) return;
+  const m = (a.getAttribute('data-go')||'').match(/^(post|poll)-(.+)$/);
+  if(!m) return;
+  e.preventDefault();
+  if(state.user) openSharedLink({ kind:m[1], id:decodeURIComponent(m[2]) });
+}, true);
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function now(){ return Date.now(); }
 function live(arr){ return (arr||[]).filter(x=>x && !x.deleted); }
@@ -8711,6 +8741,16 @@ function linkedPostLabelHtml(p){
   return `<div data-action="go-board-tab" style="cursor:pointer; font-size:10.5px; color:var(--text-faint); margin-top:3px;">게시글 · ${escapeHtml(n.title)}</div>`;
 }
 
+// 버튼들을 6칸 격자에 놓는다: 한 줄 3개가 기본이고, 마지막 줄은 남은 칸을 나눠 가져서 줄마다 좌우 끝이 맞는다.
+function actionBarHtml(btns){
+  const n = btns.length;
+  if(!n) return '';
+  const lastStart = n - (n % 3 || 3);
+  return `<div class="act-bar">${btns.map((b,i)=>{
+    const span = i >= lastStart ? 6 / (n - lastStart) : 2;
+    return `<div class="act-cell" style="grid-column:span ${span};">${b}</div>`;
+  }).join('')}</div>`;
+}
 function postCardHtml(n, opts){
   const council = isCouncil();
   const editable = canModify(n);
@@ -8718,6 +8758,19 @@ function postCardHtml(n, opts){
   const chips = (n.pinned ? `<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>` : '')
     + (announced ? `<span class="tag tag-crimson" style="flex-shrink:0;">공지 · ${announceLeftLabel(n)}</span>` : '');
   const reqChip = (n.announceReq && !announced && !n.pinned) ? `<span class="tag tag-amber" style="flex-shrink:0;">공지 신청</span>` : '';
+  // 버튼은 글마다 달라지므로(학생회/작성자/일반) 모아서 한 줄에 최대 3개씩 칸을 균등하게 나눠 양쪽을 맞춘다.
+  const ro = !!(opts && opts.readonly);
+  const btns = [shareBtnHtml('post', n.id)];
+  if(council && !ro){
+    btns.push(`<button class="btn btn-ghost btn-sm" data-action="toggle-announce" data-id="${n.id}">${announced ? '공지 내리기' : (n.announceReq ? '신청 승인' : '공지 올리기')}</button>`);
+    if(n.announceReq && !announced) btns.push(`<button class="btn btn-ghost btn-sm" data-action="reject-announce" data-id="${n.id}">신청 반려</button>`);
+    btns.push(`<button class="btn btn-ghost btn-sm" data-action="toggle-pin" data-id="${n.id}">${n.pinned ? '고정 해제' : '고정'}</button>`);
+  }
+  if(editable && !ro){
+    btns.push(`<button class="btn btn-ghost btn-sm" data-action="edit-notice" data-id="${n.id}">수정</button>`);
+    btns.push(`<button class="btn btn-danger btn-sm" data-action="delete-notice" data-id="${n.id}">삭제</button>`);
+  }
+  const lockedNote = (council && !editable && !ro) ? `<div style="font-size:10.5px; color:var(--text-faint); margin-top:6px;">상위 직급 게시글 — 수정·삭제 불가</div>` : '';
   return `
     <div class="card notice-card" id="post-${escapeHtml(n.id)}">
     <div class="list-item">
@@ -8727,17 +8780,8 @@ function postCardHtml(n, opts){
       ${noticeImagesHtml(n)}
       ${linkedPollsHtml(n)}
       ${renderLikeUI(n, 'notice')}
-      <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-        ${shareBtnHtml('post', n.id)}
-        ${council && !(opts && opts.readonly) ? `
-        <button class="btn btn-ghost btn-sm" data-action="toggle-announce" data-id="${n.id}">${announced ? '공지 내리기' : (n.announceReq ? '신청 승인 (공지로 올리기)' : '공지로 올리기')}</button>
-        ${(n.announceReq && !announced) ? `<button class="btn btn-ghost btn-sm" data-action="reject-announce" data-id="${n.id}">신청 반려</button>` : ''}
-        <button class="btn btn-ghost btn-sm" data-action="toggle-pin" data-id="${n.id}">${n.pinned?'고정 해제':'상단 고정'}</button>` : ''}
-        ${(editable && !(opts && opts.readonly)) ? `
-        <button class="btn btn-ghost btn-sm" data-action="edit-notice" data-id="${n.id}">수정</button>
-        <button class="btn btn-danger btn-sm" data-action="delete-notice" data-id="${n.id}">삭제</button>`
-        : (council && !editable && !(opts && opts.readonly)) ? `<span style="font-size:10.5px; color:var(--text-faint);">상위 직급 게시글 — 수정·삭제 불가</span>` : ''}
-      </div>
+      ${actionBarHtml(btns)}
+      ${lockedNote}
     </div>
     </div>`;
 }
@@ -8797,6 +8841,32 @@ function noticeAuthorHtml(n){
   const real = (u && u.name) || '';
   return real ? `학생회 <span style="color:var(--text-faint);">(${escapeHtml(real)})</span>` : '학생회';
 }
+// 링크 넣기 패널의 "앱 안의 글·투표" 빠른 선택: 눌러서 주소·글자를 채운다(진행 중인 투표 먼저).
+function linkQuickChipsHtml(){
+  const polls = live(state.polls).filter(p=>!isPollEnded(p)).slice(0,8).map(p=>({ label:p.question, url:shareLinkFor('poll', p.id), tag:'투표' }));
+  const posts = visibleNotices().sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).slice(0,8).map(n=>({ label:n.title, url:shareLinkFor('post', n.id), tag:'글' }));
+  const all = [...polls, ...posts];
+  if(!all.length) return '';
+  return all.map((c,i)=>`<button type="button" class="link-chip" style="--i:${i};" data-action="link-pick" data-url="${escapeHtml(c.url)}" data-label="${escapeHtml(c.label)}"><b>${c.tag}</b>${escapeHtml(c.label)}</button>`).join('');
+}
+function applyLinkInsert(){
+  const ta = document.querySelector('#notice-form textarea[name=content]');
+  const tEl = document.getElementById('link-ins-text'), uEl = document.getElementById('link-ins-url');
+  if(!ta || !tEl || !uEl) return;
+  let url = uEl.value.trim();
+  if(!url){ toast('주소를 입력해주세요'); return; }
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  if(/[\s)]/.test(url)){ toast('주소에 공백이나 )가 들어갈 수 없어요'); return; }
+  const s0 = ta.selectionStart ?? ta.value.length, e0 = ta.selectionEnd ?? ta.value.length;
+  let label = tEl.value.trim() || ta.value.slice(s0, e0).trim() || url;
+  label = label.replace(/[\[\]\n]/g, ' ').slice(0, 60);
+  const md = `[${label}](${url})`;
+  ta.value = ta.value.slice(0, s0) + md + ta.value.slice(e0);
+  ta.focus(); ta.setSelectionRange(s0 + md.length, s0 + md.length);
+  tEl.value = ''; uEl.value = '';
+  const pn = document.getElementById('link-ins-panel'); if(pn) pn.classList.remove('open');
+  toast('본문에 링크를 넣었어요');
+}
 function noticeModal(n){
   const isEdit = !!n;
   const v = n || { title:'', content:'', pinned:false };
@@ -8809,6 +8879,17 @@ function noticeModal(n){
       <input type="hidden" name="imageUrls" id="notice-imgs-hidden" value='${escapeHtml(JSON.stringify(existingImgs))}'>
       <div class="field"><label>제목</label><input type="text" name="title" maxlength="60" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="제목"></div>
       <div class="field"><label>내용</label><textarea name="content" maxlength="${isCouncil() ? 5000 : 1500}" style="min-height:120px" required placeholder="내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
+      <div class="field" style="margin-top:-6px;">
+        <button type="button" class="btn btn-ghost btn-sm" id="link-ins-toggle" data-action="toggle-link-insert" style="width:auto;">${SHARE_ICON} 링크 넣기</button>
+        <div class="opt-collapse" id="link-ins-panel"><div class="opt-collapse-in">
+          <div style="display:flex; flex-direction:column; gap:6px; padding-top:8px;">
+            <input type="text" id="link-ins-text" form="__none" maxlength="40" placeholder="보여줄 글자 (예: 투표하러 가기)" autocomplete="off">
+            <input type="text" id="link-ins-url" form="__none" inputmode="url" placeholder="주소 (https://...)" autocomplete="off">
+            <div class="link-chips">${linkQuickChipsHtml()}</div>
+            <button type="button" class="btn btn-primary btn-sm" data-action="link-insert-apply">본문에 넣기</button>
+          </div>
+        </div></div>
+      </div>
       ${!isCouncil() ? '' : `<div class="field">
         <label>사진 첨부 (선택, 최대 3장)</label>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-notice-img" style="width:100%;">${ICON.camera} 이미지 추가</button>
@@ -9206,9 +9287,10 @@ function renderPollItemInner(p){
         </details>`;
     }
     body += `<div class="row-between" style="font-size:10.5px; color:var(--text-faint); margin-top:6px;"><span>총 참여 ${totalVoters}명${ended?' · 마감됨':''}</span><span>${fmtPollDeadline(p)}</span></div>`;
-    if(isDirectorOrHigher && totalVoters>0){
-      body += `<button class="btn btn-ghost btn-sm" data-action="export-poll-csv" data-id="${p.id}" style="width:100%; margin-top:8px;">${ICON.doc} 투표자 명단 CSV 내보내기</button>`;
-    }
+    body += `<div style="display:flex; gap:6px; margin-top:8px;">
+      ${(isDirectorOrHigher && totalVoters>0) ? `<button class="btn btn-ghost btn-sm" data-action="export-poll-csv" data-id="${p.id}" style="flex:1;">${ICON.doc} 투표자 명단 CSV 내보내기</button>` : ''}
+      ${shareBtnHtml('poll', p.id)}
+    </div>`;
     if(!ended && myVotes){
       body += `<div style="display:flex; gap:6px; margin-top:8px;">
         <button class="btn btn-ghost btn-sm" data-action="edit-poll-vote" data-id="${p.id}" style="flex:1;">투표 변경</button>
@@ -9230,6 +9312,7 @@ function renderPollItemInner(p){
           <span>${p.multi?'복수 선택 가능':'단일 선택'}</span><span>${fmtPollDeadline(p)}</span>
         </div>
         <div style="display:flex; gap:6px;">
+          ${shareBtnHtml('poll', p.id)}
           ${editing ? `<button type="button" class="btn btn-ghost btn-sm" data-action="cancel-edit-poll-vote" style="flex:1;">취소</button>` : ''}
           <button type="submit" class="btn btn-primary btn-sm" style="flex:1.5;">${editing?'투표 수정 완료':'투표하기'}</button>
         </div>
@@ -9244,7 +9327,6 @@ function renderPollItemInner(p){
       </div>
       <div class="meta">${p.multi?'복수선택 · ':''}${fmtPollDeadline(p)} · ${fmtAuthorBadge(p.createdBy||'학생회', p.createdById, p.authorRole)}</div>
       ${linkedPostLabelHtml(p)}
-      <div style="margin-top:6px;">${shareBtnHtml('poll', p.id)}</div>
       <div style="margin-top:8px;">${body}</div>
       ${manage ? `
       <div style="display:flex; gap:5px; margin-top:8px;">
@@ -14348,6 +14430,9 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'cancel-req-announce'){ await cancelAnnounceReq(el.dataset.id); }
     else if(a === 'reject-announce'){ await rejectAnnounceReq(el.dataset.id); }
     else if(a === 'share-link'){ await shareItemLink(el.dataset.kind, el.dataset.id); }
+    else if(a === 'toggle-link-insert'){ const pn = document.getElementById('link-ins-panel'); if(pn) pn.classList.toggle('open'); }
+    else if(a === 'link-pick'){ const u = document.getElementById('link-ins-url'), t = document.getElementById('link-ins-text'); if(u) u.value = el.dataset.url || ''; if(t && !t.value.trim()) t.value = (el.dataset.label || '').slice(0, 40); }
+    else if(a === 'link-insert-apply'){ applyLinkInsert(); }
     else if(a === 'toggle-post-pick'){ const pn = document.getElementById('poll-post-panel'); if(pn) pn.classList.toggle('open'); const bt = document.getElementById('poll-post-btn'); if(bt) bt.classList.toggle('open'); }
     else if(a === 'pick-post'){ pickLinkedPost(el.dataset.id || ''); }
     else if(a === 'go-board-tab'){ state.view = 'council'; state.councilTab = 'board'; renderShell(); }
