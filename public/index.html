@@ -9291,12 +9291,7 @@ function renderPollItemInner(p){
     }
     body += `<div class="row-between" style="font-size:10.5px; color:var(--text-faint); margin-top:6px;"><span>총 참여 ${totalVoters}명${ended?' · 마감됨':''}</span><span>${fmtPollDeadline(p)}</span></div>`;
 
-    if(!ended && myVotes){
-      body += `<div style="display:flex; gap:6px; margin-top:8px;">
-        <button class="btn btn-ghost btn-sm" data-action="edit-poll-vote" data-id="${p.id}" style="flex:1;">투표 변경</button>
-        <button class="btn btn-danger btn-sm" data-action="cancel-poll-vote" data-id="${p.id}" style="flex:1;">투표 취소</button>
-      </div>`;
-    }
+
   } else {
     const inputType = p.multi ? 'checkbox' : 'radio';
     const pre = myVotes||[];
@@ -9328,11 +9323,15 @@ function renderPollItemInner(p){
       ${linkedPostLabelHtml(p)}
       <div style="margin-top:8px;">${body}</div>
       ${actionBarHtml([
+        (showResults && !ended && myVotes) ? `<button class="btn btn-ghost btn-sm" data-action="edit-poll-vote" data-id="${p.id}">${ICON.pencil} 투표 변경</button>` : '',
+        (showResults && !ended && myVotes) ? `<button class="btn btn-danger btn-sm" data-action="cancel-poll-vote" data-id="${p.id}">${ICON.close} 투표 취소</button>` : '',
+        manage ? (!ended ? `<button class="btn btn-danger btn-sm" data-action="close-poll" data-id="${p.id}">${ICON.stopCircle} 즉시 종료</button>` : `<button class="btn btn-ghost btn-sm" data-action="reopen-poll" data-id="${p.id}">${ICON.playCircle} 다시 열기</button>`) : ''
+      ].filter(Boolean), 3)}
+      ${actionBarHtml([
         (showResults && isDirectorOrHigher && totalVoters>0) ? `<button class="btn btn-ghost btn-sm" data-action="export-poll-csv" data-id="${p.id}">${ICON.doc} 명단 CSV</button>` : '',
         shareBtnHtml('poll', p.id),
-        manage ? `<button class="btn btn-danger btn-sm" data-action="delete-poll" data-id="${p.id}">${ICON.trash} 삭제</button>` : '',
-        manage ? (!ended ? `<button class="btn btn-danger btn-sm" data-action="close-poll" data-id="${p.id}">${ICON.stopCircle} 즉시 종료</button>` : `<button class="btn btn-ghost btn-sm" data-action="reopen-poll" data-id="${p.id}">${ICON.playCircle} 다시 열기</button>`) : ''
-      ].filter(Boolean), 3, true)}
+        manage ? `<button class="btn btn-danger btn-sm" data-action="delete-poll" data-id="${p.id}">${ICON.trash} 삭제</button>` : ''
+      ].filter(Boolean), 3)}
     </div>`;
 }
 
