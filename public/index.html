@@ -466,7 +466,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 공유 링크로 들어왔을 때 해당 글을 잠깐 강조 */
 .link-flash{animation:linkFlash 2.4s cubic-bezier(.22,1,.36,1);}
 @keyframes linkFlash{0%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), .55);}30%{box-shadow:0 0 0 6px rgba(var(--crimson-rgb, 160,20,40), .28);}100%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), 0);}}
-.act-bar{display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; margin-top:10px;}
+.act-bar{display:grid; grid-template-columns:repeat(12, 1fr); gap:6px; margin-top:10px;}
 .act-cell{min-width:0;}
 .act-cell .btn{width:100%; padding-left:4px; padding-right:4px; white-space:nowrap; justify-content:center;}
 .act-cell .share-btn{width:100%;}
@@ -1507,7 +1507,7 @@ const PATCH_NOTES = [
     { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
     { title:'글자에 링크 걸기', text:'게시글을 쓸 때 "링크 넣기"로 보여줄 글자와 주소를 정하면 글자를 눌러 바로 이동해요. 앱 안의 게시글 · 투표는 목록에서 골라 연결하면 앱 안에서 바로 열려요' },
     { title:'꾹 눌러도 글자가 선택되지 않아요', text:'홈·게시판·MY 등에서 꾹 눌렀을 때 글자가 선택되던 동작을 없앴어요. 학사일정·학과공지·학사 달력(내 메모)·학식에서는 그대로 복사할 수 있어요' },
-    { title:'게시글 · 투표 링크 공유', text:'게시글과 투표의 "링크" 버튼으로 주소를 공유할 수 있어요. 카카오톡 등에 붙여넣고 링크를 열면 로그인 후 바로 그 글로 이동해요' },
+    { title:'게시글 · 투표 공유', text:'게시글과 투표의 "공유" 버튼으로 주소를 공유할 수 있어요. 카카오톡 등에 붙여넣고 링크를 열면 로그인 후 바로 그 글로 이동해요' },
     { title:'공지 · 투표 · 구인글은 하루에 한 번만 새로 받아요', text:'새벽 3시 이후 처음 켤 때, 내가 올릴 때, 관련 알림이 올 때, 새로고침 버튼을 누를 때만 서버에서 다시 받아와요' },
     { title:'내 글 공지 신청', text:'MY 탭의 "공지 신청"에서 내가 쓴 글을 신청하면 학생회가 게시판에서 승인해요 (한 번에 한 건)' },
     { title:'건의 게시판을 없앴어요', text:'건의는 MY 탭의 제보 · 제안하기를 이용해주세요' },
@@ -8587,7 +8587,7 @@ function renderLikeUI(item, itemType, shareKind){
       <button type="button" class="btn-like ${hasLiked?'active':''}" data-action="toggle-like" data-type="${itemType}" data-id="${item.id}">
         ${ICON.thumbUp} <span>${count}</span>
       </button>
-      ${shareKind ? `<button type="button" class="btn-like btn-share" data-action="share-link" data-kind="${shareKind}" data-id="${escapeHtml(item.id)}" title="링크 공유">${SHARE_ICON} <span>링크</span></button>` : ''}
+      ${shareKind ? `<button type="button" class="btn-like btn-share" data-action="share-link" data-kind="${shareKind}" data-id="${escapeHtml(item.id)}" title="공유">${SHARE_NODES_ICON} <span>공유</span></button>` : ''}
     </div>
     ${(isDirectorOrHigher && count > 0) ? `
       <details class="likers-accordion">
@@ -8719,9 +8719,10 @@ function validRecruitPosts(){
 }
 
 // 이 게시글에 연결된 투표(진행 중 우선). 눌러서 투표 화면으로 간다.
+const SHARE_NODES_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`;
 const SHARE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>`;
 function shareBtnHtml(kind, id){
-  return `<button type="button" class="btn btn-ghost btn-sm share-btn" data-action="share-link" data-kind="${kind}" data-id="${escapeHtml(id)}" title="링크 공유">${SHARE_ICON} 링크</button>`;
+  return `<button type="button" class="btn btn-ghost btn-sm share-btn" data-action="share-link" data-kind="${kind}" data-id="${escapeHtml(id)}" title="공유">${SHARE_NODES_ICON} 공유</button>`;
 }
 function linkedPollsHtml(n){
   const ps = live(state.polls).filter(p=>p.postId===n.id).sort((a,b)=>(isPollEnded(a)?1:0)-(isPollEnded(b)?1:0));
@@ -8741,14 +8742,17 @@ function linkedPostLabelHtml(p){
 }
 
 // 버튼들을 6칸 격자에 놓는다: 한 줄 3개가 기본이고, 마지막 줄은 남은 칸을 나눠 가져서 줄마다 좌우 끝이 맞는다.
-function actionBarHtml(btns){
+function actionBarHtml(btns, max, fill){
   const n = btns.length;
   if(!n) return '';
-  const lastStart = n - (n % 3 || 3);
-  return `<div class="act-bar">${btns.map((b,i)=>{
-    const span = i >= lastStart ? 6 / (n - lastStart) : 2;
-    return `<div class="act-cell" style="grid-column:span ${span};">${b}</div>`;
-  }).join('')}</div>`;
+  max = max || 4;
+  const perRow = fill ? max : (n <= max ? n : Math.ceil(n / Math.ceil(n / max)));
+  const cells = btns.map((b, idx)=>{
+    const rowStart = Math.floor(idx / perRow) * perRow;
+    const inRow = Math.min(perRow, n - rowStart);
+    return `<div class="act-cell" style="grid-column:span ${12 / inRow};">${b}</div>`;
+  });
+  return `<div class="act-bar">${cells.join('')}</div>`;
 }
 function postCardHtml(n, opts){
   const council = isCouncil();
@@ -9328,7 +9332,7 @@ function renderPollItemInner(p){
         shareBtnHtml('poll', p.id),
         manage ? `<button class="btn btn-danger btn-sm" data-action="delete-poll" data-id="${p.id}">${ICON.trash} 삭제</button>` : '',
         manage ? (!ended ? `<button class="btn btn-danger btn-sm" data-action="close-poll" data-id="${p.id}">${ICON.stopCircle} 즉시 종료</button>` : `<button class="btn btn-ghost btn-sm" data-action="reopen-poll" data-id="${p.id}">${ICON.playCircle} 다시 열기</button>`) : ''
-      ].filter(Boolean))}
+      ].filter(Boolean), 3, true)}
     </div>`;
 }
 
