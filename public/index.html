@@ -469,6 +469,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .btn-like.btn-share svg{width:16px; height:16px;}
 /* 글쓰기 — 서식 도구(링크·굵게·색깔)와 색 고르기 */
 .fmt-bar{display:flex; gap:6px; flex-wrap:wrap;}
+.post-preview{margin-top:8px; padding:11px 13px; border:1px dashed var(--border-light); border-radius:10px; background:var(--surface-2);}
+.post-preview .pv-title{display:block; font-size:13.5px;}
+.post-preview .body{white-space:pre-wrap; word-break:break-word; font-size:12px; line-height:1.55; margin-top:6px; color:var(--text);}
 .fmt-bar .btn{width:auto;}
 .fmt-colors{display:flex; gap:12px; padding:10px 4px 4px;}
 .fmt-dot{width:30px; height:30px; border-radius:50%; border:2px solid var(--border-light); background:var(--c); cursor:pointer; opacity:0; transform:scale(.5);}
@@ -1188,7 +1191,9 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .home-meal .meal-block:not(:last-child){margin-bottom:8px;}
 /* 진리관/미래관 라벨이 작고 자간까지 넓어(한글엔 안 맞는 트래킹) 잘 안 읽혔다.
    크기를 키우고 자간은 좁혀서 또렷하게 읽히게 한다. */
-.meal-block .m-label{font-size:13px; font-weight:700; color:var(--amber); letter-spacing:-0.01em; margin-bottom:6px; display:flex; align-items:center; gap:5px;}
+.meal-block .m-label{font-size:13px; font-weight:700; color:var(--amber); letter-spacing:-0.01em; margin-bottom:6px; display:flex; align-items:baseline; gap:5px;}
+/* 식간 글자(중식)와 운영 시간이 같은 밑줄(글자 바닥)에 맞고, 아이콘만 가운데에 둔다 */
+.meal-block .m-label > svg{align-self:center;}
 /* 이모지 자리를 대체한 선 아이콘이 글줄에 얹혀 보이지 않도록 글자 높이에 맞춘다.
    (이모지는 글자처럼 baseline에 놓이지만, 인라인 SVG는 baseline에 걸려 살짝 내려앉음)
    .btn / .modal-title은 이미 flex+gap이라 여백을 따로 주지 않는다. */
@@ -1515,7 +1520,8 @@ const PATCH_NOTES = [
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
     { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
     { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
-    { title:'글 꾸미기 · 공지 기간', text:'글을 쓸 때 선택한 글자를 "굵게"하거나 "색깔"을 입힐 수 있어요. 학생회는 공지로 올릴 때 24시간 · 7일 · 영원히(내릴 때까지) 중에 기간을 골라요' },
+    { title:'셔틀 · 시간표 · 학식 화면 다듬기', text:'셔틀 "다음 출발"이 "오후 4시 30분 출발"처럼 보이고, 일요일에는 일요일 시간표가 평일 위로 올라와요. 시간표 맨 위 시간표 이름 버튼은 글자 부분만 눌리도록 줄였고, 학식의 식간(중식 등)과 운영 시간은 같은 글자 밑선에 맞췄어요' },
+    { title:'글 꾸미기 · 공지 기간', text:'글을 쓸 때 선택한 글자를 "굵게"하거나 "색깔"을 입힐 수 있고, "미리보기"로 완성된 모습을 먼저 볼 수 있어요. 학생회는 공지로 올릴 때 24시간 · 7일 · 영원히(내릴 때까지) 중에 기간을 골라요' },
     { title:'글자에 링크 걸기', text:'게시글을 쓸 때 "링크 넣기"로 보여줄 글자와 주소를 정하면 글자를 눌러 바로 이동해요. 앱 안의 게시글 · 투표는 목록에서 골라 연결하면 앱 안에서 바로 열려요' },
     { title:'꾹 눌러도 글자가 선택되지 않아요', text:'홈·게시판·MY 등에서 꾹 눌렀을 때 글자가 선택되던 동작을 없앴어요. 학사일정·학과공지·학사 달력(내 메모)·학식에서는 그대로 복사할 수 있어요' },
     { title:'게시글 · 투표 공유', text:'게시글과 투표의 "공유" 버튼으로 주소를 공유할 수 있어요. 카카오톡 등에 붙여넣고 링크를 열면 로그인 후 바로 그 글로 이동해요' },
@@ -1985,7 +1991,7 @@ const MEAL_HOURS = {
 };
 function mealHoursSpan(key){
   const range = MEAL_HOURS[key];
-  return range ? `<span style="display:inline-flex; align-items:center; align-self:center; height:1.2em; line-height:1; font-size:9.5px; color:var(--text-faint); font-weight:400; margin-left:4px;">${range}</span>` : '';
+  return range ? `<span style="font-size:9.5px; color:var(--text-faint); font-weight:400; margin-left:4px;">${range}</span>` : '';
 }
 const MEAL_SOURCE_URL = 'https://gpa.korea.ac.kr/koreaSejong/8028/subview.do';
 async function loadDeptNotices(){
@@ -2273,6 +2279,11 @@ function fmtDateTime(ts){
 function getNearestWeekday(s){ const d=new Date(s+'T00:00:00'); const g=d.getDay(); if(g===6) return addDays(s,2); if(g===0) return addDays(s,1); return s; }
 function getWeekMonday(s){ const d=new Date(s+'T00:00:00'); const g=d.getDay(); const diff=d.getDate()-g+(g===0?-6:1); const mon=new Date(d.setDate(diff)); return `${mon.getFullYear()}-${pad(mon.getMonth()+1)}-${pad(mon.getDate())}`; }
 function getWeekdayDates(base){ const mon=new Date(getWeekMonday(base)+'T00:00:00'); const w=[]; for(let i=0;i<5;i++){ const c=new Date(mon); c.setDate(mon.getDate()+i); w.push(`${c.getFullYear()}-${pad(c.getMonth()+1)}-${pad(c.getDate())}`);} return w; }
+// 셔틀 "다음 출발" 안내용: 16:30 → 오후 4시 30분 (정각이면 오후 4시)
+function fmtKoTime(d){
+  const h = d.getHours(), m = d.getMinutes();
+  return `${h >= 12 ? '오후' : '오전'} ${h % 12 || 12}시${m ? ` ${m}분` : ''}`;
+}
 function minutesToLabel(m){ return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
 function todayDayIndex(){ const g=new Date().getDay(); return (g>=1&&g<=5)?g-1:-1; }
 function escapeHtml(s){ if(s==null) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
@@ -6496,9 +6507,10 @@ function renderSemesterTabs(){
       <button type="button" class="tt-switcher-label" data-action="open-semester-picker" style="flex:none;">
         <span class="tt-switcher-sem">${semesterLabel(state.activeSemester)} ${ICON.chevDown}</span>
       </button>
-      <button type="button" class="tt-switcher-label" data-action="open-timetable-list" style="flex:1; min-width:0;">
+      <button type="button" class="tt-switcher-label" data-action="open-timetable-list" style="flex:0 1 auto; min-width:0;">
         <span class="tt-switcher-name">${escapeHtml(activeVariantName())} ${ICON.chevDown}</span>
       </button>
+      <span style="flex:1; min-width:0;"></span>
       <div class="tt-switcher-divider"></div>
       <button type="button" class="tt-switcher-icon-btn" data-action="open-friends-page" title="친구 시간표">${ICON.users}</button>
       <button type="button" class="tt-switcher-icon-btn" data-action="open-tt-options" title="화면 표시 설정">${ICON.gear}</button>
@@ -8153,7 +8165,7 @@ function shuttleCountdownCard(point, label){
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div class="shuttle-countdown-val" data-point="${point}" style="font-size:19px; font-weight:800; color:var(--crimson);">${fmtShuttleCountdown(ms)}</div>
-      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${pad(next.dep.getHours())}:${pad(next.dep.getMinutes())} 출발</div>
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${fmtKoTime(next.dep)} 출발</div>
     </div>`;
 }
 // 홈 화면용 한 줄짜리 축약 카드. 전체 카운트다운 카드(shuttleCountdownCard)와 달리 한 줄에
@@ -8289,9 +8301,7 @@ function shuttleFullListHtml(){
   const sundayRows = state.shuttle.sunday||[];
   const wdFriExcluded = weekdayRows.filter(r=>isShuttleFridayOff(r.no));
   const hi = shuttleNextHighlights();
-  return `
-    <div class="card" style="margin-top:8px;">
-      <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">평일 · 학교 출발</p>
+  const weekdayHtml = `      <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">평일 · 학교 출발</p>
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'school'), hi.school && !hi.school.isSunday ? hi.school.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--amber);">평일 · 조치원역 뒤 출발</p>
       ${shuttleTimeListHtml(shuttlePointList(weekdayRows,'jochiwon'), hi.mid && !hi.mid.isSunday ? hi.mid.time : null)}
@@ -8308,12 +8318,18 @@ function shuttleFullListHtml(){
       </div>
       <p style="font-size:10.5px; color:var(--text-faint); margin:6px 0 0; line-height:1.6;">※ 08:30 오송역 출발은 오송역 6번 출구에서 타고 조치원역을 경유해요.<br>18:10 학교 출발은 학술정보원 앞에서 타고 조치원역을 18:20에 경유해서 오송역까지 가요.</p>
       ${wdFriExcluded.length ? `<p style="font-size:10.5px; color:var(--text-faint); margin:8px 0 0; line-height:1.6;">※ 금요일 운행 제외: ${wdFriExcluded.map(r=>escapeHtml(r.school||r.jochiwon||r.osong||('NO.'+r.no))).join(', ')}</p>` : ''}
-      <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
-      <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">일요일 · 학교 출발</p>
+`;
+  const sundayHtml = `      <p style="font-size:12px; font-weight:700; margin:0 0 4px; color:var(--teal);">일요일 · 학교 출발</p>
       ${shuttleTimeListHtml(shuttlePointList(sundayRows,'school'), hi.school && hi.school.isSunday ? hi.school.time : null)}
       <p style="font-size:12px; font-weight:700; margin:14px 0 4px; color:var(--amber);">일요일 · 조치원역 뒤 출발</p>
       ${shuttleTimeListHtml(shuttlePointList(sundayRows,'station'), hi.mid && hi.mid.isSunday ? hi.mid.time : null)}
-      <p style="font-size:10.5px; color:var(--text-faint); margin:14px 2px 0; line-height:1.6;">토요일과 공휴일은 운행하지 않아요(쉬는 구간의 마지막 날만 일요일 시간표로 운행). 방학 기간에는 다른 시간표가 적용될 수 있습니다.</p>
+`;
+  const noteHtml = `      <p style="font-size:10.5px; color:var(--text-faint); margin:14px 2px 0; line-height:1.6;">토요일과 공휴일은 운행하지 않아요(쉬는 구간의 마지막 날만 일요일 시간표로 운행). 방학 기간에는 다른 시간표가 적용될 수 있습니다.</p>`;
+  const sundayFirst = new Date().getDay() === 0;   // 일요일에는 일요일 시간표를 위로
+  return `
+    <div class="card" style="margin-top:8px;">
+      ${sundayFirst ? sundayHtml + `<div style="border-top:1px solid var(--border); margin:16px 0;"></div>` + weekdayHtml : weekdayHtml + `<div style="border-top:1px solid var(--border); margin:16px 0;"></div>` + sundayHtml}
+      ${noteHtml}
     </div>`;
 }
 
@@ -8896,6 +8912,19 @@ function linkQuickChipsHtml(){
   if(!all.length) return '';
   return all.map((c,i)=>`<button type="button" class="link-chip" style="--i:${i};" data-action="link-pick" data-url="${escapeHtml(c.url)}" data-label="${escapeHtml(c.label)}"><b>${c.tag}</b>${escapeHtml(c.label)}</button>`).join('');
 }
+// 글쓰기 미리보기: 제목·본문을 실제 게시글처럼(링크·굵게·색깔 적용) 보여준다. 입력할 때마다 갱신.
+function updateNoticePreview(){
+  const pn = document.getElementById('notice-preview-panel');
+  if(!pn || !pn.classList.contains('open')) return;
+  const f = document.getElementById('notice-form');
+  if(!f) return;
+  const title = (f.querySelector('input[name=title]') || {}).value || '';
+  const content = (f.querySelector('textarea[name=content]') || {}).value || '';
+  const t = document.getElementById('notice-preview-title'), b = document.getElementById('notice-preview-body');
+  if(t) t.textContent = title || '제목';
+  if(b) b.innerHTML = content.trim() ? linkifyEscaped(escapeHtml(content)) : '<span style="color:var(--text-faint);">내용을 입력하면 여기에 미리 보여요</span>';
+}
+document.addEventListener('input', (e)=>{ if(e.target && e.target.closest && e.target.closest('#notice-form')) updateNoticePreview(); });
 // 선택한 글자를 prefix/suffix로 감싼다(선택이 없으면 자리 글자를 넣고 그 글자를 선택해 둔다). 굵게 **글자**, 색깔 {r|글자}.
 function wrapNoticeSelection(prefix, suffix, placeholder){
   const ta = document.querySelector('#notice-form textarea[name=content]');
@@ -8907,6 +8936,7 @@ function wrapNoticeSelection(prefix, suffix, placeholder){
   ta.focus();
   const a = s0 + prefix.length;
   ta.setSelectionRange(a, a + inner.length);
+  updateNoticePreview();
 }
 function applyLinkInsert(){
   const ta = document.querySelector('#notice-form textarea[name=content]');
@@ -8924,6 +8954,7 @@ function applyLinkInsert(){
   ta.focus(); ta.setSelectionRange(s0 + md.length, s0 + md.length);
   tEl.value = ''; uEl.value = '';
   const pn = document.getElementById('link-ins-panel'); if(pn) pn.classList.remove('open');
+  updateNoticePreview();
   toast('본문에 링크를 넣었어요');
 }
 function noticeModal(n){
@@ -8943,11 +8974,15 @@ function noticeModal(n){
           <button type="button" class="btn btn-ghost btn-sm" id="link-ins-toggle" data-action="toggle-link-insert">${SHARE_ICON} 링크 넣기</button>
           <button type="button" class="btn btn-ghost btn-sm" data-action="fmt-bold" title="선택한 글자를 굵게"><b style="font-size:13px;">B</b> 굵게</button>
           <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-fmt-color" title="선택한 글자에 색깔">${PALETTE_ICON} 색깔</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-notice-preview" title="완성된 모습 미리 보기">${ICON.eye} 미리보기</button>
         </div>
         <div class="opt-collapse" id="fmt-color-panel"><div class="opt-collapse-in">
           <div class="fmt-colors">
             ${[['r','#e5484d','빨강'],['o','#f08c00','주황'],['g','#2f9e44','초록'],['b','#3b82f6','파랑'],['p','#8b5cf6','보라']].map(([k,c,l],i)=>`<button type="button" class="fmt-dot" style="--c:${c}; --i:${i};" data-action="fmt-color" data-c="${k}" aria-label="${l}" title="${l}"></button>`).join('')}
           </div>
+        </div></div>
+        <div class="opt-collapse" id="notice-preview-panel"><div class="opt-collapse-in">
+          <div class="post-preview"><b class="pv-title" id="notice-preview-title"></b><div class="body" id="notice-preview-body"></div></div>
         </div></div>
         <div class="opt-collapse" id="link-ins-panel"><div class="opt-collapse-in">
           <div style="display:flex; flex-direction:column; gap:6px; padding-top:8px;">
@@ -13990,6 +14025,7 @@ document.addEventListener('click', async (e)=>{
       if(inp) inp.value = el.dataset.val;
     }
     else if(a === 'fmt-bold'){ wrapNoticeSelection('**', '**', '굵게'); }
+    else if(a === 'toggle-notice-preview'){ const pn = document.getElementById('notice-preview-panel'); if(pn){ pn.classList.toggle('open'); updateNoticePreview(); } }
     else if(a === 'toggle-fmt-color'){ const pn = document.getElementById('fmt-color-panel'); if(pn) pn.classList.toggle('open'); }
     else if(a === 'fmt-color'){ wrapNoticeSelection('{' + el.dataset.c + '|', '}', '색깔 글자'); const pn = document.getElementById('fmt-color-panel'); if(pn) pn.classList.remove('open'); }
     else if(a === 'notice-display-as'){
