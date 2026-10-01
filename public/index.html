@@ -7,6 +7,10 @@
 <title>KU ISE · 지능형반도체공학과</title>
 <meta name="description" content="고려대학교 지능형반도체공학과 ISE 앱 — 시간표, 학사일정, 급식, 공지·게시판·투표">
 <link rel="manifest" href="./manifest.json">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="KU ISE">
+<meta property="og:title" content="KU ISE · 지능형반도체공학과">
+<meta property="og:description" content="지능형반도체공학과 앱 — 시간표, 학사일정, 급식, 공지·게시판·투표">
 <meta name="theme-color" content="#8C1D2B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -84,6 +88,10 @@
 }
 body{transition:background-color .2s, color .2s;}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+/* 꾹 눌렀을 때 글자가 선택·복사되는 동작은 기본적으로 막는다. 직접 입력하는 칸과, 복사할 일이 있는 학사일정·학과공지·학사 달력(내 메모·일정 목록)·학식 화면만 허용. */
+body{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
+input, textarea, [contenteditable="true"]{-webkit-user-select:text; user-select:text; -webkit-touch-callout:default;}
+#main-content[data-sel="ok"]{-webkit-user-select:text; user-select:text; -webkit-touch-callout:default;}
 html,body{height:100%;}
 body{margin:0; background:var(--bg); color:var(--text); font-family:var(--font-display); font-size:12.5px; letter-spacing:-0.01em; -webkit-font-smoothing:antialiased; overscroll-behavior-y:none; word-break:keep-all;}
 button,input,select,textarea{font-family:inherit; color:inherit;}
@@ -431,6 +439,34 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .opt-two .swatch.line-default{font-size:8px;}
 .opt-sub{display:flex; align-items:center; gap:8px; padding:4px 0 8px;}
 /* 스위치로 켜고 끄는 하위 줄: 높이가 0 ↔ 실제 높이로 부드럽게 바뀌고, 살짝 위에서 내려오며 나타난다 */
+/* 투표 만들기 — 연결할 게시글 고르기 */
+.post-pick-btn{width:100%; display:flex; align-items:center; gap:9px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text-dim); font:inherit; font-size:12px; text-align:left; cursor:pointer; transition:border-color .2s, background .2s, color .2s;}
+.post-pick-btn .pp-ic{display:flex; color:var(--text-faint); transition:color .2s;}
+.post-pick-btn .pp-ic svg{width:16px; height:16px;}
+.post-pick-btn .pp-label{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.post-pick-btn .pp-chev{display:flex; color:var(--text-faint); transition:transform .38s cubic-bezier(.22,1,.36,1);}
+.post-pick-btn .pp-chev svg{width:15px; height:15px;}
+.post-pick-btn.open{border-color:var(--crimson);}
+.post-pick-btn.open .pp-chev{transform:rotate(180deg);}
+.post-pick-btn.has{color:var(--text); border-color:var(--crimson); background:rgba(var(--crimson-rgb, 160,20,40), .07);}
+.post-pick-btn.has .pp-ic{color:var(--crimson);}
+.post-pick-list{margin-top:6px; border:1px solid var(--border); border-radius:10px; background:var(--surface); max-height:220px; overflow-y:auto; overscroll-behavior:contain;}
+.post-pick-item{display:flex; align-items:center; gap:8px; padding:10px 12px; font-size:12px; cursor:pointer; border-bottom:1px solid var(--hairline); opacity:0; transform:translateY(-6px); transition:background .15s;}
+.post-pick-item:last-child{border-bottom:none;}
+.post-pick-item:active{background:var(--surface-2);}
+.opt-collapse.open .post-pick-item{animation:ppIn .42s cubic-bezier(.22,1,.36,1) both; animation-delay:calc(var(--i, 0) * 35ms + 80ms);}
+@keyframes ppIn{from{opacity:0; transform:translateY(-8px) scale(.98);}to{opacity:1; transform:none;}}
+.post-pick-item .pp-t{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;}
+.post-pick-item .pp-d{font-size:10px; color:var(--text-faint); font-family:var(--font-mono); flex-shrink:0;}
+.post-pick-item .pp-check{width:16px; height:16px; flex-shrink:0; border-radius:50%; border:2px solid var(--border-light); position:relative; transition:border-color .15s, background .15s;}
+.post-pick-item.on .pp-check{border-color:var(--crimson); background:var(--crimson);}
+.post-pick-item.on .pp-check::after{content:''; position:absolute; left:4px; top:1px; width:4px; height:8px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);}
+.post-pick-item.on .pp-t{color:var(--crimson);}
+.post-pick-empty{padding:14px; font-size:11.5px; color:var(--text-faint); text-align:center;}
+/* 공유 링크로 들어왔을 때 해당 글을 잠깐 강조 */
+.link-flash{animation:linkFlash 2.4s cubic-bezier(.22,1,.36,1);}
+@keyframes linkFlash{0%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), .55);}30%{box-shadow:0 0 0 6px rgba(var(--crimson-rgb, 160,20,40), .28);}100%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), 0);}}
+.share-btn{width:auto; display:inline-flex; align-items:center; gap:4px;}
 .opt-collapse{display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .38s cubic-bezier(.4,0,.2,1), opacity .2s ease;}
 .opt-collapse.open{grid-template-rows:1fr; opacity:1; transition:grid-template-rows .5s cubic-bezier(.22,1,.36,1), opacity .4s ease .06s;}
 .opt-collapse-in{overflow:hidden; min-height:0; transform:translateY(-12px); transition:transform .38s cubic-bezier(.4,0,.2,1); contain:layout paint;}
@@ -1453,7 +1489,10 @@ const PATCH_NOTES = [
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
     { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
     { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
-    { title:'내 글 공지 신청', text:'MY 탭의 "공지 신청"에서 내가 쓴 글을 신청하면 학생회가 검토해 승인해요 (한 번에 한 건)' },
+    { title:'꾹 눌러도 글자가 선택되지 않아요', text:'홈·게시판·MY 등에서 꾹 눌렀을 때 글자가 선택되던 동작을 없앴어요. 학사일정·학과공지·학사 달력(내 메모)·학식에서는 그대로 복사할 수 있어요' },
+    { title:'게시글 · 투표 링크 공유', text:'게시글과 투표의 "링크" 버튼으로 주소를 공유할 수 있어요. 카카오톡 등에 붙여넣고 링크를 열면 로그인 후 바로 그 글로 이동해요' },
+    { title:'공지 · 투표 · 구인글은 하루에 한 번만 새로 받아요', text:'새벽 3시 이후 처음 켤 때, 내가 올릴 때, 관련 알림이 올 때, 새로고침 버튼을 누를 때만 서버에서 다시 받아와요' },
+    { title:'내 글 공지 신청', text:'MY 탭의 "공지 신청"에서 내가 쓴 글을 신청하면 학생회가 게시판에서 승인해요 (한 번에 한 건)' },
     { title:'건의 게시판을 없앴어요', text:'건의는 MY 탭의 제보 · 제안하기를 이용해주세요' },
   ]},
   { version:'Beta 0.5.3', date:'2026-10-01', summary:'환경설정이 새로워졌어요! 프로필도 바로 고치고, 앱 색도 고를 수 있어요~', items:[
@@ -2772,9 +2811,16 @@ function getSharedVers(){
   return sharedVerPromise;
 }
 const SHARED_NOVER_TTL = 30 * 60 * 1000;
-async function loadShared(name, fallback){
+// 공지·투표·구인글은 하루(새벽 3시 기준)에 한 번만 서버에서 다시 읽는다. 그 사이에는 내가 올리거나 고칠 때,
+// 새로고침 버튼을 누를 때, 해당 푸시 알림이 올 때만 다시 읽는다(shared/ver 확인 읽기도 하지 않는다).
+// 글을 쓰거나 투표하는 동작은 오래된 사본 위에 덮어쓰지 않도록 fresh=true로 읽는다.
+const DAILY_SHARED = ['notices','polls','recruitments'];
+function markSharedDay(name){ if(DAILY_SHARED.includes(name)) localSet('shared_day_'+name, ownSyncDay()); }
+function invalidateDailyShared(){ DAILY_SHARED.forEach(n=>localSet('shared_day_'+n, '')); }
+async function loadShared(name, fallback, fresh){
   const localVal = localGet('shared_'+name, fallback);
   const cachedRaw = localGet('shared_'+name, null);
+  if(!fresh && DAILY_SHARED.includes(name) && cachedRaw !== null && localGet('shared_day_'+name, '') === ownSyncDay()) return cachedRaw;
   const vers = auth.currentUser ? await getSharedVers() : null;
   const serverVer = vers ? vers[name] : undefined;
   let sawVer = serverVer;
@@ -2805,6 +2851,7 @@ async function loadShared(name, fallback){
         localSet('shared_'+name, remote);
         localSet('shared_ver_'+name, sawVer === undefined ? null : sawVer);
         localSet('shared_at_'+name, Date.now());
+        markSharedDay(name);
         sharedDirty = true;
         return remote;
       }
@@ -2893,7 +2940,7 @@ async function bumpSharedVer(name){
   const ts = Date.now();
   try{
     await setDoc(doc(db,'shared','ver'), { [name]: ts }, { merge:true });
-    localSet('shared_ver_'+name, ts); localSet('shared_at_'+name, ts);
+    localSet('shared_ver_'+name, ts); localSet('shared_at_'+name, ts); markSharedDay(name);
     sharedVerPromise = null;
   }catch(e){ console.warn('[shared ver]', name, e && e.code); localSet('shared_ver_'+name, null); }
 }
@@ -2941,7 +2988,7 @@ async function mutateSharedList(name, field, mutate){
     });
     if(result){
       localSet('shared_'+name, { [field]: result });
-      localSet('shared_ver_'+name, bumpTs); localSet('shared_at_'+name, bumpTs); sharedVerPromise = null;
+      localSet('shared_ver_'+name, bumpTs); localSet('shared_at_'+name, bumpTs); markSharedDay(name); sharedVerPromise = null;
       LAST_SAVE_ERROR = '';
     }
     return result;
@@ -3346,13 +3393,13 @@ async function saveMemos(uidStr, byDate){
 }
 async function loadMeals(){ return (await loadShared('meals',{byDate:{}})).byDate || {}; }
 async function saveMeals(o){ return await saveShared('meals',{byDate:o}); }
-async function loadNotices(){ return (await loadShared('notices',{list:[]})).list || []; }
+async function loadNotices(fresh){ return (await loadShared('notices',{list:[]}, fresh)).list || []; }
 async function saveNotices(a){ return await saveShared('notices',{list:a}); }
 async function loadBugReports(){ return (await loadShared('bugReports',{list:[]})).list || []; }
 async function saveBugReports(a){ return await saveShared('bugReports',{list:a}); }
-async function loadPolls(){ return (await loadShared('polls',{list:[]})).list || []; }
+async function loadPolls(fresh){ return (await loadShared('polls',{list:[]}, fresh)).list || []; }
 async function savePolls(a){ return await saveShared('polls',{list:a}); }
-async function loadRecruitments(){ return (await loadShared('recruitments',{list:[]})).list || []; }
+async function loadRecruitments(fresh){ return (await loadShared('recruitments',{list:[]}, fresh)).list || []; }
 async function saveRecruitments(a){ return await saveShared('recruitments',{list:a}); }
 // 전체 가입자 목록은 users 컬렉션을 직접 조회해서 만든다.
 //
@@ -4609,6 +4656,8 @@ async function registerWebPushToken(){
 state.pendingNotifRoute = null;
 function routeNotificationTap(category, data){
   if(!state.user){ state.pendingNotifRoute = { category, data }; return; }
+  if(['notice','poll','recruit'].includes(category)){ invalidateDailyShared(); refreshShared(true).then(()=>renderMain()).catch(()=>{}); }
+  if(category==='link'){ openSharedLink(data); return; }
   if(category==='notice'){ state.view='council'; state.councilTab='notice'; renderShell(); }
   else if(category==='poll'){ state.view='council'; state.councilTab='poll'; renderShell(); }
   else if(category==='recruit'){ state.view='council'; state.councilTab='recruitment'; renderShell(); }
@@ -5405,6 +5454,11 @@ const RECEIVED_NOTIF_MAX = 50;
 function getReceivedNotifs(){ return localGet('notif_received', []); }
 function recordReceivedNotif(title, body, category){
   if(!title && !body) return;
+  // 공지·투표·구인글 푸시가 오면 하루 캐시를 무효화하고 다시 읽는다(새 글을 바로 볼 수 있게).
+  if(['notice','poll','recruit'].includes(category)){
+    invalidateDailyShared();
+    refreshShared(true).then(changed=>{ if(changed && state.user && ['home','council'].includes(state.view)) renderMain(); }).catch(()=>{});
+  }
   const list = getReceivedNotifs();
   const ts = now();
   // 같은 알림이 포그라운드 수신(1)과 서버 기록(2) 양쪽으로 들어와 두 줄로 보이는 걸 막는다.
@@ -5448,7 +5502,7 @@ function getNotificationFeed(){
   const b = state.adminBadge || {};
   const nowTs = now();
   if(isDirectorPlus() && b.signupInquiries>0) items.push({ id:'admin_signup_'+b.signupInquiries, ts:nowTs, icon:ICON.person, title:'가입 승인 대기', body:`${b.signupInquiries}건 확인이 필요해요`, action:'open-signup-inquiries' });
-  if(isCouncil()){ const nreq = pendingAnnounceReqs().length; if(nreq>0) items.push({ id:'admin_annreq_'+nreq, ts:nowTs-2, icon:ICON.megaphone, title:'공지 신청 대기', body:`${nreq}건 확인이 필요해요`, action:'open-announce-inbox' }); }
+
   if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
   visibleNotices().forEach(n=>{
     // 공지로 올리거나 고정한 글만 알림 목록에 올린다(그냥 게시판 글은 제외).
@@ -6128,6 +6182,8 @@ function renderMain(){
   const inFriendDetail = state.view==='council' && state.councilTab==='social' && state.friendsUI && state.friendsUI.screen==='detail';
   const skipFooter = state.view==='mypage' || inFriendDetail || (state.view==='timetable' && !showTtFooter);
   el.innerHTML = html + (skipFooter ? '' : versionFooter());
+  // 글자 선택(복사)을 허용하는 화면: 학사정보의 학사일정·학사 달력·학식. 홈을 포함한 나머지는 막는다.
+  if(state.view==='info' && ['calendar','examCal','meal'].includes(state.infoTab)) el.setAttribute('data-sel','ok'); else el.removeAttribute('data-sel');
   refreshSettingsPage();
   setupNowTimer();
   setupWidgetOpacitySlider();
@@ -8593,22 +8649,7 @@ function announceRequestModal(){
           : `<button class="btn btn-primary btn-sm" style="width:auto;" ${hasOpen?'disabled':''} data-action="req-announce" data-id="${n.id}">신청</button>`}
       </div>`; }).join('') : `<div class="empty"><p>내가 쓴 게시글이 없어요.</p></div>`}`;
 }
-function announceInboxModal(){
-  const list = pendingAnnounceReqs();
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title">공지 신청함<button data-action="close-modal">${ICON.close}</button></div>
-    ${list.length ? list.map(n=>`
-      <div style="padding:10px 0; border-bottom:1px solid var(--hairline);">
-        <b style="font-size:12.5px;">${escapeHtml(n.title)}</b>
-        <div class="meta">${noticeAuthorHtml(n)} · ${fmtDateTime(n.announceReq.at)} 신청</div>
-        <div class="body" style="font-size:11.5px; max-height:90px; overflow:hidden;">${linkifyEscaped(escapeHtml(n.content))}</div>
-        <div style="display:flex; gap:6px; margin-top:8px;">
-          <button class="btn btn-primary btn-sm" data-action="approve-announce" data-id="${n.id}">승인 (공지로 올리기)</button>
-          <button class="btn btn-ghost btn-sm" data-action="reject-announce" data-id="${n.id}">반려</button>
-        </div>
-      </div>`).join('') : `<div class="empty"><p>대기 중인 공지 신청이 없어요.</p></div>`}`;
-}
+
 async function requestAnnounce(id){
   if(!state.user) return;
   if(myOpenAnnounceReq()){ toast('이미 신청한 글이 있어요. 처리된 뒤에 다시 신청해주세요'); return; }
@@ -8629,17 +8670,14 @@ async function cancelAnnounceReq(id){
   if(next) state.notices = next; else saveResultToast(false);
   openModal(announceRequestModal());
 }
-// 승인: 공지로 올리고(24시간) 신청 표시를 지운다. 반려: 신청 표시만 지운다.
-async function resolveAnnounceReq(id, approve){
+// 학생회는 게시판 카드의 "공지 신청" 표시를 보고 승인(공지로 올리기)하거나 반려한다. 반려는 신청 표시만 지운다.
+async function rejectAnnounceReq(id){
   if(!isCouncil()) return;
   const next = await mutateSharedList('notices', 'list', (list)=>{
     if(!list.some(n=>n.id===id)) return null;
-    return list.map(n=>n.id===id ? (approve
-      ? { ...n, announce:true, announceAt: now(), announceReq:null, updatedAt: now() }
-      : { ...n, announceReq:null, updatedAt: now() }) : n);
+    return list.map(n=>n.id===id ? { ...n, announceReq:null, updatedAt: now() } : n);
   });
   if(next) state.notices = next; else saveResultToast(false);
-  openModal(announceInboxModal());
   renderMain();
 }
 
@@ -8652,6 +8690,10 @@ function validRecruitPosts(){
 }
 
 // 이 게시글에 연결된 투표(진행 중 우선). 눌러서 투표 화면으로 간다.
+const SHARE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>`;
+function shareBtnHtml(kind, id){
+  return `<button type="button" class="btn btn-ghost btn-sm share-btn" data-action="share-link" data-kind="${kind}" data-id="${escapeHtml(id)}" title="링크 공유">${SHARE_ICON} 링크</button>`;
+}
 function linkedPollsHtml(n){
   const ps = live(state.polls).filter(p=>p.postId===n.id).sort((a,b)=>(isPollEnded(a)?1:0)-(isPollEnded(b)?1:0));
   if(!ps.length) return '';
@@ -8675,25 +8717,27 @@ function postCardHtml(n, opts){
   const announced = isPostAnnounced(n);
   const chips = (n.pinned ? `<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>` : '')
     + (announced ? `<span class="tag tag-crimson" style="flex-shrink:0;">공지 · ${announceLeftLabel(n)}</span>` : '');
+  const reqChip = (n.announceReq && !announced && !n.pinned) ? `<span class="tag tag-amber" style="flex-shrink:0;">공지 신청</span>` : '';
   return `
-    <div class="card notice-card">
+    <div class="card notice-card" id="post-${escapeHtml(n.id)}">
     <div class="list-item">
-      <div class="title-line big-title">${chips}<b>${escapeHtml(n.title)}</b></div>
+      <div class="title-line big-title">${chips}${reqChip}<b>${escapeHtml(n.title)}</b></div>
       <div class="meta">${n.displayAs === 'none' ? '' : noticeAuthorHtml(n) + ' · '}${fmtDateTime(n.createdAt || n.date)}</div>
       <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
       ${noticeImagesHtml(n)}
       ${linkedPollsHtml(n)}
       ${renderLikeUI(n, 'notice')}
-      ${(council || editable) && !(opts && opts.readonly) ? `
       <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-        ${council ? `
-        <button class="btn btn-ghost btn-sm" data-action="toggle-announce" data-id="${n.id}">${announced ? '공지 내리기' : '공지로 올리기'}</button>
+        ${shareBtnHtml('post', n.id)}
+        ${council && !(opts && opts.readonly) ? `
+        <button class="btn btn-ghost btn-sm" data-action="toggle-announce" data-id="${n.id}">${announced ? '공지 내리기' : (n.announceReq ? '신청 승인 (공지로 올리기)' : '공지로 올리기')}</button>
+        ${(n.announceReq && !announced) ? `<button class="btn btn-ghost btn-sm" data-action="reject-announce" data-id="${n.id}">신청 반려</button>` : ''}
         <button class="btn btn-ghost btn-sm" data-action="toggle-pin" data-id="${n.id}">${n.pinned?'고정 해제':'상단 고정'}</button>` : ''}
-        ${editable ? `
+        ${(editable && !(opts && opts.readonly)) ? `
         <button class="btn btn-ghost btn-sm" data-action="edit-notice" data-id="${n.id}">수정</button>
         <button class="btn btn-danger btn-sm" data-action="delete-notice" data-id="${n.id}">삭제</button>`
-        : `<span style="font-size:10.5px; color:var(--text-faint);">상위 직급 게시글 — 수정·삭제 불가</span>`}
-      </div>` : ''}
+        : (council && !editable && !(opts && opts.readonly)) ? `<span style="font-size:10.5px; color:var(--text-faint);">상위 직급 게시글 — 수정·삭제 불가</span>` : ''}
+      </div>
     </div>
     </div>`;
 }
@@ -9100,6 +9144,10 @@ function renderPollTab(){
 }
 
 function renderPollItem(p){
+  const __html = renderPollItemInner(p);
+  return __html.replace('<div class="list-item">', `<div class="list-item" id="poll-${escapeHtml(p.id)}">`);
+}
+function renderPollItemInner(p){
   const manage = canPoll();
   const isDirectorOrHigher = myLevel() >= 2;
   const votes = p.votes || {};
@@ -9196,6 +9244,7 @@ function renderPollItem(p){
       </div>
       <div class="meta">${p.multi?'복수선택 · ':''}${fmtPollDeadline(p)} · ${fmtAuthorBadge(p.createdBy||'학생회', p.createdById, p.authorRole)}</div>
       ${linkedPostLabelHtml(p)}
+      <div style="margin-top:6px;">${shareBtnHtml('poll', p.id)}</div>
       <div style="margin-top:8px;">${body}</div>
       ${manage ? `
       <div style="display:flex; gap:5px; margin-top:8px;">
@@ -9205,6 +9254,40 @@ function renderPollItem(p){
     </div>`;
 }
 
+// 투표를 연결할 게시글 고르기: 버튼을 누르면 목록이 부드럽게 펼쳐지고 항목이 차례로 나타난다. 고르면 버튼에 제목이 들어가고 접힌다.
+function pollPostPickerHtml(){
+  const posts = visibleNotices().sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).slice(0,30);
+  return `
+    <div class="field" style="margin-bottom:12px;">
+      <label>연결할 게시글 (선택)</label>
+      <input type="hidden" name="postId" id="poll-post-id" value="">
+      <button type="button" class="post-pick-btn" id="poll-post-btn" data-action="toggle-post-pick">
+        <span class="pp-ic">${ICON.clipboard}</span>
+        <span class="pp-label" id="poll-post-label">연결 안 함</span>
+        <span class="pp-chev">${ICON.chevDown}</span>
+      </button>
+      <div class="opt-collapse" id="poll-post-panel"><div class="opt-collapse-in">
+        <div class="post-pick-list">
+          <div class="post-pick-item on" data-action="pick-post" data-id="" style="--i:0;"><span class="pp-t">연결 안 함</span><span class="pp-check"></span></div>
+          ${posts.length ? posts.map((n,i)=>`
+          <div class="post-pick-item" data-action="pick-post" data-id="${escapeHtml(n.id)}" style="--i:${i+1};">
+            <span class="pp-t">${escapeHtml(n.title)}</span>
+            <span class="pp-d">${fmtDateTime(n.createdAt || n.date)}</span>
+            <span class="pp-check"></span>
+          </div>`).join('') : `<div class="post-pick-empty">게시판에 글이 없어요</div>`}
+        </div>
+      </div></div>
+    </div>`;
+}
+function pickLinkedPost(id){
+  const hid = document.getElementById('poll-post-id'); if(!hid) return;
+  hid.value = id;
+  const n = id ? visibleNotices().find(x=>x.id===id) : null;
+  const lb = document.getElementById('poll-post-label'); if(lb) lb.textContent = n ? n.title : '연결 안 함';
+  document.querySelectorAll('#poll-post-panel .post-pick-item').forEach(it=>it.classList.toggle('on', (it.dataset.id||'') === id));
+  const bt = document.getElementById('poll-post-btn'); if(bt){ bt.classList.toggle('has', !!id); bt.classList.remove('open'); }
+  const pn = document.getElementById('poll-post-panel'); if(pn) pn.classList.remove('open');
+}
 function pollModal(){
   return `
     <div class="modal-handle"></div>
@@ -9222,13 +9305,7 @@ function pollModal(){
         </div>`).join('')}
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-action="add-poll-option" style="width:100%; margin-bottom:12px;">+ 선택지 추가</button>
-      <div class="field" style="margin-bottom:12px;">
-        <label>연결할 게시글 (선택)</label>
-        <select name="postId">
-          <option value="">연결 안 함</option>
-          ${visibleNotices().sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).slice(0,30).map(n=>`<option value="${escapeHtml(n.id)}">${escapeHtml(n.title)}</option>`).join('')}
-        </select>
-      </div>
+      ${pollPostPickerHtml()}
       <div class="poll-opts" style="display:flex; gap:14px; margin-bottom:14px; position:relative;">
         <!-- 왼쪽 열: 마감 일시 설정 → 복수 선택 허용 → 알림 발송 -->
         <div style="flex:1; min-width:0;">
@@ -10215,8 +10292,6 @@ function renderMypage(){
       ${!isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-announce-request"><span class="link-row-label">${ICON.megaphone} 공지 신청${myOpenAnnounceReq()?' (검토 대기 중)':''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
-      ${!isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
-      <div class="link-row" data-action="open-announce-inbox"><span class="link-row-label">${ICON.megaphone} 공지 신청함${pendingAnnounceReqs().length>0?` (${pendingAnnounceReqs().length})`:''}</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
@@ -12028,8 +12103,8 @@ async function handleToggleLike(type, id){
   let list = [];
   let docName = '';
 
-  if(type==='notice'){ list = await loadNotices(); docName = 'notices'; }
-  else if(type==='recruitment'){ list = await loadRecruitments(); docName = 'recruitments'; }
+  if(type==='notice'){ list = await loadNotices(true); docName = 'notices'; }
+  else if(type==='recruitment'){ list = await loadRecruitments(true); docName = 'recruitments'; }
   if(!docName) return;
 
   const item = list.find(x=>x.id===id);
@@ -12843,7 +12918,7 @@ async function handleNoticeSubmit(fd){
   const btn = document.querySelector('#notice-form button[type=submit]');
   if(btn) btn.disabled = true;
   try{
-    const latest = await loadNotices();
+    const latest = await loadNotices(true);
     let next;
     if(id && latest.some(x => x.id === id)){
       const target = latest.find(x => x.id === id);
@@ -12896,7 +12971,7 @@ async function handleNoticeSubmit(fd){
 }
 
 async function deleteNotice(id){
-  const latest = await loadNotices();
+  const latest = await loadNotices(true);
   const target = latest.find(x => x.id === id);
   if(!target || !canModify(target)) return;
   if(!await showConfirm('이 게시글을 삭제할까요?')) return;
@@ -12925,7 +13000,7 @@ async function toggleAnnounce(id){
     if(!list.some(n => n.id === id)) return null;
     return list.map(n => n.id === id ? (isPostAnnounced(n)
       ? { ...n, announce: false, updatedAt: now() }
-      : { ...n, announce: true, announceAt: now(), updatedAt: now() }) : n);
+      : { ...n, announce: true, announceAt: now(), announceReq: null, updatedAt: now() }) : n);
   });
   if(next) state.notices = next;
   renderMain();
@@ -12940,7 +13015,7 @@ async function handleRecruitmentSubmit(fd){
   const pollEnabled = fd.get('pollEnabled') === 'on';
   const expireHours = parseInt(fd.get('expireHours') || '24', 10);
   if(!title || !content){ toast('제목과 내용을 입력해주세요'); return; }
-  const latest = await loadRecruitments();
+  const latest = await loadRecruitments(true);
   let next;
   if(id && latest.some(r => r.id === id)){
     // 이미 투표에 참여한 사람이 있으면(votes), 수정 중에도 그 응답을 그대로 유지한다 —
@@ -12980,7 +13055,7 @@ async function handleRecruitmentSubmit(fd){
 }
 
 async function deleteRecruitment(id){
-  const latest = await loadRecruitments();
+  const latest = await loadRecruitments(true);
   const target = latest.find(r => r.id === id);
   if(!target) return;
   const mine = state.user && target.authorId === state.user.studentId;
@@ -13003,7 +13078,7 @@ async function handlePollSubmit(fd){
   if(!question || unique.length < 2){ toast('질문과 서로 다른 선택지를 2개 이상 입력해주세요'); return; }
   const deadlineOn = document.getElementById('poll-deadline-check')?.checked;
   const endDateTime = deadlineOn ? `${fd.get('poll_deadline_date')}T${fd.get('poll_deadline_time')}` : '';
-  const latest = await loadPolls();
+  const latest = await loadPolls(true);
   const next = [{
     id: uid(),
     question,
@@ -13037,7 +13112,7 @@ async function handlePollSubmit(fd){
 async function handlePollVoteSubmit(fd){
   const pollId = fd.get('pollId');
   const selected = fd.getAll('opt').map(v => parseInt(v, 10)).filter(n => !isNaN(n));
-  const latest = await loadPolls();
+  const latest = await loadPolls(true);
   const poll = latest.find(p => p.id === pollId);
   if(!poll || isPollEnded(poll)) return;
   const sid = state.user.studentId;
@@ -13088,7 +13163,7 @@ async function cancelPollVote(pollId){
 
 async function closePollNow(pollId){
   if(!await showConfirm('지금 즉시 이 투표를 종료할까요?')) return;
-  const latest = await loadPolls();
+  const latest = await loadPolls(true);
   const next = latest.map(p => p.id === pollId ? { ...p, closed: true, updatedAt: now() } : p);
   const ok = await savePolls(next);
   state.polls = next;
@@ -13098,7 +13173,7 @@ async function closePollNow(pollId){
 
 async function reopenPoll(pollId){
   if(!await showConfirm('이 투표를 다시 진행 중으로 변경할까요?')) return;
-  const latest = await loadPolls();
+  const latest = await loadPolls(true);
   const next = latest.map(p => p.id === pollId ? { ...p, closed: false, endDateTime: '', endDate: '', updatedAt: now() } : p);
   const ok = await savePolls(next);
   state.polls = next;
@@ -13108,7 +13183,7 @@ async function reopenPoll(pollId){
 
 async function deletePoll(id){
   if(!await showConfirm('이 투표를 삭제할까요?')) return;
-  const latest = await loadPolls();
+  const latest = await loadPolls(true);
   const target = latest.find(p => p.id === id);
   const next = latest.map(p => p.id === id ? { ...p, deleted: true, updatedAt: now() } : p);
   const ok = await savePolls(next);
@@ -13310,6 +13385,50 @@ async function handleGeminiKeysSubmit(fd){
   saveResultToast(ok, `사진 인식 키 ${keys.length}개가 저장되었습니다`);
 }
 
+/* ===== 공유 링크 =====
+   게시글·투표를 https://ku-ise-d95ee.web.app/?go=post-<id> / ?go=poll-<id> 로 공유한다. 링크를 열면 로그인 후
+   (로그인 전이면 로그인 화면을 거쳐) 그 글·투표로 바로 이동해 잠깐 강조한다. 로그인 전에도 이동 정보를 잃지 않도록
+   pendingNotifRoute(알림 탭 처리용)를 그대로 쓴다. 앱(APK)에서 링크를 누르면 브라우저로 열린다(앱 링크 연결은 네이티브 변경이 필요). */
+const SHARE_BASE = 'https://ku-ise-d95ee.web.app/';
+function shareLinkFor(kind, id){ return SHARE_BASE + '?go=' + kind + '-' + encodeURIComponent(id); }
+(function readShareLinkParam(){
+  try{
+    const go = new URLSearchParams(location.search).get('go');
+    const m = go && go.match(/^(post|poll)-(.+)$/);
+    if(!m) return;
+    state.pendingNotifRoute = { category:'link', data:{ kind:m[1], id:m[2] } };
+    history.replaceState(null, '', location.pathname + location.hash);   // 새로고침해도 다시 이동하지 않게 주소에서 지운다
+  }catch(e){}
+})();
+async function shareItemLink(kind, id){
+  const url = shareLinkFor(kind, id);
+  let title = '';
+  if(kind === 'post'){ const n = live(state.notices).find(x=>x.id===id); title = n ? n.title : ''; }
+  else { const p = live(state.polls).find(x=>x.id===id); title = p ? p.question : ''; }
+  const text = kind === 'poll' ? `투표가 진행 중이에요: ${title}` : `게시글: ${title}`;
+  try{
+    if(typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.Share){ await Capacitor.Plugins.Share.share({ title: text, text, url, dialogTitle:'링크 공유' }); return; }
+    if(navigator.share){ await navigator.share({ title: text, text, url }); return; }
+  }catch(e){ if(e && e.name === 'AbortError') return; }
+  try{ await navigator.clipboard.writeText(url); toast('링크를 복사했어요'); }
+  catch(e){ window.prompt('링크를 복사하세요', url); }
+}
+async function openSharedLink(data){
+  if(!data) return;
+  const find = ()=> data.kind === 'poll' ? live(state.polls).find(p=>p.id===data.id) : visibleNotices().find(n=>n.id===data.id);
+  if(!find()){ invalidateDailyShared(); await refreshShared(true).catch(()=>{}); }
+  if(!find()){ toast('삭제되었거나 볼 수 없는 글이에요'); return; }
+  state.view = 'council'; state.councilTab = data.kind === 'poll' ? 'poll' : 'board';
+  renderShell();
+  setTimeout(()=>{
+    const el = document.getElementById((data.kind === 'poll' ? 'poll-' : 'post-') + data.id);
+    if(!el) return;
+    el.scrollIntoView({ block:'center', behavior:'smooth' });
+    el.classList.add('link-flash');
+    setTimeout(()=>el.classList.remove('link-flash'), 2600);
+  }, 150);
+}
+
 /* ===== 게시판 전체 삭제 (상위 직급 글 보호 & 종료된 투표만 삭제) ===== */
 async function clearAllBoard(type){
   if(myLevel() < 2) return;
@@ -13320,21 +13439,21 @@ async function clearAllBoard(type){
   let remaining = [];
 
   if(type === 'notice'){
-    const list = await loadNotices();
+    const list = await loadNotices(true);
     beforeCount = live(list).length;
     remaining = list.map(item => (!item.deleted && roleLevel(item.authorRole || 'council') > myLevel()) ? item : { ...item, deleted: true, updatedAt: now() });
     await saveNotices(remaining);
     state.notices = remaining;
   }
   else if(type === 'recruitment'){
-    const list = await loadRecruitments();
+    const list = await loadRecruitments(true);
     beforeCount = live(list).length;
     remaining = list.map(item => (!item.deleted && roleLevel(item.authorRole || 'student') > myLevel()) ? item : { ...item, deleted: true, updatedAt: now() });
     await saveRecruitments(remaining);
     state.recruitmentPosts = remaining;
   }
   else if(type === 'poll'){
-    const list = await loadPolls();
+    const list = await loadPolls(true);
     const endedList = live(list).filter(p => isPollEnded(p));
     beforeCount = endedList.length;
     if(beforeCount === 0){
@@ -13475,7 +13594,7 @@ document.addEventListener('click', async (e)=>{
   // delete-event는 여기서 뺐다. 개인 일정은 자기가 만든 것이라 본인이 지울 수 있어야 하는데,
   // 목록에는 삭제 버튼이 보이면서(작성자면 표시됨) 누르면 이 가드에 막혀 "학생회 권한이
   // 필요합니다"만 뜨고 있었다. 실제 권한 판단은 deleteEvent() 안에서 작성자/직급으로 한다.
-  const councilOnly = ['toggle-pin','toggle-announce','open-announce-inbox','approve-announce','reject-announce','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
+  const councilOnly = ['toggle-pin','toggle-announce','reject-announce','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
   const presidentOnly = ['view-users-list','manage-roster','view-audit-log','open-user-detail','user-sort','toggle-user-sort'];
   const developerOnly = ['manage-gemini-keys','purge-tombstones'];
@@ -13503,6 +13622,7 @@ document.addEventListener('click', async (e)=>{
       if(refreshCdLeft() > 0) return;   // 5초에 한 번만
       localSet('refresh_cd_until', Date.now() + REFRESH_COOLDOWN_MS);
       ownSyncReset();   // 새로고침 버튼은 내 시간표·메모도 서버에서 다시 읽게 한다
+      invalidateDailyShared();   // 공지·투표·구인글도 서버에서 다시 읽는다
       location.reload();
     }
     else if(a === 'nav'){
@@ -14226,9 +14346,10 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'open-announce-request'){ openModal(announceRequestModal()); }
     else if(a === 'req-announce'){ await requestAnnounce(el.dataset.id); }
     else if(a === 'cancel-req-announce'){ await cancelAnnounceReq(el.dataset.id); }
-    else if(a === 'open-announce-inbox'){ if(isCouncil()) openModal(announceInboxModal()); }
-    else if(a === 'approve-announce'){ await resolveAnnounceReq(el.dataset.id, true); }
-    else if(a === 'reject-announce'){ await resolveAnnounceReq(el.dataset.id, false); }
+    else if(a === 'reject-announce'){ await rejectAnnounceReq(el.dataset.id); }
+    else if(a === 'share-link'){ await shareItemLink(el.dataset.kind, el.dataset.id); }
+    else if(a === 'toggle-post-pick'){ const pn = document.getElementById('poll-post-panel'); if(pn) pn.classList.toggle('open'); const bt = document.getElementById('poll-post-btn'); if(bt) bt.classList.toggle('open'); }
+    else if(a === 'pick-post'){ pickLinkedPost(el.dataset.id || ''); }
     else if(a === 'go-board-tab'){ state.view = 'council'; state.councilTab = 'board'; renderShell(); }
     else if(a === 'add-poll'){ openModal(pollModal()); updatePollOptionUI(); }
     else if(a === 'add-poll-option'){
