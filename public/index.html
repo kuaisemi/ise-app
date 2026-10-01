@@ -794,7 +794,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .acc-dot.on i{color:var(--on-crimson,#fff); box-shadow:0 0 0 2px var(--surface-2), 0 0 0 4px var(--c);}
 #settings-page .card + .card{margin-top:8px !important;}
 /* 한 줄짜리 알림 카드(방해 금지·시간표)는 위아래 여백을 조금 더 */
-#settings-page #st-sec-notify .card:nth-of-type(2), #settings-page #st-sec-notify .card:nth-of-type(3){padding:9px 14px;}
+#settings-page #st-sec-notify .card:nth-of-type(2), #settings-page #st-sec-notify .card:nth-of-type(3){padding:6px 14px;}
+#settings-page #st-sec-notify .card:nth-of-type(2) .notify-row, #settings-page #st-sec-notify .card:nth-of-type(3) .notify-row{min-height:44px; padding:4px 2px; align-items:center;}
+/* 알림 탭 섹션 제목: 카드 사이 간격을 조금 넉넉하게, 긴 안내 문구는 줄바꿈돼도 제목과 붙지 않게 */
+#settings-page #st-sec-notify .st-cap{margin:13px 4px 6px; align-items:baseline; flex-wrap:wrap; row-gap:2px;}
+#settings-page #st-sec-notify .st-cap .fs-hint{margin-left:8px; line-height:1.4; min-width:0;}
 /* 오늘의 시간표 알림: 방해 금지와 같은 줄 높이, 시각 선택기는 더 낮고 작게 */
 #settings-page #st-sec-notify .tt-alert-row{min-height:40px; padding:4px 2px;}
 #settings-page #st-sec-notify .seg-group.tt-seg{padding:2px; border-radius:10px;}
@@ -816,6 +820,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 #settings-page #st-sec-display .notify-label{gap:9px;}
 #settings-page #st-sec-display .notify-label > svg{width:16px; height:16px; padding:7px; border-radius:10px;}
 #settings-page #st-sec-display .notify-label-text{gap:1px;}
+/* 한 줄짜리 카드(시간 설정)는 다른 줄과 같은 높이로, 위아래 여백을 대칭으로 */
+#settings-page #st-sec-display .card > .notify-row.hp-row:only-child{padding:4px 2px; min-height:44px; align-items:center;}
 #settings-page #st-sec-display .acc-row{margin-top:0;}
 #settings-page #st-sec-display .st-tight{padding-bottom:8px !important;}
 #settings-page #st-sec-display .fs-ticks{margin-top:0;}
@@ -10286,7 +10292,7 @@ function settingsSectionHtml(tab){
       }).join('')}
       </div><p class="st-cap">시간 설정</p><div class="card">
       <div class="notify-row hp-row">
-        <span class="notify-label">${ICON.clock}<span class="notify-label-text"><b>24시간 표시</b><small>끄면 셔틀 출발은 오후 4시 30분, 시간표 왼쪽 줄은 13시 → 1시처럼 12시간제로 보여요</small></span></span>
+        <span class="notify-label">${ICON.clock}<span class="notify-label-text"><b>24시간 표시</b></span></span>
         <button type="button" class="tgl ${is24HourDisplay()?'on':''}" data-action="toggle-time24" role="switch" aria-checked="${is24HourDisplay()}" title="24시간 표시"></button>
       </div>
       ` : ''}
