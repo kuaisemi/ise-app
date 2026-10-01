@@ -8640,12 +8640,6 @@ function noticeImgThumbsHtml(urls){
 // 게시판 글(state.notices)은 누구나 쓴다. 학생회가 글에서 "공지"로 올리면 24시간 동안 공지사항·홈에 나오고,
 // "고정"하면 해제할 때까지 맨 위에 남는다. 고정된 글이 하나라도 있으면 24시간짜리 공지는 공지사항·홈에서 숨긴다.
 function isPostAnnounced(n){ return !!n.announce && (now() - (n.announceAt||0)) < ANNOUNCE_MS; }
-function announceLeftLabel(n){
-  const left = ANNOUNCE_MS - (now() - (n.announceAt||0));
-  if(left <= 0) return '';
-  const h = Math.floor(left/3600000), m = Math.floor((left%3600000)/60000);
-  return h > 0 ? `${h}시간 남음` : `${Math.max(1,m)}분 남음`;
-}
 function pinnedPosts(){
   return visibleNotices().filter(n=>n.pinned).sort((a,b)=>(b.pinnedAt||b.createdAt||0)-(a.pinnedAt||a.createdAt||0));
 }
@@ -8678,7 +8672,7 @@ function announceRequestModal(){
       const req = n.announceReq && !live24 && !n.pinned;
       return `<div class="row-between" style="gap:8px; padding:8px 0; border-bottom:1px solid var(--hairline);">
         <div style="min-width:0; flex:1;"><b class="one-line" style="font-size:12px;">${escapeHtml(n.title)}</b>
-          <div class="meta">${live24 ? '공지 중 · '+announceLeftLabel(n) : n.pinned ? '고정됨' : req ? '검토 대기 중' : fmtDateTime(n.createdAt||n.date)}</div></div>
+          <div class="meta">${live24 ? '공지 중' : n.pinned ? '고정됨' : req ? '검토 대기 중' : fmtDateTime(n.createdAt||n.date)}</div></div>
         ${live24 || n.pinned ? '' : req
           ? `<button class="btn btn-ghost btn-sm" style="width:auto;" data-action="cancel-req-announce" data-id="${n.id}">신청 취소</button>`
           : `<button class="btn btn-primary btn-sm" style="width:auto;" ${hasOpen?'disabled':''} data-action="req-announce" data-id="${n.id}">신청</button>`}
@@ -8761,7 +8755,7 @@ function postCardHtml(n, opts){
   const editable = canModify(n);
   const announced = isPostAnnounced(n);
   const chips = (n.pinned ? `<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>` : '')
-    + (announced ? `<span class="tag tag-crimson" style="flex-shrink:0;">공지 · ${announceLeftLabel(n)}</span>` : '');
+    + (announced ? `<span class="tag tag-crimson" style="flex-shrink:0;">공지</span>` : '');
   const reqChip = (n.announceReq && !announced && !n.pinned) ? `<span class="tag tag-amber" style="flex-shrink:0;">공지 신청</span>` : '';
   // 버튼은 글마다 달라지므로(학생회/작성자/일반) 모아서 한 줄에 최대 3개씩 칸을 균등하게 나눠 양쪽을 맞춘다.
   const ro = !!(opts && opts.readonly);
