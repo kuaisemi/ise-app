@@ -345,7 +345,6 @@ service cloud.firestore {
 
     // 공용 문서별 "마지막으로 바뀐 시각" — 접속할 때 이 문서 하나만 읽고, 시각이 그대로인 문서는 다시 읽지 않는다.
     match /shared/ver { allow read, write: if isSignedIn(); }
-    match /shared/suggestions  { allow read, write: if isSignedIn(); }
     match /shared/recruitments { allow read, write: if isSignedIn(); }
     match /shared/polls        { allow read, write: if isSignedIn(); }
     // 전체 가입자 이름 · 학번 · 직급 디렉터리 — 학부생까지 다 보이면 안 되니 학생회 이상만.
@@ -359,7 +358,7 @@ service cloud.firestore {
     match /shared/chatReports { allow read: if isCouncil(); allow write: if isSignedIn(); }
     // 공지는 작성/수정/삭제는 클라이언트 UI에서 학생회로만 제한하지만, 학부생도 "좋아요"를
     // 누를 때 이 문서에 같이 써야 해서 쓰기 자체는 로그인한 사람 모두에게 열어둔다.
-    // (suggestions/recruitments/polls도 같은 이유로 이미 열려있음 — 이 앱은 문서 단위 권한이라
+    // (recruitments/polls도 같은 이유로 이미 열려있음 — 이 앱은 문서 단위 권한이라
     // 필드 단위로 "좋아요만" 허용하는 세밀한 제어는 하지 않는, 클라이언트를 신뢰하는 모델)
     match /shared/notices       { allow read, write: if isSignedIn(); }
     // 인증코드 — 이제 클라이언트가 값을 읽어서 대조하지 않고, users/{uid} 규칙 안에서

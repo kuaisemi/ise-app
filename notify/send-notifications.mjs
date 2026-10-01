@@ -87,7 +87,6 @@ const TOMBSTONE_TTL_MS = 24 * 60 * 60 * 1000;
 const TOMBSTONE_DOCS = [
   { name: 'notices', field: 'list' },
   { name: 'polls', field: 'list' },
-  { name: 'suggestions', field: 'list' },
   { name: 'recruitments', field: 'list' },
   { name: 'councilPosts', field: 'list' },
   { name: 'bugReports', field: 'list' },
@@ -335,12 +334,11 @@ async function purgeOldChatMessages() {
 async function main() {
   // friendLinks·councilChatNotice는 예전엔 여기서 매번 통째로 읽었는데(친구요청/학생회 공지
   // 감지용), 그 감지 로직 자체가 Worker로 옮겨가면서 더 이상 안 쓰여서 읽기를 아예 없앴다.
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, suggestionsSnap, recruitmentsSnap, stateSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, recruitmentsSnap, stateSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
     db.collection('shared').doc('bugReports').get(),
-    db.collection('shared').doc('suggestions').get(),
     db.collection('shared').doc('recruitments').get(),
     db.collection('shared').doc('notifyState').get(),
   ]);
@@ -350,7 +348,6 @@ async function main() {
   const polls = live(pollsSnap.exists ? pollsSnap.data().list : []);
   const mealsByDate = (mealsSnap.exists ? mealsSnap.data().byDate : {}) || {};
   const bugReports = live(bugReportsSnap.exists ? bugReportsSnap.data().list : []);
-  const suggestions = live(suggestionsSnap.exists ? suggestionsSnap.data().list : []);
   const recruitments = live(recruitmentsSnap.exists ? recruitmentsSnap.data().list : []);
   const st = stateSnap.exists ? stateSnap.data() : {};
 

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="color-scheme" content="dark">
 <title>KU ISE · 지능형반도체공학과</title>
-<meta name="description" content="고려대학교 지능형반도체공학과 ISE 앱 — 시간표, 학사일정, 급식, 공지·건의·투표">
+<meta name="description" content="고려대학교 지능형반도체공학과 ISE 앱 — 시간표, 학사일정, 급식, 공지·게시판·투표">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#8C1D2B">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1439,13 +1439,21 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.3';
+const APP_VERSION = 'Beta 0.5.4';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
 const ANDROID_VERSION_CODE = 175;
+// 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
+const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
+  { version:'Beta 0.5.4', date:'2026-10-01', summary:'게시판이 생기고 공지사항이 새로워졌어요!', items:[
+    { title:'게시판이 생겼어요', text:'학생사회에 게시판 탭이 생겼어요. 누구나 글을 쓸 수 있고, 학생회가 글을 "공지로 올리기" 하면 24시간 동안 공지사항과 홈에 나와요' },
+    { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
+    { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
+    { title:'건의 게시판을 없앴어요', text:'건의는 MY 탭의 제보 · 제안하기를 이용해주세요' },
+  ]},
   { version:'Beta 0.5.3', date:'2026-10-01', summary:'환경설정이 새로워졌어요! 프로필도 바로 고치고, 앱 색도 고를 수 있어요~', items:[
     { title:'환경설정이 새로워졌어요', text:'MY 탭 계정 카드의 환경설정에서 화면 · 프로필 · 알림 · 위젯 탭을 오가며 설정해요. 제목은 카드 밖으로 빼고 안내 문구는 제목 옆에 작게 두어서 훨씬 깔끔하고 촘촘해졌어요' },
     { title:'앱 포인트 색을 고를 수 있어요', text:'화면 탭에서 크림슨 · 핑크 · 블루 · 그린 · 퍼플 · 오렌지 중에 고르거나 직접 색을 정할 수 있어요. 노랑처럼 밝은 색을 골라도 글씨와 상태표시줄이 잘 보이게 자동으로 맞춰져요' },
@@ -2154,7 +2162,7 @@ const state = {
   showCouncilEvents: true,
   showAcademicEvents: true,
   timetable: [], calendar: [], meals: {},
-  notices: [], suggestions: [], polls: [],
+  notices: [], polls: [],
   recruitmentPosts: [],
   allUsers: {}, roster: {}, ocrParsedClasses: [],
   ttOpts: { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B', bgColor:'', gridColor:'' },
@@ -2980,7 +2988,6 @@ const TOMBSTONE_TTL_MS = 24*60*60*1000;
 const TOMBSTONE_DOCS = [
   { name:'notices', field:'list', stateKey:'notices' },
   { name:'polls', field:'list', stateKey:'polls' },
-  { name:'suggestions', field:'list', stateKey:'suggestions' },
   { name:'recruitments', field:'list', stateKey:'recruitmentPosts' },
   { name:'bugReports', field:'list', stateKey:'bugReports' },
   { name:'calendarEvents', field:'events', stateKey:'calendar' },
@@ -3341,8 +3348,6 @@ async function loadNotices(){ return (await loadShared('notices',{list:[]})).lis
 async function saveNotices(a){ return await saveShared('notices',{list:a}); }
 async function loadBugReports(){ return (await loadShared('bugReports',{list:[]})).list || []; }
 async function saveBugReports(a){ return await saveShared('bugReports',{list:a}); }
-async function loadSuggestions(){ return (await loadShared('suggestions',{list:[]})).list || []; }
-async function saveSuggestions(a){ return await saveShared('suggestions',{list:a}); }
 async function loadPolls(){ return (await loadShared('polls',{list:[]})).list || []; }
 async function savePolls(a){ return await saveShared('polls',{list:a}); }
 async function loadRecruitments(){ return (await loadShared('recruitments',{list:[]})).list || []; }
@@ -4609,7 +4614,6 @@ function routeNotificationTap(category, data){
   else if(category==='timetable'){ state.view='timetable'; renderShell(); }
   else if(category==='chat'){ openSocialTab(); }
   else if(category==='friend' || category==='friendRequest'){ openSocialTab(); }
-  else if(category==='suggestion'){ state.view='council'; state.councilTab='suggestion'; renderShell(); }
 }
 // 포그라운드(앱을 보고 있는 중)로 온 알림은 OS가 알아서 소리·진동을 내주지 않으므로,
 // 기기 로컬 알림을 즉시(0초 뒤) 예약해 실제 알림처럼 소리/진동/배너가 뜨게 만든다.
@@ -5444,8 +5448,9 @@ function getNotificationFeed(){
   if(isDirectorPlus() && b.signupInquiries>0) items.push({ id:'admin_signup_'+b.signupInquiries, ts:nowTs, icon:ICON.person, title:'가입 승인 대기', body:`${b.signupInquiries}건 확인이 필요해요`, action:'open-signup-inquiries' });
   if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
   visibleNotices().forEach(n=>{
-    const ts = n.createdAt || (n.date ? new Date(n.date+'T00:00:00').getTime() : 0);
-    const id = 'notice_'+n.id;
+    // 공지로 올리거나 고정한 글만 알림 목록에 올린다(그냥 게시판 글은 제외).
+    const ts = Math.max(n.announceAt||0, n.pinnedAt||0);
+    const id = 'notice_'+n.id+'_'+ts;
     if(ts && ts >= cutoff && !dismissed.has(id)) items.push({ id, ts, icon:ICON.megaphone, title:'새 공지', body:n.title||'', action:'go-notice-tab' });
   });
   live(state.polls).forEach(p=>{
@@ -5606,12 +5611,11 @@ async function scheduleTimetableReminders(list){
 // 로그인할 때마다 두 번 받아오면 그만큼 초기 로딩이 느려진다).
 async function loadAllData(preloadedUsers){
   try{
-    const [ttData,cal,meals,notices,sugg,polls,users,recruits,roster,deptN,memos,shuttle,holidays,sentReminders] = await Promise.all([
+    const [ttData,cal,meals,notices,polls,users,recruits,roster,deptN,memos,shuttle,holidays,sentReminders] = await Promise.all([
       (state.user ? loadTimetable(state.user.uid) : Promise.resolve({bySemester:{}, activeSemester:null})).catch(()=>({bySemester:{}, activeSemester:null})),
       loadCalendar().catch(()=>[]),
       loadMeals().catch(()=>({})),
       loadNotices().catch(()=>[]),
-      loadSuggestions().catch(()=>[]),
       loadPolls().catch(()=>[]),
       Promise.resolve(preloadedUsers && Object.keys(preloadedUsers).length ? preloadedUsers : ((state.allUsers && Object.keys(state.allUsers).length) ? state.allUsers : cachedUsersMap())),
       loadRecruitments().catch(()=>[]),
@@ -5628,7 +5632,7 @@ async function loadAllData(preloadedUsers){
     state.activeVariant = 0;
     syncActiveTimetable();
     state.calendar=cal||[]; state.meals=meals||{};
-    state.notices=notices||[]; state.suggestions=sugg||[]; state.polls=polls||[];
+    state.notices=notices||[]; state.polls=polls||[];
     state.allUsers=users||{}; state.recruitmentPosts=recruits||[];
     state.roster=roster||{};
     state.deptNotices = deptN.items || [];
@@ -5646,13 +5650,13 @@ async function refreshShared(force){
   sharedDirty = false;
   if(force || t - sharedFetchedAt > 60 * 1000){
     try{
-      const [cal,meals,notices,sugg,polls,recruits] = await Promise.all([
-        loadCalendar(), loadMeals(), loadNotices(), loadSuggestions(),
+      const [cal,meals,notices,polls,recruits] = await Promise.all([
+        loadCalendar(), loadMeals(), loadNotices(),
         loadPolls(), loadRecruitments()
       ]);
       state.calendar=cal; state.meals=meals; state.notices=notices;
     sharedFetchedAt = Date.now(); usersFetchedAt = Date.now();
-      state.suggestions=sugg; state.polls=polls;
+      state.polls=polls;
       state.recruitmentPosts=recruits;
       sharedFetchedAt = Date.now();
       if(sharedDirty) pushWidgetData(); // 식단·학사일정이 실제로 새로 왔을 때만 위젯도 같이 최신화
@@ -6207,8 +6211,7 @@ function renderHome(){
     .sort((a,b)=>a.startDate.localeCompare(b.startDate));
   const upcoming = upcomingAll.filter(ev=>!isPersonalEvent(ev)).slice(0,3);
   const upcomingMine = upcomingAll.filter(ev=>isPersonalEvent(ev)).slice(0,3);
-  const recentNotices = visibleNotices()
-    .sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||String(b.date).localeCompare(String(a.date))).slice(0,5);
+  const recentNotices = announcedPosts().slice(0,5);
   
   const nowTs = now();
   const activePolls = live(state.polls).filter(p=>{
@@ -6358,7 +6361,7 @@ function renderHome(){
     ${hp.order.map(key=>sectionHtml[key]||'').join('')}
 
     ${recentNotices.length ? `
-    <div class="section-title">학생회 공지</div>
+    <div class="section-title">공지사항</div>
     <div class="card">
       ${recentNotices.map(n=>`
         <div class="row-between home-notice" data-action="go-notice-tab" style="padding:4px 0; gap:8px; min-width:0;">
@@ -6366,7 +6369,7 @@ function renderHome(){
             ${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>`:''}
             <b class="one-line" style="font-size:12.5px; font-weight:700;">${escapeHtml(n.title)}</b>
           </div>
-          <span style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateTime(n.createdAt || n.date)}</span>
+          <span style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono); flex-shrink:0;">${fmtDateTime(n.announceAt || n.createdAt || n.date)}</span>
         </div>`).join('')}
     </div>` : ''}
   `;
@@ -8502,13 +8505,13 @@ function renderLikeUI(item, itemType){
 
 /* ===== 학생사회 ===== */
 function renderCouncil(){
-  const tabs = [['notice','공지사항'],['poll','투표'],['recruitment','구인글'],['suggestion','건의']];
+  const tabs = [['notice','공지사항'],['board','게시판'],['poll','투표'],['recruitment','구인글']];
   const valid = tabs.some(([k])=>k===state.councilTab);
   if(!valid) state.councilTab='notice';
   const labels = tabs.map(([k,l])=>`<div class="subtab ${state.councilTab===k?'active':''}" data-action="council-tab" data-tab="${k}">${l}</div>`).join('');
   let body='';
   if(state.councilTab==='notice') body=renderNoticeTab();
-  else if(state.councilTab==='suggestion') body=renderSuggestionTab();
+  else if(state.councilTab==='board') body=renderBoardTab();
   else if(state.councilTab==='poll') body=renderPollTab();
   else if(state.councilTab==='recruitment') body=renderRecruitmentTab();
   return `<div class="subtabs">${labels}</div>${body}`;
@@ -8539,36 +8542,96 @@ function noticeImgThumbsHtml(urls){
     </div>`).join('');
 }
 
-function renderNoticeTab(){
+// ===== 게시판 · 공지사항 =====
+// 게시판 글(state.notices)은 누구나 쓴다. 학생회가 글에서 "공지"로 올리면 24시간 동안 공지사항·홈에 나오고,
+// "고정"하면 해제할 때까지 맨 위에 남는다. 고정된 글이 하나라도 있으면 24시간짜리 공지는 공지사항·홈에서 숨긴다.
+function isPostAnnounced(n){ return !!n.announce && (now() - (n.announceAt||0)) < ANNOUNCE_MS; }
+function announceLeftLabel(n){
+  const left = ANNOUNCE_MS - (now() - (n.announceAt||0));
+  if(left <= 0) return '';
+  const h = Math.floor(left/3600000), m = Math.floor((left%3600000)/60000);
+  return h > 0 ? `${h}시간 남음` : `${Math.max(1,m)}분 남음`;
+}
+function pinnedPosts(){
+  return visibleNotices().filter(n=>n.pinned).sort((a,b)=>(b.pinnedAt||b.createdAt||0)-(a.pinnedAt||a.createdAt||0));
+}
+// 공지사항·홈에 올라가는 게시글: 고정글이 있으면 고정글만, 없으면 24시간 안에 공지로 올린 글.
+function announcedPosts(){
+  const pins = pinnedPosts();
+  if(pins.length) return pins;
+  return visibleNotices().filter(isPostAnnounced).sort((a,b)=>(b.announceAt||0)-(a.announceAt||0));
+}
+function validRecruitPosts(){
+  return live(state.recruitmentPosts).filter(r=>{
+    if(r.closed) return false;
+    if(r.expireHours && r.expireHours>0 && (now() - (r.createdAt||0)) > r.expireHours*3600000) return false;
+    return true;
+  }).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+}
+
+function postCardHtml(n, opts){
   const council = isCouncil();
+  const editable = canModify(n);
+  const announced = isPostAnnounced(n);
+  const chips = (n.pinned ? `<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>` : '')
+    + (announced ? `<span class="tag tag-crimson" style="flex-shrink:0;">공지 · ${announceLeftLabel(n)}</span>` : '');
+  return `
+    <div class="card notice-card">
+    <div class="list-item">
+      <div class="title-line big-title">${chips}<b>${escapeHtml(n.title)}</b></div>
+      <div class="meta">${n.displayAs === 'none' ? '' : noticeAuthorHtml(n) + ' · '}${fmtDateTime(n.createdAt || n.date)}</div>
+      <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
+      ${noticeImagesHtml(n)}
+      ${renderLikeUI(n, 'notice')}
+      ${(council || editable) && !(opts && opts.readonly) ? `
+      <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+        ${council ? `
+        <button class="btn btn-ghost btn-sm" data-action="toggle-announce" data-id="${n.id}">${announced ? '공지 내리기' : '공지로 올리기'}</button>
+        <button class="btn btn-ghost btn-sm" data-action="toggle-pin" data-id="${n.id}">${n.pinned?'고정 해제':'상단 고정'}</button>` : ''}
+        ${editable ? `
+        <button class="btn btn-ghost btn-sm" data-action="edit-notice" data-id="${n.id}">수정</button>
+        <button class="btn btn-danger btn-sm" data-action="delete-notice" data-id="${n.id}">삭제</button>`
+        : `<span style="font-size:10.5px; color:var(--text-faint);">상위 직급 게시글 — 수정·삭제 불가</span>`}
+      </div>` : ''}
+    </div>
+    </div>`;
+}
+
+// 공지사항 탭: 게시글 → 투표 → 구인글 순서의 섹션.
+function renderNoticeTab(){
+  const posts = announcedPosts();
+  const hasPin = posts.some(n=>n.pinned);
+  const polls = live(state.polls).filter(p=>!isPollEnded(p)).sort((a,b)=>pollDeadlineSortValue(a)-pollDeadlineSortValue(b));
+  const recruits = validRecruitPosts().slice(0,5);
+  const secTitle = (t, extra)=>`<div class="section-title">${t}${extra||''}</div>`;
+  const postsHtml = posts.length ? posts.map(n=>postCardHtml(n, {readonly:true})).join('')
+    : `<div class="card"><div class="empty"><p>올라온 공지가 없습니다.</p></div></div>`;
+  const pollsHtml = polls.length ? `<div class="card" style="padding:10px 14px;">${polls.map(p=>`
+      <div class="list-item" data-action="go-poll-page" style="cursor:pointer; padding:8px 0;">
+        <div class="row-between" style="gap:8px;"><b class="one-line" style="font-size:12px;">${escapeHtml(p.question)}</b><span style="color:var(--text-faint); flex-shrink:0;">${ICON.chevR}</span></div>
+        <div class="meta" style="margin-top:2px;">${fmtPollDeadline(p)}</div>
+      </div>`).join('')}</div>` : '';
+  const recruitsHtml = recruits.length ? `<div class="card" style="padding:10px 14px;">${recruits.map(r=>`
+      <div class="list-item" data-action="go-recruitment-tab" style="cursor:pointer; padding:8px 0;">
+        <div class="row-between" style="gap:8px;"><b class="one-line" style="font-size:12px;">${escapeHtml(r.title||'')}</b><span style="color:var(--text-faint); flex-shrink:0;">${ICON.chevR}</span></div>
+      </div>`).join('')}</div>` : '';
+  return `
+    ${secTitle('게시글', hasPin ? ' <span class="count">고정</span>' : '')}
+    ${postsHtml}
+    ${polls.length ? secTitle('투표', ` <span class="count">총 ${polls.length}개</span>`) + pollsHtml : ''}
+    ${recruits.length ? secTitle('구인글') + recruitsHtml : ''}`;
+}
+
+// 게시판 탭: 모든 글. 누구나 쓰고, 학생회는 공지·고정을 지정한다.
+function renderBoardTab(){
   const canClearAll = myLevel() >= 2;
-  const sorted = visibleNotices().sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||String(b.date).localeCompare(String(a.date)));
+  const sorted = visibleNotices().sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||(Number(b.createdAt||0)-Number(a.createdAt||0)) || String(b.date).localeCompare(String(a.date)));
   return `
     <div style="display:flex; gap:6px; margin-bottom:12px;">
-      ${council ? `<button class="btn btn-primary btn-sm" data-action="add-notice" style="flex:1;">${ICON.plus} 공지 작성</button>` : ''}
+      <button class="btn btn-primary btn-sm" data-action="add-notice" style="flex:1;">${ICON.plus} 글쓰기</button>
       ${canClearAll ? `<button class="btn btn-danger btn-sm" data-action="clear-all-board" data-type="notice" style="width:auto;">전체 삭제</button>` : ''}
     </div>
-    ${sorted.length ? sorted.map(n=>{
-        const editable = council && canModify(n);
-        return `
-        <div class="card notice-card">
-        <div class="list-item">
-          <div class="title-line big-title">${n.pinned?`<span style="color:var(--amber); flex-shrink:0;">${ICON.thumbtack}</span>`:''}<b>${escapeHtml(n.title)}</b></div>
-          <div class="meta">${n.displayAs === 'none' ? '' : noticeAuthorHtml(n) + ' · '}${fmtDateTime(n.createdAt || n.date)}</div>
-          <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
-          ${noticeImagesHtml(n)}
-          ${renderLikeUI(n, 'notice')}
-          ${council ? `
-          <div style="display:flex; gap:6px; margin-top:10px;">
-            ${editable ? `
-            <button class="btn btn-ghost btn-sm" data-action="toggle-pin" data-id="${n.id}">${n.pinned?'고정 해제':'상단 고정'}</button>
-            <button class="btn btn-ghost btn-sm" data-action="edit-notice" data-id="${n.id}">수정</button>
-            <button class="btn btn-danger btn-sm" data-action="delete-notice" data-id="${n.id}">삭제</button>`
-            : `<span style="font-size:10.5px; color:var(--text-faint);">상위 직급 게시글 — 수정·삭제 불가</span>`}
-          </div>` : ''}
-        </div>
-        </div>`;
-      }).join('') : `<div class="card"><div class="empty"><p>등록된 공지가 없습니다.</p></div></div>`}`;
+    ${sorted.length ? sorted.map(n=>postCardHtml(n)).join('') : `<div class="card"><div class="empty"><p>등록된 게시글이 없습니다.</p></div></div>`}`;
 }
 
 // 안드로이드 앱이거나 안드로이드 기기의 브라우저·PWA인가(아이폰·PC는 아님).
@@ -8594,12 +8657,12 @@ function noticeModal(n){
   const existingImgs = noticeImageList(n);
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">${isEdit?'공지 수정':'공지 작성'}<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title">${isEdit?'게시글 수정':'게시글 작성'}<button data-action="close-modal">${ICON.close}</button></div>
     <form id="notice-form">
       <input type="hidden" name="itemId" value="${n ? n.id : ''}">
       <input type="hidden" name="imageUrls" id="notice-imgs-hidden" value='${escapeHtml(JSON.stringify(existingImgs))}'>
-      <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="공지 제목"></div>
-      <div class="field"><label>내용</label><textarea name="content" style="min-height:120px" required placeholder="공지 내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
+      <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="제목"></div>
+      <div class="field"><label>내용</label><textarea name="content" style="min-height:120px" required placeholder="내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
       <div class="field">
         <label>사진 첨부 (선택, 최대 3장)</label>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-notice-img" style="width:100%;">${ICON.camera} 이미지 추가</button>
@@ -8613,10 +8676,16 @@ function noticeModal(n){
           <label class="switch"><input type="checkbox" name="androidOnly" id="notice-android-check" ${v.androidOnly ? 'checked' : ''}><span class="slider"></span></label>
         </div>
       </div>` : ''}
-      ${isEdit ? '' : `
+      ${isEdit || !isCouncil() ? '' : `
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
-          <label for="notice-push-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.bell} 알림 발송</label>
+          <label for="notice-announce-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.megaphone} 공지로 올리기 (24시간)</label>
+          <label class="switch"><input type="checkbox" name="announce" id="notice-announce-check"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div style="margin:8px 0 0;">
+        <div class="row-between" style="gap:10px;">
+          <label for="notice-push-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.bell} 알림 발송 (공지로 올릴 때)</label>
           <label class="switch"><input type="checkbox" name="sendPush" id="notice-push-check"><span class="slider"></span></label>
         </div>
       </div>
@@ -8639,87 +8708,7 @@ function noticeModal(n){
           <label class="switch"><input type="checkbox" name="anonymous" id="notice-anon-check"><span class="slider"></span></label>
         </div>
       </div>` : ''}`}
-      <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'공지 등록'}</button></div>
-    </form>`;
-}
-
-function renderSuggestionTab(){
-  const council = isCouncil();
-  const canClearAll = myLevel() >= 2;
-  const mySid = state.user ? state.user.studentId : '';
-  const list = live(state.suggestions).filter(s=>{
-    if(council) return true;
-    if(s.studentId===mySid) return true;
-    if(s.status==='답변완료' && !s.isPrivate) return true;
-    return false;
-  });
-  const sorted = [...list].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  return `
-    <div style="display:flex; gap:6px; margin-bottom:12px;">
-      <button class="btn btn-primary btn-sm" data-action="add-suggestion" style="flex:1;">${ICON.plus} 건의사항 작성</button>
-      ${canClearAll ? `<button class="btn btn-danger btn-sm" data-action="clear-all-board" data-type="suggestion" style="width:auto;">전체 삭제</button>` : ''}
-    </div>
-    <div class="card">
-      ${sorted.length ? sorted.map(s=>{
-        const isMine = s.studentId===mySid;
-        return `
-        <div class="list-item">
-          <div class="row-between">
-            <span class="meta">${isPresident() ? (s.anonymous ? `익명(${escapeHtml(s.name)})` : fmtAuthorBadge(s.name, s.studentId, 'student')) : (s.anonymous ? (isMine?'익명 (나)':'익명') : fmtAuthorBadge(s.name, s.studentId, 'student'))} · ${fmtDateTime(s.createdAt || s.date)}</span>
-            <div style="display:flex; gap:4px; align-items:center;">
-              ${s.isPrivate ? `<span class="tag tag-red">비공개답변</span>` : ''}
-              <span class="tag ${s.status==='답변완료'?'tag-teal':'tag-dim'}">${s.status}</span>
-            </div>
-          </div>
-          <div class="body" style="margin-top:6px;">${escapeHtml(s.content)}</div>
-          ${s.answer?`<div style="margin-top:8px; padding:9px 11px; background:var(--surface-2); border-radius:8px; border-left:3px solid var(--teal);">
-            <div style="font-size:9.5px; font-weight:800; color:var(--teal); margin-bottom:3px;">학생회 공식 답변 · ${escapeHtml(s.answeredBy||'학생회')}${s.answeredRole?` (${publicRoleLabel(s.answeredRole)})`:''}</div>
-            <div style="font-size:11.5px; white-space:pre-wrap; line-height:1.55;">${escapeHtml(s.answer)}</div>
-          </div>`:''}
-          ${renderLikeUI(s, 'suggestion')}
-          ${(council||isMine) ? `
-          <div style="display:flex; gap:6px; margin-top:10px;">
-            ${council ? `<button class="btn btn-ghost btn-sm" data-action="reply-suggestion" data-id="${s.id}">${s.answer?'답변 수정':'답변하기'}</button>` : ''}
-            <button class="btn btn-danger btn-sm" data-action="delete-suggestion" data-id="${s.id}">삭제</button>
-          </div>` : ''}
-        </div>`;
-      }).join('') : `<div class="empty"><p>접수된 건의사항이 없습니다.</p></div>`}
-    </div>`;
-}
-
-function suggestionModal(){
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title">건의사항 작성<button data-action="close-modal">${ICON.close}</button></div>
-    <form id="suggestion-form">
-      <div class="field"><label>건의 내용</label><textarea name="content" style="min-height:120px" required placeholder="학생회에 바라는 점이나 건의할 사항을 입력해주세요"></textarea></div>
-      <div class="row-between" style="margin-bottom:14px; gap:10px; align-items:center;">
-        <label for="sugg-anon-check" style="margin:0; cursor:pointer; font-size:11.5px; color:var(--text-dim);">익명으로 작성 (학생회장에게만 실명이 보입니다)</label>
-        <label class="switch"><input type="checkbox" name="anonymous" id="sugg-anon-check"><span class="slider"></span></label>
-      </div>
-      <div class="modal-actions"><button type="submit" class="btn btn-primary">건의 등록</button></div>
-    </form>`;
-}
-
-function replyModal(s){
-  return `
-    <div class="modal-handle"></div>
-    <div class="modal-title">건의사항 공식 답변<button data-action="close-modal">${ICON.close}</button></div>
-    <form id="reply-form">
-      <input type="hidden" name="itemId" value="${s.id}">
-      <div class="field"><label>건의 내용</label><div style="background:var(--surface-2); padding:10px; border-radius:8px; font-size:11.5px; color:var(--text-dim); line-height:1.5;">${escapeHtml(s.content)}</div></div>
-      <div class="field"><label>답변 내용</label><textarea name="answer" style="min-height:120px" required placeholder="공식 답변 내용을 작성하세요">${escapeHtml(s.answer||'')}</textarea></div>
-      <div class="row-between" style="gap:12px; margin-bottom:14px; padding:12px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:14px;">
-        <label for="reply-priv-check" style="margin:0; cursor:pointer; min-width:0;">
-          <span style="display:block; font-size:12.5px; font-weight:700; color:var(--text);">비공개 답변</span>
-          <span style="display:block; font-size:10.5px; color:var(--text-faint); margin-top:3px; line-height:1.4;">건의를 올린 사람에게만 보여요</span>
-        </label>
-        <label class="switch"><input type="checkbox" name="isPrivate" id="reply-priv-check" ${s.isPrivate?'checked':''}><span class="slider"></span></label>
-      </div>
-      <div class="modal-actions" style="display:flex; gap:6px;">
-        ${s.answer ? `<button type="button" class="btn btn-danger" style="flex:1;" data-action="cancel-suggestion-answer" data-id="${s.id}">답변 취소</button>` : ''}
-        <button type="submit" class="btn btn-primary" style="flex:1;">답변 완료</button>
-      </div>
+      <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'등록'}</button></div>
     </form>`;
 }
 
@@ -11427,8 +11416,7 @@ function collectUserPosts(sid){
       out.push({ type, title: String(titleOf(it)||'').slice(0,80), ts: it.createdAt || it.updatedAt || 0 });
     });
   };
-  push(state.notices, '공지', it=>it.title);
-  push(state.suggestions, '건의사항', it=>it.title || it.content);
+  push(state.notices, '게시글', it=>it.title);
   push(state.recruitmentPosts, '구인글', it=>it.title);
   push(state.polls, '투표', it=>it.question);
   push(state.calendar, '학사일정', it=>it.title);
@@ -11929,7 +11917,6 @@ async function handleToggleLike(type, id){
 
   if(type==='notice'){ list = await loadNotices(); docName = 'notices'; }
   else if(type==='recruitment'){ list = await loadRecruitments(); docName = 'recruitments'; }
-  else if(type==='suggestion'){ list = await loadSuggestions(); docName = 'suggestions'; }
   if(!docName) return;
 
   const item = list.find(x=>x.id===id);
@@ -11948,7 +11935,6 @@ async function handleToggleLike(type, id){
 
   if(type==='notice') state.notices = next;
   else if(type==='recruitment') state.recruitmentPosts = next;
-  else if(type==='suggestion') state.suggestions = next;
 
   renderMain();
 }
@@ -12282,8 +12268,6 @@ document.addEventListener('submit', async (e)=>{
     'exam-form': handleExamSubmit,
     'meal-form': handleMealSubmit,
     'notice-form': handleNoticeSubmit,
-    'suggestion-form': handleSuggestionSubmit,
-    'reply-form': handleReplySubmit,
     'poll-form': handlePollSubmit,
     'poll-vote-form': handlePollVoteSubmit,
     'recruitment-form': handleRecruitmentSubmit,
@@ -12772,9 +12756,12 @@ async function handleNoticeSubmit(fd){
         androidOnly: isDeveloper() && fd.get('androidOnly') === 'on',
         date: todayStr(),
         pinned: false,
+        // 공지로 올리는 건 학생회만 — 학생이 쓴 글은 게시판에만 올라간다.
+        announce: isCouncil() && fd.get('announce') === 'on',
+        announceAt: (isCouncil() && fd.get('announce') === 'on') ? now() : 0,
         likes: {},
         // 알림은 작성자가 명시적으로 체크했을 때만 발송된다(기본 꺼짐).
-        notifyPush: fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on'),
+        notifyPush: isCouncil() && fd.get('announce') === 'on' && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on'),
         createdAt: now(),
         updatedAt: now()
       }, ...latest];
@@ -12784,11 +12771,11 @@ async function handleNoticeSubmit(fd){
     closeModal();
     renderMain();
     // 안드로이드 전용 공지는 알림 대상을 플랫폼으로 가를 수 없어서(아이폰 사용자에게도 갈 수 있으므로) 알림을 보내지 않는다.
-    const pushed = !id && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on');
+    const pushed = !id && isCouncil() && fd.get('announce') === 'on' && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on');
     if(ok && pushed){
       enqueuePush({ audience:'notice', title:'새로운 공지가 있어요', body:`제목: ${title}` });
     }
-    saveResultToast(ok, pushed ? '공지가 게시되었습니다 (1분 안에 알림이 가요)' : '공지가 게시되었습니다');
+    saveResultToast(ok, pushed ? '공지로 게시되었습니다 (1분 안에 알림이 가요)' : (!id && isCouncil() && fd.get('announce') === 'on') ? '공지로 게시되었습니다' : '게시글이 등록되었습니다');
   } finally {
     if(btn) btn.disabled = false;
   }
@@ -12798,134 +12785,36 @@ async function deleteNotice(id){
   const latest = await loadNotices();
   const target = latest.find(x => x.id === id);
   if(!target || !canModify(target)) return;
-  if(!await showConfirm('이 공지를 삭제할까요?')) return;
+  if(!await showConfirm('이 게시글을 삭제할까요?')) return;
   const next = latest.map(x => x.id === id ? { ...x, deleted: true, updatedAt: now() } : x);
   const ok = await saveNotices(next);
   state.notices = next;
   renderMain();
-  saveResultToast(ok, '공지가 삭제되었습니다');
-  logAudit('삭제', '공지', target.title);
+  saveResultToast(ok, '게시글이 삭제되었습니다');
+  logAudit('삭제', '게시글', target.title);
 }
 
 async function togglePin(id){
-  const latest = await loadNotices();
-  const target = latest.find(x => x.id === id);
-  if(!target || !canModify(target)) return;
-  const next = latest.map(n => n.id === id ? { ...n, pinned: !n.pinned, updatedAt: now() } : n);
-  const ok = await saveNotices(next);
-  state.notices = next;
+  if(!isCouncil()) return;
+  const next = await mutateSharedList('notices', 'list', (list)=>{
+    if(!list.some(n => n.id === id)) return null;
+    return list.map(n => n.id === id ? { ...n, pinned: !n.pinned, pinnedAt: !n.pinned ? now() : 0, updatedAt: now() } : n);
+  });
+  if(next) state.notices = next;
   renderMain();
+  if(!next) saveResultToast(false);
 }
-
-/* ===== 건의 ===== */
-async function handleSuggestionSubmit(fd){
-  const content = (fd.get('content') || '').trim();
-  if(!content){ toast('건의 내용을 입력해주세요'); return; }
-  const entry = {
-    id: uid(),
-    studentId: state.user.studentId,
-    name: state.user.name,
-    anonymous: fd.get('anonymous') === 'on',
-    content,
-    date: todayStr(),
-    status: '대기',
-    answer: '',
-    answerDate: '',
-    isPrivate: false,
-    likes: {},
-    createdAt: now(),
-    updatedAt: now()
-  };
-  // 다른 사람이 거의 같은 순간에 삭제·답변을 저장하면, 그 저장 이후에 이 글만 얹어 다시
-  // 쓰지 않는 한 서로의 변경을 덮어써 버린다(예: 삭제 직후 되살아나는 문제) — 그래서 항상
-  // "지금 서버에 있는 최신 목록"을 트랜잭션으로 다시 읽어와서 그 위에 얹는다.
-  const next = await mutateSharedList('suggestions', 'list', (list)=>[entry, ...list]);
-  if(next) state.suggestions = next;
-  closeModal();
+// 공지로 올리면 지금부터 24시간 동안 공지사항·홈에 나온다. 이미 올라가 있으면 내린다.
+async function toggleAnnounce(id){
+  if(!isCouncil()) return;
+  const next = await mutateSharedList('notices', 'list', (list)=>{
+    if(!list.some(n => n.id === id)) return null;
+    return list.map(n => n.id === id ? (isPostAnnounced(n)
+      ? { ...n, announce: false, updatedAt: now() }
+      : { ...n, announce: true, announceAt: now(), updatedAt: now() }) : n);
+  });
+  if(next) state.notices = next;
   renderMain();
-  if(next) enqueuePush({ audience:'councilAlert', title:'새 건의사항이 올라왔어요', body:`제목: ${content}` });
-  saveResultToast(!!next, '건의사항이 접수되었습니다');
-}
-
-// 답변 수정 중에 "이 답변 자체를 취소"할 때 쓴다 — 답변 내용을 지우고 다시 미답변 상태로 되돌린다
-// (건의 자체를 지우는 '삭제'와 다르다).
-async function cancelSuggestionAnswer(id){
-  if(!await showConfirm('등록된 답변을 취소할까요? 다시 미답변 상태로 돌아갑니다.')) return false;
-  const latest = await loadSuggestions();
-  if(!latest.some(s => s.id === id)) return false;
-  const next = latest.map(s => s.id === id ? {
-    ...s,
-    answer: '',
-    isPrivate: false,
-    status: '대기',
-    answerDate: '',
-    answeredBy: '',
-    answeredRole: '',
-    updatedAt: now()
-  } : s);
-  const ok = await saveSuggestions(next);
-  state.suggestions = next;
-  closeModal();
-  renderMain();
-  saveResultToast(ok, '답변을 취소했습니다');
-  return ok;
-}
-async function handleReplySubmit(fd){
-  const id = (fd.get('itemId') || '').trim();
-  const answer = (fd.get('answer') || '').trim();
-  const isPrivate = fd.get('isPrivate') === 'on';
-  if(!answer){ toast('답변 내용을 입력해주세요'); return; }
-  const btn = document.querySelector('#reply-form button[type=submit]');
-  if(btn) btn.disabled = true;
-  try{
-    const next = await mutateSharedList('suggestions', 'list', (list)=>{
-      if(!list.some(s => s.id === id)) return null;
-      return list.map(s => s.id === id ? {
-        ...s,
-        answer,
-        isPrivate,
-        status: '답변완료',
-        answerDate: todayStr(),
-        answeredBy: state.user.name,
-        answeredRole: myRole(),
-        updatedAt: now()
-      } : s);
-    });
-    if(!next) return;
-    state.suggestions = next;
-    closeModal();
-    renderMain();
-    // 건의사항 답변은 게시판 전체가 아니라 글쓴이 본인에게만 간다. studentId로만 알고 있어서
-    // uid가 필요한 notifyQueue에는 state.allUsers에서 찾아 넘긴다 — 탈퇴 등으로 명단에
-    // 없으면(못 찾으면) 조용히 건너뛴다.
-    const answered = next.find(s => s.id === id);
-    await ensureAllUsers();
-    const authorUid = answered && ((state.allUsers||{})[answered.studentId]||{}).uid;
-    if(authorUid && answered.studentId !== state.user.studentId){
-      enqueuePush({ audience:'user', gateKey:null, targetUid:authorUid, title:'건의사항에 답변이 달렸어요', body:answer, category:'suggestion' });
-    }
-    saveResultToast(true, '답변이 등록되었습니다');
-  } finally {
-    if(btn) btn.disabled = false;
-  }
-}
-
-async function deleteSuggestion(id){
-  const latest = await loadSuggestions();
-  const target = latest.find(s => s.id === id);
-  if(!target) return;
-  if(!isCouncil() && target.studentId !== state.user.studentId) return;
-  if(!await showConfirm('이 건의사항을 삭제할까요?')) return;
-  // 트랜잭션으로 다시 최신 목록을 읽어와서 지운다 — 그 사이 누가 답변을 남기는 등 다른
-  // 저장을 했어도 그 변경을 덮어쓰지 않고 그 위에 삭제 표시만 얹는다(삭제가 도로 살아나는
-  // 문제 방지).
-  const next = await mutateSharedList('suggestions', 'list', (list)=>
-    list.map(x => x.id === id ? { ...x, deleted: true, updatedAt: now() } : x)
-  );
-  if(next) state.suggestions = next;
-  renderMain();
-  saveResultToast(!!next, '삭제되었습니다');
-  logAudit('삭제', '건의사항', target.title || target.content);
 }
 
 /* ===== 구인글 ===== */
@@ -13309,7 +13198,7 @@ async function handleGeminiKeysSubmit(fd){
 /* ===== 게시판 전체 삭제 (상위 직급 글 보호 & 종료된 투표만 삭제) ===== */
 async function clearAllBoard(type){
   if(myLevel() < 2) return;
-  const nameMap = { notice: '공지사항', suggestion: '건의사항', recruitment: '구인글', poll: '종료된 투표' };
+  const nameMap = { notice: '게시판 글', recruitment: '구인글', poll: '종료된 투표' };
   if(!await showConfirm(`[확인] 삭제 가능한 모든 ${nameMap[type]}을(를) 삭제하시겠습니까?\n(상위 직급이 작성한 글은 유지됩니다)`)) return;
 
   let beforeCount = 0;
@@ -13321,13 +13210,6 @@ async function clearAllBoard(type){
     remaining = list.map(item => (!item.deleted && roleLevel(item.authorRole || 'council') > myLevel()) ? item : { ...item, deleted: true, updatedAt: now() });
     await saveNotices(remaining);
     state.notices = remaining;
-  }
-  else if(type === 'suggestion'){
-    const list = await loadSuggestions();
-    beforeCount = live(list).length;
-    remaining = list.map(item => (!item.deleted && roleLevel(item.authorRole || 'student') > myLevel()) ? item : { ...item, deleted: true, updatedAt: now() });
-    await saveSuggestions(remaining);
-    state.suggestions = remaining;
   }
   else if(type === 'recruitment'){
     const list = await loadRecruitments();
@@ -13478,7 +13360,7 @@ document.addEventListener('click', async (e)=>{
   // delete-event는 여기서 뺐다. 개인 일정은 자기가 만든 것이라 본인이 지울 수 있어야 하는데,
   // 목록에는 삭제 버튼이 보이면서(작성자면 표시됨) 누르면 이 가드에 막혀 "학생회 권한이
   // 필요합니다"만 뜨고 있었다. 실제 권한 판단은 deleteEvent() 안에서 작성자/직급으로 한다.
-  const councilOnly = ['add-notice','edit-notice','delete-notice','toggle-pin','reply-suggestion','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
+  const councilOnly = ['toggle-pin','toggle-announce','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
   const presidentOnly = ['view-users-list','manage-roster','view-audit-log','open-user-detail','user-sort','toggle-user-sort'];
   const developerOnly = ['manage-gemini-keys','purge-tombstones'];
@@ -14225,10 +14107,7 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'delete-notice'){ await deleteNotice(el.dataset.id); }
     else if(a === 'toggle-pin'){ await togglePin(el.dataset.id); }
-    else if(a === 'add-suggestion'){ openModal(suggestionModal()); }
-    else if(a === 'reply-suggestion'){ const s = live(state.suggestions).find(x => x.id === el.dataset.id); if(s) openModal(replyModal(s)); }
-    else if(a === 'delete-suggestion'){ await deleteSuggestion(el.dataset.id); }
-    else if(a === 'cancel-suggestion-answer'){ await cancelSuggestionAnswer(el.dataset.id); }
+    else if(a === 'toggle-announce'){ await toggleAnnounce(el.dataset.id); }
     else if(a === 'add-poll'){ openModal(pollModal()); updatePollOptionUI(); }
     else if(a === 'add-poll-option'){
       const wrap = document.getElementById('poll-options-wrap');
