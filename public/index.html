@@ -466,6 +466,16 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 공유 링크로 들어왔을 때 해당 글을 잠깐 강조 */
 .link-flash{animation:linkFlash 2.4s cubic-bezier(.22,1,.36,1);}
 @keyframes linkFlash{0%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), .55);}30%{box-shadow:0 0 0 6px rgba(var(--crimson-rgb, 160,20,40), .28);}100%{box-shadow:0 0 0 0 rgba(var(--crimson-rgb, 160,20,40), 0);}}
+.btn-like.btn-share svg{width:16px; height:16px;}
+/* 글쓰기 — 서식 도구(링크·굵게·색깔)와 색 고르기 */
+.fmt-bar{display:flex; gap:6px; flex-wrap:wrap;}
+.fmt-bar .btn{width:auto;}
+.fmt-colors{display:flex; gap:12px; padding:10px 4px 4px;}
+.fmt-dot{width:30px; height:30px; border-radius:50%; border:2px solid var(--border-light); background:var(--c); cursor:pointer; opacity:0; transform:scale(.5);}
+.opt-collapse.open .fmt-dot{animation:dotPop .45s cubic-bezier(.22,1,.36,1) both; animation-delay:calc(var(--i, 0) * 45ms + 90ms);}
+.fmt-dot:active{transform:scale(.9);}
+@keyframes dotPop{from{opacity:0; transform:scale(.4);}to{opacity:1; transform:none;}}
+.pc-r{color:#e5484d;} .pc-o{color:#f08c00;} .pc-g{color:#2f9e44;} .pc-b{color:#3b82f6;} .pc-p{color:#8b5cf6;}
 .act-bar{display:grid; grid-template-columns:repeat(12, 1fr); gap:6px; margin-top:10px;}
 .act-cell{min-width:0;}
 .act-cell .btn{width:100%; padding-left:4px; padding-right:4px; white-space:nowrap; justify-content:center;}
@@ -1505,6 +1515,7 @@ const PATCH_NOTES = [
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
     { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
     { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
+    { title:'글 꾸미기 · 공지 기간', text:'글을 쓸 때 선택한 글자를 "굵게"하거나 "색깔"을 입힐 수 있어요. 학생회는 공지로 올릴 때 24시간 · 7일 · 영원히(내릴 때까지) 중에 기간을 골라요' },
     { title:'글자에 링크 걸기', text:'게시글을 쓸 때 "링크 넣기"로 보여줄 글자와 주소를 정하면 글자를 눌러 바로 이동해요. 앱 안의 게시글 · 투표는 목록에서 골라 연결하면 앱 안에서 바로 열려요' },
     { title:'꾹 눌러도 글자가 선택되지 않아요', text:'홈·게시판·MY 등에서 꾹 눌렀을 때 글자가 선택되던 동작을 없앴어요. 학사일정·학과공지·학사 달력(내 메모)·학식에서는 그대로 복사할 수 있어요' },
     { title:'게시글 · 투표 공유', text:'게시글과 투표의 "공유" 버튼으로 주소를 공유할 수 있어요. 카카오톡 등에 붙여넣고 링크를 열면 로그인 후 바로 그 글로 이동해요' },
@@ -2278,7 +2289,10 @@ function linkifyEscaped(escaped){
     const g = url.match(/[?&]go=(post|poll)-([^&\s]+)/);
     const internal = g && url.indexOf('ku-ise-d95ee.web.app') >= 0;
     return `<a href="${url}" ${internal ? `data-go="${g[1]}-${g[2]}"` : 'target="_blank" rel="noopener"'} style="${style}">${text}</a>`;
-  });
+  })
+  // 굵게 **글자**, 색깔 {r|글자} (r 빨강 · o 주황 · g 초록 · b 파랑 · p 보라)
+  .replace(/\*\*([^*\n]{1,200})\*\*/g, '<b>$1</b>')
+  .replace(/\{(r|o|g|b|p)\|([^{}\n]{1,200})\}/g, '<span class="pc-$1">$2</span>');
 }
 document.addEventListener('click', (e)=>{
   const a = e.target.closest && e.target.closest('a[data-go]');
@@ -8587,7 +8601,7 @@ function renderLikeUI(item, itemType, shareKind){
       <button type="button" class="btn-like ${hasLiked?'active':''}" data-action="toggle-like" data-type="${itemType}" data-id="${item.id}">
         ${ICON.thumbUp} <span>${count}</span>
       </button>
-      ${shareKind ? `<button type="button" class="btn-like btn-share" data-action="share-link" data-kind="${shareKind}" data-id="${escapeHtml(item.id)}" title="공유">${SHARE_NODES_ICON} <span>공유</span></button>` : ''}
+      ${shareKind ? `<button type="button" class="btn-like btn-share" style="margin-left:auto;" data-action="share-link" data-kind="${shareKind}" data-id="${escapeHtml(item.id)}" title="공유" aria-label="공유">${SHARE_NODES_ICON}</button>` : ''}
     </div>
     ${(isDirectorOrHigher && count > 0) ? `
       <details class="likers-accordion">
@@ -8639,7 +8653,19 @@ function noticeImgThumbsHtml(urls){
 // ===== 게시판 · 공지사항 =====
 // 게시판 글(state.notices)은 누구나 쓴다. 학생회가 글에서 "공지"로 올리면 24시간 동안 공지사항·홈에 나오고,
 // "고정"하면 해제할 때까지 맨 위에 남는다. 고정된 글이 하나라도 있으면 24시간짜리 공지는 공지사항·홈에서 숨긴다.
-function isPostAnnounced(n){ return !!n.announce && (now() - (n.announceAt||0)) < ANNOUNCE_MS; }
+// 공지 기간: announceMs가 없으면 24시간, 0이면 영원히(내릴 때까지), 그 밖에는 그 시간만큼.
+const ANNOUNCE_DURS = { '24h': ANNOUNCE_MS, '7d': 7*ANNOUNCE_MS, 'forever': 0 };
+function announceDurMs(key){ return key in ANNOUNCE_DURS ? ANNOUNCE_DURS[key] : null; }
+function isPostAnnounced(n){
+  if(!n.announce) return false;
+  if(n.announceMs === 0) return true;
+  return (now() - (n.announceAt||0)) < (n.announceMs || ANNOUNCE_MS);
+}
+function announceDurOf(n){
+  if(!n || !isPostAnnounced(n)) return 'none';
+  if(n.announceMs === 0) return 'forever';
+  return n.announceMs === 7*ANNOUNCE_MS ? '7d' : '24h';
+}
 function pinnedPosts(){
   return visibleNotices().filter(n=>n.pinned).sort((a,b)=>(b.pinnedAt||b.createdAt||0)-(a.pinnedAt||a.createdAt||0));
 }
@@ -8719,6 +8745,7 @@ function validRecruitPosts(){
 }
 
 // 이 게시글에 연결된 투표(진행 중 우선). 눌러서 투표 화면으로 간다.
+const PALETTE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.3-1.8-.4-1 .2-2.2 1.4-2.2H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>`;
 const SHARE_NODES_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`;
 const SHARE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>`;
 function shareBtnHtml(kind, id){
@@ -8844,6 +8871,23 @@ function noticeAuthorHtml(n){
   const real = (u && u.name) || '';
   return real ? `학생회 <span style="color:var(--text-faint);">(${escapeHtml(real)})</span>` : '학생회';
 }
+// 공지로 올리기: 작성자 표시와 같은 알약 선택기. 안 함 · 24시간 · 7일 · 영원히(내릴 때까지).
+function announceSegHtml(n){
+  const keys = [['none','안 함'],['24h','24시간'],['7d','7일'],['forever','영원히']];
+  const cur = announceDurOf(n);
+  const idx = Math.max(0, keys.findIndex(k=>k[0]===cur));
+  return `
+      <div style="margin:8px 0 0;">
+        <div class="row-between" style="gap:10px;">
+          <span style="color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.megaphone} 공지로 올리기</span>
+          <input type="hidden" name="announceDur" value="${cur}">
+          <input type="hidden" name="announceDurInit" value="${cur}">
+          <div class="seg-group sm notice-author-seg"><span class="seg-thumb" style="--n:4; --i:${idx};"></span>
+            ${keys.map(([k,l])=>`<button type="button" class="${k===cur?'on':''}" data-action="notice-announce-dur" data-val="${k}">${l}</button>`).join('')}
+          </div>
+        </div>
+      </div>`;
+}
 // 링크 넣기 패널의 "앱 안의 글·투표" 빠른 선택: 눌러서 주소·글자를 채운다(진행 중인 투표 먼저).
 function linkQuickChipsHtml(){
   const polls = live(state.polls).filter(p=>!isPollEnded(p)).slice(0,8).map(p=>({ label:p.question, url:shareLinkFor('poll', p.id), tag:'투표' }));
@@ -8851,6 +8895,18 @@ function linkQuickChipsHtml(){
   const all = [...polls, ...posts];
   if(!all.length) return '';
   return all.map((c,i)=>`<button type="button" class="link-chip" style="--i:${i};" data-action="link-pick" data-url="${escapeHtml(c.url)}" data-label="${escapeHtml(c.label)}"><b>${c.tag}</b>${escapeHtml(c.label)}</button>`).join('');
+}
+// 선택한 글자를 prefix/suffix로 감싼다(선택이 없으면 자리 글자를 넣고 그 글자를 선택해 둔다). 굵게 **글자**, 색깔 {r|글자}.
+function wrapNoticeSelection(prefix, suffix, placeholder){
+  const ta = document.querySelector('#notice-form textarea[name=content]');
+  if(!ta) return;
+  const s0 = ta.selectionStart ?? ta.value.length, e0 = ta.selectionEnd ?? ta.value.length;
+  const sel = ta.value.slice(s0, e0);
+  const inner = sel || placeholder;
+  ta.value = ta.value.slice(0, s0) + prefix + inner + suffix + ta.value.slice(e0);
+  ta.focus();
+  const a = s0 + prefix.length;
+  ta.setSelectionRange(a, a + inner.length);
 }
 function applyLinkInsert(){
   const ta = document.querySelector('#notice-form textarea[name=content]');
@@ -8883,7 +8939,16 @@ function noticeModal(n){
       <div class="field"><label>제목</label><input type="text" name="title" maxlength="60" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="제목"></div>
       <div class="field"><label>내용</label><textarea name="content" maxlength="${isCouncil() ? 5000 : 1500}" style="min-height:120px" required placeholder="내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
       <div class="field" style="margin-top:-6px;">
-        <button type="button" class="btn btn-ghost btn-sm" id="link-ins-toggle" data-action="toggle-link-insert" style="width:auto;">${SHARE_ICON} 링크 넣기</button>
+        <div class="fmt-bar">
+          <button type="button" class="btn btn-ghost btn-sm" id="link-ins-toggle" data-action="toggle-link-insert">${SHARE_ICON} 링크 넣기</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="fmt-bold" title="선택한 글자를 굵게"><b style="font-size:13px;">B</b> 굵게</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-fmt-color" title="선택한 글자에 색깔">${PALETTE_ICON} 색깔</button>
+        </div>
+        <div class="opt-collapse" id="fmt-color-panel"><div class="opt-collapse-in">
+          <div class="fmt-colors">
+            ${[['r','#e5484d','빨강'],['o','#f08c00','주황'],['g','#2f9e44','초록'],['b','#3b82f6','파랑'],['p','#8b5cf6','보라']].map(([k,c,l],i)=>`<button type="button" class="fmt-dot" style="--c:${c}; --i:${i};" data-action="fmt-color" data-c="${k}" aria-label="${l}" title="${l}"></button>`).join('')}
+          </div>
+        </div></div>
         <div class="opt-collapse" id="link-ins-panel"><div class="opt-collapse-in">
           <div style="display:flex; flex-direction:column; gap:6px; padding-top:8px;">
             <input type="text" id="link-ins-text" form="__none" maxlength="40" placeholder="보여줄 글자 (예: 투표하러 가기)" autocomplete="off">
@@ -8907,12 +8972,7 @@ function noticeModal(n){
         </div>
       </div>` : ''}
       ${isEdit || !isCouncil() ? '' : `
-      <div style="margin:8px 0 0;">
-        <div class="row-between" style="gap:10px;">
-          <label for="notice-announce-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.megaphone} 공지로 올리기 (24시간)</label>
-          <label class="switch"><input type="checkbox" name="announce" id="notice-announce-check"><span class="slider"></span></label>
-        </div>
-      </div>
+
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
           <label for="notice-push-check" style="margin:0; cursor:pointer; color:var(--text); font-size:11.5px; display:flex; align-items:center; gap:5px;">${ICON.bell} 알림 발송 (공지로 올릴 때)</label>
@@ -8938,6 +8998,7 @@ function noticeModal(n){
           <label class="switch"><input type="checkbox" name="anonymous" id="notice-anon-check"><span class="slider"></span></label>
         </div>
       </div>` : ''}`}
+      ${isCouncil() ? announceSegHtml(n) : ''}
       <div class="modal-actions"><button type="submit" class="btn btn-primary">${isEdit?'수정 저장':'등록'}</button></div>
     </form>`;
 }
@@ -12989,6 +13050,14 @@ async function handleNoticeSubmit(fd){
   const id = (fd.get('itemId') || '').trim();
   const title = (fd.get('title') || '').trim();
   const content = (fd.get('content') || '').trim();
+  const durKey = isCouncil() ? (fd.get('announceDur') || 'none') : 'none';
+  const initKey = fd.get('announceDurInit') || 'none';
+  const wantAnnounce = durKey !== 'none';
+  const durMs = wantAnnounce ? announceDurMs(durKey) : null;
+  // 수정할 때는 공지 기간을 바꾼 경우에만 공지 상태를 건드린다(그대로면 남은 시간이 다시 시작되지 않게).
+  const annPatch = (isCouncil() && durKey !== initKey)
+    ? (wantAnnounce ? { announce:true, announceAt: now(), announceMs: durMs, announceReq: null } : { announce:false })
+    : {};
   let imageUrls = [];
   try{ imageUrls = JSON.parse(fd.get('imageUrls') || '[]'); }catch(e){ imageUrls = []; }
   if(!Array.isArray(imageUrls)) imageUrls = [];
@@ -13005,7 +13074,7 @@ async function handleNoticeSubmit(fd){
       const target = latest.find(x => x.id === id);
       if(!canModify(target)){ return; }
       // 예전 단일 imageUrl 필드는 더 이상 쓰지 않으므로 수정 시 imageUrls로 정리한다.
-      next = latest.map(x => x.id === id ? { ...x, title, content, imageUrls, imageUrl:'', androidOnly: isDeveloper() ? fd.get('androidOnly') === 'on' : !!x.androidOnly, updatedAt: now() } : x);
+      next = latest.map(x => x.id === id ? { ...x, ...annPatch, title, content, imageUrls, imageUrl:'', androidOnly: isDeveloper() ? fd.get('androidOnly') === 'on' : !!x.androidOnly, updatedAt: now() } : x);
     } else {
       // 이름 비공개는 개발자 전용 — canModify는 authorId로 판단하므로 그건 그대로 두고
       // 화면에 보이는 author/authorRole만 "학생회"로 감춘다.
@@ -13027,11 +13096,12 @@ async function handleNoticeSubmit(fd){
         date: todayStr(),
         pinned: false,
         // 공지로 올리는 건 학생회만 — 학생이 쓴 글은 게시판에만 올라간다.
-        announce: isCouncil() && fd.get('announce') === 'on',
-        announceAt: (isCouncil() && fd.get('announce') === 'on') ? now() : 0,
+        announce: wantAnnounce,
+        announceAt: wantAnnounce ? now() : 0,
+        announceMs: durMs,
         likes: {},
         // 알림은 작성자가 명시적으로 체크했을 때만 발송된다(기본 꺼짐).
-        notifyPush: isCouncil() && fd.get('announce') === 'on' && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on'),
+        notifyPush: wantAnnounce && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on'),
         createdAt: now(),
         updatedAt: now()
       }, ...latest];
@@ -13041,11 +13111,11 @@ async function handleNoticeSubmit(fd){
     closeModal();
     renderMain();
     // 안드로이드 전용 공지는 알림 대상을 플랫폼으로 가를 수 없어서(아이폰 사용자에게도 갈 수 있으므로) 알림을 보내지 않는다.
-    const pushed = !id && isCouncil() && fd.get('announce') === 'on' && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on');
+    const pushed = !id && wantAnnounce && fd.get('sendPush') === 'on' && !(isDeveloper() && fd.get('androidOnly') === 'on');
     if(ok && pushed){
       enqueuePush({ audience:'notice', title:'새로운 공지가 있어요', body:`제목: ${title}` });
     }
-    saveResultToast(ok, pushed ? '공지로 게시되었습니다 (1분 안에 알림이 가요)' : (!id && isCouncil() && fd.get('announce') === 'on') ? '공지로 게시되었습니다' : '게시글이 등록되었습니다');
+    saveResultToast(ok, pushed ? '공지로 게시되었습니다 (1분 안에 알림이 가요)' : (!id && wantAnnounce) ? '공지로 게시되었습니다' : '게시글이 등록되었습니다');
   } finally {
     if(btn) btn.disabled = false;
   }
@@ -13081,7 +13151,7 @@ async function toggleAnnounce(id){
     if(!list.some(n => n.id === id)) return null;
     return list.map(n => n.id === id ? (isPostAnnounced(n)
       ? { ...n, announce: false, updatedAt: now() }
-      : { ...n, announce: true, announceAt: now(), announceReq: null, updatedAt: now() }) : n);
+      : { ...n, announce: true, announceAt: now(), announceMs: ANNOUNCE_MS, announceReq: null, updatedAt: now() }) : n);
   });
   if(next) state.notices = next;
   renderMain();
@@ -13915,6 +13985,13 @@ document.addEventListener('click', async (e)=>{
       await Promise.all([setNotifyPref(key, !cur[key]), new Promise(r=>setTimeout(r, 240))]);
       renderMain();
     }
+    else if(a === 'notice-announce-dur'){
+      const f = el.closest('form'), inp = f && f.querySelector('input[name="announceDur"]');
+      if(inp) inp.value = el.dataset.val;
+    }
+    else if(a === 'fmt-bold'){ wrapNoticeSelection('**', '**', '굵게'); }
+    else if(a === 'toggle-fmt-color'){ const pn = document.getElementById('fmt-color-panel'); if(pn) pn.classList.toggle('open'); }
+    else if(a === 'fmt-color'){ wrapNoticeSelection('{' + el.dataset.c + '|', '}', '색깔 글자'); const pn = document.getElementById('fmt-color-panel'); if(pn) pn.classList.remove('open'); }
     else if(a === 'notice-display-as'){
       const f = el.closest('form'), inp = f && f.querySelector('input[name="displayAs"]');
       if(inp) inp.value = el.dataset.val;
