@@ -1452,6 +1452,8 @@ const PATCH_NOTES = [
     { title:'게시판이 생겼어요', text:'학생사회에 게시판 탭이 생겼어요. 누구나 글을 쓸 수 있고, 학생회가 글을 "공지로 올리기" 하면 24시간 동안 공지사항과 홈에 나와요' },
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
     { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
+    { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
+    { title:'내 글 공지 신청', text:'MY 탭의 "공지 신청"에서 내가 쓴 글을 신청하면 학생회가 검토해 승인해요 (한 번에 한 건)' },
     { title:'건의 게시판을 없앴어요', text:'건의는 MY 탭의 제보 · 제안하기를 이용해주세요' },
   ]},
   { version:'Beta 0.5.3', date:'2026-10-01', summary:'환경설정이 새로워졌어요! 프로필도 바로 고치고, 앱 색도 고를 수 있어요~', items:[
@@ -5446,6 +5448,7 @@ function getNotificationFeed(){
   const b = state.adminBadge || {};
   const nowTs = now();
   if(isDirectorPlus() && b.signupInquiries>0) items.push({ id:'admin_signup_'+b.signupInquiries, ts:nowTs, icon:ICON.person, title:'가입 승인 대기', body:`${b.signupInquiries}건 확인이 필요해요`, action:'open-signup-inquiries' });
+  if(isCouncil()){ const nreq = pendingAnnounceReqs().length; if(nreq>0) items.push({ id:'admin_annreq_'+nreq, ts:nowTs-2, icon:ICON.megaphone, title:'공지 신청 대기', body:`${nreq}건 확인이 필요해요`, action:'open-announce-inbox' }); }
   if(isPresident() && b.bugReports>0) items.push({ id:'admin_bug_'+b.bugReports, ts:nowTs-1, icon:ICON.bug, title:'버그 제보', body:`처리 안 된 제보 ${b.bugReports}건`, action:'open-bug-report-inbox' });
   visibleNotices().forEach(n=>{
     // 공지로 올리거나 고정한 글만 알림 목록에 올린다(그냥 게시판 글은 제외).
@@ -8561,12 +8564,109 @@ function announcedPosts(){
   if(pins.length) return pins;
   return visibleNotices().filter(isPostAnnounced).sort((a,b)=>(b.announceAt||0)-(a.announceAt||0));
 }
+// 학생이 자기 글의 공지를 신청하면 글에 announceReq가 붙고, 학생회가 승인하면 공지로 올라간다.
+// 한 사람이 동시에 신청할 수 있는 건 1건뿐이다.
+function myOpenAnnounceReq(){
+  const sid = state.user && state.user.studentId;
+  return visibleNotices().find(n=>n.authorId===sid && n.announceReq && !isPostAnnounced(n) && !n.pinned);
+}
+function pendingAnnounceReqs(){
+  return visibleNotices().filter(n=>n.announceReq && !isPostAnnounced(n) && !n.pinned)
+    .sort((a,b)=>(a.announceReq.at||0)-(b.announceReq.at||0));
+}
+function announceRequestModal(){
+  const sid = state.user.studentId;
+  const mine = visibleNotices().filter(n=>n.authorId===sid).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).slice(0,20);
+  const hasOpen = !!myOpenAnnounceReq();
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">공지 신청<button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:11px; color:var(--text-dim); line-height:1.5; margin:0 0 10px;">내가 쓴 게시글을 학생회가 검토해 승인하면 24시간 동안 공지사항에 올라가요. 신청은 한 번에 한 건만 할 수 있어요.</p>
+    ${mine.length ? mine.map(n=>{
+      const live24 = isPostAnnounced(n);
+      const req = n.announceReq && !live24 && !n.pinned;
+      return `<div class="row-between" style="gap:8px; padding:8px 0; border-bottom:1px solid var(--hairline);">
+        <div style="min-width:0; flex:1;"><b class="one-line" style="font-size:12px;">${escapeHtml(n.title)}</b>
+          <div class="meta">${live24 ? '공지 중 · '+announceLeftLabel(n) : n.pinned ? '고정됨' : req ? '검토 대기 중' : fmtDateTime(n.createdAt||n.date)}</div></div>
+        ${live24 || n.pinned ? '' : req
+          ? `<button class="btn btn-ghost btn-sm" style="width:auto;" data-action="cancel-req-announce" data-id="${n.id}">신청 취소</button>`
+          : `<button class="btn btn-primary btn-sm" style="width:auto;" ${hasOpen?'disabled':''} data-action="req-announce" data-id="${n.id}">신청</button>`}
+      </div>`; }).join('') : `<div class="empty"><p>내가 쓴 게시글이 없어요.</p></div>`}`;
+}
+function announceInboxModal(){
+  const list = pendingAnnounceReqs();
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">공지 신청함<button data-action="close-modal">${ICON.close}</button></div>
+    ${list.length ? list.map(n=>`
+      <div style="padding:10px 0; border-bottom:1px solid var(--hairline);">
+        <b style="font-size:12.5px;">${escapeHtml(n.title)}</b>
+        <div class="meta">${noticeAuthorHtml(n)} · ${fmtDateTime(n.announceReq.at)} 신청</div>
+        <div class="body" style="font-size:11.5px; max-height:90px; overflow:hidden;">${linkifyEscaped(escapeHtml(n.content))}</div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button class="btn btn-primary btn-sm" data-action="approve-announce" data-id="${n.id}">승인 (공지로 올리기)</button>
+          <button class="btn btn-ghost btn-sm" data-action="reject-announce" data-id="${n.id}">반려</button>
+        </div>
+      </div>`).join('') : `<div class="empty"><p>대기 중인 공지 신청이 없어요.</p></div>`}`;
+}
+async function requestAnnounce(id){
+  if(!state.user) return;
+  if(myOpenAnnounceReq()){ toast('이미 신청한 글이 있어요. 처리된 뒤에 다시 신청해주세요'); return; }
+  const next = await mutateSharedList('notices', 'list', (list)=>{
+    const t = list.find(n=>n.id===id);
+    if(!t || t.authorId !== state.user.studentId) return null;
+    return list.map(n=>n.id===id ? { ...n, announceReq:{ at: now(), by: state.user.name }, updatedAt: now() } : n);
+  });
+  if(next){ state.notices = next; toast('신청했어요. 학생회가 검토해요'); } else saveResultToast(false);
+  openModal(announceRequestModal());
+}
+async function cancelAnnounceReq(id){
+  const next = await mutateSharedList('notices', 'list', (list)=>{
+    const t = list.find(n=>n.id===id);
+    if(!t || t.authorId !== state.user.studentId) return null;
+    return list.map(n=>n.id===id ? { ...n, announceReq:null, updatedAt: now() } : n);
+  });
+  if(next) state.notices = next; else saveResultToast(false);
+  openModal(announceRequestModal());
+}
+// 승인: 공지로 올리고(24시간) 신청 표시를 지운다. 반려: 신청 표시만 지운다.
+async function resolveAnnounceReq(id, approve){
+  if(!isCouncil()) return;
+  const next = await mutateSharedList('notices', 'list', (list)=>{
+    if(!list.some(n=>n.id===id)) return null;
+    return list.map(n=>n.id===id ? (approve
+      ? { ...n, announce:true, announceAt: now(), announceReq:null, updatedAt: now() }
+      : { ...n, announceReq:null, updatedAt: now() }) : n);
+  });
+  if(next) state.notices = next; else saveResultToast(false);
+  openModal(announceInboxModal());
+  renderMain();
+}
+
 function validRecruitPosts(){
   return live(state.recruitmentPosts).filter(r=>{
     if(r.closed) return false;
     if(r.expireHours && r.expireHours>0 && (now() - (r.createdAt||0)) > r.expireHours*3600000) return false;
     return true;
   }).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+}
+
+// 이 게시글에 연결된 투표(진행 중 우선). 눌러서 투표 화면으로 간다.
+function linkedPollsHtml(n){
+  const ps = live(state.polls).filter(p=>p.postId===n.id).sort((a,b)=>(isPollEnded(a)?1:0)-(isPollEnded(b)?1:0));
+  if(!ps.length) return '';
+  return `<div style="margin-top:8px;">${ps.map(p=>`
+    <div data-action="go-poll-page" style="cursor:pointer; display:flex; align-items:center; gap:8px; padding:8px 10px; margin-top:4px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2);">
+      <span style="color:var(--crimson); display:flex;">${ICON.ballot}</span>
+      <div style="min-width:0; flex:1;"><b class="one-line" style="font-size:11.5px;">${escapeHtml(p.question)}</b><div class="meta" style="margin-top:1px;">${fmtPollDeadline(p)}</div></div>
+      <span style="color:var(--text-faint); flex-shrink:0;">${ICON.chevR}</span>
+    </div>`).join('')}</div>`;
+}
+function linkedPostLabelHtml(p){
+  if(!p.postId) return '';
+  const n = visibleNotices().find(x=>x.id===p.postId);
+  if(!n) return '';
+  return `<div data-action="go-board-tab" style="cursor:pointer; font-size:10.5px; color:var(--text-faint); margin-top:3px;">게시글 · ${escapeHtml(n.title)}</div>`;
 }
 
 function postCardHtml(n, opts){
@@ -8582,6 +8682,7 @@ function postCardHtml(n, opts){
       <div class="meta">${n.displayAs === 'none' ? '' : noticeAuthorHtml(n) + ' · '}${fmtDateTime(n.createdAt || n.date)}</div>
       <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
       ${noticeImagesHtml(n)}
+      ${linkedPollsHtml(n)}
       ${renderLikeUI(n, 'notice')}
       ${(council || editable) && !(opts && opts.readonly) ? `
       <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
@@ -8601,7 +8702,8 @@ function postCardHtml(n, opts){
 function renderNoticeTab(){
   const posts = announcedPosts();
   const hasPin = posts.some(n=>n.pinned);
-  const polls = live(state.polls).filter(p=>!isPollEnded(p)).sort((a,b)=>pollDeadlineSortValue(a)-pollDeadlineSortValue(b));
+  const shownIds = new Set(posts.map(n=>n.id));
+  const polls = live(state.polls).filter(p=>!isPollEnded(p) && !(p.postId && shownIds.has(p.postId))).sort((a,b)=>pollDeadlineSortValue(a)-pollDeadlineSortValue(b));
   const recruits = validRecruitPosts().slice(0,5);
   const secTitle = (t, extra)=>`<div class="section-title">${t}${extra||''}</div>`;
   const postsHtml = posts.length ? posts.map(n=>postCardHtml(n, {readonly:true})).join('')
@@ -8661,14 +8763,14 @@ function noticeModal(n){
     <form id="notice-form">
       <input type="hidden" name="itemId" value="${n ? n.id : ''}">
       <input type="hidden" name="imageUrls" id="notice-imgs-hidden" value='${escapeHtml(JSON.stringify(existingImgs))}'>
-      <div class="field"><label>제목</label><input type="text" name="title" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="제목"></div>
-      <div class="field"><label>내용</label><textarea name="content" style="min-height:120px" required placeholder="내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
-      <div class="field">
+      <div class="field"><label>제목</label><input type="text" name="title" maxlength="60" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="제목"></div>
+      <div class="field"><label>내용</label><textarea name="content" maxlength="${isCouncil() ? 5000 : 1500}" style="min-height:120px" required placeholder="내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
+      ${!isCouncil() ? '' : `<div class="field">
         <label>사진 첨부 (선택, 최대 3장)</label>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-notice-img" style="width:100%;">${ICON.camera} 이미지 추가</button>
         <input type="file" id="notice-file-input" accept="image/*" multiple style="display:none;">
         <div id="notice-img-preview-box" style="margin-top:8px; display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; ${existingImgs.length?'':'display:none;'}">${noticeImgThumbsHtml(existingImgs)}</div>
-      </div>
+      </div>`}
       ${isDeveloper() ? `
       <div style="margin:8px 0 0;">
         <div class="row-between" style="gap:10px;">
@@ -9093,6 +9195,7 @@ function renderPollItem(p){
         ${ended ? `<span class="tag tag-dim">마감</span>` : `<span class="tag tag-teal">진행중</span>`}
       </div>
       <div class="meta">${p.multi?'복수선택 · ':''}${fmtPollDeadline(p)} · ${fmtAuthorBadge(p.createdBy||'학생회', p.createdById, p.authorRole)}</div>
+      ${linkedPostLabelHtml(p)}
       <div style="margin-top:8px;">${body}</div>
       ${manage ? `
       <div style="display:flex; gap:5px; margin-top:8px;">
@@ -9119,6 +9222,13 @@ function pollModal(){
         </div>`).join('')}
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-action="add-poll-option" style="width:100%; margin-bottom:12px;">+ 선택지 추가</button>
+      <div class="field" style="margin-bottom:12px;">
+        <label>연결할 게시글 (선택)</label>
+        <select name="postId">
+          <option value="">연결 안 함</option>
+          ${visibleNotices().sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).slice(0,30).map(n=>`<option value="${escapeHtml(n.id)}">${escapeHtml(n.title)}</option>`).join('')}
+        </select>
+      </div>
       <div class="poll-opts" style="display:flex; gap:14px; margin-bottom:14px; position:relative;">
         <!-- 왼쪽 열: 마감 일시 설정 → 복수 선택 허용 → 알림 발송 -->
         <div style="flex:1; min-width:0;">
@@ -10102,8 +10212,11 @@ function renderMypage(){
            없다. APK만 수동 업데이트가 필요해서 이 메뉴도 APK 전용으로 되돌린다. -->
       <div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${!isCouncil() ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-announce-request"><span class="link-row-label">${ICON.megaphone} 공지 신청${myOpenAnnounceReq()?' (검토 대기 중)':''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
+      ${!isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
+      <div class="link-row" data-action="open-announce-inbox"><span class="link-row-label">${ICON.megaphone} 공지 신청함${pendingAnnounceReqs().length>0?` (${pendingAnnounceReqs().length})`:''}</span> <span class="sub">${ICON.chevR}</span></div>
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
@@ -12723,8 +12836,9 @@ async function handleNoticeSubmit(fd){
   let imageUrls = [];
   try{ imageUrls = JSON.parse(fd.get('imageUrls') || '[]'); }catch(e){ imageUrls = []; }
   if(!Array.isArray(imageUrls)) imageUrls = [];
-  imageUrls = imageUrls.slice(0, 3);
+  imageUrls = isCouncil() ? imageUrls.slice(0, 3) : [];
   if(!title || !content){ toast('제목과 내용을 모두 입력해주세요'); return; }
+  if(!isCouncil() && content.length > 1500){ toast('내용은 1500자까지 쓸 수 있어요'); return; }
 
   const btn = document.querySelector('#notice-form button[type=submit]');
   if(btn) btn.disabled = true;
@@ -12903,6 +13017,7 @@ async function handlePollSubmit(fd){
     authorRole: myRole(),
     createdDate: todayStr(),
     closed: false,
+    postId: String(fd.get('postId') || ''),
     // 공지와 동일하게, 작성자가 체크했을 때만 알림이 나간다(기본 꺼짐).
     // 이 값이 false면 시작·마감임박·저녁 리마인더 알림 모두 이 투표를 건너뛴다.
     notifyPush: fd.get('sendPush') === 'on',
@@ -13360,7 +13475,7 @@ document.addEventListener('click', async (e)=>{
   // delete-event는 여기서 뺐다. 개인 일정은 자기가 만든 것이라 본인이 지울 수 있어야 하는데,
   // 목록에는 삭제 버튼이 보이면서(작성자면 표시됨) 누르면 이 가드에 막혀 "학생회 권한이
   // 필요합니다"만 뜨고 있었다. 실제 권한 판단은 deleteEvent() 안에서 작성자/직급으로 한다.
-  const councilOnly = ['toggle-pin','toggle-announce','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
+  const councilOnly = ['toggle-pin','toggle-announce','open-announce-inbox','approve-announce','reject-announce','add-event','edit-meal','add-council-event','delete-all-calendar','ocr-calendar'];
   const pollOnly = ['add-poll','close-poll','reopen-poll','delete-poll'];
   const presidentOnly = ['view-users-list','manage-roster','view-audit-log','open-user-detail','user-sort','toggle-user-sort'];
   const developerOnly = ['manage-gemini-keys','purge-tombstones'];
@@ -14108,6 +14223,13 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'delete-notice'){ await deleteNotice(el.dataset.id); }
     else if(a === 'toggle-pin'){ await togglePin(el.dataset.id); }
     else if(a === 'toggle-announce'){ await toggleAnnounce(el.dataset.id); }
+    else if(a === 'open-announce-request'){ openModal(announceRequestModal()); }
+    else if(a === 'req-announce'){ await requestAnnounce(el.dataset.id); }
+    else if(a === 'cancel-req-announce'){ await cancelAnnounceReq(el.dataset.id); }
+    else if(a === 'open-announce-inbox'){ if(isCouncil()) openModal(announceInboxModal()); }
+    else if(a === 'approve-announce'){ await resolveAnnounceReq(el.dataset.id, true); }
+    else if(a === 'reject-announce'){ await resolveAnnounceReq(el.dataset.id, false); }
+    else if(a === 'go-board-tab'){ state.view = 'council'; state.councilTab = 'board'; renderShell(); }
     else if(a === 'add-poll'){ openModal(pollModal()); updatePollOptionUI(); }
     else if(a === 'add-poll-option'){
       const wrap = document.getElementById('poll-options-wrap');
