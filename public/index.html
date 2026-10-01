@@ -1520,7 +1520,7 @@ const PATCH_NOTES = [
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
     { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
     { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
-    { title:'시간 표시 설정', text:'환경설정 > 화면 > 시간 표시에서 셔틀 다음 출발("오후 4시 30분") · 시간표(13시→1시) · 게시글/투표 마감 시각을 부분별로 오전/오후 형식으로 바꿀 수 있어요' },
+    { title:'24시간 표시 설정', text:'환경설정 > 화면 > 시간 설정에서 24시간 표시를 끄면 셔틀 다음 출발은 "오후 4시 30분", 시간표 왼쪽 줄은 13시→1시처럼 12시간제로 보여요' },
     { title:'셔틀 · 시간표 · 학식 화면 다듬기', text:'셔틀은 일요일에는 일요일 시간표가 평일 위로 올라와요. 시간표 맨 위 시간표 이름 버튼은 글자 부분만 눌리도록 줄였고, 학식의 식간(중식 등)과 운영 시간은 같은 글자 밑선에 맞췄어요' },
     { title:'글 꾸미기 · 공지 기간', text:'글을 쓸 때 선택한 글자를 "굵게"하거나 "색깔"을 입힐 수 있고, "미리보기"로 완성된 모습을 먼저 볼 수 있어요. 학생회는 공지로 올릴 때 24시간 · 7일 · 영원히(내릴 때까지) 중에 기간을 골라요' },
     { title:'글자에 링크 걸기', text:'게시글을 쓸 때 "링크 넣기"로 보여줄 글자와 주소를 정하면 글자를 눌러 바로 이동해요. 앱 안의 게시글 · 투표는 목록에서 골라 연결하면 앱 안에서 바로 열려요' },
@@ -2280,9 +2280,11 @@ function fmtDateTime(ts){
 function getNearestWeekday(s){ const d=new Date(s+'T00:00:00'); const g=d.getDay(); if(g===6) return addDays(s,2); if(g===0) return addDays(s,1); return s; }
 function getWeekMonday(s){ const d=new Date(s+'T00:00:00'); const g=d.getDay(); const diff=d.getDate()-g+(g===0?-6:1); const mon=new Date(d.setDate(diff)); return `${mon.getFullYear()}-${pad(mon.getMonth()+1)}-${pad(mon.getDate())}`; }
 function getWeekdayDates(base){ const mon=new Date(getWeekMonday(base)+'T00:00:00'); const w=[]; for(let i=0;i<5;i++){ const c=new Date(mon); c.setDate(mon.getDate()+i); w.push(`${c.getFullYear()}-${pad(c.getMonth()+1)}-${pad(c.getDate())}`);} return w; }
-// 시간 표시 설정(환경설정 > 화면 > 시간 표시): 부분별로 오전/오후 형식을 켜고 끈다.
-//  shuttle: 셔틀 "다음 출발" (기본 켬) · tt: 시간표 12시간제(13→1) (기본 끔) · other: 게시글 시각·투표 마감 (기본 끔)
-function getTimePrefs(){ return { shuttle: localGet('tfmt_shuttle', true), tt: localGet('tfmt_tt', false), other: localGet('tfmt_other', false) }; }
+// 시간 표시 설정(환경설정 > 화면 > 24시간 표시): 켜면(기본) 16:30 형식, 끄면 12시간제 —
+// 셔틀 "다음 출발"은 오후 4시 30분, 시간표는 13→1(왼쪽 줄·수업 시각), 게시글 시각·투표 마감은 오후 4:30.
+// 위젯·입력칸·알림처럼 형식이 고정이어야 하는 곳은 설정과 상관없이 24시간제.
+function is24HourDisplay(){ return localGet('time24', true) !== false; }
+function getTimePrefs(){ const is12 = !is24HourDisplay(); return { shuttle: is12, tt: is12, other: is12 }; }
 function clock12(h, m, compact){
   const h12 = h % 12 || 12;
   return compact ? `${h12}:${pad(m)}` : `${h >= 12 ? '오후' : '오전'} ${h12}:${pad(m)}`;
@@ -10282,19 +10284,11 @@ function settingsSectionHtml(tab){
         ${state.homeReorderMode ? homeOrderMoveHtml(key) : homePrefToggleHtml(hideKey, meta.hidden)}
       </div>`;
       }).join('')}
-      </div><p class="st-cap">시간 표시<span class="fs-hint">켜면 오전/오후 형식으로 보여요</span></p><div class="card">
-      ${(()=>{
-        const tp = getTimePrefs();
-        return [
-          { key:'shuttle', icon:ICON.bus,   label:'셔틀 다음 출발', sub:'16:30 → 오후 4시 30분', on:tp.shuttle },
-          { key:'tt',      icon:ICON.grid,  label:'시간표',         sub:'13시 → 1시 (오전/오후 없이)', on:tp.tt },
-          { key:'other',   icon:ICON.clock, label:'게시글 · 투표 마감', sub:'16:30 → 오후 4:30', on:tp.other },
-        ].map(r=>`
-      <div class="notify-row hp-row ${r.on ? '' : 'is-off'}">
-        <span class="notify-label">${r.icon}<span class="notify-label-text"><b>${r.label}</b><small>${r.sub}</small></span></span>
-        <button type="button" class="tgl ${r.on?'on':''}" data-action="toggle-time-pref" data-key="${r.key}" role="switch" aria-checked="${r.on}" title="오전/오후 형식"></button>
-      </div>`).join('');
-      })()}
+      </div><p class="st-cap">시간 설정</p><div class="card">
+      <div class="notify-row hp-row">
+        <span class="notify-label">${ICON.clock}<span class="notify-label-text"><b>24시간 표시</b><small>끄면 셔틀 출발은 오후 4시 30분, 시간표 왼쪽 줄은 13시 → 1시처럼 12시간제로 보여요</small></span></span>
+        <button type="button" class="tgl ${is24HourDisplay()?'on':''}" data-action="toggle-time24" role="switch" aria-checked="${is24HourDisplay()}" title="24시간 표시"></button>
+      </div>
       ` : ''}
 
       ${state.settingsTab==='notify' ? `
@@ -14057,12 +14051,11 @@ document.addEventListener('click', async (e)=>{
       const f = el.closest('form'), inp = f && f.querySelector('input[name="displayAs"]');
       if(inp) inp.value = el.dataset.val;
     }
-    else if(a === 'toggle-time-pref'){
+    else if(a === 'toggle-time24'){
       const on = !el.classList.contains('on');
-      localSet('tfmt_' + el.dataset.key, on);
+      localSet('time24', on);
       el.classList.toggle('on', on);
       el.setAttribute('aria-checked', String(on));
-      const row = el.closest('.notify-row'); if(row) row.classList.toggle('is-off', !on);
     }
     else if(a === 'toggle-home-pref'){
       const hidden = el.classList.contains('on');   // 지금 켜져(표시) 있으면 누른 뒤에는 숨김
