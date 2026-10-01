@@ -1520,7 +1520,8 @@ const PATCH_NOTES = [
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
     { title:'상단 고정', text:'학생회가 글을 고정하면 해제할 때까지 공지사항과 홈 맨 위에 남아요. 고정된 글이 있는 동안에는 24시간짜리 공지는 잠시 숨겨져요' },
     { title:'투표를 게시글에 연결', text:'투표를 만들 때 게시글을 고르면 그 글 아래에 투표가 함께 보이고, 투표 화면에도 어떤 글의 투표인지 표시돼요' },
-    { title:'셔틀 · 시간표 · 학식 화면 다듬기', text:'셔틀 "다음 출발"이 "오후 4시 30분 출발"처럼 보이고, 일요일에는 일요일 시간표가 평일 위로 올라와요. 시간표 맨 위 시간표 이름 버튼은 글자 부분만 눌리도록 줄였고, 학식의 식간(중식 등)과 운영 시간은 같은 글자 밑선에 맞췄어요' },
+    { title:'시간 표시 설정', text:'환경설정 > 화면 > 시간 표시에서 셔틀 다음 출발("오후 4시 30분") · 시간표(13시→1시) · 게시글/투표 마감 시각을 부분별로 오전/오후 형식으로 바꿀 수 있어요' },
+    { title:'셔틀 · 시간표 · 학식 화면 다듬기', text:'셔틀은 일요일에는 일요일 시간표가 평일 위로 올라와요. 시간표 맨 위 시간표 이름 버튼은 글자 부분만 눌리도록 줄였고, 학식의 식간(중식 등)과 운영 시간은 같은 글자 밑선에 맞췄어요' },
     { title:'글 꾸미기 · 공지 기간', text:'글을 쓸 때 선택한 글자를 "굵게"하거나 "색깔"을 입힐 수 있고, "미리보기"로 완성된 모습을 먼저 볼 수 있어요. 학생회는 공지로 올릴 때 24시간 · 7일 · 영원히(내릴 때까지) 중에 기간을 골라요' },
     { title:'글자에 링크 걸기', text:'게시글을 쓸 때 "링크 넣기"로 보여줄 글자와 주소를 정하면 글자를 눌러 바로 이동해요. 앱 안의 게시글 · 투표는 목록에서 골라 연결하면 앱 안에서 바로 열려요' },
     { title:'꾹 눌러도 글자가 선택되지 않아요', text:'홈·게시판·MY 등에서 꾹 눌렀을 때 글자가 선택되던 동작을 없앴어요. 학사일정·학과공지·학사 달력(내 메모)·학식에서는 그대로 복사할 수 있어요' },
@@ -2274,17 +2275,28 @@ function fmtDateTime(ts){
   if(!ts) return '';
   const d = new Date(typeof ts === 'number' ? ts : (String(ts).includes('T') ? ts : ts + 'T00:00:00'));
   if(isNaN(d.getTime())) return String(ts);
-  return `${d.getMonth()+1}.${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getMonth()+1}.${d.getDate()} ${getTimePrefs().other ? clock12(d.getHours(), d.getMinutes(), false) : `${pad(d.getHours())}:${pad(d.getMinutes())}`}`;
 }
 function getNearestWeekday(s){ const d=new Date(s+'T00:00:00'); const g=d.getDay(); if(g===6) return addDays(s,2); if(g===0) return addDays(s,1); return s; }
 function getWeekMonday(s){ const d=new Date(s+'T00:00:00'); const g=d.getDay(); const diff=d.getDate()-g+(g===0?-6:1); const mon=new Date(d.setDate(diff)); return `${mon.getFullYear()}-${pad(mon.getMonth()+1)}-${pad(mon.getDate())}`; }
 function getWeekdayDates(base){ const mon=new Date(getWeekMonday(base)+'T00:00:00'); const w=[]; for(let i=0;i<5;i++){ const c=new Date(mon); c.setDate(mon.getDate()+i); w.push(`${c.getFullYear()}-${pad(c.getMonth()+1)}-${pad(c.getDate())}`);} return w; }
+// 시간 표시 설정(환경설정 > 화면 > 시간 표시): 부분별로 오전/오후 형식을 켜고 끈다.
+//  shuttle: 셔틀 "다음 출발" (기본 켬) · tt: 시간표 12시간제(13→1) (기본 끔) · other: 게시글 시각·투표 마감 (기본 끔)
+function getTimePrefs(){ return { shuttle: localGet('tfmt_shuttle', true), tt: localGet('tfmt_tt', false), other: localGet('tfmt_other', false) }; }
+function clock12(h, m, compact){
+  const h12 = h % 12 || 12;
+  return compact ? `${h12}:${pad(m)}` : `${h >= 12 ? '오후' : '오전'} ${h12}:${pad(m)}`;
+}
+function ttHourLabel(h){ return getTimePrefs().tt ? (h % 12 || 12) : h; }
+function shuttleDepLabel(d){ return getTimePrefs().shuttle ? fmtKoTime(d) : `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 // 셔틀 "다음 출발" 안내용: 16:30 → 오후 4시 30분 (정각이면 오후 4시)
 function fmtKoTime(d){
   const h = d.getHours(), m = d.getMinutes();
   return `${h >= 12 ? '오후' : '오전'} ${h % 12 || 12}시${m ? ` ${m}분` : ''}`;
 }
-function minutesToLabel(m){ return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
+// 시간표 화면 표시용(설정에 따라 12시간제 1:30 / 24시간제 13:30). 위젯·입력칸·알림처럼 형식이 고정이어야 하는 곳은 minutesToLabel24.
+function minutesToLabel24(m){ return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
+function minutesToLabel(m){ return getTimePrefs().tt ? clock12(Math.floor(m/60) % 24, m % 60, true) : minutesToLabel24(m); }
 function todayDayIndex(){ const g=new Date().getDay(); return (g>=1&&g<=5)?g-1:-1; }
 function escapeHtml(s){ if(s==null) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
 // 공지 등 게시글 본문에 http(s) 링크를 적으면 눌러서 바로 열 수 있게 한다.
@@ -2538,7 +2550,7 @@ function fmtPollDeadline(p){
   if(p.closed) return '투표 종료됨';
   const dt=p.endDateTime||p.endDate;
   if(!dt) return '마감일 없음';
-  if(dt.includes('T')){ const [dp,tp]=dt.split('T'); const [,m,d]=dp.split('-').map(Number); const [hh,mm]=tp.split(':'); return `마감 ${m}월 ${d}일 ${hh}:${mm}`; }
+  if(dt.includes('T')){ const [dp,tp]=dt.split('T'); const [,m,d]=dp.split('-').map(Number); const [hh,mm]=tp.split(':'); const tt = getTimePrefs().other ? clock12(Number(hh), Number(mm), false) : `${hh}:${mm}`; return `마감 ${m}월 ${d}일 ${tt}`; }
   const [,m,d]=dt.split('-').map(Number); return `마감 ${m}월 ${d}일`;
 }
 function pollDeadlineSortValue(p){
@@ -5300,7 +5312,7 @@ async function pushWidgetData(){
         room: c.room || '',
         color: c.color || COLORS[0].hex,
         start: c.start, end: c.end,
-        time: `${minutesToLabel(c.start)}–${minutesToLabel(c.end)}`,
+        time: `${minutesToLabel24(c.start)}–${minutesToLabel24(c.end)}`,
       }));
 
     const today = todayStr();
@@ -5329,8 +5341,8 @@ async function pushWidgetData(){
         color: c.color || COLORS[0].hex,
         textColor: c.textColor || '#FFFFFF',
         start: c.start, end: c.end,
-        startLabel: minutesToLabel(c.start),
-        endLabel: minutesToLabel(c.end),
+        startLabel: minutesToLabel24(c.start),
+        endLabel: minutesToLabel24(c.end),
       }))
     );
 
@@ -5696,7 +5708,7 @@ async function scheduleTimetableReminders(list){
     const bodyByDay = {};
     for(let day=0; day<5; day++){
       const classes = source.filter(c=>c.day===day).sort((a,b)=>a.start-b.start);
-      if(classes.length) bodyByDay[day] = classes.map(c=>`${minutesToLabel(c.start)} ${c.subject}`).join(', ');
+      if(classes.length) bodyByDay[day] = classes.map(c=>`${minutesToLabel24(c.start)} ${c.subject}`).join(', ');
     }
     if(!Object.keys(bodyByDay).length) return;
 
@@ -6630,7 +6642,7 @@ function renderTimetable(isCapture=false){
   for(let r=0;r<=rows;r++){
     const mins = TIME_START + r*TIMETABLE_GRID_STEP;
     if(mins>=visibleEnd) break;   // 맨 아래 끝 시각(예: 19시까지면 19)의 왼쪽 시간 글자는 그리지 않는다
-    if(mins%60===0) timeLabels += `<div class="tt-timelabel" style="grid-row:${r+2}">${Math.floor(mins/60)}</div>`;
+    if(mins%60===0) timeLabels += `<div class="tt-timelabel" style="grid-row:${r+2}">${ttHourLabel(Math.floor(mins/60))}</div>`;
   }
   let cells='';
   for(let d=0; d<5; d++){
@@ -7847,7 +7859,7 @@ function setupExamModalListeners(){
     if(titleInp && !titleInp.value) titleInp.value = `${subject} 시험`;
     if(cls){
       if(roomInp) roomInp.value = cls.room || '';
-      if(timeInp) timeInp.value = `${minutesToLabel(cls.start)} ~ ${minutesToLabel(cls.end)}`;
+      if(timeInp) timeInp.value = `${minutesToLabel24(cls.start)} ~ ${minutesToLabel24(cls.end)}`;
     }
   };
 }
@@ -8165,7 +8177,7 @@ function shuttleCountdownCard(point, label){
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div class="shuttle-countdown-val" data-point="${point}" style="font-size:19px; font-weight:800; color:var(--crimson);">${fmtShuttleCountdown(ms)}</div>
-      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${fmtKoTime(next.dep)} 출발</div>
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${shuttleDepLabel(next.dep)} 출발</div>
     </div>`;
 }
 // 홈 화면용 한 줄짜리 축약 카드. 전체 카운트다운 카드(shuttleCountdownCard)와 달리 한 줄에
@@ -10270,6 +10282,19 @@ function settingsSectionHtml(tab){
         ${state.homeReorderMode ? homeOrderMoveHtml(key) : homePrefToggleHtml(hideKey, meta.hidden)}
       </div>`;
       }).join('')}
+      </div><p class="st-cap">시간 표시<span class="fs-hint">켜면 오전/오후 형식으로 보여요</span></p><div class="card">
+      ${(()=>{
+        const tp = getTimePrefs();
+        return [
+          { key:'shuttle', icon:ICON.bus,   label:'셔틀 다음 출발', sub:'16:30 → 오후 4시 30분', on:tp.shuttle },
+          { key:'tt',      icon:ICON.grid,  label:'시간표',         sub:'13시 → 1시 (오전/오후 없이)', on:tp.tt },
+          { key:'other',   icon:ICON.clock, label:'게시글 · 투표 마감', sub:'16:30 → 오후 4:30', on:tp.other },
+        ].map(r=>`
+      <div class="notify-row hp-row ${r.on ? '' : 'is-off'}">
+        <span class="notify-label">${r.icon}<span class="notify-label-text"><b>${r.label}</b><small>${r.sub}</small></span></span>
+        <button type="button" class="tgl ${r.on?'on':''}" data-action="toggle-time-pref" data-key="${r.key}" role="switch" aria-checked="${r.on}" title="오전/오후 형식"></button>
+      </div>`).join('');
+      })()}
       ` : ''}
 
       ${state.settingsTab==='notify' ? `
@@ -14031,6 +14056,13 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'notice-display-as'){
       const f = el.closest('form'), inp = f && f.querySelector('input[name="displayAs"]');
       if(inp) inp.value = el.dataset.val;
+    }
+    else if(a === 'toggle-time-pref'){
+      const on = !el.classList.contains('on');
+      localSet('tfmt_' + el.dataset.key, on);
+      el.classList.toggle('on', on);
+      el.setAttribute('aria-checked', String(on));
+      const row = el.closest('.notify-row'); if(row) row.classList.toggle('is-off', !on);
     }
     else if(a === 'toggle-home-pref'){
       const hidden = el.classList.contains('on');   // 지금 켜져(표시) 있으면 누른 뒤에는 숨김
