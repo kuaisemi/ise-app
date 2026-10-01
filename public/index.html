@@ -470,6 +470,10 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .act-cell{min-width:0;}
 .act-cell .btn{width:100%; padding-left:4px; padding-right:4px; white-space:nowrap; justify-content:center;}
 .act-cell .share-btn{width:100%;}
+.act-cell .btn svg{width:15px; height:15px; flex:none; margin-right:4px; vertical-align:-3px;}
+.act-cell .share-btn svg{margin-right:0;}
+.btn-like.btn-share{color:var(--text-dim);}
+.btn-like.btn-share svg{width:14px; height:14px;}
 .share-btn{width:auto; flex:none; display:inline-flex; align-items:center; justify-content:center; gap:4px;}
 /* 글쓰기 — 링크 넣기 패널 */
 #link-ins-panel input{width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--text); font:inherit; font-size:12px;}
@@ -8566,7 +8570,7 @@ async function fetchDeptNoticesFromSource(silent=false){
 }
 
 /* ===== 따봉(Like) UI 헬퍼 ===== */
-function renderLikeUI(item, itemType){
+function renderLikeUI(item, itemType, shareKind){
   const likes = item.likes || {};
   const count = Object.keys(likes).length;
   const mySid = state.user ? state.user.studentId : '';
@@ -8583,6 +8587,7 @@ function renderLikeUI(item, itemType){
       <button type="button" class="btn-like ${hasLiked?'active':''}" data-action="toggle-like" data-type="${itemType}" data-id="${item.id}">
         ${ICON.thumbUp} <span>${count}</span>
       </button>
+      ${shareKind ? `<button type="button" class="btn-like btn-share" data-action="share-link" data-kind="${shareKind}" data-id="${escapeHtml(item.id)}" title="링크 공유">${SHARE_ICON} <span>링크</span></button>` : ''}
     </div>
     ${(isDirectorOrHigher && count > 0) ? `
       <details class="likers-accordion">
@@ -8760,7 +8765,7 @@ function postCardHtml(n, opts){
   const reqChip = (n.announceReq && !announced && !n.pinned) ? `<span class="tag tag-amber" style="flex-shrink:0;">공지 신청</span>` : '';
   // 버튼은 글마다 달라지므로(학생회/작성자/일반) 모아서 한 줄에 최대 3개씩 칸을 균등하게 나눠 양쪽을 맞춘다.
   const ro = !!(opts && opts.readonly);
-  const btns = [shareBtnHtml('post', n.id)];
+  const btns = [];
   if(council && !ro){
     btns.push(`<button class="btn btn-ghost btn-sm" data-action="toggle-announce" data-id="${n.id}">${announced ? '공지 내리기' : (n.announceReq ? '신청 승인' : '공지 올리기')}</button>`);
     if(n.announceReq && !announced) btns.push(`<button class="btn btn-ghost btn-sm" data-action="reject-announce" data-id="${n.id}">신청 반려</button>`);
@@ -8779,7 +8784,7 @@ function postCardHtml(n, opts){
       <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
       ${noticeImagesHtml(n)}
       ${linkedPollsHtml(n)}
-      ${renderLikeUI(n, 'notice')}
+      ${renderLikeUI(n, 'notice', 'post')}
       ${actionBarHtml(btns)}
       ${lockedNote}
     </div>
@@ -9287,10 +9292,7 @@ function renderPollItemInner(p){
         </details>`;
     }
     body += `<div class="row-between" style="font-size:10.5px; color:var(--text-faint); margin-top:6px;"><span>총 참여 ${totalVoters}명${ended?' · 마감됨':''}</span><span>${fmtPollDeadline(p)}</span></div>`;
-    body += `<div style="display:flex; gap:6px; margin-top:8px;">
-      ${(isDirectorOrHigher && totalVoters>0) ? `<button class="btn btn-ghost btn-sm" data-action="export-poll-csv" data-id="${p.id}" style="flex:1;">${ICON.doc} 투표자 명단 CSV 내보내기</button>` : ''}
-      ${shareBtnHtml('poll', p.id)}
-    </div>`;
+
     if(!ended && myVotes){
       body += `<div style="display:flex; gap:6px; margin-top:8px;">
         <button class="btn btn-ghost btn-sm" data-action="edit-poll-vote" data-id="${p.id}" style="flex:1;">투표 변경</button>
@@ -9312,7 +9314,6 @@ function renderPollItemInner(p){
           <span>${p.multi?'복수 선택 가능':'단일 선택'}</span><span>${fmtPollDeadline(p)}</span>
         </div>
         <div style="display:flex; gap:6px;">
-          ${shareBtnHtml('poll', p.id)}
           ${editing ? `<button type="button" class="btn btn-ghost btn-sm" data-action="cancel-edit-poll-vote" style="flex:1;">취소</button>` : ''}
           <button type="submit" class="btn btn-primary btn-sm" style="flex:1.5;">${editing?'투표 수정 완료':'투표하기'}</button>
         </div>
@@ -9328,11 +9329,12 @@ function renderPollItemInner(p){
       <div class="meta">${p.multi?'복수선택 · ':''}${fmtPollDeadline(p)} · ${fmtAuthorBadge(p.createdBy||'학생회', p.createdById, p.authorRole)}</div>
       ${linkedPostLabelHtml(p)}
       <div style="margin-top:8px;">${body}</div>
-      ${manage ? `
-      <div style="display:flex; gap:5px; margin-top:8px;">
-        ${!ended ? `<button class="btn btn-danger btn-sm" data-action="close-poll" data-id="${p.id}" style="flex:1;">${ICON.stopCircle} 즉시 종료</button>` : `<button class="btn btn-ghost btn-sm" data-action="reopen-poll" data-id="${p.id}" style="flex:1;">${ICON.playCircle} 다시 열기</button>`}
-        <button class="btn btn-ghost btn-sm" data-action="delete-poll" data-id="${p.id}" style="width:auto;">삭제</button>
-      </div>` : ''}
+      ${actionBarHtml([
+        (showResults && isDirectorOrHigher && totalVoters>0) ? `<button class="btn btn-ghost btn-sm" data-action="export-poll-csv" data-id="${p.id}">${ICON.doc} 명단 CSV</button>` : '',
+        shareBtnHtml('poll', p.id),
+        manage ? `<button class="btn btn-danger btn-sm" data-action="delete-poll" data-id="${p.id}">${ICON.trash} 삭제</button>` : '',
+        manage ? (!ended ? `<button class="btn btn-danger btn-sm" data-action="close-poll" data-id="${p.id}">${ICON.stopCircle} 즉시 종료</button>` : `<button class="btn btn-ghost btn-sm" data-action="reopen-poll" data-id="${p.id}">${ICON.playCircle} 다시 열기</button>`) : ''
+      ].filter(Boolean))}
     </div>`;
 }
 
