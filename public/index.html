@@ -8721,7 +8721,7 @@ function noticeImgThumbsHtml(urls){
 // "고정"하면 해제할 때까지 맨 위에 남는다. 고정된 글이 하나라도 있으면 24시간짜리 공지는 공지사항·홈에서 숨긴다.
 // 공지 기간: announceMs가 없으면 24시간, 0이면 영원히(내릴 때까지), 그 밖에는 그 시간만큼.
 // 게시판 분류: 학생회가 글쓸 때 하나 고른다. 분류가 없는 옛 글은 '기타'로 본다.
-const BOARD_CATS = [['study','학업'],['event','행사'],['council','학생회'],['etc','기타']];
+const BOARD_CATS = [['study','학업'],['event','행사'],['council','학생회'],['partner','제휴'],['etc','기타']];
 function boardCatOf(n){ return BOARD_CATS.some(c=>c[0]===n.category) ? n.category : 'etc'; }
 function boardCatLabel(k){ const c = BOARD_CATS.find(x=>x[0]===k); return c ? c[1] : ''; }
 function boardFiltered(){
