@@ -18,8 +18,9 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { minify } from 'terser';
+import { fileURLToPath } from 'url';
 
-const ROOT = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([a-zA-Z]:)/, '$1');
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SRC_DIR = path.join(ROOT, 'public');
 const OUT_DIR = path.join(ROOT, 'dist');
 

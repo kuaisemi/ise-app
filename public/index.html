@@ -8114,7 +8114,7 @@ function nextShuttleDeparture(point, from){
       const mins = shuttleParseMinutes(r[field]);
       if(mins==null) continue;
       const dep = new Date(d); dep.setMinutes(mins);
-      if(dep.getTime() > from.getTime()) return { dep, no:r.no };
+      if(dep.getTime() > from.getTime()) return { dep, no:r.no, type };
     }
   }
   return null;
@@ -8246,7 +8246,7 @@ function shuttleOsongDueSoonTime(entries){
 function shuttleNextHighlights(){
   const school = nextShuttleDeparture('school');
   const mid = nextShuttleDeparture('mid');
-  const fmt = (n) => n ? { time: `${pad(n.dep.getHours())}:${pad(n.dep.getMinutes())}`, isSunday: n.dep.getDay()===0 } : null;
+  const fmt = (n) => n ? { time: `${pad(n.dep.getHours())}:${pad(n.dep.getMinutes())}`, isSunday: n.type==='sunday' } : null;
   return { school: fmt(school), mid: fmt(mid) };
 }
 function setupShuttleTimer(){
@@ -8345,7 +8345,9 @@ function shuttleFullListHtml(){
       ${shuttleTimeListHtml(shuttlePointList(sundayRows,'station'), hi.mid && hi.mid.isSunday ? hi.mid.time : null)}
 `;
   const noteHtml = `      <p style="font-size:10.5px; color:var(--text-faint); margin:14px 2px 0; line-height:1.6;">토요일과 공휴일은 운행하지 않아요(쉬는 구간의 마지막 날만 일요일 시간표로 운행). 방학 기간에는 다른 시간표가 적용될 수 있습니다.</p>`;
-  const sundayFirst = new Date().getDay() === 0;   // 일요일에는 일요일 시간표를 위로
+  // 오늘 실제로 일요일 시간표로 도는 날이면 일요일 시간표를 위로 — 요일이 아니라 운행 규칙 기준이라
+  // 연휴 마지막 날(월요일 등)엔 올라오고, 연휴 중간에 낀 일요일(미운행)엔 올라오지 않는다.
+  const sundayFirst = shuttleRowsForDate(new Date()).type === 'sunday';
   return `
     <div class="card" style="margin-top:8px;">
       ${sundayFirst ? sundayHtml + `<div style="border-top:1px solid var(--border); margin:16px 0;"></div>` + weekdayHtml : weekdayHtml + `<div style="border-top:1px solid var(--border); margin:16px 0;"></div>` + sundayHtml}
