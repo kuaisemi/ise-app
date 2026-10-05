@@ -183,9 +183,15 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .signup-privacy-note{display:flex; align-items:flex-start; gap:7px; font-size:11px; line-height:1.7; color:var(--text-dim); background:var(--teal-glow-3); border-left:2px solid var(--teal); border-radius:0 var(--radius-sm) var(--radius-sm) 0; padding:11px 12px; margin:2px 0 14px;}
 .signup-privacy-note svg{flex-shrink:0; width:14px; height:14px; margin-top:2px; color:var(--teal);}
 .signup-privacy-note b{color:var(--teal); font-weight:700;}
-.board-chips{display:flex; gap:6px; margin-bottom:10px; overflow-x:auto;}
-.board-chip{flex:0 0 auto; padding:6px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); font-size:11.5px; font-weight:700; cursor:pointer;}
-.board-chip.on{background:var(--crimson); color:var(--on-crimson,#fff); border-color:var(--crimson);}
+.board-searchrow{display:flex; gap:8px; align-items:stretch; margin-bottom:10px;}
+.board-searchrow .field{flex:1; min-width:0; margin:0;}
+.board-filter-wrap{position:relative; flex:0 0 auto; display:flex;}
+.board-filter-btn{display:flex; align-items:center; justify-content:center; gap:5px; min-width:42px; padding:0 11px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer; font-size:11.5px; font-weight:700;}
+.board-filter-btn.active{background:var(--crimson); color:var(--on-crimson,#fff); border-color:var(--crimson);}
+.board-menu{display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:30; min-width:116px; padding:5px; border-radius:12px; border:1px solid var(--border); background:var(--surface); box-shadow:0 8px 24px rgba(0,0,0,.25);}
+.board-menu.open{display:block;}
+.board-opt{display:block; width:100%; text-align:left; padding:9px 12px; border:0; border-radius:8px; background:transparent; color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer;}
+.board-opt.on{background:var(--crimson); color:var(--on-crimson,#fff);}
 .signup-consent{margin:4px 0 12px;}
 .signup-consent .consent-title{font-size:12px; font-weight:700; margin:0 0 6px; color:var(--text);}
 .signup-consent .consent-box{font-size:10.5px; line-height:1.7; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 11px; margin-bottom:8px; max-height:140px; overflow:auto;}
@@ -8732,6 +8738,7 @@ function boardListHtml(){
   return list.length ? list.map(n=>postCardHtml(n)).join('')
     : `<div class="card"><div class="empty"><p>${filtering ? '조건에 맞는 게시글이 없습니다.' : '등록된 게시글이 없습니다.'}</p></div></div>`;
 }
+const BOARD_FILTER_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5L3 5Z"/></svg>`;
 const ANNOUNCE_DURS = { '24h': ANNOUNCE_MS, '7d': 7*ANNOUNCE_MS, 'forever': 0 };
 function announceDurMs(key){ return key in ANNOUNCE_DURS ? ANNOUNCE_DURS[key] : null; }
 function isPostAnnounced(n){
@@ -8924,10 +8931,15 @@ function renderNoticeTab(){
 function renderBoardTab(){
   const canClearAll = myLevel() >= 2;
   const curCat = state.boardCat || 'all';
-  const chips = [['all','전체'],...BOARD_CATS].map(([k,l])=>`<button type="button" class="board-chip${curCat===k?' on':''}" data-action="board-cat" data-cat="${k}">${l}</button>`).join('');
+  const opts = [['all','전체'],...BOARD_CATS].map(([k,l])=>`<button type="button" class="board-opt${curCat===k?' on':''}" data-action="board-cat" data-cat="${k}">${l}</button>`).join('');
   return `
-    <div class="field" style="margin-bottom:8px;"><input type="text" id="board-search" placeholder="게시글 검색 (제목·내용)" value="${escapeHtml(state.boardQ||'')}" autocomplete="off"></div>
-    <div class="board-chips" id="board-chips">${chips}</div>
+    <div class="board-searchrow">
+      <div class="field"><input type="text" id="board-search" placeholder="게시글 검색 (제목·내용)" value="${escapeHtml(state.boardQ||'')}" autocomplete="off"></div>
+      <div class="board-filter-wrap">
+        <button type="button" class="board-filter-btn${curCat!=='all'?' active':''}" id="board-filter-btn" data-action="board-cat-toggle" title="분류 선택" aria-label="분류 선택">${BOARD_FILTER_ICON}${curCat!=='all' ? `<span class="bf-label">${boardCatLabel(curCat)}</span>` : ''}</button>
+        <div class="board-menu" id="board-menu">${opts}</div>
+      </div>
+    </div>
     <div style="display:flex; gap:6px; margin-bottom:12px;">
       ${isCouncil() ? `<button class="btn btn-primary btn-sm" data-action="add-notice" style="flex:1;">${ICON.plus} 글쓰기</button>` : ''}
       ${canClearAll ? `<button class="btn btn-danger btn-sm" data-action="clear-all-board" data-type="notice" style="width:auto;">전체 삭제</button>` : ''}
@@ -8991,6 +9003,11 @@ function updateNoticePreview(){
   if(b) b.innerHTML = content.trim() ? linkifyEscaped(escapeHtml(content)) : '<span style="color:var(--text-faint);">내용을 입력하면 여기에 미리 보여요</span>';
 }
 document.addEventListener('input', (e)=>{ if(e.target && e.target.closest && e.target.closest('#notice-form')) updateNoticePreview(); });
+// 분류 메뉴: 바깥을 누르면 닫는다.
+document.addEventListener('click', (e)=>{
+  const m = document.getElementById('board-menu');
+  if(m && m.classList.contains('open') && !(e.target.closest && e.target.closest('.board-filter-wrap'))) m.classList.remove('open');
+});
 // 게시판 검색: 입력할 때마다 목록만 다시 그린다(입력 칸은 그대로 두어 포커스가 안 풀린다).
 document.addEventListener('input', (e)=>{
   if(!e.target || e.target.id !== 'board-search') return;
@@ -14618,8 +14635,10 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'fetch-meal-page'){ await fetchMealFromSource(false); }
     else if(a === 'board-cat'){
       state.boardCat = el.dataset.cat || 'all';
-      document.querySelectorAll('#board-chips .board-chip').forEach(b=>b.classList.toggle('on', b.dataset.cat===state.boardCat));
-      const bl = document.getElementById('board-list'); if(bl) bl.innerHTML = boardListHtml();
+      renderMain();
+    }
+    else if(a === 'board-cat-toggle'){
+      const m = document.getElementById('board-menu'); if(m) m.classList.toggle('open');
     }
     else if(a === 'add-notice'){ if(!isCouncil()) return; openModal(noticeModal(null)); setupNoticeModalListeners(); }
     else if(a === 'edit-notice'){
