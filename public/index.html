@@ -9057,7 +9057,7 @@ function noticeModal(n){
       <input type="hidden" name="itemId" value="${n ? n.id : ''}">
       <input type="hidden" name="imageUrls" id="notice-imgs-hidden" value='${escapeHtml(JSON.stringify(existingImgs))}'>
       <div class="field"><label>제목</label><input type="text" name="title" maxlength="60" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="제목"></div>
-      <div class="field"><label>분류</label><select name="category">${BOARD_CATS.map(([k,l])=>`<option value="${k}"${boardCatOf(v)===k?' selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label>분류</label>${renderSegPicker('category', BOARD_CATS, boardCatOf(v), true, '', true)}</div>
       <div class="field"><label>내용</label><textarea name="content" maxlength="${isCouncil() ? 5000 : 1500}" style="min-height:120px" required placeholder="내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
       <div class="field" style="margin-top:-6px;">
         <div class="fmt-bar">
