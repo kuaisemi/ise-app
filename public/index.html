@@ -183,6 +183,9 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .signup-privacy-note{display:flex; align-items:flex-start; gap:7px; font-size:11px; line-height:1.7; color:var(--text-dim); background:var(--teal-glow-3); border-left:2px solid var(--teal); border-radius:0 var(--radius-sm) var(--radius-sm) 0; padding:11px 12px; margin:2px 0 14px;}
 .signup-privacy-note svg{flex-shrink:0; width:14px; height:14px; margin-top:2px; color:var(--teal);}
 .signup-privacy-note b{color:var(--teal); font-weight:700;}
+.board-chips{display:flex; gap:6px; margin-bottom:10px; overflow-x:auto;}
+.board-chip{flex:0 0 auto; padding:6px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); font-size:11.5px; font-weight:700; cursor:pointer;}
+.board-chip.on{background:var(--crimson); color:var(--on-crimson,#fff); border-color:var(--crimson);}
 .signup-consent{margin:4px 0 12px;}
 .signup-consent .consent-title{font-size:12px; font-weight:700; margin:0 0 6px; color:var(--text);}
 .signup-consent .consent-box{font-size:10.5px; line-height:1.7; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 11px; margin-bottom:8px; max-height:140px; overflow:auto;}
@@ -8716,6 +8719,24 @@ function noticeImgThumbsHtml(urls){
 // 게시판 글(state.notices)은 누구나 쓴다. 학생회가 글에서 "공지"로 올리면 24시간 동안 공지사항·홈에 나오고,
 // "고정"하면 해제할 때까지 맨 위에 남는다. 고정된 글이 하나라도 있으면 24시간짜리 공지는 공지사항·홈에서 숨긴다.
 // 공지 기간: announceMs가 없으면 24시간, 0이면 영원히(내릴 때까지), 그 밖에는 그 시간만큼.
+// 게시판 분류: 학생회가 글쓸 때 하나 고른다. 분류가 없는 옛 글은 '기타'로 본다.
+const BOARD_CATS = [['study','학업'],['event','행사'],['council','학생회'],['etc','기타']];
+function boardCatOf(n){ return BOARD_CATS.some(c=>c[0]===n.category) ? n.category : 'etc'; }
+function boardCatLabel(k){ const c = BOARD_CATS.find(x=>x[0]===k); return c ? c[1] : ''; }
+function boardFiltered(){
+  const q = String(state.boardQ||'').trim().toLowerCase();
+  const cat = state.boardCat || 'all';
+  return visibleNotices()
+    .filter(n=>cat==='all' || boardCatOf(n)===cat)
+    .filter(n=>!q || (String(n.title||'')+' '+String(n.content||'')).toLowerCase().includes(q))
+    .sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||(Number(b.createdAt||0)-Number(a.createdAt||0)) || String(b.date).localeCompare(String(a.date)));
+}
+function boardListHtml(){
+  const list = boardFiltered();
+  const filtering = (state.boardCat && state.boardCat!=='all') || String(state.boardQ||'').trim();
+  return list.length ? list.map(n=>postCardHtml(n)).join('')
+    : `<div class="card"><div class="empty"><p>${filtering ? '조건에 맞는 게시글이 없습니다.' : '등록된 게시글이 없습니다.'}</p></div></div>`;
+}
 const ANNOUNCE_DURS = { '24h': ANNOUNCE_MS, '7d': 7*ANNOUNCE_MS, 'forever': 0 };
 function announceDurMs(key){ return key in ANNOUNCE_DURS ? ANNOUNCE_DURS[key] : null; }
 function isPostAnnounced(n){
@@ -8866,7 +8887,7 @@ function postCardHtml(n, opts){
   return `
     <div class="card notice-card" id="post-${escapeHtml(n.id)}">
     <div class="list-item">
-      <div class="title-line big-title">${chips}${reqChip}<b>${escapeHtml(n.title)}</b></div>
+      <div class="title-line big-title">${chips}${reqChip}${n.category ? `<span class="tag tag-teal" style="flex-shrink:0;">${boardCatLabel(boardCatOf(n))}</span>` : ''}<b>${escapeHtml(n.title)}</b></div>
       <div class="meta">${n.displayAs === 'none' ? '' : noticeAuthorHtml(n) + ' · '}${fmtDateTime(n.createdAt || n.date)}</div>
       <div class="body">${linkifyEscaped(escapeHtml(n.content))}</div>
       ${noticeImagesHtml(n)}
@@ -8907,13 +8928,16 @@ function renderNoticeTab(){
 // 게시판 탭: 모든 글. 누구나 쓰고, 학생회는 공지·고정을 지정한다.
 function renderBoardTab(){
   const canClearAll = myLevel() >= 2;
-  const sorted = visibleNotices().sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||(Number(b.createdAt||0)-Number(a.createdAt||0)) || String(b.date).localeCompare(String(a.date)));
+  const curCat = state.boardCat || 'all';
+  const chips = [['all','전체'],...BOARD_CATS].map(([k,l])=>`<button type="button" class="board-chip${curCat===k?' on':''}" data-action="board-cat" data-cat="${k}">${l}</button>`).join('');
   return `
+    <div class="field" style="margin-bottom:8px;"><input type="text" id="board-search" placeholder="게시글 검색 (제목·내용)" value="${escapeHtml(state.boardQ||'')}" autocomplete="off"></div>
+    <div class="board-chips" id="board-chips">${chips}</div>
     <div style="display:flex; gap:6px; margin-bottom:12px;">
       ${isCouncil() ? `<button class="btn btn-primary btn-sm" data-action="add-notice" style="flex:1;">${ICON.plus} 글쓰기</button>` : ''}
       ${canClearAll ? `<button class="btn btn-danger btn-sm" data-action="clear-all-board" data-type="notice" style="width:auto;">전체 삭제</button>` : ''}
     </div>
-    ${sorted.length ? sorted.map(n=>postCardHtml(n)).join('') : `<div class="card"><div class="empty"><p>등록된 게시글이 없습니다.</p></div></div>`}`;
+    <div id="board-list">${boardListHtml()}</div>`;
 }
 
 // 안드로이드 앱이거나 안드로이드 기기의 브라우저·PWA인가(아이폰·PC는 아님).
@@ -8972,6 +8996,12 @@ function updateNoticePreview(){
   if(b) b.innerHTML = content.trim() ? linkifyEscaped(escapeHtml(content)) : '<span style="color:var(--text-faint);">내용을 입력하면 여기에 미리 보여요</span>';
 }
 document.addEventListener('input', (e)=>{ if(e.target && e.target.closest && e.target.closest('#notice-form')) updateNoticePreview(); });
+// 게시판 검색: 입력할 때마다 목록만 다시 그린다(입력 칸은 그대로 두어 포커스가 안 풀린다).
+document.addEventListener('input', (e)=>{
+  if(!e.target || e.target.id !== 'board-search') return;
+  state.boardQ = e.target.value;
+  const bl = document.getElementById('board-list'); if(bl) bl.innerHTML = boardListHtml();
+});
 // 선택한 글자를 prefix/suffix로 감싼다(선택이 없으면 자리 글자를 넣고 그 글자를 선택해 둔다). 굵게 **글자**, 색깔 {r|글자}.
 function wrapNoticeSelection(prefix, suffix, placeholder){
   const ta = document.querySelector('#notice-form textarea[name=content]');
@@ -9015,6 +9045,7 @@ function noticeModal(n){
       <input type="hidden" name="itemId" value="${n ? n.id : ''}">
       <input type="hidden" name="imageUrls" id="notice-imgs-hidden" value='${escapeHtml(JSON.stringify(existingImgs))}'>
       <div class="field"><label>제목</label><input type="text" name="title" maxlength="60" style="font-family:var(--font-display)" value="${escapeHtml(v.title)}" required placeholder="제목"></div>
+      <div class="field"><label>분류</label><select name="category">${BOARD_CATS.map(([k,l])=>`<option value="${k}"${boardCatOf(v)===k?' selected':''}>${l}</option>`).join('')}</select></div>
       <div class="field"><label>내용</label><textarea name="content" maxlength="${isCouncil() ? 5000 : 1500}" style="min-height:120px" required placeholder="내용을 입력하세요">${escapeHtml(v.content)}</textarea></div>
       <div class="field" style="margin-top:-6px;">
         <div class="fmt-bar">
@@ -13138,6 +13169,7 @@ async function handleNoticeSubmit(fd){
   const id = (fd.get('itemId') || '').trim();
   const title = (fd.get('title') || '').trim();
   const content = (fd.get('content') || '').trim();
+  const category = BOARD_CATS.some(c=>c[0]===fd.get('category')) ? fd.get('category') : 'etc';
   const durKey = isCouncil() ? (fd.get('announceDur') || 'none') : 'none';
   const initKey = fd.get('announceDurInit') || 'none';
   const wantAnnounce = durKey !== 'none';
@@ -13162,7 +13194,7 @@ async function handleNoticeSubmit(fd){
       const target = latest.find(x => x.id === id);
       if(!canModify(target)){ return; }
       // 예전 단일 imageUrl 필드는 더 이상 쓰지 않으므로 수정 시 imageUrls로 정리한다.
-      next = latest.map(x => x.id === id ? { ...x, ...annPatch, title, content, imageUrls, imageUrl:'', androidOnly: isDeveloper() ? fd.get('androidOnly') === 'on' : !!x.androidOnly, updatedAt: now() } : x);
+      next = latest.map(x => x.id === id ? { ...x, ...annPatch, title, content, category, imageUrls, imageUrl:'', androidOnly: isDeveloper() ? fd.get('androidOnly') === 'on' : !!x.androidOnly, updatedAt: now() } : x);
     } else {
       // 이름 비공개는 개발자 전용 — canModify는 authorId로 판단하므로 그건 그대로 두고
       // 화면에 보이는 author/authorRole만 "학생회"로 감춘다.
@@ -13173,6 +13205,7 @@ async function handleNoticeSubmit(fd){
         id: id || uid(),
         title,
         content,
+        category,
         imageUrls,
         author: anonymous ? (displayAs === 'developer' ? '개발자' : (displayAs === 'none' ? '' : '학생회')) : state.user.name,
         authorId: state.user.studentId,
@@ -14588,6 +14621,11 @@ document.addEventListener('click', async (e)=>{
     // 토·일은 건너뛰고 바로 다음(이전) 평일로 이동한다.
     else if(a === 'edit-meal'){ openModal(mealModal(el.dataset.date)); }
     else if(a === 'fetch-meal-page'){ await fetchMealFromSource(false); }
+    else if(a === 'board-cat'){
+      state.boardCat = el.dataset.cat || 'all';
+      document.querySelectorAll('#board-chips .board-chip').forEach(b=>b.classList.toggle('on', b.dataset.cat===state.boardCat));
+      const bl = document.getElementById('board-list'); if(bl) bl.innerHTML = boardListHtml();
+    }
     else if(a === 'add-notice'){ if(!isCouncil()) return; openModal(noticeModal(null)); setupNoticeModalListeners(); }
     else if(a === 'edit-notice'){
       const n = live(state.notices).find(x => x.id === el.dataset.id);
