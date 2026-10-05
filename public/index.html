@@ -8674,8 +8674,8 @@ function renderLikeUI(item, itemType, shareKind){
 
 /* ===== 학생사회 ===== */
 function renderCouncil(){
-  // 게시판(글 관리)은 학생회 전용 — 학생 글쓰기는 실명 노출·욕설 등 문제로 없앴다.
-  const tabs = [['notice','공지사항'],...(isCouncil() ? [['board','게시판']] : []),['poll','투표'],['recruitment','구인글']];
+  // 게시판은 누구나 읽지만 글쓰기는 학생회만 — 학생 글쓰기는 실명 노출·욕설 등 문제로 없앴다.
+  const tabs = [['notice','공지사항'],['board','게시판'],['poll','투표'],['recruitment','구인글']];
   const valid = tabs.some(([k])=>k===state.councilTab);
   if(!valid) state.councilTab='notice';
   const labels = tabs.map(([k,l])=>`<div class="subtab ${state.councilTab===k?'active':''}" data-action="council-tab" data-tab="${k}">${l}</div>`).join('');
@@ -8910,7 +8910,7 @@ function renderBoardTab(){
   const sorted = visibleNotices().sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0))||(Number(b.createdAt||0)-Number(a.createdAt||0)) || String(b.date).localeCompare(String(a.date)));
   return `
     <div style="display:flex; gap:6px; margin-bottom:12px;">
-      <button class="btn btn-primary btn-sm" data-action="add-notice" style="flex:1;">${ICON.plus} 글쓰기</button>
+      ${isCouncil() ? `<button class="btn btn-primary btn-sm" data-action="add-notice" style="flex:1;">${ICON.plus} 글쓰기</button>` : ''}
       ${canClearAll ? `<button class="btn btn-danger btn-sm" data-action="clear-all-board" data-type="notice" style="width:auto;">전체 삭제</button>` : ''}
     </div>
     ${sorted.length ? sorted.map(n=>postCardHtml(n)).join('') : `<div class="card"><div class="empty"><p>등록된 게시글이 없습니다.</p></div></div>`}`;
@@ -13657,7 +13657,7 @@ async function openSharedLink(data){
   const find = ()=> data.kind === 'poll' ? live(state.polls).find(p=>p.id===data.id) : visibleNotices().find(n=>n.id===data.id);
   if(!find()){ invalidateDailyShared(); await refreshShared(true).catch(()=>{}); }
   if(!find()){ toast('삭제되었거나 볼 수 없는 글이에요'); return; }
-  state.view = 'council'; state.councilTab = data.kind === 'poll' ? 'poll' : (isCouncil() ? 'board' : 'notice');
+  state.view = 'council'; state.councilTab = data.kind === 'poll' ? 'poll' : 'board';
   renderShell();
   setTimeout(()=>{
     const el = document.getElementById((data.kind === 'poll' ? 'poll-' : 'post-') + data.id);
@@ -14606,7 +14606,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'link-insert-apply'){ applyLinkInsert(); }
     else if(a === 'toggle-post-pick'){ const pn = document.getElementById('poll-post-panel'); if(pn) pn.classList.toggle('open'); const bt = document.getElementById('poll-post-btn'); if(bt) bt.classList.toggle('open'); }
     else if(a === 'pick-post'){ pickLinkedPost(el.dataset.id || ''); }
-    else if(a === 'go-board-tab'){ state.view = 'council'; state.councilTab = isCouncil() ? 'board' : 'notice'; renderShell(); }
+    else if(a === 'go-board-tab'){ state.view = 'council'; state.councilTab = 'board'; renderShell(); }
     else if(a === 'add-poll'){ openModal(pollModal()); updatePollOptionUI(); }
     else if(a === 'add-poll-option'){
       const wrap = document.getElementById('poll-options-wrap');
