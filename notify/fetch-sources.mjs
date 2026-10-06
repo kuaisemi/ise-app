@@ -12,6 +12,7 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { JSDOM } from 'jsdom';
+import { isHoliday } from './holidays.mjs';
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
 if (!raw) {
@@ -357,6 +358,14 @@ async function runMeals() {
   // 식단은 이번 주(월~일)치만 있으면 충분하므로, 지난 주 이전 데이터는 계속 쌓아두지 않고 지운다.
   const monday = thisMondayStr();
   const sunday = kstDateStr(new Date(new Date(monday).getTime() + 6 * 86400000));
+  // 학교 페이지가 아직 지난주 식단 그대로면(월요일이 공휴일이라 업로드가 안 된 경우 등) 파싱은
+  // 되지만 이번 주 식단은 없다 — 그걸 성공으로 치면 그 주는 더 시도하지 않아 식단이 계속 빈다.
+  const hasThisWeek = results.some(({ data }) =>
+    Object.entries(data).some(
+      ([date, v]) => date >= monday && date <= sunday && (v.breakfast || v.lunch || v.dinner || v.note)
+    )
+  );
+  if (!hasThisWeek) throw new Error('이번 주 식단이 아직 올라오지 않음');
   for (const date of Object.keys(byDate)) {
     if (date < monday || date > sunday) delete byDate[date];
   }
@@ -559,15 +568,28 @@ async function main() {
   // 더 부르지 않으므로 실제 요청 수는 거의 늘지 않는다.
   const monday = thisMondayStr();
   const weekday = kstNow().getUTCDay();
-  const isWeekday = weekday >= 1 && weekday <= 5;
-  if (isWeekday && st.mealFetchedWeek !== monday) {
+  // 공휴일에는 학식을 안 하고 식단도 안 올라오므로 시도하지 않는다 — 월요일이 공휴일이면 화요일에,
+  // 월·화가 다 공휴일이면 수요일에 같은 루틴이 돈다(이번 주 식단을 못 받았으면 쉬는 날 다음 평일마다 계속).
+  let isWeekday = weekday >= 1 && weekday <= 5;
+  if (isWeekday && st.mealWeekOk !== monday) {
+    // 읽기 절약: 이번 주 식단을 아직 못 받은 평일에만 공휴일 문서를 읽는다.
+    let holidayDoc = null;
+    try {
+      const hs = await db.collection('shared').doc('holidays').get();
+      holidayDoc = hs.exists ? hs.data() : null;
+    } catch (e) {
+      console.warn('공휴일 문서 읽기 실패 — 내장 표로 판단:', e.message);
+    }
+    isWeekday = !isHoliday(holidayDoc, today);
+  }
+  if (isWeekday && st.mealWeekOk !== monday) {
     for (const [h, m] of [[10, 0], [10, 30], [11, 0], [12, 0]]) {
       const slot = `meal_${today}_${pad(h)}${pad(m)}`;
       if (doneSlots.has(slot) || !isDue(h, m, 25)) continue;
       try {
         const c = await runMeals();
         console.log(`학식 갱신 완료 (${pad(h)}:${pad(m)} 슬롯) — ${c}일치`);
-        next.mealFetchedWeek = monday; // 성공했으니 이번 주는 여기서 종료
+        next.mealWeekOk = monday; // 성공했으니 이번 주는 여기서 종료
       } catch (e) {
         console.warn(`학식 갱신 실패 (${pad(h)}:${pad(m)} 슬롯):`, e.message);
       }
