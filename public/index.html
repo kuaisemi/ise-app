@@ -1527,7 +1527,7 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.4';
+const APP_VERSION = 'Beta 0.5.5';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
@@ -1536,6 +1536,13 @@ const ANDROID_VERSION_CODE = 175;
 // 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
+  { version:'Beta 0.5.5', date:'2026-10-06', summary:'회원가입 동의 · 공휴일 인사 · 게시판 정리', items:[
+    { title:'회원가입 개인정보 동의', text:'가입할 때 수집 항목·이용 목적·보유 기간을 안내하고, 필수 동의에 체크해야 가입돼요' },
+    { title:'공휴일 인사', text:'공휴일에는 홈 맨 위에 오늘이 공휴일이라는 안내와 인사가 나와요' },
+    { title:'게시판은 학생회 전용으로', text:'실명 노출·욕설 문제를 막기 위해 학생 글쓰기와 "공지 신청"을 없앴어요. 이제 공지·게시글은 학생회만 올려요' },
+    { title:'연휴에 맞춰 셔틀 시간표 순서 수정', text:'일요일 시간표는 실제로 일요일 시간표로 운행하는 날(연휴 마지막 날 포함)에만 위로 올라오고, 연휴 중간의 일요일에는 올라오지 않아요. 다음 출발 시각의 빨간 강조도 그 시간표에 맞게 표시돼요', type:'fix' },
+    { title:'공휴일 뒤에도 식단이 제때 올라오도록 수정', text:'월요일이 공휴일이면 식단이 비어 있던 문제 수정 — 공휴일은 건너뛰고 다음 평일에(월·화가 모두 공휴일이면 수요일에) 식단을 받아와요. 식단 새로고침도 서버가 받아 둔 최신 식단을 바로 불러오도록 바꿨어요', type:'fix' },
+  ]},
   { version:'Beta 0.5.4', date:'2026-10-01', summary:'게시판이 생기고 공지사항이 새로워졌어요!', items:[
     { title:'게시판이 생겼어요', text:'학생사회에 게시판 탭이 생겼어요. 재학생은 읽을 수 있고, 글은 학생회가 올려요. 검색 칸과 분류(학업·행사·학생회·기타)로 원하는 글을 찾을 수 있어요' },
     { title:'공지사항이 섹션으로 나뉘었어요', text:'공지사항에서 게시글 → 투표 → 구인글 순서로 한눈에 볼 수 있어요' },
