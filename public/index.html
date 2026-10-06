@@ -8524,6 +8524,33 @@ async function fetchMealFromSource(silent=false){
     }
   };
 
+  // 수동 새로고침: 공개 CORS 프록시는 거의 항상 죽어 있어서(학사일정과 같은 문제) 눌러도 "프록시
+  // 응답 없음"만 떴다. 서버(GitHub Actions, notify/fetch-sources.mjs)가 평일 오전에 학교 사이트를
+  // 직접 받아 Firestore에 저장해두므로, 먼저 그 최신본을 다시 읽어보고 이번 주 식단이 들어 있으면
+  // 그걸로 끝낸다. 서버도 아직 못 받은 때(공휴일 직후 등)에만 아래 프록시를 마지막 수단으로 쓴다.
+  if(!silent){
+    try{
+      const server = (await loadShared('meals', { byDate:{} }, true)).byDate || {};
+      const mon = new Date(); mon.setHours(0,0,0,0);
+      mon.setDate(mon.getDate() - ((mon.getDay()+6)%7));
+      const weekDates = Array.from({length:7}, (_,i)=> fmtDateStr(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+i)));
+      const hasWeek = weekDates.some(d=>{
+        const v = server[d]; if(!v) return false;
+        const s = v.student, f = v.staff;
+        return !!((s && (s.breakfast||s.lunch||s.dinner||s.note)) || (f && (f.lunch||f.note)));
+      });
+      if(hasWeek){
+        state.meals = server;
+        renderMain();
+        toast('최신 식단을 불러왔습니다');
+        const st = document.getElementById('fetch-meal-status');
+        if(st) st.innerHTML = '<span style="color:var(--teal);">서버가 받아 둔 최신 식단을 불러왔어요.</span>';
+        if(btn) btn.disabled = false;
+        return;
+      }
+    }catch(e){ /* 서버 최신본을 못 읽으면 아래 프록시 방식으로 이어간다 */ }
+  }
+
   let html=null;
   for(const gen of proxies){
     try{
@@ -8534,7 +8561,7 @@ async function fetchMealFromSource(silent=false){
       if(t && t.length>500 && /<table/i.test(t) && /식단|offTxt|dietMa/.test(t)){ html=t; break; }
     }catch(e){}
   }
-  if(!html){ fail('식단 페이지에 접근하지 못했습니다 (프록시 응답 없음).'); return; }
+  if(!html){ fail('아직 이번 주 식단이 올라오지 않았어요. 서버가 평일 오전에 자동으로 다시 확인해요.'); return; }
 
   try{
     const dom = new DOMParser().parseFromString(html,'text/html');
