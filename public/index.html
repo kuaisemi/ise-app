@@ -8561,7 +8561,7 @@ async function fetchMealFromSource(silent=false){
       if(t && t.length>500 && /<table/i.test(t) && /식단|offTxt|dietMa/.test(t)){ html=t; break; }
     }catch(e){}
   }
-  if(!html){ fail('아직 이번 주 식단이 올라오지 않았어요. 서버가 평일 오전에 자동으로 다시 확인해요.'); return; }
+  if(!html){ fail('식단을 불러오지 못했어요. 서버가 아직 이번 주 식단을 받아 두지 못했고, 학교 페이지 직접 접근도 막혀 있어요. 서버가 평일 낮에 자동으로 다시 시도해요.'); return; }
 
   try{
     const dom = new DOMParser().parseFromString(html,'text/html');

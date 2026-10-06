@@ -7,7 +7,7 @@
 //
 // 일정
 //   학과 공지: 매일 00:00 / 12:00 KST
-//   학식     : 평일 10:00 → 실패 시 10:30 → 11:00 → 12:00 (한 번 성공하면 그 주는 종료)
+//   학식     : 평일(공휴일 제외) 09~22시, 시간당 1회 시도 (이번 주 식단을 받으면 그 주는 종료)
 
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -583,18 +583,20 @@ async function main() {
     isWeekday = !isHoliday(holidayDoc, today);
   }
   if (isWeekday && st.mealWeekOk !== monday) {
-    for (const [h, m] of [[10, 0], [10, 30], [11, 0], [12, 0]]) {
-      const slot = `meal_${today}_${pad(h)}${pad(m)}`;
-      if (doneSlots.has(slot) || !isDue(h, m, 25)) continue;
+    // GitHub Actions 크론은 "매시 정각"으로 적어도 실제로는 몇 시간 간격으로만 돈다(2026-10-06에는
+    // 08:34 다음 실행이 12시 넘어서였다). 10:00±25분 같은 좁은 슬롯은 통째로 건너뛰기 일쑤라서,
+    // 09~22시 사이 아무 때나 실행되면 시간당 한 번만 시도한다(성공하면 그 주는 종료).
+    const hourNow = kstNow().getUTCHours();
+    const slot = `meal_${today}_h${pad(hourNow)}`;
+    if (hourNow >= 9 && hourNow <= 22 && !doneSlots.has(slot)) {
       try {
         const c = await runMeals();
-        console.log(`학식 갱신 완료 (${pad(h)}:${pad(m)} 슬롯) — ${c}일치`);
+        console.log(`학식 갱신 완료 (${pad(hourNow)}시) — ${c}일치`);
         next.mealWeekOk = monday; // 성공했으니 이번 주는 여기서 종료
       } catch (e) {
-        console.warn(`학식 갱신 실패 (${pad(h)}:${pad(m)} 슬롯):`, e.message);
+        console.warn(`학식 갱신 실패 (${pad(hourNow)}시):`, e.message);
       }
       newSlots.push(slot);
-      break; // 한 번 실행에 한 슬롯만
     }
   }
 
