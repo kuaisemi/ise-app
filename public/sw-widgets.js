@@ -32,7 +32,7 @@ function wdCard(body){
   return { type: 'AdaptiveCard', $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', version: '1.5', body };
 }
 // 카드 아무 데나 누르면 앱의 해당 화면으로 (widgetclick → open)
-function wdOpen(card, target){ card.selectAction = { type: 'Action.Execute', verb: 'open', data: { target } }; return card; }
+function wdOpen(card, target){ card.selectAction = { type: 'Action.Execute', verb: 'open:' + target }; return card; }
 function wdEmpty(msg){ return [wdText(msg, { isSubtle: true, horizontalAlignment: 'Center', spacing: 'Large' })]; }
 
 // 앱 데이터가 오늘 것인지 — 어제 열었던 데이터면 식단/일정은 "오늘" 기준으로 그대로 쓰면 안 된다.
@@ -206,21 +206,22 @@ async function wdRenderOne(widget){
   const card = (rec && rec.payload)
     ? build(rec.payload, Object.assign({}, WD_DEFAULTS, (rec.settings || {})[tag]), new Date())
     : wdCard(wdEmpty('ISE 앱을 한 번 열고 로그인하면 여기에 보여요'));
-  await self.widgets.updateByInstanceId(widget.instanceId, { template: JSON.stringify(card), data: '{}' });
+  await self.widgets.updateByTag(tag, { template: JSON.stringify(card), data: '{}' });
 }
 async function wdRenderAll(){
   if(!self.widgets) return;
   for(const tag of Object.keys(WD_BUILDERS)){
-    const list = await self.widgets.getByTag(tag).catch(() => []);
-    for(const w of list) await wdRenderOne(w).catch((e) => console.warn('[widget]', tag, e));
+    const w = await self.widgets.getByTag(tag).catch(() => null);
+    if(w && w.instances && w.instances.length) await wdRenderOne(w).catch((e) => console.warn('[widget]', tag, e));
   }
 }
 
 if(self.widgets){
   self.addEventListener('widgetinstall', (e) => e.waitUntil(wdRenderOne(e.widget)));
+  self.addEventListener('activate', (e) => e.waitUntil(wdRenderAll()));   // 서비스워커가 새로 바뀌면 이미 올려 둔 위젯도 다시 그린다
   self.addEventListener('widgetresume', (e) => e.waitUntil(wdRenderOne(e.widget)));
   self.addEventListener('widgetclick', (e) => {
-    const target = (e.action === 'open' && e.data && e.data.target) || 'timetable';
+    const target = String(e.action || '').startsWith('open:') ? e.action.slice(5) : 'timetable';
     e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for(const c of list){
         if('focus' in c){ c.postMessage({ type: 'widget-deeplink', target }); return c.focus(); }
