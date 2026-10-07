@@ -4,12 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="color-scheme" content="dark">
-<title>KU ISE · 지능형반도체공학과</title>
+<title>지능형반도체공학과 앱</title>
 <meta name="description" content="고려대학교 지능형반도체공학과 ISE 앱 — 시간표, 학사일정, 급식, 공지·게시판·투표">
 <link rel="manifest" href="./manifest.json">
+<script>/* 설치된 앱 창은 매니페스트 이름(KU ISE)을 앞에 붙여 "KU ISE - 지능형반도체공학과 앱"으로 보이므로, 일반 브라우저 탭에서만 접두어를 직접 붙인다 */
+try{ if(!((window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true)) document.title = 'KU ISE - 지능형반도체공학과 앱'; }catch(e){}</script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="KU ISE">
-<meta property="og:title" content="KU ISE · 지능형반도체공학과">
+<meta property="og:title" content="KU ISE - 지능형반도체공학과 앱">
 <meta property="og:description" content="지능형반도체공학과 앱 — 시간표, 학사일정, 급식, 공지·게시판·투표">
 <meta name="theme-color" content="#8C1D2B">
 <meta name="mobile-web-app-capable" content="yes">
@@ -10326,7 +10328,7 @@ function settingsOldHead(tab){
   const isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
   if(tab === 'display') return '<p class="st-cap">테마</p>';
   if(tab === 'notify') return '<p class="st-cap">소식</p>';
-  if(tab === 'widget' && !isIOSDevice() && isNativeApp) return `<p class="st-cap">대표 시간표<span class="fs-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러 위젯 → KU ISE에서 추가해요</span></p>`;
+  if(tab === 'widget' && isAndroidClient() && isNativeApp) return `<p class="st-cap">대표 시간표<span class="fs-hint">핸드폰 홈 화면의 빈 곳을 길게 눌러 위젯 → KU ISE에서 추가해요</span></p>`;
   return '';
 }
 // 프로필 탭: 모달 없이 그 자리에서 바로 고치는 프로필 편집기(아이콘·이모지·직접 그리기, 별명). 내용은 예전 팝업 편집기와 같은 함수·요소를 쓴다.
@@ -10451,7 +10453,7 @@ function settingsSectionHtml(tab){
       </div>
       ` : ''}
 
-      ${(state.settingsTab==='widget' && !isIOSDevice()) ? (isNativeApp ? renderWidgetSettingsTab() : `
+      ${(state.settingsTab==='widget' && isAndroidClient()) ? (isNativeApp ? renderWidgetSettingsTab() : `
         <div class="empty" style="padding:24px 8px;">
           <p style="font-size:12px; line-height:1.7;">
             홈 화면 위젯은 <b>안드로이드 앱(APK)</b>에서만 쓸 수 있어요.<br>
@@ -10480,7 +10482,7 @@ function settingsAccountHtml(){
 }
 function settingsPanelHtml(){
   const prev = state.settingsTab;
-  const tabs = ['display','profile','notify'].concat(isIOSDevice() ? [] : ['widget']);
+  const tabs = ['display','profile','notify'].concat(isAndroidClient() ? ['widget'] : []);
   const cur = tabs.includes(prev) ? prev : 'display';
   try{
     state.settingsTab = cur;
