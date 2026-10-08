@@ -14,14 +14,13 @@
       "name": "오늘의 시간표",
       "description": "오늘 수업을 시간순으로 보여줘요",
       "tag": "timetable",
-      "template": "timetable-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/timetable.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "오늘의 시간표"
         }
       ],
@@ -31,21 +30,19 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     },
     {
       "name": "주간 시간표",
       "description": "월~금 시간표를 한눈에 보여줘요",
       "tag": "week",
-      "template": "week-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/week.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "주간 시간표"
         }
       ],
@@ -55,21 +52,19 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     },
     {
       "name": "다음 수업",
       "description": "지금 수업이나 다음 수업을 알려줘요",
       "tag": "nextClass",
-      "template": "nextClass-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/nextClass.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "다음 수업"
         }
       ],
@@ -79,21 +74,19 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     },
     {
       "name": "오늘의 학식",
       "description": "진리관·미래관 오늘 식단을 보여줘요",
       "tag": "meal",
-      "template": "meal-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/meal.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "오늘의 학식"
         }
       ],
@@ -103,21 +96,19 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     },
     {
       "name": "일정 · 메모",
       "description": "다가오는 학사일정과 오늘 메모를 보여줘요",
       "tag": "schedule",
-      "template": "schedule-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/schedule.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "일정 · 메모"
         }
       ],
@@ -127,21 +118,19 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     },
     {
       "name": "달력",
       "description": "이번 달 달력에 일정이 있는 날을 표시해요",
       "tag": "calendar",
-      "template": "calendar-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/calendar.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "달력"
         }
       ],
@@ -151,21 +140,19 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     },
     {
       "name": "달력 (가로형)",
       "description": "오늘 날짜와 오늘 일정을 가로로 보여줘요",
       "tag": "calendarWide",
-      "template": "calendarWide-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/calendarWide.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "달력 (가로형)"
         }
       ],
@@ -175,21 +162,19 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     },
     {
       "name": "오늘 날짜",
       "description": "오늘 날짜를 크게 보여줘요",
       "tag": "date",
-      "template": "date-template",
       "ms_ac_template": "widgets/placeholder-template.json",
       "data": "widgets/placeholder-data.json",
       "type": "application/json",
       "screenshots": [
         {
           "src": "widgets/date.png",
-          "sizes": "300x304",
+          "sizes": "387x387",
           "label": "오늘 날짜"
         }
       ],
@@ -199,8 +184,7 @@
           "sizes": "128x128"
         }
       ],
-      "auth": false,
-      "update": 86400
+      "auth": false
     }
   ],
   "icons": [
