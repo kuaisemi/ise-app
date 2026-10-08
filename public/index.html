@@ -5333,11 +5333,9 @@ function renderWidgetSettingsTab(){
    직접 하므로, 여기서는 하루치 재료를 통째로 넘긴다. */
 async function pushWidgetData(){
   const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-  // 네이티브가 아니면 Windows에 설치된 PWA(위젯 보드용)일 때만 같은 재료를 모아 서비스워커에 넘긴다.
-  const isWinPwa = !isNative && /Windows/i.test(navigator.userAgent || '') && isStandaloneDisplay();
-  if(!isNative && !isWinPwa) return;
-  const WB = isNative ? (Capacitor.Plugins && Capacitor.Plugins.WidgetBridge) : null;
-  if(isNative && !WB) return;
+  if(!isNative) return;
+  const WB = Capacitor.Plugins && Capacitor.Plugins.WidgetBridge;
+  if(!WB) return;
   try{
     const ttSlots = widgetTimetableSlots();
     const di = todayDayIndex();
@@ -5430,35 +5428,8 @@ async function pushWidgetData(){
       memo: (state.memos && state.memos[today]) || '',
       opts: getWidgetOpts(),
     };
-    if(WB) await WB.update({ payload: JSON.stringify(payload) });
-    else await pushWinWidgetData(payload);
+    await WB.update({ payload: JSON.stringify(payload) });
   }catch(e){ console.warn('[widget]', e); }
-}
-
-// Windows 위젯: 서비스워커(sw-widgets.js)가 읽을 수 있게 IndexedDB에 넣고, 위젯을 바로 다시 그리게 알린다.
-async function pushWinWidgetData(payload){
-  const settings = {};
-  WIDGET_TYPES.forEach(([key]) => { settings[key] = getWidgetSettings(key); });
-  const db = await new Promise((res, rej) => {
-    const r = indexedDB.open('ise-widgets', 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('kv');
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
-  });
-  await new Promise((res, rej) => {
-    const tx = db.transaction('kv', 'readwrite');
-    tx.objectStore('kv').put({ payload, settings }, 'payload');
-    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
-  });
-  db.close();
-  if(!('serviceWorker' in navigator)) return;
-  const reg = await navigator.serviceWorker.ready;
-  if(reg.active) reg.active.postMessage({ type: 'widgets-refresh' });
-  // 앱을 안 켜 둔 동안에도 가끔 위젯을 다시 그린다 (날짜가 바뀌면 "오늘"이 바뀌어야 하니까). 지원·허용되는 환경에서만.
-  if(reg.periodicSync && !window.__widgetPeriodicTried){
-    window.__widgetPeriodicTried = true;
-    reg.periodicSync.register('widgets-refresh', { minInterval: 60*60*1000 }).catch(()=>{});
-  }
 }
 
 // 위젯을 누르면 앱의 특정 화면으로 바로 이동한다 (지금은 달력 위젯 → 학사 달력).
@@ -5467,24 +5438,7 @@ async function pushWinWidgetData(payload){
 let widgetDeepLinkBound = false;
 function setupWidgetDeepLink(){
   const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-  if(!isNative){
-    // Windows 위젯 보드에서 눌러 들어온 경우: 꺼져 있던 앱은 ?widget=대상, 떠 있던 앱은 서비스워커 메시지로 온다.
-    if(!widgetDeepLinkBound && 'serviceWorker' in navigator){
-      widgetDeepLinkBound = true;
-      navigator.serviceWorker.addEventListener('message', (e)=>{
-        if(e.data && e.data.type === 'widget-deeplink') applyWidgetDeepLink(e.data.target);
-      });
-    }
-    try{
-      const u = new URL(location.href), t = u.searchParams.get('widget');
-      if(t){
-        u.searchParams.delete('widget');
-        history.replaceState(null, '', u.pathname + u.search + u.hash);
-        applyWidgetDeepLink(t);
-      }
-    }catch(e){}
-    return;
-  }
+  if(!isNative) return;
   const WB = Capacitor.Plugins && Capacitor.Plugins.WidgetBridge;
   if(!WB) return;
   if(!widgetDeepLinkBound){

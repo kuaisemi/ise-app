@@ -2,9 +2,7 @@
 // 목적: PWA 설치 가능 조건 충족 + 오프라인 시 기본 화면(껍데기) 표시
 // 주의: Firebase Auth/Firestore 통신은 캐시하지 않음 (항상 최신 데이터 필요)
 
-importScripts('./sw-widgets.js');   // Windows 11 위젯 처리 (Edge 설치 PWA)
-
-const CACHE_NAME = 'ies-app-shell-v3';
+const CACHE_NAME = 'ies-app-shell-v2';
 const APP_SHELL = [
   './index.html',
   './manifest.json',

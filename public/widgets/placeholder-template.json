@@ -1,9 +1,0 @@
-{
-  "type": "AdaptiveCard",
-  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-  "version": "1.5",
-  "body": [
-    { "type": "TextBlock", "text": "${title}", "weight": "Bolder", "wrap": true },
-    { "type": "TextBlock", "text": "ISE 앱을 한 번 열고 로그인하면 여기에 보여요", "isSubtle": true, "wrap": true }
-  ]
-}
