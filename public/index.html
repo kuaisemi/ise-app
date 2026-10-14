@@ -941,6 +941,8 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .ocr-step:not(:last-child)::after{content:''; position:absolute; top:13px; left:calc(50% + 19px); width:calc(100% - 38px + 6px); height:2px; border-radius:2px; background:var(--border-light);}
 .ocr-step b{color:var(--text);}
 .ocr-note{font-size:10.5px; color:var(--text-dim); line-height:1.6; padding:10px 12px; border-radius:12px; border:1px solid rgba(var(--amber-rgb),0.25); background:rgba(var(--amber-rgb),0.07); margin-bottom:12px;}
+.et-link-toggle{display:block; width:100%; background:none; border:none; padding:2px 0 12px; font-size:11px; color:var(--text-faint); text-align:center; cursor:pointer; font-family:inherit;}
+.et-link-toggle b{color:var(--teal); text-decoration:underline; text-underline-offset:2px;}
 .ocr-drop{border:1.5px dashed var(--border-light); border-radius:16px; padding:22px 12px; text-align:center; background:var(--surface-2); margin-bottom:12px; cursor:pointer; transition:background .15s, border-color .15s;}
 .ocr-drop:active{background:var(--surface-3); border-color:var(--teal);}
 .ocr-drop-ic{width:44px; height:44px; border-radius:14px; background:rgba(224,172,85,.16); color:var(--teal); display:flex; align-items:center; justify-content:center; margin:0 auto 8px;}
@@ -1529,7 +1531,7 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.5';
+const APP_VERSION = 'Beta 0.5.6';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
@@ -1538,6 +1540,11 @@ const ANDROID_VERSION_CODE = 175;
 // 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
+  { version:'Beta 0.5.6', date:'2026-10-14', summary:'에브리타임 링크로 시간표를 가져올 수 있어요!', items:[
+    { title:'에브리타임 링크로 시간표 가져오기', text:'시간표 사진 인식 화면 아래 "에브리타임 링크로 가져오기"에 에브리타임 시간표 공유 링크를 붙여 넣으면, 공개된 대표 시간표를 시간 · 강의실 그대로 가져와요. 사진 인식이 안 될 때 쓰면 좋아요(에브리타임에서 공개 범위를 전체 공개로 해 주세요)' },
+    { title:'기존 시간표는 그대로, 새 시간표로 추가', text:'링크로 가져온 시간표는 지금 시간표를 덮어쓰지 않고 해당 학기에 "에브리타임" 시간표로 추가돼요. 토 · 일 수업은 빼고 가져와요' },
+    { title:'이전 학기 시간표도 한 번에', text:'"이전 학기 대표 시간표도 모두 가져오기"를 켜 두면 지난 학기들의 공개된 대표 시간표도 각 학기에 함께 추가돼요' },
+  ]},
   { version:'Beta 0.5.5', date:'2026-10-06', summary:'회원가입 동의 · 공휴일 인사 · 게시판 정리', items:[
     { title:'회원가입 개인정보 동의', text:'가입할 때 수집 항목·이용 목적·보유 기간을 안내하고, 필수 동의에 체크해야 가입돼요' },
     { title:'공휴일 인사', text:'공휴일에는 홈 맨 위에 오늘이 공휴일이라는 안내와 인사가 나와요' },
@@ -7216,9 +7223,31 @@ function ocrModal(){
       <button type="button" class="btn btn-ghost btn-sm" id="ocr-reselect-btn" style="width:auto; margin:0 auto;">다른 사진 선택</button>
     </div>
     <div id="ocr-status-box" style="font-size:11.5px; color:var(--text-dim); margin-bottom:12px; display:none; line-height:1.5;"></div>
+    <button type="button" class="et-link-toggle" id="et-link-toggle">사진 인식이 안 되나요? <b>에브리타임 링크로 가져오기</b></button>
+    <div id="et-link-wrap" style="display:none;">
+      <div class="ocr-note" style="border-color:rgba(var(--teal-rgb,224,172,85),0.3);">
+        <b style="color:var(--text);">에브리타임 링크로 가져오기</b> · 공개된 대표 시간표를 그대로 가져와서 시간·강의실이 정확해요
+        <ol style="margin:6px 0 0; padding-left:16px;">
+          <li>에브리타임 앱 → <b>시간표</b> 탭</li>
+          <li>오른쪽 위 <b>⚙</b> → 공개 범위를 <b style="color:var(--text);">전체 공개</b>로 (친구 공개·비공개면 못 가져와요)</li>
+          <li>같은 메뉴의 <b>URL로 공유하기</b>로 링크 복사</li>
+          <li>아래 칸에 붙여 넣기 (공유 문구를 통째로 붙여 넣어도 돼요)</li>
+        </ol>
+        <div style="margin-top:6px;">기존 시간표는 그대로 두고 <b style="color:var(--text);">새 시간표로 추가</b>돼요. 토·일 수업은 빼고 가져와요. 가져온 뒤 공개 범위는 원래대로 돌려도 괜찮아요.</div>
+      </div>
+      <input type="text" id="et-link-input" class="user-search-input" placeholder="https://everytime.kr/@..." autocomplete="off" style="margin-bottom:8px;">
+      <button type="button" class="btn btn-teal btn-sm" id="et-link-btn" style="width:100%; margin-bottom:12px;">링크로 가져오기</button>
+    </div>
     <div id="ocr-results-wrap" style="display:none;">
       <div class="section-title" style="margin:8px 0 6px;">인식된 수업 (<span id="ocr-count">0</span>개)</div>
       <div id="ocr-items-list" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:14px; padding:2px 12px; background:var(--surface-2); margin-bottom:12px;"></div>
+      <label class="ocr-row" id="et-all-wrap" style="display:none; border:1px solid var(--border); border-radius:14px; padding:10px 12px; margin-bottom:12px; background:var(--surface-2);">
+        <div style="min-width:0;">
+          <b style="font-size:11.5px; display:block; color:var(--text);">이전 학기 대표 시간표도 모두 가져오기</b>
+          <span id="et-all-desc" style="font-size:10.5px; color:var(--text-dim);"></span>
+        </div>
+        <span class="ck"><input type="checkbox" id="et-all-check" checked><span class="ck-box"></span></span>
+      </label>
       <div class="modal-actions"><button type="button" class="btn btn-primary" id="btn-save-ocr-classes">선택한 수업 등록하기</button></div>
     </div>`;
 }
@@ -12539,6 +12568,18 @@ function setupOcrModalListeners(){
     reselectBtn.onclick=()=>fileInput.click();
   }
 
+  // 에브리타임 링크 가져오기(사진 인식의 차선책). 사진 인식이 실패하면 자동으로 펼친다.
+  const etToggle=document.getElementById('et-link-toggle');
+  const etWrap=document.getElementById('et-link-wrap');
+  const etInput=document.getElementById('et-link-input');
+  const etBtn=document.getElementById('et-link-btn');
+  const openEtLink=()=>{
+    if(!etWrap) return;
+    etWrap.style.display='block';
+    if(etToggle) etToggle.style.display='none';
+  };
+  if(etToggle) etToggle.onclick=()=>{ openEtLink(); if(etInput) etInput.focus(); };
+
   const renderItems=(list)=>{
     if(!itemsList) return;
     itemsList.innerHTML=list.map((c,i)=>`
@@ -12576,13 +12617,19 @@ function setupOcrModalListeners(){
       try{
         recognized = await parseTimetableWithGeminiVision(file);
       }catch(err){
-        if(statusBox) statusBox.innerHTML=`<span style="color:var(--danger);">인식 실패: ${escapeHtml(err.message||'오류')}</span>`;
+        if(statusBox) statusBox.innerHTML=`<span style="color:var(--danger);">인식 실패: ${escapeHtml(err.message||'오류')}</span><br><span style="font-size:11px; color:var(--text-faint);">아래 에브리타임 링크로도 가져올 수 있어요.</span>`;
+        openEtLink();
         return;
       }
       state.ocrParsedClasses=recognized;
+      // 사진 인식 결과는 지금 시간표를 교체하는 원래 방식으로 저장한다(링크 가져오기 상태를 지운다).
+      state.etImport=null;
+      { const w=document.getElementById('et-all-wrap'); if(w) w.style.display='none'; }
+      if(btnSave) btnSave.textContent='선택한 수업 등록하기';
       if(recognized.length===0){
-        if(statusBox) statusBox.innerHTML='<span style="color:var(--amber); font-weight:700;">인식된 수업이 없습니다.</span><br><span style="font-size:11.5px; color:var(--text-faint);">시간표 전체가 선명하게 보이는 캡처를 사용해주세요.</span>';
+        if(statusBox) statusBox.innerHTML='<span style="color:var(--amber); font-weight:700;">인식된 수업이 없습니다.</span><br><span style="font-size:11.5px; color:var(--text-faint);">시간표 전체가 선명하게 보이는 캡처를 쓰거나, 아래 에브리타임 링크로 가져와 주세요.</span>';
         if(resultsWrap) resultsWrap.style.display='none';
+        openEtLink();
         return;
       }
       if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${recognized.length}개 수업 인식 완료 (시작은 정각, 끝은 50분으로 맞췄어요)</span>`;
@@ -12592,26 +12639,172 @@ function setupOcrModalListeners(){
     };
   }
 
+  if(etBtn && etInput){
+    etBtn.onclick=async ()=>{
+      const identifier=everytimeIdFromText(etInput.value);
+      if(statusBox) statusBox.style.display='block';
+      if(!identifier){
+        if(statusBox) statusBox.innerHTML='<span style="color:var(--danger);">에브리타임 시간표 공유 링크가 아니에요.</span><br><span style="font-size:11px; color:var(--text-faint);">위 3번처럼 "URL로 공유하기"로 복사한 링크를 붙여 넣어 주세요.</span>';
+        return;
+      }
+      etBtn.disabled=true;
+      if(statusBox) statusBox.innerHTML='<span style="color:var(--teal);">에브리타임에서 시간표를 가져오는 중…</span>';
+      try{
+        const imp = await fetchEverytimeTimetable(identifier);
+        const { list, weekend, year, semester } = imp;
+        state.ocrParsedClasses=list;
+        state.etImport=imp;
+        const mainKey=everytimeSemesterKey(year, semester);
+        const otherTables=imp.tables.filter(t=>t.identifier!==identifier && everytimeSemesterKey(t.year, t.semester)!==mainKey);
+        const allWrap=document.getElementById('et-all-wrap');
+        if(allWrap) allWrap.style.display=otherTables.length ? 'flex' : 'none';
+        const allDesc=document.getElementById('et-all-desc');
+        if(allDesc) allDesc.textContent=`공개된 대표 시간표 ${otherTables.length}개 학기 · 각 학기에 새 시간표로 추가돼요`;
+        if(btnSave) btnSave.textContent=`${mainKey ? semesterLabel(mainKey) + '에 ' : ''}새 시간표로 추가하기`;
+        if(list.length===0){
+          if(statusBox) statusBox.innerHTML='<span style="color:var(--amber); font-weight:700;">가져올 평일 수업이 없어요.</span><br><span style="font-size:11px; color:var(--text-faint);">에브리타임에서 학기가 맞는 시간표를 공유했는지 확인해 주세요.</span>';
+          if(resultsWrap) resultsWrap.style.display='none';
+          return;
+        }
+        const term = year && semester ? `${escapeHtml(year)}년 ${escapeHtml(semester)}${/^\d+$/.test(semester) ? '학기' : ''} ` : '';
+        if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${term}시간표에서 ${list.length}개 수업을 가져왔어요</span>`
+          + (weekend ? `<br><span style="font-size:11px; color:var(--text-faint);">토·일 수업 ${weekend}개는 뺐어요.</span>` : '');
+        if(countEl) countEl.textContent=list.length;
+        renderItems(list);
+        if(resultsWrap) resultsWrap.style.display='block';
+      }catch(err){
+        if(statusBox) statusBox.innerHTML=`<span style="color:var(--danger);">${escapeHtml(err.message||'가져오기 실패')}</span>`;
+      }finally{
+        etBtn.disabled=false;
+      }
+    };
+  }
+
   if(btnSave){
     btnSave.onclick=async ()=>{
       const idxs=Array.from(document.querySelectorAll('.ocr-check-item:checked')).map(cb=>parseInt(cb.dataset.idx,10));
       const list=state.ocrParsedClasses.filter((_,i)=>idxs.includes(i));
       if(list.length===0){ toast('선택된 수업이 없습니다'); return; }
-      const next=[]; const map=new Map(); let ci=0;
-      // 같은 과목(시간대가 여러 개여도 한 수업)은 한 색으로 묶고, 과목마다 다른 색을 무작위로 준다(앞 7가지를 먼저 쓰고 그다음 나머지, 최대 10가지)
-      const ocrPalette = [...shuffledArr(CLASS_PALETTE.slice(0, 7)), ...shuffledArr(CLASS_PALETTE.slice(7))];
-      list.forEach(c=>{
-        const key=(c.subject||'').trim();
-        if(!map.has(key)){ map.set(key,{ groupId:'grp_'+uid(), color:ocrPalette[ci%ocrPalette.length] }); ci++; }
-        const g=map.get(key);
-        next.push({ id:uid(), groupId:g.groupId, day:c.day, start:c.start, end:c.end, subject:c.subject, professor:c.professor||'', room:c.room||'', color:g.color, textColor:'#FFFFFF' });
-      });
+      if(state.etImport){
+        // 링크로 가져온 경우: 덮어쓰지 않고 학기마다 새 시간표로 추가한다.
+        const allCheck=document.getElementById('et-all-check');
+        const allWrap=document.getElementById('et-all-wrap');
+        const includeAll=!!(allCheck && allCheck.checked && allWrap && allWrap.style.display!=='none');
+        btnSave.disabled=true;
+        const r=await saveEverytimeImport(list, state.etImport, includeAll, (i, n, label)=>{
+          if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal);">이전 학기 가져오는 중… ${i}/${n} (${escapeHtml(label)})</span>`;
+        });
+        btnSave.disabled=false;
+        state.etImport=null;
+        closeModal(); renderMain();
+        let msg=`${semesterLabel(r.mainKey)}에 '${r.name}' 시간표를 추가했어요`;
+        if(r.added) msg+=` · 이전 학기 ${r.added}개도 추가`;
+        if(r.failed) msg+=` · ${r.failed}개 학기는 못 가져왔어요`;
+        saveResultToast(r.ok, msg);
+        return;
+      }
+      const next=ocrToSlots(list);
       const ok=await saveTimetable(state.user.uid, next);
       state.timetable=next;
       closeModal(); renderMain();
       saveResultToast(ok, `기존 시간표를 ${next.length}개 수업으로 교체했습니다`);
     };
   }
+}
+
+// 에브리타임 공유 링크로 시간표 가져오기. 브라우저에서 에브리타임을 바로 부르면 CORS에 막혀서
+// Cloudflare Worker(worker/src/index.js의 /everytime)가 대신 받아 수업 목록만 돌려준다. AI를 쓰지 않는다.
+const EVERYTIME_PROXY_URL = 'https://ku-ise-ocr.kuaisemi.workers.dev/everytime';
+
+// "에브리타임에서 ○○님의 … 확인해보세요! https://everytime.kr/app/@xxxx" 같은 공유 문구를 통째로 붙여 넣어도 식별자만 뽑는다.
+function everytimeIdFromText(text){
+  const s = String(text || '').trim();
+  const m = s.match(/everytime\.kr\/(?:app\/)?@([A-Za-z0-9]{8,40})/) || s.match(/^@?([A-Za-z0-9]{8,40})$/);
+  return m ? m[1] : '';
+}
+
+async function fetchEverytimeTimetable(identifier){
+  let res, data;
+  try{
+    res = await fetch(EVERYTIME_PROXY_URL, {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ identifier }), signal: AbortSignal.timeout(15000),
+    });
+    data = await res.json().catch(() => ({}));
+  }catch(e){
+    throw new Error('에브리타임에서 시간표를 가져오지 못했어요. 인터넷 연결을 확인하고 잠시 뒤 다시 시도해 주세요.');
+  }
+  if(!res.ok){
+    const code = data && data.error && data.error.code;
+    if(code === 'private') throw new Error('시간표를 볼 수 없어요. 에브리타임에서 공개 범위를 "전체 공개"로 바꾼 뒤 다시 시도해 주세요.');
+    if(code === 'bad-link') throw new Error('에브리타임 시간표 공유 링크가 아니에요.');
+    throw new Error('에브리타임에서 시간표를 가져오지 못했어요. 잠시 뒤 다시 시도하거나 직접 추가해 주세요.');
+  }
+  const all = Array.isArray(data.classes) ? data.classes : [];
+  // 시간표 화면이 월~금만 그리므로 토·일 수업은 뺀다.
+  const weekdays = all.filter(c => c.day >= 0 && c.day <= 4);
+  const list = weekdays
+    .map(c => ({ day:c.day, start:c.start, end:c.end, subject:String(c.subject || '').trim() || '수업', professor:c.professor || '', room:c.room || '' }))
+    .sort((a, b) => a.day - b.day || a.start - b.start);
+  const tables = (Array.isArray(data.tables) ? data.tables : [])
+    .filter(t => t && t.identifier && everytimeSemesterKey(t.year, t.semester));
+  return { list, weekend: all.length - weekdays.length, year: String(data.year || ''), semester: String(data.semester || ''), identifier, tables };
+}
+
+// 에브리타임 학기 표기(1·2·여름·겨울) → 앱 학기 키(2026-봄 / 2026-가을 / 2026-여름 / 2026-겨울)
+function everytimeSemesterKey(year, semester){
+  const y = parseInt(year, 10);
+  const season = { '1':'봄', '2':'가을', '여름':'여름', '겨울':'겨울' }[String(semester || '')];
+  return y && season ? `${y}-${season}` : '';
+}
+
+// 인식·가져온 수업 목록 → 시간표 칸. 같은 과목은 한 색으로 묶고, 과목마다 다른 색을 무작위로 준다(앞 7가지 먼저, 최대 10가지).
+function ocrToSlots(list){
+  const out = []; const map = new Map(); let ci = 0;
+  const palette = [...shuffledArr(CLASS_PALETTE.slice(0, 7)), ...shuffledArr(CLASS_PALETTE.slice(7))];
+  list.forEach(c => {
+    const key = (c.subject || '').trim();
+    if(!map.has(key)){ map.set(key, { groupId:'grp_'+uid(), color:palette[ci % palette.length] }); ci++; }
+    const g = map.get(key);
+    out.push({ id:uid(), groupId:g.groupId, day:c.day, start:c.start, end:c.end, subject:c.subject, professor:c.professor||'', room:c.room||'', color:g.color, textColor:'#FFFFFF' });
+  });
+  return out;
+}
+
+// 학기에 "에브리타임" 시간표를 새로 추가한다. 기존 시간표는 절대 덮어쓰지 않고, 이름이 겹치면 "에브리타임 2"처럼 번호를 붙인다.
+function addEverytimeVariant(semKey, slots){
+  state.timetablesBySemester = state.timetablesBySemester || {};
+  const variants = semesterVariants(semKey);
+  const names = new Set(variants.map(v => v.name));
+  let name = '에브리타임', n = 2;
+  while(names.has(name)) name = `에브리타임 ${n++}`;
+  variants.push({ name, slots });
+  state.timetablesBySemester[semKey] = variants;
+  return { idx: variants.length - 1, name };
+}
+
+// 링크로 가져온 시간표 저장: 이 학기는 체크한 수업만, 이전 학기들은(선택 시) 하나씩 가져와 각 학기에 추가.
+// 마지막에 한 번만 서버에 저장한다(saveTimetable이 학기 전체 묶음을 통째로 쓴다).
+async function saveEverytimeImport(list, imp, includeAll, onProgress){
+  const mainKey = everytimeSemesterKey(imp.year, imp.semester) || state.activeSemester || currentSemesterKey();
+  const others = includeAll ? imp.tables.filter(t => t.identifier !== imp.identifier && everytimeSemesterKey(t.year, t.semester) !== mainKey) : [];
+  const fetched = [];
+  let failed = 0;
+  for(let i = 0; i < others.length; i++){
+    const t = others[i];
+    if(onProgress) onProgress(i + 1, others.length, semesterLabel(everytimeSemesterKey(t.year, t.semester)));
+    try{
+      const r = await fetchEverytimeTimetable(t.identifier);
+      if(r.list.length) fetched.push({ key: everytimeSemesterKey(t.year, t.semester), slots: ocrToSlots(r.list) });
+    }catch(e){ failed++; }
+  }
+  fetched.forEach(f => addEverytimeVariant(f.key, f.slots));
+  const main = addEverytimeVariant(mainKey, ocrToSlots(list));
+  state.activeSemester = mainKey;
+  state.activeVariant = main.idx;
+  syncActiveTimetable();
+  const ok = await saveTimetable(state.user.uid, state.timetable);
+  return { ok, mainKey, name: main.name, added: fetched.length, failed };
 }
 
 // Gemini Flash 모델은 코드에 이름을 박아 두지 않고, 이 키로 쓸 수 있는 모델 목록에서 가장 새 버전의 Flash를 골라 쓴다(12시간 동안 폰에 저장).

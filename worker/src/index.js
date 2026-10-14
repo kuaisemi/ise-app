@@ -31,7 +31,7 @@ function corsHeaders(origin) {
   const allow = ALLOWED_ORIGINS.has(origin) ? origin : 'https://ku-ise-d95ee.web.app';
   return {
     'Access-Control-Allow-Origin': allow,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
@@ -90,6 +90,82 @@ async function handleScheduleProxy(origin) {
   }
 }
 
+// 에브리타임 시간표 공유 링크 가져오기.
+// 공유 링크(everytime.kr/@식별자) 페이지는 화면이 뜬 뒤 아래 주소에 식별자를 보내 시간표 XML을
+// 받아온다. 로그인 없이 "전체 공개" 시간표만 돌려준다. 브라우저에서 바로 부르면 CORS에 막히므로
+// 여기서 대신 부른다. AI를 쓰지 않으니 Gemini 사용량과 무관하다.
+// 열린 프록시가 되지 않도록 식별자 하나만 받아 이 주소 하나만 부르고, 원본 XML을 그대로 넘기지 않고
+// 수업 목록과 학기별 시간표 식별자만 뽑아서 돌려준다(이름 등 나머지는 버린다).
+const EVERYTIME_TABLE_URL = 'https://api.everytime.kr/find/timetable/table/friend';
+
+function xmlUnescape(s) {
+  return String(s || '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&');
+}
+function xmlAttr(tag, name) {
+  const m = tag.match(new RegExp(`\\b${name}="([^"]*)"`));
+  return m ? xmlUnescape(m[1]) : '';
+}
+
+async function handleEverytime(request, origin) {
+  let body;
+  try { body = await request.json(); } catch (e) { body = null; }
+  const identifier = body && String(body.identifier || '');
+  if (!/^[A-Za-z0-9]{8,40}$/.test(identifier)) {
+    return json({ error: { code: 'bad-link', message: '에브리타임 시간표 공유 링크가 아니에요.' } }, 400, origin);
+  }
+  let xml;
+  try {
+    const res = await fetch(EVERYTIME_TABLE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Origin': 'https://everytime.kr',
+        'Referer': 'https://everytime.kr/',
+        'User-Agent': 'Mozilla/5.0',
+      },
+      body: `identifier=${identifier}&friendInfo=true`,
+    });
+    if (!res.ok) {
+      return json({ error: { code: 'upstream', message: `에브리타임 응답 오류 (${res.status})` } }, 502, origin);
+    }
+    xml = await res.text();
+  } catch (e) {
+    return json({ error: { code: 'upstream', message: '에브리타임에 접속하지 못했어요.' } }, 502, origin);
+  }
+
+  const tableTag = (xml.match(/<table\b[^>]*>/) || [])[0];
+  if (!tableTag) {
+    // 비공개·친구 공개 시간표이거나 없는 링크면 table 자체가 오지 않는다.
+    return json({ error: { code: 'private', message: '시간표를 볼 수 없어요. 공개 범위가 전체 공개인지 확인해 주세요.' } }, 404, origin);
+  }
+  const classes = [];
+  for (const sm of xml.matchAll(/<subject\b[^>]*>([\s\S]*?)<\/subject>/g)) {
+    const inner = sm[1];
+    const name = xmlAttr((inner.match(/<name\b[^>]*>/) || [''])[0], 'value');
+    const professor = xmlAttr((inner.match(/<professor\b[^>]*>/) || [''])[0], 'value');
+    for (const dm of inner.matchAll(/<data\b[^>]*>/g)) {
+      const day = parseInt(xmlAttr(dm[0], 'day'), 10);
+      const start = parseInt(xmlAttr(dm[0], 'starttime'), 10);
+      const end = parseInt(xmlAttr(dm[0], 'endtime'), 10);
+      if (!(day >= 0 && day <= 6) || !(start >= 0) || !(end > start)) continue;
+      // 시각은 5분 단위 칸 번호다(108 → 9:00, 166 → 13:50). 분으로 바꿔 보낸다.
+      classes.push({ day, start: start * 5, end: end * 5, subject: name, professor, room: xmlAttr(dm[0], 'place') });
+    }
+  }
+  // 같은 사람의 학기별 대표 시간표 목록(앱의 "이전 학기도 모두 가져오기"용). 이름은 보내지 않는다.
+  const tables = [...xml.matchAll(/<primaryTable\b[^>]*>/g)]
+    .map((m) => ({ year: xmlAttr(m[0], 'year'), semester: xmlAttr(m[0], 'semester'), identifier: xmlAttr(m[0], 'identifier') }))
+    .filter((t) => /^[A-Za-z0-9]{8,40}$/.test(t.identifier));
+  return json({
+    year: xmlAttr(tableTag, 'year'),
+    semester: xmlAttr(tableTag, 'semester'),
+    classes,
+    tables,
+  }, 200, origin);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
@@ -97,6 +173,12 @@ export default {
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
+    if (pathname === '/everytime') {
+      if (request.method !== 'POST') {
+        return json({ error: { message: 'POST만 허용됩니다.' } }, 405, origin);
+      }
+      return handleEverytime(request, origin);
     }
     if (pathname === '/schedule') {
       if (request.method !== 'GET') {
