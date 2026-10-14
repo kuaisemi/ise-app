@@ -646,9 +646,6 @@ async function main() {
     { key: 'jinri', label: '진리관 학생식당', slots: ['breakfast', 'lunch', 'dinner'] },
     { key: 'mirae', label: '미래관 교직원식당', slots: ['lunch'] },
   ];
-  const SHORT_CAFE = { jinri: '진리관', mirae: '미래관' };
-  // 그 끼니를 두 식당 이상이 내는지(= 제목에 식당 이름이 필요한지)
-  const shared2 = (slotKey) => MEAL_CAFETERIAS.filter((c) => c.slots.includes(slotKey)).length > 1;
   const todayMealsByCafeteria = {
     jinri: (mealsByDate[today] && mealsByDate[today].student) || null,
     mirae: (mealsByDate[today] && mealsByDate[today].staff) || null,
@@ -681,9 +678,8 @@ async function main() {
       const solo = e.tokens.filter((t) => !tokenSets.some((set, j) => j !== i && set.has(t)));
       if (solo.length) {
         console.log(`식단 알림(${e.cafe.label} ${slot.label}):`, e.body.slice(0, 40));
-        // 제목은 끼니 이름만("조식" · "석식" · "중식"). 같은 끼니를 두 식당이 내는 중식만 어느 식당인지 덧붙인다.
-        const title = shared2(slot.key) ? `${slot.label} (${SHORT_CAFE[e.cafe.key] || e.cafe.label})` : slot.label;
-        await sendToTokens(solo, title, e.body.slice(0, 200), 'meal');
+        // 제목은 끼니 이름만("조식" · "중식" · "석식"). 한 식당만 켠 사람은 식당 이름 없이 메뉴만 받는다.
+        await sendToTokens(solo, slot.label, e.body.slice(0, 200), 'meal');
       }
     }
     if (entries.length > 1) {
