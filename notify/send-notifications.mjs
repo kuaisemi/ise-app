@@ -26,6 +26,7 @@ import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { getAuth } from 'firebase-admin/auth';
+import { MEAL_TOPIC_NAMES, desiredMealTopics, diffMealTopics } from './meal-topics.mjs';
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
 if (!raw) {
@@ -334,13 +335,15 @@ async function purgeOldChatMessages() {
 async function main() {
   // friendLinks·councilChatNotice는 예전엔 여기서 매번 통째로 읽었는데(친구요청/학생회 공지
   // 감지용), 그 감지 로직 자체가 Worker로 옮겨가면서 더 이상 안 쓰여서 읽기를 아예 없앴다.
-  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, recruitmentsSnap, stateSnap] = await Promise.all([
+  const [noticesSnap, pollsSnap, mealsSnap, bugReportsSnap, recruitmentsSnap, stateSnap, workerMealSnap] = await Promise.all([
     db.collection('shared').doc('notices').get(),
     db.collection('shared').doc('polls').get(),
     db.collection('shared').doc('meals').get(),
     db.collection('shared').doc('bugReports').get(),
     db.collection('shared').doc('recruitments').get(),
     db.collection('shared').doc('notifyState').get(),
+    // Cloudflare Worker가 학식 푸시를 보내고 남기는 기록('날짜_식당_끼니'). 아래 예비 발송이 같은 알림을 또 보내지 않게 한다.
+    db.collection('shared').doc('mealSentByWorker').get(),
   ]);
 
   // 앱은 삭제를 tombstone(deleted:true)으로 처리하므로 반드시 걸러내야 한다.
@@ -352,7 +355,10 @@ async function main() {
   const st = stateSnap.exists ? stateSnap.data() : {};
 
   const warnedPollEnd = new Set(st.warnedPollEndIds || []);
-  const sentMealKeys = new Set(st.sentMealKeys || []);
+  // 학식 푸시는 이제 Worker가 정시(07:00·10:30·16:30)에 토픽으로 보내고, 이 스크립트는 토픽 구독을 맞춰 주면서
+  // Worker가 못 보낸 경우를 위한 예비 발송만 한다. Worker가 보냈다고 기록한 키는 건너뛴다.
+  const workerMealKeys = (workerMealSnap.exists ? workerMealSnap.data().keys : []) || [];
+  const sentMealKeys = new Set([...(st.sentMealKeys || []), ...workerMealKeys]);
   const notifiedOrgMsg = new Set(st.notifiedOrgMsgIds || []);
   const lastPollReminderDate = st.lastPollReminderDate || '';
 
@@ -373,8 +379,8 @@ async function main() {
     });
     const slotsPre = [
       { k: 'breakfast', h: 7, m: 0, g: 240, cafes: ['jinri'] },
-      { k: 'lunch', h: 10, m: 30, g: 60, cafes: ['jinri', 'mirae'] },
-      { k: 'dinner', h: 16, m: 30, g: 60, cafes: ['jinri'] },
+      { k: 'lunch', h: 10, m: 30, g: 120, cafes: ['jinri', 'mirae'] },
+      { k: 'dinner', h: 16, m: 30, g: 120, cafes: ['jinri'] },
     ];
     const mealDuePre = slotsPre.some((s) => s.cafes.some((cf) => {
       const dayMeals = mealsByDate[todayPre];
@@ -661,7 +667,9 @@ async function main() {
       if (!todayMeal) continue;
       const dedupKey = `${today}_${cafe.key}_${slot.key}`;
       if (sentMealKeys.has(dedupKey)) continue;
-      if (!isDue(slot.h, slot.m, slot.grace)) continue;
+      // 정시 발송은 Worker가 맡는다. 이 예비 발송은 Worker가 10분이 지나도록 못 보낸 경우에만 나선다
+      // (같은 순간에 둘이 동시에 보내 알림이 두 번 가는 일을 막는 완충 시간).
+      if (!isDue(slot.h, slot.m + 10, Math.max(0, (slot.grace || 60) - 10))) continue;
       const menu = (todayMeal[slot.key] || '').trim();
       if (!menu) continue;
       const tokens = mealTokensFor(cafe.key, slot.key);
@@ -858,6 +866,43 @@ async function main() {
       );
     } catch (e) {
       console.warn('[topic] 구독 실패(다음 실행에서 재시도):', e && e.message);
+    }
+  }
+
+  // 학식 푸시용 토픽(meal_*) 구독을 users의 학식 설정에 맞춘다. Worker가 이 토픽으로 정시에 보낸다.
+  // 지난번에 구독시킨 명단은 shared/mealTopicState에 남겨 두고, 바뀐 토큰만 추가·제거한다.
+  // 토픽 하나라도 처리에 실패하면 그 토픽의 명단은 갱신하지 않아 다음 실행에서 다시 시도한다.
+  {
+    try {
+      const desired = desiredMealTopics(tokensByUid, mealPrefsByUid, invalidTokens);
+      const stateRef = db.collection('shared').doc('mealTopicState');
+      const prevSnap = await stateRef.get();
+      const prev = (prevSnap.exists ? prevSnap.data().topics : {}) || {};
+      const diff = diffMealTopics(prev, desired);
+      const nextTopics = {};
+      for (const name of MEAL_TOPIC_NAMES) nextTopics[name] = [...desired[name]];
+      let failed = 0;
+      for (const [name, { add, remove }] of Object.entries(diff)) {
+        try {
+          for (let i = 0; i < add.length; i += 1000) {
+            await messaging.subscribeToTopic(add.slice(i, i + 1000), name);
+          }
+          for (let i = 0; i < remove.length; i += 1000) {
+            await messaging.unsubscribeFromTopic(remove.slice(i, i + 1000), name);
+          }
+          console.log(`학식 토픽 ${name}: +${add.length} / -${remove.length}`);
+        } catch (e) {
+          failed++;
+          nextTopics[name] = prev[name] || []; // 실패한 토픽은 이전 명단을 그대로 둬서 다음에 다시 시도
+          console.warn(`[meal-topic] ${name} 갱신 실패(다음 실행에서 재시도):`, e && e.message);
+        }
+      }
+      if (Object.keys(diff).length) {
+        await stateRef.set({ topics: nextTopics, updatedAt: Date.now() });
+      }
+      if (failed) console.warn(`[meal-topic] ${failed}개 토픽 실패`);
+    } catch (e) {
+      console.warn('[meal-topic] 동기화 실패:', e && e.message);
     }
   }
 }

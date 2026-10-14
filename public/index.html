@@ -8629,7 +8629,10 @@ function shuttleOsongDueSoonTime(entries){
 function shuttleNextHighlights(){
   const school = nextShuttleDeparture('school');
   const mid = nextShuttleDeparture('mid');
-  const fmt = (n) => n ? { time: `${pad(n.dep.getHours())}:${pad(n.dep.getMinutes())}`, isSunday: n.type==='sunday' } : null;
+  // 오늘 운행이 모두 끝났으면 "다음 출발"은 내일(또는 다음 운행일)의 첫차가 되는데, 그걸 목록에서
+  // 강조하면 첫 번째 시각이 빨갛게 켜져 보인다. 오늘 안에 남은 회차일 때만 강조하고, 끝났으면 전부 비활성으로 둔다.
+  const todayStr = new Date().toDateString();
+  const fmt = (n) => (n && n.dep.toDateString() === todayStr) ? { time: `${pad(n.dep.getHours())}:${pad(n.dep.getMinutes())}`, isSunday: n.type==='sunday' } : null;
   return { school: fmt(school), mid: fmt(mid) };
 }
 function setupShuttleTimer(){

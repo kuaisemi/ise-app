@@ -15,9 +15,13 @@
 //   - CPU 10ms/요청       → 매분 하는 일은 작은 JSON 몇 개 파싱이 전부다. 비싼 작업(JWT
 //                           RSA 서명)은 결과를 KV에 55분 캐싱해서 하루 30번 이하로 줄였다.
 
+import { MEAL_SLOTS, planMealMessages, slotHasMenu } from './meal.js';
+
 /* ===== 무료 한도 관리 ===== */
-// 50개가 상한이지만 토큰 발급·조회·기록에도 쓰이므로 발송에는 40개까지만 쓴다.
-const SUBREQUEST_BUDGET = 40;
+// 50개가 상한이다. 한 번의 실행에서 큐 발송(아래 36) + 학식 푸시(최대 10) + 워크플로 실행 요청(1)이
+// 같이 돌 수 있어서, 큐 발송에는 36개까지만 쓴다(합 47 ≤ 50).
+const SUBREQUEST_BUDGET = 36;
+const MEAL_SUBREQUEST_BUDGET = 10;
 // 한 번에 꺼내오는 큐 항목 수. 예산보다 넉넉히 가져와도 예산이 먼저 바닥나면 거기서 멈춘다.
 const QUEUE_FETCH_LIMIT = 50;
 
@@ -207,6 +211,40 @@ async function fsGetDoc(env, token, path, budget) {
   if (!res.ok) throw new Error(`문서 읽기 실패 ${path} ${res.status}`);
   const j = await res.json();
   return decodeFields(j.fields);
+}
+// 문서에서 지정한 필드만 읽는다(큰 문서를 통째로 받아 파싱하면 무료 플랜 CPU 한도에 걸린다).
+// 날짜처럼 식별자가 아닌 키는 field path에서 백틱으로 감싼다: byDate.`2026-10-14`
+async function fsGetDocMasked(env, token, path, fieldPaths, budget) {
+  budget.spend();
+  const qs = fieldPaths.map((p) => `mask.fieldPaths=${encodeURIComponent(p)}`).join('&');
+  const res = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}/${path}?${qs}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`문서 읽기 실패 ${path} ${res.status}`);
+  const j = await res.json();
+  return decodeFields(j.fields || {});
+}
+// shared/mealSentByWorker.keys 한 필드만 덮어쓴다(나머지 필드는 건드리지 않는다).
+async function fsWriteMealSentKeys(env, token, keys, budget) {
+  budget.spend();
+  const res = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}:commit`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      writes: [{
+        update: {
+          name: `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/shared/mealSentByWorker`,
+          fields: {
+            keys: { arrayValue: { values: keys.map((k) => ({ stringValue: k })) } },
+            updatedAt: { integerValue: String(Date.now()) },
+          },
+        },
+        updateMask: { fieldPaths: ['keys', 'updatedAt'] },
+      }],
+    }),
+  });
+  if (!res.ok) throw new Error(`학식 발송 기록 실패 ${res.status} ${(await res.text()).slice(0, 200)}`);
 }
 // 발송 시각이 지났는데 아직 안 보낸 항목을 이른 순서대로 가져온다.
 // (sent ASC, at ASC 복합 인덱스가 firestore.indexes.json에 있어야 동작한다)
@@ -506,6 +544,91 @@ async function runOnce(env) {
   return { sent: sentCount, items: updates.length, skipped: skippedNoAudience, repeated: repeatedCount, coalesced: coalescedCount, subrequests: budget.used };
 }
 
+/* ===== 학식 푸시 (이 Worker가 직접 보낸다) =====
+   조식 07:00 · 중식 10:30 · 석식 16:30(KST, 평일). 계획(누구에게 무슨 문구)은 meal.js의
+   planMealMessages가 세우고, 여기서는 읽기·보내기·기록만 한다.
+   - 메뉴: shared/meals.byDate[오늘] (GitHub Actions가 학교 사이트에서 받아 둔 것)
+   - 수신자: FCM 토픽 meal_* (구독은 GitHub Actions가 users의 학식 설정에 맞춰 둔다)
+   - 중복 방지 ① KV: 토픽 메시지마다 "보냄" 표시 ② Firestore: 보낸 '날짜_식당_끼니' 키를
+     shared/mealSentByWorker.keys에 남긴다(GitHub Actions의 예비 발송이 이걸 보고 건너뛴다).
+     반대로 예비 발송이 먼저 보냈다면 shared/notifyState.sentMealKeys에 남아 있어 여기서 건너뛴다.
+   환경변수 MEAL_PUSH = "off" 이면 이 기능만 끈다(GitHub Actions 예비 발송은 그대로 돈다). */
+async function runMealPush(env, scheduledTime) {
+  if (env.MEAL_PUSH === 'off') return { sent: 0 };
+  const kst = new Date(scheduledTime + 9 * 3600 * 1000);
+  const dow = kst.getUTCDay();
+  if (dow === 0 || dow === 6) return { sent: 0 };
+  const date = kst.toISOString().slice(0, 10);
+  const minutes = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+
+  // 발송 창 안에 있고 아직 "완료" 표시가 없는 끼니만 본다. 창 밖이면 아무것도 읽지 않는다.
+  const pending = [];
+  for (const s of MEAL_SLOTS) {
+    const diff = minutes - (s.h * 60 + s.m);
+    if (diff < 0 || diff > s.grace) continue;
+    if (await env.NOTIFY_CACHE.get(`meal-done:${date}:${s.key}`)) continue;
+    pending.push(s.key);
+  }
+  if (!pending.length) return { sent: 0 };
+
+  // 식단 데이터가 없는 날(공휴일 등)에 매분 Firestore를 두드리지 않게, "없음"을 5분간 기억한다.
+  if (await env.NOTIFY_CACHE.get(`meal-nodata:${date}`)) return { sent: 0 };
+
+  const budget = makeBudget(MEAL_SUBREQUEST_BUDGET);
+  const token = await getAccessToken(env, budget);
+  const mealDoc = await fsGetDocMasked(env, token, 'shared/meals', [`byDate.\`${date}\``], budget);
+  const today = mealDoc && mealDoc.byDate && mealDoc.byDate[date];
+  if (!today || !pending.some((k) => slotHasMenu(today, k))) {
+    await env.NOTIFY_CACHE.put(`meal-nodata:${date}`, '1', { expirationTtl: 300 });
+    return { sent: 0 };
+  }
+
+  const [st, ws] = await Promise.all([
+    fsGetDocMasked(env, token, 'shared/notifyState', ['sentMealKeys'], budget),
+    fsGetDocMasked(env, token, 'shared/mealSentByWorker', ['keys'], budget),
+  ]);
+  const prevWorkerKeys = (ws && Array.isArray(ws.keys)) ? ws.keys : [];
+  const sentKeys = new Set([...((st && st.sentMealKeys) || []), ...prevWorkerKeys]);
+
+  const plan = planMealMessages(date, minutes, today, sentKeys).filter((m) => pending.includes(m.slot));
+  let sent = 0;
+  const sentIds = new Set();
+  const failedSlots = new Set();
+  for (const m of plan) {
+    const id = `meal-sent:${date}:${m.slot}:${m.topic}`;
+    if (await env.NOTIFY_CACHE.get(id)) { sentIds.add(id); continue; }
+    if (budget.left() <= 1) { failedSlots.add(m.slot); continue; }
+    const r = await fcmSend(env, token, { topic: m.topic }, m.title, m.body, 'meal', budget, null, null);
+    if (r.ok) {
+      sent++;
+      sentIds.add(id);
+      await env.NOTIFY_CACHE.put(id, '1', { expirationTtl: 2 * 86400 });
+      console.log(`[meal] ${date} ${m.slot} → ${m.topic}`);
+    } else {
+      failedSlots.add(m.slot);
+      console.error(`[meal] ${m.slot} ${m.topic} 발송 실패: ${r.error}`);
+    }
+  }
+
+  // 그 끼니의 메시지가 전부 나갔으면 키를 기록하고 "완료"로 표시한다. 하나라도 실패했으면 다음 분에 이어서 한다.
+  const doneSlots = [...new Set(plan.map((m) => m.slot))].filter((s) => !failedSlots.has(s));
+  if (doneSlots.length) {
+    const newKeys = plan.filter((m) => doneSlots.includes(m.slot)).flatMap((m) => m.keys);
+    // 기록은 예산과 상관없이 반드시 한다 — 빠지면 GitHub 예비 발송이 같은 알림을 또 보낸다.
+    if (newKeys.length) {
+      await fsWriteMealSentKeys(env, token, [...new Set([...prevWorkerKeys, ...newKeys])].slice(-60), budget);
+    }
+    for (const s of doneSlots) await env.NOTIFY_CACHE.put(`meal-done:${date}:${s}`, '1', { expirationTtl: 2 * 86400 });
+  }
+  // 메뉴가 있는데 계획이 비었다 = 키가 이미 전부 기록돼 있다(예비 발송이 먼저 보냄) → 완료로 본다.
+  for (const k of pending) {
+    if (!plan.some((m) => m.slot === k) && slotHasMenu(today, k)) {
+      await env.NOTIFY_CACHE.put(`meal-done:${date}:${k}`, '1', { expirationTtl: 2 * 86400 });
+    }
+  }
+  return { sent };
+}
+
 /* ===== 학식 알림 정시 실행 =====
    학식 푸시는 GitHub Actions(notify.yml → notify/send-notifications.mjs)가 보낸다. 그런데 그 정기 실행이
    "매시 정각"으로 설정돼 있어도 실제로는 3~9시간 간격으로 드문드문 돌아서, 조식 07:00 · 중식 10:30 ·
@@ -555,6 +678,9 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
       maybeDispatchMealWorkflow(env, event.scheduledTime).catch((e) => console.error('[meal-dispatch] 오류:', e && e.message))
+    );
+    ctx.waitUntil(
+      runMealPush(env, event.scheduledTime).catch((e) => console.error('[meal] 오류:', e && e.message))
     );
     ctx.waitUntil(
       runOnce(env)
