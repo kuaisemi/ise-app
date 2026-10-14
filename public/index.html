@@ -956,6 +956,22 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .imp-tag{position:absolute; top:9px; right:9px; font-size:9px; font-weight:700; padding:2px 6px; border-radius:6px; color:var(--c); background:rgba(var(--c-rgb),.14);}
 .imp-hint{margin-top:12px; font-size:11px; color:var(--text-dim); line-height:1.5; text-align:center; padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px dashed var(--border-light);}
 .imp-hint b{color:var(--text);}
+/* 수업 추가: 강의실 = [건물 ▾] | [호수], 건물은 아래로 펼치는 패널에서 고름 */
+.bldg-row{display:flex; gap:6px; align-items:stretch;}
+.bldg-btn{flex:0 0 auto; max-width:58%; display:flex; align-items:center; gap:4px; padding:0 10px 0 12px; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:700; font-family:var(--font-display); cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.bldg-btn.open{border-color:var(--teal);}
+.bldg-btn-txt{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.bldg-btn svg{width:13px; height:13px; flex-shrink:0; color:var(--text-dim); transition:transform .15s;}
+.bldg-btn.open svg{transform:rotate(180deg);}
+.field .bldg-row input.bldg-room{flex:1; min-width:0; width:auto;}
+.bldg-pop{margin-top:6px; padding:8px; border-radius:12px; background:var(--surface); border:1px solid var(--border);}
+.bldg-opts{display:flex; flex-wrap:wrap; gap:5px;}
+.bldg-more{margin-top:5px;}
+.bldg-pop-foot{display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:7px; padding-top:7px; border-top:1px dashed var(--border);}
+.bldg-opt{padding:6px 11px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:11.5px; font-weight:600; font-family:var(--font-display); cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.bldg-opt.on{border-color:var(--teal); color:var(--teal); background:rgba(224,172,85,.10);}
+.bldg-more-btn{display:flex; align-items:center; gap:3px; background:none; border:none; padding:4px 2px; color:var(--text-dim); font-size:11px; font-weight:700; font-family:inherit; cursor:pointer;}
+.bldg-more-btn svg{width:12px; height:12px;}
 /* 시간표 메뉴: 수업 색 테마 */
 .ttm-sec{display:flex; align-items:baseline; gap:6px; margin:16px 2px 8px;}
 .ttm-sec b{font-size:12px; color:var(--text);}
@@ -1578,6 +1594,7 @@ const PATCH_NOTES = [
   { version:'Beta 0.5.7', date:'2026-10-14', summary:'시간표 색 테마가 생겼어요!', items:[
     { title:'시간표 색 테마', text:'시간표 메뉴(⋯)의 "수업 색 테마"에서 기본 · 에타 · 파스텔 · 마카롱 · 화이트 · 캔디 · 바다 · 숲 · 노을 · 모노 중에 고르면 지금 시간표의 수업 색이 한 번에 바뀌어요. 같은 과목은 같은 색으로 묶여요' },
     { title:'글자색 자동', text:'수업 바탕이 흰색이나 파스텔처럼 밝으면 글자가 자동으로 검정이 돼요. 테마 적용 · 가져오기 · 수업 편집 모두 똑같이 맞춰지고, 수업 편집에서 글자색을 직접 고를 수도 있어요' },
+    { title:'강의실 입력이 간단해졌어요', text:'수업 추가에서 강의실을 "건물 | 호수" 한 줄로 입력해요. 건물을 누르면 자주 쓰는 건물부터 나오고, 나머지는 더보기 · 기타(직접 입력)로 골라요' },
   ]},
   { version:'Beta 0.5.6', date:'2026-10-14', summary:'시간표 가져오기 개편!', items:[
     { title:'시간표 가져오기', text:'+ 버튼과 시간표 메뉴의 "가져오기"에서 에브리타임 링크 · 사진으로 인식 중에 골라요. 링크가 안 되면 사진으로, 사진 인식이 안 되면 링크로 가져오면 돼요' },
@@ -7174,11 +7191,36 @@ function applyTtOptions(){
   toast('시간표 표시 설정이 적용되었습니다');
 }
 
+// 건물 고르기 패널(건물 버튼 바로 아래에 펼침 — 모달 안에 모달을 띄우면 입력 중인 폼이 날아가서 인라인으로).
+// 내 시간표에서 자주 쓴 건물을 앞에 두고 4개만 보이고, 나머지는 "더보기"로 접는다.
+const BLDG_VISIBLE = 4;
+function buildingsByUsage(){
+  const count = new Map(BUILDINGS.map(b => [b, 0]));
+  (state.timetable || []).forEach(c => { const b = BUILDINGS.find(x => String(c.room || '').startsWith(x)); if(b) count.set(b, count.get(b) + 1); });
+  return BUILDINGS.slice().sort((a, b) => count.get(b) - count.get(a) || BUILDINGS.indexOf(a) - BUILDINGS.indexOf(b));
+}
+function renderBuildingPopHtml(selected){
+  const list = buildingsByUsage();
+  const opt = b => `<button type="button" class="bldg-opt ${b === selected ? 'on' : ''}" data-action="pick-bldg" data-bldg="${escapeHtml(b)}">${escapeHtml(b)}</button>`;
+  // 고른 건물이 접힌 쪽에 있으면 처음부터 펼쳐 둔다.
+  const openMore = list.slice(BLDG_VISIBLE).includes(selected);
+  return `<div class="bldg-pop" style="display:none;">
+    <div class="bldg-opts">${list.slice(0, BLDG_VISIBLE).map(opt).join('')}</div>
+    <div class="bldg-opts bldg-more" style="${openMore ? '' : 'display:none;'}">${list.slice(BLDG_VISIBLE).map(opt).join('')}</div>
+    <div class="bldg-pop-foot">
+      ${openMore ? '' : `<button type="button" class="bldg-more-btn" data-action="bldg-more">더보기 ${ICON.chevDown}</button>`}
+      <button type="button" class="bldg-opt ${selected === '__custom__' ? 'on' : ''}" data-action="pick-bldg" data-bldg="__custom__">기타 (직접 입력)</button>
+    </div>
+  </div>`;
+}
+
 function renderSlotHtml(slot, index, total){
   const parsed = parseBuildingAndDetail(slot.room||'');
   const bldg = slot.building || parsed.building;
   const detail = slot.roomDetail!==undefined ? slot.roomDetail : parsed.detail;
   const isCustom = bldg==='__custom__';
+  // 다시 그릴 때(시간대 삭제 등) 직접 입력한 강의실이 사라지지 않게 roomCustom을 먼저 쓴다.
+  const customVal = slot.roomCustom !== undefined ? slot.roomCustom : (isCustom ? detail : '');
   return `
     <div class="slot-item-card" data-idx="${index}" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; margin-bottom:8px;">
       <div class="row-between" style="margin-bottom:6px;">
@@ -7197,19 +7239,15 @@ function renderSlotHtml(slot, index, total){
           ${renderTimePicker('slot_end', slot.end||600)}
         </div>
       </div>
-      <div class="field" style="margin-bottom:8px;">
-        <label>건물</label>
-        ${renderSegPicker('slot_building', [...BUILDINGS.map(b=>[b,b]), ['__custom__','기타 (직접 입력)']], bldg, false)}
-      </div>
-      <div class="field-row" style="margin-bottom:0;">
-        <div class="field slot-room-detail-wrap" style="flex:1; ${isCustom?'display:none;':''}">
-          <label>호수</label>
-          <input type="text" name="slot_roomDetail" class="slot-field" value="${escapeHtml(detail)}" placeholder="329A호" style="font-family:var(--font-display)">
+      <div class="field" style="margin-bottom:0;">
+        <label>강의실 (건물 | 호수)</label>
+        <div class="bldg-row">
+          <button type="button" class="bldg-btn" data-action="toggle-bldg-pop"><span class="bldg-btn-txt">${escapeHtml(isCustom ? '기타' : bldg)}</span>${ICON.chevDown}</button>
+          <input type="hidden" name="slot_building" value="${escapeHtml(bldg)}">
+          <input type="text" name="slot_roomDetail" class="slot-field bldg-room" value="${escapeHtml(isCustom ? '' : detail)}" placeholder="329A호" style="font-family:var(--font-display); ${isCustom?'display:none;':''}">
+          <input type="text" name="slot_roomCustom" class="slot-field bldg-room" value="${escapeHtml(customVal)}" placeholder="강의실 직접 입력" style="font-family:var(--font-display); ${isCustom?'':'display:none;'}">
         </div>
-        <div class="field slot-room-custom-wrap" style="flex:1.8; ${isCustom?'':'display:none;'}">
-          <label>강의실 직접입력</label>
-          <textarea name="slot_roomCustom" class="slot-field" rows="2" placeholder="과학기술1관 329A호" style="font-family:var(--font-display); resize:none; min-height:44px; white-space:pre-wrap;">${isCustom?escapeHtml(detail):''}</textarea>
-        </div>
+        ${renderBuildingPopHtml(bldg)}
       </div>
     </div>`;
 }
@@ -14235,15 +14273,6 @@ document.addEventListener('change', async (e)=>{
     const wrap = document.getElementById('poll-deadline-inputs');
     if(wrap){ wrap.style.opacity = t.checked ? '1' : '.4'; wrap.style.pointerEvents = t.checked ? 'auto' : 'none'; }
   }
-  if((t.classList && t.classList.contains('slot-building-select')) || t.name === 'slot_building'){
-    const card = t.closest('.slot-item-card');
-    if(!card) return;
-    const isCustom = t.value === '__custom__';
-    const d = card.querySelector('.slot-room-detail-wrap');
-    const c = card.querySelector('.slot-room-custom-wrap');
-    if(d) d.style.display = isCustom ? 'none' : 'block';
-    if(c) c.style.display = isCustom ? 'block' : 'none';
-  }
 });
 
 document.addEventListener('keydown', async (e)=>{
@@ -14848,6 +14877,36 @@ document.addEventListener('click', async (e)=>{
       const inp = document.getElementById('class-color-input');
       if(inp) inp.value = el.dataset.hex;
       applyClassTextAuto(el.dataset.hex);
+    }
+    else if(a === 'toggle-bldg-pop'){
+      const card = el.closest('.slot-item-card');
+      const pop = card && card.querySelector('.bldg-pop');
+      if(!pop) return;
+      const open = pop.style.display === 'none';
+      document.querySelectorAll('.bldg-pop').forEach(p => { p.style.display = 'none'; });
+      document.querySelectorAll('.bldg-btn.open').forEach(b => b.classList.remove('open'));
+      pop.style.display = open ? 'block' : 'none';
+      el.classList.toggle('open', open);
+    }
+    else if(a === 'bldg-more'){
+      const more = el.closest('.bldg-pop')?.querySelector('.bldg-more');
+      if(more) more.style.display = '';
+      el.remove();
+    }
+    else if(a === 'pick-bldg'){
+      const card = el.closest('.slot-item-card');
+      if(!card) return;
+      const b = el.dataset.bldg, custom = b === '__custom__';
+      card.querySelector('[name="slot_building"]').value = b;
+      card.querySelector('.bldg-btn-txt').textContent = custom ? '기타' : b;
+      card.querySelectorAll('.bldg-opt').forEach(o => o.classList.toggle('on', o.dataset.bldg === b));
+      const detail = card.querySelector('[name="slot_roomDetail"]'), customIn = card.querySelector('[name="slot_roomCustom"]');
+      if(detail) detail.style.display = custom ? 'none' : '';
+      if(customIn) customIn.style.display = custom ? '' : 'none';
+      card.querySelector('.bldg-pop').style.display = 'none';
+      card.querySelector('.bldg-btn').classList.remove('open');
+      const focusEl = custom ? customIn : detail;
+      if(focusEl && !focusEl.value) focusEl.focus();
     }
     else if(a === 'pick-schedule-color'){
       document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s => {
