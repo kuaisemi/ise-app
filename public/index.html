@@ -943,15 +943,19 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .ocr-note{font-size:10.5px; color:var(--text-dim); line-height:1.6; padding:10px 12px; border-radius:12px; border:1px solid rgba(var(--amber-rgb),0.25); background:rgba(var(--amber-rgb),0.07); margin-bottom:12px;}
 /* 시간표 가져오기 선택 화면 */
 .imp-sub{font-size:11px; color:var(--text-dim); line-height:1.5; margin:-2px 2px 12px;}
-.imp-opt{display:flex; align-items:center; gap:12px; padding:14px 12px 14px 14px; border-radius:18px; background:var(--surface-2); border:1px solid var(--border); margin-bottom:10px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s, background .15s, border-color .15s;}
-.imp-opt:active{transform:scale(.98); background:var(--surface-3); border-color:rgba(var(--c-rgb),.5);}
-.imp-ic{width:46px; height:46px; border-radius:15px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--c); background:rgba(var(--c-rgb),.15); border:1px solid rgba(var(--c-rgb),.28);}
-.imp-ic svg{width:22px; height:22px;}
-.imp-txt{flex:1; min-width:0;}
-.imp-txt b{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; color:var(--text);}
-.imp-txt small{display:block; margin-top:3px; font-size:10.5px; color:var(--text-dim); line-height:1.45;}
-.imp-tag{font-size:9px; font-weight:700; padding:2px 6px; border-radius:6px; color:var(--c); background:rgba(var(--c-rgb),.14);}
-.imp-go{font-size:20px; color:var(--text-faint); line-height:1; padding-left:2px;}
+.imp-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.imp-card{position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; padding:18px 10px 14px; border-radius:18px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s, background .15s, border-color .15s;}
+.imp-card:active{transform:scale(.97); background:var(--surface-3); border-color:rgba(var(--c-rgb),.5);}
+.imp-ic{width:48px; height:48px; border-radius:16px; display:flex; align-items:center; justify-content:center; color:var(--c); background:rgba(var(--c-rgb),.15); border:1px solid rgba(var(--c-rgb),.28); margin-bottom:10px;}
+.imp-ic svg{width:23px; height:23px;}
+.imp-card > b{font-size:13px; color:var(--text); margin-bottom:8px;}
+.imp-points{list-style:none; margin:0 0 8px; padding:0; display:flex; flex-direction:column; gap:4px; align-items:flex-start;}
+.imp-points li{font-size:11px; color:var(--text); line-height:1.3; padding-left:15px; position:relative; text-align:left;}
+.imp-points li::before{content:'✓'; position:absolute; left:0; color:var(--c); font-weight:800;}
+.imp-card > small{font-size:9.5px; color:var(--text-faint); line-height:1.35; margin-top:auto;}
+.imp-tag{position:absolute; top:9px; right:9px; font-size:9px; font-weight:700; padding:2px 6px; border-radius:6px; color:var(--c); background:rgba(var(--c-rgb),.14);}
+.imp-hint{margin-top:12px; font-size:11px; color:var(--text-dim); line-height:1.5; text-align:center; padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px dashed var(--border-light);}
+.imp-hint b{color:var(--text);}
 /* 추가 / 교체 선택 */
 .save-mode{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:12px;}
 .sm-opt{display:flex; flex-direction:column; gap:2px; text-align:left; padding:9px 10px; border-radius:12px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-family:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;}
@@ -1551,7 +1555,7 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.7';
+const APP_VERSION = 'Beta 0.5.6';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
@@ -1560,14 +1564,11 @@ const ANDROID_VERSION_CODE = 175;
 // 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
-  { version:'Beta 0.5.7', date:'2026-10-14', summary:'시간표 가져오기가 한 곳으로 모였어요', items:[
-    { title:'시간표 가져오기', text:'+ 버튼과 시간표 메뉴의 "가져오기"를 누르면 에브리타임 링크로 가져오기 · 사진으로 인식 중에서 고를 수 있어요' },
+  { version:'Beta 0.5.6', date:'2026-10-14', summary:'시간표 가져오기 개편!', items:[
+    { title:'시간표 가져오기', text:'+ 버튼과 시간표 메뉴의 "가져오기"에서 에브리타임 링크 · 사진으로 인식 중에 골라요. 링크가 안 되면 사진으로, 사진 인식이 안 되면 링크로 가져오면 돼요' },
+    { title:'에브리타임 링크로 가져오기', text:'에브리타임 시간표 공유 링크를 붙여 넣으면 공개된 대표 시간표를 시간 · 강의실 그대로, 빠르고 정확하게 가져와요(에브리타임에서 공개 범위를 전체 공개로 해 주세요). 토 · 일 수업은 빼고 가져와요' },
+    { title:'이전 학기 시간표도 한 번에', text:'"이전 학기 대표 시간표도 모두 가져오기"를 켜 두면 지난 학기들의 공개된 대표 시간표도 각 학기에 새 시간표로 함께 추가돼요' },
     { title:'추가할지 교체할지 골라요', text:'가져온 수업을 등록할 때 "새 시간표로 추가"(기본)와 "지금 시간표 교체" 중에서 골라요. 사진 인식도 이제 기존 시간표를 지우지 않고 추가할 수 있어요' },
-  ]},
-  { version:'Beta 0.5.6', date:'2026-10-14', summary:'에브리타임 링크로 시간표를 가져올 수 있어요!', items:[
-    { title:'에브리타임 링크로 시간표 가져오기', text:'시간표 사진 인식 화면 아래 "에브리타임 링크로 가져오기"에 에브리타임 시간표 공유 링크를 붙여 넣으면, 공개된 대표 시간표를 시간 · 강의실 그대로 가져와요. 사진 인식이 안 될 때 쓰면 좋아요(에브리타임에서 공개 범위를 전체 공개로 해 주세요)' },
-    { title:'기존 시간표는 그대로, 새 시간표로 추가', text:'링크로 가져온 시간표는 지금 시간표를 덮어쓰지 않고 해당 학기에 "에브리타임" 시간표로 추가돼요. 토 · 일 수업은 빼고 가져와요' },
-    { title:'이전 학기 시간표도 한 번에', text:'"이전 학기 대표 시간표도 모두 가져오기"를 켜 두면 지난 학기들의 공개된 대표 시간표도 각 학기에 함께 추가돼요' },
   ]},
   { version:'Beta 0.5.5', date:'2026-10-06', summary:'회원가입 동의 · 공휴일 인사 · 게시판 정리', items:[
     { title:'회원가입 개인정보 동의', text:'가입할 때 수집 항목·이용 목적·보유 기간을 안내하고, 필수 동의에 체크해야 가입돼요' },
@@ -5891,8 +5892,8 @@ function checkAutoDeptNoticeFetch(){
 // 안정적으로 하고 있으므로 브라우저에서는 더 이상 시도하지 않는다.
 
 const ICON = {
-  // 시간표 가져오기: 시간표 격자 안으로 화살표가 들어오는 모양(사진·링크 어느 쪽이든 "불러오기").
-  importIcon:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 7H5.5A2.5 2.5 0 0 0 3 9.5v9A2.5 2.5 0 0 0 5.5 21h13a2.5 2.5 0 0 0 2.5-2.5v-9A2.5 2.5 0 0 0 18.5 7h-3.7"/><path d="M3 13h18M9 13v8M15 13v8"/><path d="M12 2.5v7.5"/><path d="M9.2 7.4L12 10.2l2.8-2.8"/></svg>`,
+  // 시간표 가져오기: 받침(트레이)으로 내려오는 화살표 — 흔히 쓰는 "가져오기" 모양.
+  importIcon:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>`,
   link:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
   ban:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="5.5" y1="5.5" x2="18.5" y2="18.5"/></svg>`,
   chipMark:`<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>`,
@@ -7230,19 +7231,24 @@ function importChooserModal(){
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">시간표 가져오기<button data-action="close-modal">${ICON.close}</button></div>
-    <div class="imp-sub">어떤 방법으로 가져올까요? 지금 시간표에 추가할지 교체할지는 마지막에 골라요.</div>
-    <div class="imp-opt" data-action="et-link-import" style="--c:var(--blue); --c-rgb:var(--blue-rgb);">
-      <span class="imp-ic">${ICON.link}</span>
-      <div class="imp-txt"><b>에브리타임 링크로 가져오기 <span class="imp-tag">정확 · 추천</span></b>
-        <small>공유 링크만 붙여 넣으면 시간·강의실을 그대로 가져와요. 이전 학기도 한 번에</small></div>
-      <span class="imp-go">›</span>
+    <div class="imp-sub">어떤 방법으로 가져올까요? 추가할지 교체할지는 마지막에 골라요.</div>
+    <div class="imp-grid">
+      <div class="imp-card" data-action="et-link-import" style="--c:var(--blue); --c-rgb:var(--blue-rgb);">
+        <span class="imp-tag">추천</span>
+        <span class="imp-ic">${ICON.link}</span>
+        <b>에브리타임 링크</b>
+        <ul class="imp-points"><li>정확</li><li>신속</li><li>이전 학기도 한 번에</li></ul>
+        <small>시간표 전체 공개 필요</small>
+      </div>
+      <div class="imp-card" data-action="ocr-timetable" style="--c:var(--teal); --c-rgb:224,172,85;">
+        <span class="imp-tag">AI</span>
+        <span class="imp-ic">${ICON.camera}</span>
+        <b>사진으로 인식</b>
+        <ul class="imp-points"><li>캡처 한 장이면 OK</li><li>공개 설정 필요 없음</li></ul>
+        <small>시간·강의실은 확인 후 수정</small>
+      </div>
     </div>
-    <div class="imp-opt" data-action="ocr-timetable" style="--c:var(--teal); --c-rgb:224,172,85;">
-      <span class="imp-ic">${ICON.camera}</span>
-      <div class="imp-txt"><b>사진으로 인식 <span class="imp-tag">AI</span></b>
-        <small>에브리타임 시간표 캡처를 AI가 읽어요. 시간·강의실은 확인 후 고쳐 주세요</small></div>
-      <span class="imp-go">›</span>
-    </div>`;
+    <div class="imp-hint">💡 링크가 안 되면 <b>사진으로</b>, 사진 인식이 안 되면 <b>링크로</b> 가져와 보세요.</div>`;
 }
 
 // mode: 'photo'(사진 인식, 실패하면 링크 가져오기를 펼침) | 'link'(링크 가져오기만)
