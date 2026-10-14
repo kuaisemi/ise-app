@@ -983,7 +983,25 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .field .bldg-row input.bldg-room{flex:1; min-width:0; width:auto;}
 /* 팝업(건물 목록 · 날짜 달력)은 나타날 때 아래에서 위로 살짝 떠오른다 */
 @keyframes popRise{from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:translateY(0);}}
-.bldg-pop, .date-field > .date-field-panel{animation:popRise .22s cubic-bezier(.22,1,.36,1);}
+.date-field > .date-field-panel{animation:popRise .22s cubic-bezier(.22,1,.36,1);}
+/* 건물 목록: 버튼에서 가까운 칸부터 한 줄씩 펼쳐지고(아래로 열면 위→아래, 위로 열면 아래→위),
+   닫을 때는 먼 칸부터 거꾸로 말려 들어간다. 칸마다 --i(순서)로 지연을 준다. */
+.bldg-pop.rolling-in{animation:bldgRollIn .34s cubic-bezier(.22,1,.36,1) both;}
+.bldg-pop.up.rolling-in{animation-name:bldgRollInUp;}
+.bldg-pop.rolling-in .bldg-opt{animation:bldgItemIn .3s cubic-bezier(.22,1,.36,1) both; animation-delay:calc(var(--i, 0) * 38ms);}
+.bldg-pop.up.rolling-in .bldg-opt{animation-name:bldgItemInUp;}
+.bldg-pop.rolling-out{animation:bldgRollOut .24s cubic-bezier(.4,0,1,1) both; animation-delay:calc(var(--n, 6) * 14ms);}
+.bldg-pop.up.rolling-out{animation-name:bldgRollOutUp;}
+.bldg-pop.rolling-out .bldg-opt{animation:bldgItemOut .18s ease-in both; animation-delay:calc(var(--i, 0) * 28ms);}
+.bldg-pop.up.rolling-out .bldg-opt{animation-name:bldgItemOutUp;}
+@keyframes bldgRollIn{from{clip-path:inset(0 0 100% 0);} to{clip-path:inset(0 0 0 0);}}
+@keyframes bldgRollInUp{from{clip-path:inset(100% 0 0 0);} to{clip-path:inset(0 0 0 0);}}
+@keyframes bldgRollOut{from{clip-path:inset(0 0 0 0);} to{clip-path:inset(0 0 100% 0);}}
+@keyframes bldgRollOutUp{from{clip-path:inset(0 0 0 0);} to{clip-path:inset(100% 0 0 0);}}
+@keyframes bldgItemIn{from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:none;}}
+@keyframes bldgItemInUp{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
+@keyframes bldgItemOut{from{opacity:1; transform:none;} to{opacity:0; transform:translateY(-8px);}}
+@keyframes bldgItemOutUp{from{opacity:1; transform:none;} to{opacity:0; transform:translateY(8px);}}
 /* 건물 목록: 버튼 아래에 겹쳐 뜨는 세로 목록(카드 높이는 그대로) */
 .bldg-anchor{position:relative;}
 .bldg-pop{position:absolute; left:0; top:calc(100% + 4px); z-index:30; width:max-content; min-width:58%; max-width:100%; max-height:300px; overflow-y:auto; padding:4px; border-radius:14px; background:var(--surface); border:1px solid var(--border-light, var(--border)); box-shadow:0 10px 28px rgba(0,0,0,.4);}
@@ -1674,6 +1692,9 @@ const PATCH_NOTES = [
     { title:'MY 아이콘 정리', text:'비밀번호 변경은 열쇠 모양을 다듬었고, 회원 탈퇴는 사람 위에 오른쪽 위에서 왼쪽 아래로 굵은 사선을 그어 더 분명하게 보이게 했어요' },
     { title:'키보드가 올라와도 시간표가 그대로', text:'글자를 입력하려고 키보드가 올라올 때 뒤의 시간표가 쪼그라들며 위로 올라가던 문제를 고쳤어요', type:'fix' },
     { title:'학식 알림 제목 정리', text:'알림 제목이 "조식" · "중식" · "석식"으로 바뀌었어요. 진리관 · 미래관을 둘 다 켜 두면 중식이 한 통으로 와서, 본문에 (진리) · (미래) 메뉴가 한 줄씩 나와요', type:'fix' },
+    { title:'공식 학사일정 사이트에서 바로 불러오기', text:'학사일정 화면의 "사이트에서 불러오기"를 누르면 학교 사이트를 지금 바로 읽어 앱에 없는 일정만 추가해요', type:'fix' },
+    { title:'프로필 아이콘 모양 정리', text:'닻 · USB · 안경 · 열쇠 · 로켓 · 트랜지스터 등 어색하던 아이콘 23개를 다시 그렸어요', type:'fix' },
+    { title:'수정 화면 · 건물 목록 움직임', text:'수업 수정 화면이 항상 아래에서 올라오고, 강의실 건물 목록은 한 줄씩 펼쳐졌다 접혀요', type:'fix' },
   ]},
   { version:'Beta 0.5.5', date:'2026-10-06', summary:'회원가입 동의 · 공휴일 인사 · 게시판 정리', items:[
     { title:'회원가입 개인정보 동의', text:'가입할 때 수집 항목·이용 목적·보유 기간을 안내하고, 필수 동의에 체크해야 가입돼요' },
@@ -7776,22 +7797,111 @@ function setupCalendarOcrModalListeners(){
  * 지금은 서버(GitHub Actions, notify/fetch-sources.mjs)가 매일 자정 이후 학교 사이트를
  * 직접 받아 Firestore에 반영해두므로, 이 버튼은 그 결과를 다시 불러오기만 하면 된다.
  */
+const OFFICIAL_SCHEDULE_WORKER_URL = 'https://ku-ise-ocr.kuaisemi.workers.dev/schedule';
+// 서버(notify/fetch-sources.mjs의 parseOfficialScheduleHTML)와 같은 규칙으로 학교 학사일정표를 읽는다.
+function parseOfficialScheduleClient(html){
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const bodyText = doc.body ? doc.body.textContent : html;
+  const semMatches = [...bodyText.matchAll(/(\d{4})학년도\s*(\d)학기/g)];
+  if(semMatches.length === 0) throw new Error('학기 정보를 찾지 못했습니다.');
+  let year = parseInt(semMatches[semMatches.length - 1][1], 10);
+  const tables = Array.from(doc.querySelectorAll('table'));
+  const table = tables.find(t => /\d{1,2}\([월화수목금토일]\)/.test(t.textContent)) || tables[0];
+  if(!table) throw new Error('일정표를 찾지 못했습니다.');
+  // 달 칸은 그 달 첫 행에만 <th rowspan>으로 걸려 있어서, th/td 가리지 않고 한 행의 모든 칸을 순서대로 본다.
+  const rows = Array.from(table.querySelectorAll('tr')).filter(tr => tr.children.length >= 2);
+  let curMonth = null, prevMonth = 0;
+  const items = [];
+  for(const tr of rows){
+    const cells = Array.from(tr.children);
+    let monthCell, dateCell, titleCell;
+    if(cells.length >= 3){ monthCell = cells[0]; dateCell = cells[1]; titleCell = cells[2]; }
+    else { dateCell = cells[0]; titleCell = cells[1]; }
+    if(monthCell){
+      const mm = (monthCell.textContent || '').replace(/[^0-9]/g, '');
+      if(mm) curMonth = parseInt(mm, 10);
+    }
+    if(!curMonth) continue;
+    if(curMonth < prevMonth) year++;
+    prevMonth = curMonth;
+    const m = (dateCell.textContent || '').trim().match(/(\d{1,2})\([^)]*\)(?:\s*[~\-]\s*(\d{1,2})\([^)]*\))?/);
+    if(!m) continue;
+    const d1 = parseInt(m[1], 10), d2 = m[2] ? parseInt(m[2], 10) : d1;
+    const title = (titleCell.textContent || '').trim();
+    if(!title) continue;
+    let category = 'academic';
+    if(/공휴일|대체휴일/.test(title)) category = 'holiday';
+    else if(/고사|시험/.test(title)) category = 'exam';
+    else if(/방학/.test(title)) category = 'vacation';
+    else if(/개강|종강|축제|고·연전|고연전/.test(title)) category = 'event';
+    items.push({ title, startDate: `${year}-${pad(curMonth)}-${pad(d1)}`, endDate: `${year}-${pad(curMonth)}-${pad(d2)}`, category });
+  }
+  if(items.length === 0) throw new Error('일정 항목을 찾지 못했습니다.');
+  return items;
+}
 function officialScheduleModal(){
   return `
     <div class="modal-handle"></div>
-    <div class="modal-title">공식 학사일정 새로고침<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="modal-title">공식 학사일정 불러오기<button data-action="close-modal">${ICON.close}</button></div>
     <div style="background:rgba(var(--amber-rgb),0.08); border:1px solid rgba(var(--amber-rgb),0.25); border-radius:var(--radius-sm); padding:11px; margin-bottom:12px; font-size:11px; color:var(--text-dim); line-height:1.55;">
       <b style="color:var(--amber);">안내</b><br>
-      고려대학교 교육정보(registrar) 홈페이지의 학사일정표는 서버가 매일 자정 이후 자동으로 확인해서 새 항목을 반영해요. 이 버튼은 그 결과를 바로 다시 불러올 뿐, 지금 직접 학교 사이트를 다시 긁어오지는 않아요.
+      고려대학교 교육정보(registrar) 홈페이지의 학사일정표는 서버가 매일 자정 이후 자동으로 확인해 반영해요. <b>"사이트에서 불러오기"</b>를 누르면 지금 바로 학교 사이트를 읽어서, 앱에 없는 일정만 새로 추가해요(학생회 계정).
     </div>
-    <button type="button" class="btn btn-primary" id="btn-fetch-official-schedule" style="margin-bottom:12px;">${ICON.refresh} 새로고침</button>
+    <button type="button" class="btn btn-primary" id="btn-parse-official-schedule" style="margin-bottom:8px;">${ICON.download} 사이트에서 불러오기</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="btn-fetch-official-schedule" style="margin-bottom:12px; width:100%;">${ICON.refresh} 저장된 최신본만 다시 읽기</button>
     <div id="official-sch-status-box" style="font-size:11.5px; color:var(--text-dim); line-height:1.5;"></div>`;
 }
 
 function setupOfficialScheduleModalListeners(){
   const btnFetch=document.getElementById('btn-fetch-official-schedule');
+  const btnSite=document.getElementById('btn-parse-official-schedule');
   const statusBox=document.getElementById('official-sch-status-box');
   if(!btnFetch) return;
+
+  // 학교 사이트를 우리 서버(Cloudflare Worker)를 거쳐 지금 바로 읽고, 앱에 없는 일정만 추가한다.
+  if(btnSite) btnSite.onclick=async ()=>{
+    btnSite.disabled=true; btnFetch.disabled=true;
+    statusBox.innerHTML='<span style="color:var(--teal);">학교 사이트에서 불러오는 중…</span>';
+    try{
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 15000);
+      let html;
+      try{
+        const res = await fetch(OFFICIAL_SCHEDULE_WORKER_URL, { cache:'no-store', signal: ctrl.signal });
+        if(!res.ok) throw new Error('학교 사이트 응답 오류 (' + res.status + ')');
+        html = await res.text();
+      } finally { clearTimeout(timer); }
+      if(!html || html.length < 1000 || !/학사일정/.test(html)) throw new Error('학사일정 페이지 응답이 예상과 다릅니다.');
+      const items = parseOfficialScheduleClient(html);
+      const latest = await loadCalendar();
+      const existing = new Set(live(latest).map(e=>e.title+'|'+e.startDate));
+      const fresh = items.filter(it=>!existing.has(it.title+'|'+it.startDate));
+      state.calendar = latest;
+      if(!fresh.length){
+        renderMain();
+        statusBox.innerHTML = `<span style="color:var(--teal);">✓ 사이트의 학사일정 ${items.length}건을 확인했어요 · 새로 추가할 일정이 없어요</span>`;
+        return;
+      }
+      if(!isCouncil()){
+        renderMain();
+        statusBox.innerHTML = `사이트에는 앱에 없는 일정이 ${fresh.length}건 있어요. 학생회 계정에서 불러오면 반영돼요.`;
+        return;
+      }
+      const additions = fresh.map(it=>({ id:uid(), title:it.title, startDate:it.startDate, endDate:it.endDate, category:it.category, source:'official', color:'', description:'', authorId:state.user.studentId, authorRole:myRole(), updatedAt:now() }));
+      const next = [...latest, ...additions];
+      const ok = await saveCalendar(next);
+      state.calendar = next;
+      renderMain();
+      const list = additions.slice(0, 6).map(a=>`${escapeHtml(a.title)} <span style="color:var(--text-faint);">(${a.startDate})</span>`).join('<br>');
+      statusBox.innerHTML = ok
+        ? `<span style="color:var(--teal); font-weight:700;">✓ 새 학사일정 ${additions.length}건을 추가했어요</span><br>${list}${additions.length > 6 ? '<br>…' : ''}`
+        : '<span style="color:var(--danger);">사이트에서 읽었지만 저장에 실패했어요. 잠시 뒤 다시 시도해 주세요.</span>';
+    }catch(err){
+      statusBox.innerHTML = `<span style="color:var(--danger);">불러오지 못했어요 (${escapeHtml((err && err.message) || '알 수 없음')})</span>`;
+    }finally{
+      btnSite.disabled=false; btnFetch.disabled=false;
+    }
+  };
 
   btnFetch.onclick=async ()=>{
     btnFetch.disabled=true;
@@ -7920,7 +8030,7 @@ function renderCalendarTab(){
       <button class="btn btn-teal btn-sm" data-action="ocr-calendar" style="flex:1;">${ICON.camera} 사진 인식</button>
     </div>
     <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <button class="btn btn-ghost btn-sm" data-action="open-official-schedule" style="flex:1;">${ICON.globe} 공식 학사일정 새로고침</button>
+      <button class="btn btn-ghost btn-sm" data-action="open-official-schedule" style="flex:1;">${ICON.globe} 공식 학사일정 불러오기</button>
       ${isDirectorPlus() ? `<button class="btn btn-danger btn-sm" data-action="delete-all-calendar" style="flex:1;">전체 삭제</button>` : ''}
     </div>` : ''}
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
@@ -10259,6 +10369,38 @@ AV_ICONS.push(...[
   ['whistle','호루라기','<circle cx="8" cy="15" r="4.500"/><path d="M12 12h9v3h-5M8 10.500V7h3M5 15h6"/>'],
   ['skateboard','스케이트보드','<path d="M3 11h18c0 2-2 3-4 3H7c-2 0-4-1-4-3z"/><circle cx="8" cy="18" r="1.500"/><circle cx="16" cy="18" r="1.500"/>'],
 ].filter(n=>!AV_ICONS.some(x=>x[0] === n[0])));
+// 모양이 어색하던 아이콘을 다시 그린 것(2026-10-14 전체 검토). 같은 id의 예전 정의를 이 값으로 덮어쓴다 —
+// 저장해 둔 프로필은 id만 들고 있어서 그대로 새 모양으로 보인다. 목록에 없으면 새로 추가한다.
+[
+  ['transistor', '트랜지스터', '<path d="M2.5 12H7M7 6.5v11"/><path d="M10 7v3M10 10.500v3M10 14v3"/><path d="M10 8.500h8V3.500M10 15.500h8v5"/><path d="M10 12h4.500"/>'],
+  ['circuit', '회로', '<circle cx="5" cy="6" r="1.800"/><circle cx="19" cy="18" r="1.800"/><circle cx="19" cy="12" r="1.800"/><path d="M6.800 6H12v12h5.200M12 12h5.200"/>'],
+  ['magnet', '자석', '<path d="M6 3h4v10a2 2 0 0 0 4 0V3h4v10a6 6 0 0 1-12 0z"/><path d="M6 7h4M14 7h4"/>'],
+  ['glasses', '동그란 안경', '<circle cx="6.500" cy="13.500" r="3.800"/><circle cx="17.500" cy="13.500" r="3.800"/><path d="M10.300 13c1-.9 2.400-.9 3.400 0"/><path d="M2.700 12.500 3.600 7.500M21.300 12.500l-.9-5"/>'],
+  ['rocket', '로켓', '<path d="M12 2.500c3 2.500 4.500 6.200 4 10.500l-1.700 2.700H9.700L8 13c-.5-4.300 1-8 4-10.500z"/><circle cx="12" cy="9" r="1.800"/><path d="M8.300 13 5 16.200l.7 3 3.300-1.700M15.700 13 19 16.200l-.7 3-3.300-1.700"/><path d="M10.200 18.500 12 22l1.800-3.500"/>'],
+  ['key', '열쇠', '<circle cx="8" cy="16" r="4.600"/><circle cx="8" cy="16" r="1.400" fill="currentColor" stroke="none"/><path d="M11.400 12.600 21 3"/><path d="M17.600 6.400 20.400 9.200"/><path d="M14.600 9.400 16.900 11.700"/>'],
+  ['book', '책', '<path d="M12 6.500C10 4.800 6.500 4.500 3 5v13c3.500-.5 7-.2 9 1.500 2-1.700 5.500-2 9-1.500V5c-3.500-.5-7-.2-9 1.500z"/><path d="M12 6.500v13"/>'],
+  ['umbrella', '우산', '<path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v6.500a2 2 0 0 0 4 0M12 3V2"/><path d="M8.500 12C8.500 8.500 10 5.500 12 3.200M15.500 12c0-3.500-1.500-6.500-3.500-8.800"/>'],
+  ['dog', '강아지', '<path d="M7.500 7.500C5.600 7 3.600 8 3 11.500c-.3 2.500.8 3.800 2.500 3.500M16.500 7.500c1.900-.5 3.900.5 4.500 4 .3 2.500-.8 3.800-2.500 3.500"/><path d="M7.500 7.500C9.500 6.200 14.500 6.200 16.500 7.500V14a4.500 5 0 0 1-9 0z"/><circle cx="10" cy="11.500" r=".9" fill="currentColor" stroke="none"/><circle cx="14" cy="11.500" r=".9" fill="currentColor" stroke="none"/><ellipse cx="12" cy="14" rx="1.300" ry=".9" fill="currentColor" stroke="none"/><path d="M10.300 16.200c.6.600 1.100.8 1.700.8s1.100-.2 1.700-.8"/>'],
+  ['bird', '새', '<path d="M4.500 12.500C4.500 8.500 7.500 6 11.500 6s6 2.500 6 6c0 4.500-3 7-7 7-2.500 0-4.500-1.200-6-3.500z"/><path d="M5 14.500 2.500 17.500M5 12.500 2.500 12.500"/><path d="M17.200 10 21.200 11.200 17.400 12.600"/><circle cx="14.500" cy="10" r=".9" fill="currentColor" stroke="none"/><path d="M10.500 19v2.500M13.500 18.800v2.700"/><path d="M8 12.500c1 1.800 3 2.500 5 1.500"/>'],
+  ['turtle', '거북이', '<ellipse cx="12" cy="13.500" rx="6.500" ry="5.500"/><path d="M12 8v11M6.500 13.500h11"/><circle cx="12" cy="4.800" r="1.900"/><path d="M6.300 9.500 4.500 7.500M17.700 9.500l1.800-2M6.300 17.500l-1.800 2M17.700 17.500l1.800 2"/>'],
+  ['anchor', '닻', '<circle cx="12" cy="5" r="2.200"/><path d="M12 7.200v13.800M8 10.500h8"/><path d="M4.500 13.500c.3 4 3.500 7 7.500 7s7.200-3 7.500-7"/><path d="M4.500 13.500 3 11.500M4.500 13.500l2-1M19.500 13.500l1.500-2M19.500 13.500l-2-1"/>'],
+  ['bike', '자전거', '<circle cx="6" cy="16" r="3.600"/><circle cx="18" cy="16" r="3.600"/><path d="M6 16h5l4-7M8.500 9H15M8.500 9 11 16M15 9l3 7M15 9l-.8-2.500H12.500"/>'],
+  ['car', '자동차', '<path d="M2.500 15.500v-4l2.300-4.500c.3-.6.9-1 1.600-1h7.700c.6 0 1.200.3 1.500.8l3 4.700c.9.2 1.900 1.100 1.900 2.100v2h-2M2.500 15.500h2M9.500 15.500h5"/><circle cx="7" cy="15.500" r="2.200"/><circle cx="17" cy="15.500" r="2.200"/><path d="M4.800 11h13.700"/>'],
+  ['satellite', '위성', '<rect x="9.500" y="9.500" width="5" height="5" rx=".8" transform="rotate(45 12 12)"/><rect x="3.500" y="4.700" width="6" height="3.600" rx=".6" transform="rotate(45 6.500 6.500)"/><rect x="14.500" y="15.700" width="6" height="3.600" rx=".6" transform="rotate(45 17.500 17.500)"/><path d="M15.200 8.800 18 6M17.500 3.800a4.300 4.300 0 0 1 2.700 2.700"/>'],
+  ['microscope', '현미경', '<path d="M8 3h4v3H8z"/><path d="M7.500 6h5v6.500a2.500 2.500 0 0 1-5 0z"/><path d="M5.500 17h7M3.500 21h17"/><path d="M13 21a7 7 0 0 0 0-14h-.5"/>'],
+  ['telescope', '망원경', '<path d="M3 12.500 15.500 6l2 4-12.500 6.500z"/><path d="M15.500 6l1.500-.8 2.500 4.800-1.500.8"/><path d="M10 14.500 7 21M11.500 14.200l2.500 6.800M9 15.500 12 21"/>'],
+  ['nmos', 'NMOS', '<path d="M2.500 12H7M7 6.500v11"/><path d="M10 7v3M10 10.500v3M10 14v3"/><path d="M10 8.500h8V3.500M10 15.500h8v5"/><path d="M10 12h4.500"/><path d="M12.600 10.600 10.300 12l2.300 1.400"/>'],
+  ['pmos', 'PMOS', '<path d="M2.500 12h2.700"/><circle cx="6.200" cy="12" r="1"/><path d="M7.700 6.500v11"/><path d="M10.500 7v3M10.500 10.500v3M10.500 14v3"/><path d="M10.500 8.500h7.500V3.500M10.500 15.500h7.500v5"/><path d="M10.500 12h4.500"/><path d="M12.900 10.600l2.300 1.400-2.300 1.400"/>'],
+  ['usb', 'USB', '<circle cx="12" cy="19.500" r="2"/><path d="M12 17.500V5"/><path d="M12 2.500 10 5.800h4z"/><path d="M12 14 7.500 11.500V8.600"/><circle cx="7.500" cy="7.300" r="1.300"/><path d="M12 11l4.500-2.200V7.300"/><rect x="15.200" y="4.700" width="2.600" height="2.600" rx=".3"/>'],
+  ['pingpong', '탁구', '<circle cx="10" cy="10" r="6.200"/><path d="M6.200 7.500A4.800 4.800 0 0 1 9 5.300"/><rect x="14.300" y="15.200" width="3.400" height="6.800" rx="1.300" transform="rotate(-45 16 18.600)"/><circle cx="19.500" cy="5" r="1.500" fill="currentColor" stroke="none"/>'],
+  ['boxing', '권투 글러브', '<path d="M7 16V9.500A5 5 0 0 1 12 4.500h1A5 5 0 0 1 18 9.500V16"/><rect x="7" y="16" width="11" height="5" rx="1.300"/><path d="M7 11H5.800a1.800 1.800 0 0 0 0 3.600H7"/><path d="M13.500 11.500h4.500"/>'],
+  ['whistle', '호루라기', '<path d="M3.500 10h10.500a6 6 0 1 1-6 6V13H3.500z"/><circle cx="14" cy="16" r="1.600"/><path d="M17.500 5.500 20 4.500"/>'],
+].forEach(fix => {
+  const i = AV_ICONS.findIndex(x => x[0] === fix[0]);
+  if(i >= 0) AV_ICONS[i] = fix; else AV_ICONS.push(fix);
+});
+// 모양이 겹치는 아이콘은 고르는 목록에서 감춘다(이미 저장한 프로필은 계속 보인다).
+const AV_ICON_HIDDEN = new Set(['snowflake']);
 // 종류별 묶음(목록에 없는 아이콘은 '기타'로 맨 뒤에 모인다)
 const AV_ICON_CATS = [
   ['반도체 · 소자', ['chip','wafer','transistor','nmos','pmos','npn','pnp','diode','led','resistor','capacitor','inductor','ground','vdd','switch','opamp','flipflop','clocksig','circuit','ram','battery','scope','bolt','magnet','atom']],
@@ -10541,7 +10683,7 @@ function avGridBlock(kind){
       items.forEach(it=>used.add(it[0]));
       inner += '<p class="av-cat">'+label+'</p>' + items.map(avIconCell).join('');
     });
-    const rest = AV_ICONS.filter(it=>!used.has(it[0]));
+    const rest = AV_ICONS.filter(it=>!used.has(it[0]) && !AV_ICON_HIDDEN.has(it[0]));
     if(rest.length) inner += '<p class="av-cat">기타</p>' + rest.map(avIconCell).join('');
   } else inner = avCellsHtml(kind, 0, AV_EMOJIS.length);
   // 한 번에 3줄만 보이고 그 안에서 스크롤한다(펼치기 없음)
@@ -12716,6 +12858,9 @@ function openModal(html){
   const ov=document.getElementById('modal-overlay');
   if(ov){
     ov.addEventListener('click', e=>{ if(e.target.id==='modal-overlay') closeModal(); });
+    // 첫 스타일(화면 아래 밖에 있는 상태)을 먼저 확정해 둬야, open을 붙였을 때 아래에서 올라오는 트랜지션이 항상 돈다.
+    // 이걸 안 하면 바쁜 순간(꾹 눌러 수정 화면을 열 때 등)에 시트가 애니메이션 없이 바로 나타난다.
+    void ov.offsetHeight;
     requestAnimationFrame(()=>ov.classList.add('open'));
     setupModalDragToDismiss(ov);
   }
@@ -14497,10 +14642,35 @@ INLINE_COLOR_HANDLERS['widget-accent'] = (hex)=>{
   });
 };
 
+// 건물 목록 펼치기 / 접기. 칸마다 --i(지연 순서)를 정해서 CSS가 한 줄씩 말려 내려오고 올라가게 한다.
+function openBldgPop(pop, up){
+  const items = Array.from(pop.querySelectorAll('.bldg-opt'));
+  const n = items.length;
+  items.forEach((el, i) => el.style.setProperty('--i', String(up ? n - 1 - i : i)));
+  pop.classList.remove('rolling-out');
+  pop.__closing = false;
+  pop.classList.toggle('up', !!up);
+  pop.style.display = 'block';
+  pop.classList.remove('rolling-in');
+  void pop.offsetWidth;                    // 애니메이션을 처음부터 다시 시작
+  pop.classList.add('rolling-in');
+}
+function closeBldgPop(pop, instant){
+  if(!pop || pop.style.display === 'none' || pop.__closing) return;
+  if(instant){ pop.classList.remove('rolling-in', 'rolling-out'); pop.style.display = 'none'; return; }
+  const items = Array.from(pop.querySelectorAll('.bldg-opt'));
+  const n = items.length, up = pop.classList.contains('up');
+  items.forEach((el, i) => el.style.setProperty('--i', String(up ? i : n - 1 - i)));   // 열 때의 반대 순서
+  pop.style.setProperty('--n', String(n));
+  pop.classList.remove('rolling-in');
+  pop.classList.add('rolling-out');
+  pop.__closing = true;
+  setTimeout(()=>{ pop.style.display = 'none'; pop.classList.remove('rolling-out'); pop.__closing = false; }, 260 + n * 28);
+}
 // 건물 목록은 바깥을 누르면 닫는다.
 document.addEventListener('click', (e)=>{
   if(e.target.closest && e.target.closest('.bldg-pop, .bldg-btn')) return;
-  document.querySelectorAll('.bldg-pop').forEach(p => { if(p.style.display !== 'none') p.style.display = 'none'; });
+  document.querySelectorAll('.bldg-pop').forEach(p => closeBldgPop(p));
   document.querySelectorAll('.bldg-btn.open').forEach(b => b.classList.remove('open'));
 });
 
@@ -15122,11 +15292,11 @@ document.addEventListener('click', async (e)=>{
       const card = el.closest('.slot-item-card');
       const pop = card && card.querySelector('.bldg-pop');
       if(!pop) return;
-      const open = pop.style.display === 'none';
-      document.querySelectorAll('.bldg-pop').forEach(p => { p.style.display = 'none'; });
-      document.querySelectorAll('.bldg-btn.open').forEach(b => b.classList.remove('open'));
+      const open = pop.style.display === 'none' || pop.classList.contains('rolling-out');
+      document.querySelectorAll('.bldg-pop').forEach(p => { if(p !== pop) closeBldgPop(p, true); });
+      document.querySelectorAll('.bldg-btn.open').forEach(b => { if(b !== el) b.classList.remove('open'); });
       el.classList.toggle('open', open);
-      if(!open) return;
+      if(!open){ closeBldgPop(pop); return; }
       // 보이는 화면(모달 시트) 안에서 아래 공간이 모자라고 위가 더 넓으면 위로 펼친다. 둘 다 모자라면 넓은 쪽에 맞춰 높이를 줄인다.
       pop.classList.remove('up');
       pop.style.maxHeight = '';
@@ -15140,8 +15310,8 @@ document.addEventListener('click', async (e)=>{
       const below = bottomLimit - rr.bottom - 4, above = rr.top - topLimit - 4;
       const want = Math.min(pop.scrollHeight + 8, 300);
       const up = below < want && above > below;
-      pop.classList.toggle('up', up);
       pop.style.maxHeight = Math.max(110, Math.min(300, up ? above : below)) + 'px';
+      openBldgPop(pop, up);
     }
     else if(a === 'day-step'){
       const wrap = el.closest('.dayp');
@@ -15169,7 +15339,7 @@ document.addEventListener('click', async (e)=>{
       const detail = card.querySelector('[name="slot_roomDetail"]'), customIn = card.querySelector('[name="slot_roomCustom"]');
       if(detail) detail.style.display = custom ? 'none' : '';
       if(customIn) customIn.style.display = custom ? '' : 'none';
-      card.querySelector('.bldg-pop').style.display = 'none';
+      closeBldgPop(card.querySelector('.bldg-pop'));
       card.querySelector('.bldg-btn').classList.remove('open');
       const focusEl = custom ? customIn : detail;
       if(focusEl && !focusEl.value) focusEl.focus();
