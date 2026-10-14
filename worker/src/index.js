@@ -71,10 +71,12 @@ async function verifyIdToken(idToken, apiKey) {
 // 직접 받아 그대로 돌려주면 남의 프록시에 기대지 않아도 된다.
 // 아무 URL이나 받는 열린 프록시가 되지 않도록 이 한 페이지 주소만 고정해서 부른다.
 const REGISTRAR_SCHEDULE_URL = 'https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do';
-async function handleScheduleProxy(origin) {
+// 학과 공지 게시판. 앱의 "사이트에서 불러오기" 버튼이 공개 CORS 프록시(거의 항상 죽어 있음) 대신 이 주소를 쓴다.
+const DEPT_NOTICE_URL = 'https://aisemi.korea.ac.kr/AISEMI/3600/subview.do';
+async function proxyFixedPage(url, origin, ttlSeconds) {
   try {
-    const res = await fetch(REGISTRAR_SCHEDULE_URL, {
-      cf: { cacheTtl: 3600, cacheEverything: true },
+    const res = await fetch(url, {
+      cf: { cacheTtl: ttlSeconds, cacheEverything: true },
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KUISEBot/1.0)' },
     });
     if (!res.ok) {
@@ -89,6 +91,9 @@ async function handleScheduleProxy(origin) {
     return json({ error: { message: '학교 페이지에 접근하지 못했습니다.' } }, 502, origin);
   }
 }
+const handleScheduleProxy = (origin) => proxyFixedPage(REGISTRAR_SCHEDULE_URL, origin, 3600);
+// 수동 "불러오기" 버튼용이라 오래 캐시하지 않는다(1분) — 눌렀는데 한 시간 전 목록이 오면 곤란하다.
+const handleDeptNoticeProxy = (origin) => proxyFixedPage(DEPT_NOTICE_URL, origin, 60);
 
 // 에브리타임 시간표 공유 링크 가져오기.
 // 공유 링크(everytime.kr/@식별자) 페이지는 화면이 뜬 뒤 아래 주소에 식별자를 보내 시간표 XML을
@@ -185,6 +190,12 @@ export default {
         return json({ error: { message: 'GET만 허용됩니다.' } }, 405, origin);
       }
       return handleScheduleProxy(origin);
+    }
+    if (pathname === '/dept-notices') {
+      if (request.method !== 'GET') {
+        return json({ error: { message: 'GET만 허용됩니다.' } }, 405, origin);
+      }
+      return handleDeptNoticeProxy(origin);
     }
     if (request.method !== 'POST') {
       return json({ error: { message: 'POST만 허용됩니다.' } }, 405, origin);

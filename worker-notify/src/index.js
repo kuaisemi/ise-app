@@ -506,8 +506,56 @@ async function runOnce(env) {
   return { sent: sentCount, items: updates.length, skipped: skippedNoAudience, repeated: repeatedCount, coalesced: coalescedCount, subrequests: budget.used };
 }
 
+/* ===== 학식 알림 정시 실행 =====
+   학식 푸시는 GitHub Actions(notify.yml → notify/send-notifications.mjs)가 보낸다. 그런데 그 정기 실행이
+   "매시 정각"으로 설정돼 있어도 실제로는 3~9시간 간격으로 드문드문 돌아서, 조식 07:00 · 중식 10:30 ·
+   석식 16:30의 짧은 발송 창을 자주 놓친다(2026-10-09~14 실행 기록 확인).
+   이 Worker는 매분 정확히 돌므로, 그 세 시각 직후에 GitHub 워크플로를 workflow_dispatch로 바로 실행시킨다.
+   GitHub 접근 토큰(Actions 쓰기 권한만 있는 것)이 secret GITHUB_DISPATCH_TOKEN에 없으면 아무것도 하지 않는다.
+   하루 세 번, 평일에만. 같은 시각에 두 번 부르지 않게 KV에 "이미 불렀음" 표시를 남긴다. */
+const MEAL_DISPATCH_SLOTS = [
+  { key: 'breakfast', h: 7, m: 0 },
+  { key: 'lunch', h: 10, m: 30 },
+  { key: 'dinner', h: 16, m: 30 },
+];
+async function maybeDispatchMealWorkflow(env, scheduledTime) {
+  if (!env.GITHUB_DISPATCH_TOKEN || !env.GITHUB_REPO) return;
+  const kst = new Date(scheduledTime + 9 * 3600 * 1000);
+  const dow = kst.getUTCDay();
+  if (dow === 0 || dow === 6) return; // 주말엔 식단이 없다
+  const minutes = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+  const date = kst.toISOString().slice(0, 10);
+  for (const s of MEAL_DISPATCH_SLOTS) {
+    const diff = minutes - (s.h * 60 + s.m);
+    if (diff < 0 || diff > 4) continue; // 정각부터 5분 안에서만(크론이 한 분 놓쳐도 다음 분에 잡는다)
+    const key = `meal-dispatch:${date}:${s.key}`;
+    if (await env.NOTIFY_CACHE.get(key)) continue;
+    const res = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/notify.yml/dispatches`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_DISPATCH_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'ku-ise-notify-worker',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    });
+    if (res.status === 204) {
+      await env.NOTIFY_CACHE.put(key, '1', { expirationTtl: 86400 });
+      console.log(`[meal-dispatch] ${date} ${s.key} 워크플로 실행 요청 완료`);
+    } else {
+      // 실패하면 표시를 남기지 않아 다음 분에 다시 시도한다(창은 5분).
+      console.error(`[meal-dispatch] ${s.key} 실패: ${res.status} ${(await res.text()).slice(0, 200)}`);
+    }
+  }
+}
+
 export default {
   async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      maybeDispatchMealWorkflow(env, event.scheduledTime).catch((e) => console.error('[meal-dispatch] 오류:', e && e.message))
+    );
     ctx.waitUntil(
       runOnce(env)
         .then((r) => {

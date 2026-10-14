@@ -974,7 +974,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .imp-hint b{color:var(--text);}
 /* 수업 추가: 강의실 = [건물 ▾] | [호수], 건물은 아래로 펼치는 패널에서 고름 */
 .bldg-row{display:flex; gap:6px; align-items:stretch;}
-.bldg-btn{flex:0 0 auto; max-width:58%; display:flex; align-items:center; gap:4px; padding:0 10px 0 12px; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:700; font-family:var(--font-display); cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.bldg-btn{flex:0 0 auto; max-width:66%; display:flex; align-items:center; gap:4px; padding:0 10px 0 12px; border-radius:var(--radius-sm); background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:700; font-family:var(--font-display); cursor:pointer; -webkit-tap-highlight-color:transparent;}
 .bldg-btn.open{border-color:var(--teal);}
 .bldg-btn-txt{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .bldg-btn svg{width:13px; height:13px; flex-shrink:0; color:var(--text-dim); transition:transform .15s;}
@@ -992,9 +992,16 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .bldg-custom{color:var(--text-dim);}
 .bldg-custom.on{color:var(--teal);}
 /* 요일 · 시작 ~ 종료를 한 줄에: 요일은 시간 선택기와 같은 위·아래 화살표 칸 */
-/* 글씨 크기를 키우면 이 줄은 한 줄에 못 들어가 깨지므로, 키워도 이 줄만은 원래 크기를 유지한다(zoom 상쇄).
-   대신 기본 크기를 조금 키워 둔다. */
-.slot-time-row{display:flex; align-items:center; gap:5px; zoom:calc(1 / var(--font-scale, 1));}
+/* 글씨 크기를 키우면 이 줄도 같이 커지되, 한 줄에 들어가는 한계까지만 커진다. 한계는 기기 화면 폭마다 달라서
+   JS(fitSlotTimeRows)가 줄의 "깨지지 않는 최소 폭"을 재서 zoom 배율을 정한다(1이면 글씨 크기를 그대로 따라감). */
+.slot-time-row{display:flex; align-items:center; gap:5px;}
+/* 재는 중에는 칸이 줄어들지 않는 "편하게 보이는 최소 크기"로 두고 폭만 잰다 */
+.slot-time-row.measure{width:max-content; zoom:1 !important;}
+.slot-time-row.measure .time-picker, .slot-time-row.measure .time-picker .tp-col{flex:0 0 auto;}
+.slot-time-row.measure .time-picker .tp-btn{width:34px;}
+.slot-time-row.measure .time-picker .tp-col-ampm .tp-btn{width:40px;}
+.slot-time-row.measure .time-picker .tp-val{width:34px; min-width:34px;}
+.slot-time-row.measure .time-picker .tp-ampm{width:40px; min-width:40px;}
 .slot-time-row .sep{color:var(--text-faint); font-weight:700; flex:0 0 auto; font-size:13px;}
 .slot-time-row .time-picker{display:flex; flex:1 1 0; min-width:0;}
 .slot-time-row .time-picker .tp-col{flex:1 1 0; min-width:0;}
@@ -1633,21 +1640,36 @@ const ANDROID_VERSION_CODE = 175;
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
   { version:'Beta 0.5.6', date:'2026-10-14', summary:'시간표 가져오기 개편 · 수업 색 테마 · 수업 추가 정리!', items:[
-    { title:'시간표 가져오기', text:'+ 버튼과 시간표 메뉴의 "가져오기"에서 에브리타임 링크 · 사진으로 인식 중에 골라요. 링크가 안 되면 사진으로, 사진 인식이 안 되면 링크로 가져오면 돼요' },
-    { title:'에브리타임 링크로 가져오기', text:'에브리타임 시간표 공유 링크를 붙여 넣으면 공개된 대표 시간표를 시간 · 강의실 그대로, 빠르고 정확하게 가져와요(에브리타임에서 공개 범위를 전체 공개로 해 주세요). 토 · 일 수업은 빼고 가져와요' },
-    { title:'이전 학기 시간표도 한 번에', text:'"이전 학기 대표 시간표도 모두 가져오기"를 켜 두면 지난 학기들의 공개된 대표 시간표도 각 학기에 새 시간표로 함께 추가돼요' },
-    { title:'추가할지 교체할지 골라요', text:'가져온 수업을 등록할 때 "새 시간표로 추가"(기본)와 "지금 시간표 교체" 중에서 골라요. 사진 인식도 이제 기존 시간표를 지우지 않고 추가할 수 있어요' },
-    { title:'수업 색 테마', text:'시간표 메뉴(⋯)의 "수업 색 테마"에서 기본 · 에타 · 파스텔 · 마카롱 · 화이트 · 캔디 · 바다 · 숲 · 노을 · 모노 중에 고르면 지금 시간표의 수업 색이 한 번에 바뀌어요. 같은 과목은 같은 색으로 묶여요' },
-    { title:'글자색 자동', text:'수업 바탕이 흰색이나 파스텔처럼 밝으면 글자가 자동으로 검정이 돼요. 테마 적용 · 가져오기 · 수업 편집 모두 똑같이 맞춰지고, 수업 편집에서 글자색을 직접 고를 수도 있어요' },
-    { title:'수업 추가가 간단해졌어요', text:'요일과 수업 시간(시작 ~ 종료)이 한 줄에 모였고, 요일도 시간처럼 ▲▼로 바꿔요(▼를 누르면 월 → 화 → 수). 강의실은 "건물 | 호수" 한 줄이고, 건물을 누르면 가속기 · 과기1관 · 과기2관 · 산학협력관 · 농심 순으로 세로 목록이 펼쳐지며 아래 공간이 모자라면 위로 펼쳐져요' },
-    { title:'화면 표시 설정 개편', text:'표시 항목이 한 줄의 아이콘 타일로 바뀌어 눌러서 켜고 끌 수 있고, 색상 · 크기는 카드로 묶어 한 화면에 모았어요. 현재 시간선 색은 앱 포인트 색으로 고를 수 있고, "기본값" 버튼으로 한 번에 되돌릴 수 있어요' },
+    { title:'시간표 가져오기 개편', text:'+ 버튼과 시간표 메뉴의 "가져오기"에서 에브리타임 링크 또는 사진 인식으로 시간표를 가져오고, 등록할 때 새 시간표로 추가할지 지금 시간표를 교체할지 골라요', sub:[
+      '에브리타임 링크: 공유 링크만 붙여 넣으면 시간 · 강의실을 그대로 가져와요(토 · 일 수업 제외, 에타에서 공개 범위를 전체 공개로)',
+      '이전 학기의 공개된 대표 시간표도 한 번에 추가',
+      '링크가 안 되면 사진으로, 사진 인식이 안 되면 링크로',
+      '등록 방식 선택: 새 시간표로 추가(기본) / 지금 시간표 교체',
+    ] },
+    { title:'수업 색 테마', text:'시간표 메뉴(⋯)의 "수업 색 테마"에서 고르면 지금 시간표의 수업 색이 한 번에 바뀌고, 바탕이 밝으면 글자색이 자동으로 검정이 돼요', sub:[
+      '기본 · 에타 · 파스텔 · 마카롱 · 화이트 · 캔디 · 바다 · 숲 · 노을 · 모노',
+      '같은 과목은 같은 색으로 묶이고, 수업 편집에서 글자색을 직접 고를 수도 있어요',
+    ] },
+    { title:'수업 추가가 간단해졌어요', text:'요일과 시간(시작 ~ 종료)이 한 줄, 강의실은 "건물 | 호수" 한 줄이에요', sub:[
+      '요일도 ▲▼로 바꿔요(▼를 누르면 월 → 화 → 수)',
+      '건물 목록은 가속기 · 과기1관 · 과기2관 · 산학협력관 · 농심 순으로 펼쳐지고, 아래 공간이 모자라면 위로 펼쳐져요',
+      '글씨 크기를 키워도 한 줄이 깨지지 않는 한계까지만 커져요',
+    ] },
+    { title:'화면 표시 설정 개편', text:'표시 항목이 한 줄의 아이콘 타일로 바뀌어 눌러서 켜고 끌 수 있고, 색상 · 크기는 카드로 묶어 한 화면에 모았어요', sub:[
+      '현재 시간선 색은 앱 포인트 색으로 고를 수 있어요',
+      '"기본값" 버튼으로 한 번에 되돌려요',
+    ] },
     { title:'날짜 선택이 팝업으로', text:'학사일정 · 알림 · 투표 마감 등에서 날짜를 누르면 달력이 칸을 늘리지 않고 버튼 아래(공간이 모자라면 위)에 팝업으로 떠요. 날짜를 고르거나 바깥을 누르면 닫혀요' },
+    { title:'학과 공지 "사이트에서 불러오기"', text:'학사일정 탭의 학과 공지에서 "사이트에서 불러오기"를 누르면 학과 게시판을 지금 바로 받아 와요(학생회 전용). 예전엔 접속이 막혀 자주 실패했는데 우리 서버를 거치도록 바꿨어요' },
     { title:'색 고르기에서 검정이 안 보이던 문제 수정', text:'일정 · 수업 색 고르기의 색 동그라미에 얇은 회색 테두리를 둘러서 검정(또는 흰색)도 배경에 묻히지 않고 보여요', type:'fix' },
-    { title:'학식 알림 제목 정리', text:'알림 제목이 "조식" · "중식" · "석식"으로 바뀌었어요. 중식은 진리관 · 미래관을 둘 다 켜 두면 한 통으로 와서, 본문에 (진리) · (미래) 메뉴가 한 줄씩 나와요', type:'fix' },
+    { title:'수업 추가 화면 오류 수정', text:'수업 추가 화면에서 헷갈리거나 사라지던 부분을 고쳤어요', type:'fix', sub:[
+      '요일과 오전/오후 색이 겹쳐 헷갈리던 것을 구분',
+      '시간대를 지워도 "기타(직접 입력)"로 적은 강의실이 사라지지 않아요',
+    ] },
     { title:'키보드가 올라와도 시간표가 그대로', text:'글자를 입력하려고 키보드가 올라올 때 뒤의 시간표가 쪼그라들며 위로 올라가던 문제를 고쳤어요', type:'fix' },
-    { title:'요일과 오전/오후 색이 겹쳐 헷갈리던 것 수정', text:'수업 추가에서 요일 글자를 흰색 칸으로 바꿔 오전/오후(노란색)와 구분되게 했어요', type:'fix' },
-    { title:'시간대를 지워도 직접 입력한 강의실이 유지', text:'수업 추가에서 "기타(직접 입력)"로 적은 강의실이 다른 시간대를 삭제하면 사라지던 문제를 고쳤어요', type:'fix' },
-  ]},  { version:'Beta 0.5.5', date:'2026-10-06', summary:'회원가입 동의 · 공휴일 인사 · 게시판 정리', items:[
+    { title:'학식 알림 제목 정리', text:'알림 제목이 "조식" · "중식" · "석식"으로 바뀌었어요. 진리관 · 미래관을 둘 다 켜 두면 중식이 한 통으로 와서, 본문에 (진리) · (미래) 메뉴가 한 줄씩 나와요', type:'fix' },
+  ]},
+  { version:'Beta 0.5.5', date:'2026-10-06', summary:'회원가입 동의 · 공휴일 인사 · 게시판 정리', items:[
     { title:'회원가입 개인정보 동의', text:'가입할 때 수집 항목·이용 목적·보유 기간을 안내하고, 필수 동의에 체크해야 가입돼요' },
     { title:'공휴일 인사', text:'공휴일에는 홈 맨 위에 오늘이 공휴일이라는 안내와 인사가 나와요' },
     { title:'게시판은 학생회 전용으로', text:'실명 노출·욕설 문제를 막기 위해 학생 글쓰기와 "공지 신청"을 없앴어요. 이제 공지·게시글은 학생회만 올려요' },
@@ -2525,6 +2547,37 @@ function dateFieldHtml(name, value, opts={}){
       <input type="hidden" name="${name}" value="${v}" ${opts.required?'required':''}>
       ${opts.external ? '' : `<div class="date-field-panel" id="date-panel-${name}" style="display:none;"></div>`}
     </div>`;
+}
+// 수업 추가의 "요일 · 시작 ~ 종료" 줄: 글씨 크기를 키우면 같이 커지다가, 한 줄에 들어가는 한계에서 멈춘다.
+// 줄이 깨지지 않는 최소 폭(natural)과 실제로 쓸 수 있는 폭(avail)을 비교해 zoom을 min(1, avail/natural)로 둔다.
+// 기기 화면 폭과 글씨 크기에 따라 값이 달라지므로 화면에 나타날 때마다 다시 잰다.
+function fitSlotTimeRows(){
+  document.querySelectorAll('.slot-time-row').forEach(row=>{
+    const parent = row.parentElement;
+    if(!parent) return;
+    row.style.zoom = '';
+    row.classList.add('measure');
+    const natural = row.scrollWidth;
+    row.classList.remove('measure');
+    const avail = parent.clientWidth;
+    if(natural > 0 && avail > 0 && avail < natural) row.style.zoom = String(Math.max(0.5, avail / natural));
+  });
+}
+{
+  let fitRaf = 0;
+  const schedule = ()=>{ cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(fitSlotTimeRows); };
+  window.addEventListener('resize', schedule);
+  const start = ()=>{
+    const root = document.getElementById('modal-root');
+    if(!root || root.__slotFitObserved) return !!root;
+    root.__slotFitObserved = true;
+    new MutationObserver((muts)=>{
+      if(muts.some(m=>Array.from(m.addedNodes).some(n=>n.nodeType===1 && (n.matches('.slot-time-row') || n.querySelector('.slot-time-row') || n.matches('.modal-sheet,.modal-overlay') || n.querySelector('.modal-sheet'))))) schedule();
+    }).observe(root, { childList:true, subtree:true });
+    return true;
+  };
+  if(!start()) document.addEventListener('DOMContentLoaded', start);
+  document.addEventListener('click', (e)=>{ if(e.target.closest && e.target.closest('[data-action="add-slot"]')) setTimeout(schedule, 0); }, true);
 }
 // 날짜 달력 팝업 위치 잡기: 기본은 버튼 왼쪽 아래. 시트 오른쪽을 넘으면 옆으로 밀고, 아래 공간이 모자라고 위가 더 넓으면 위로 펼친다.
 function placeDatePanel(panel){
@@ -6161,7 +6214,7 @@ function showWebPatchPopup(){
       <p class="apk-popup-desc" style="text-align:center;">${entry && entry.summary ? escapeHtml(entry.summary) : '이번에 이런 게 새로 생겼어요'}</p>
       ${(()=>{
         const { features, fixes } = splitPatchItems(items);
-        const row = (it)=>`<li style="margin-bottom:4px;">${escapeHtml(patchNoteItemTitle(it))}</li>`;
+        const row = (it)=>`<li style="margin-bottom:4px;">${escapeHtml(patchNoteItemTitle(it))}${patchNoteSubHtml(it, '11px')}</li>`;
         return `
         ${features.length ? `<ul style="margin:0 0 4px; padding-left:18px; font-size:12px; color:var(--text-dim); line-height:1.7;">${features.map(row).join('')}</ul>` : ''}
         ${(features.length && fixes.length) ? `<div style="display:flex; align-items:center; gap:8px; margin:8px 0 6px;"><span style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em;">버그 수정</span><span style="flex:1; height:1px; background:var(--border);"></span></div>` : ''}
@@ -7716,6 +7769,7 @@ function renderInfo(){
 }
 
 const DEPT_NOTICE_URL = 'https://aisemi.korea.ac.kr/AISEMI/3600/subview.do';
+const DEPT_NOTICE_WORKER_URL = 'https://ku-ise-ocr.kuaisemi.workers.dev/dept-notices';
 // 학사일정 탭 맨 아래에 붙는 학과 공지 박스 (별도 서브탭이 아니라 학사일정 탭 안에서 바로 확인)
 function renderDeptNoticeBox(){
   const items = state.deptNotices || [];
@@ -7729,7 +7783,7 @@ function renderDeptNoticeBox(){
     <div class="card" id="dept-notice-box">
       <div class="row-between" style="margin-bottom:${items.length?'8px':'0'};">
         <span style="font-size:12px; color:var(--text-faint);">${updatedAt ? `${fmtDateTime(updatedAt)} 기준` : '아직 불러오지 않았어요'}</span>
-        <button type="button" id="dept-notice-refresh-btn" class="btn btn-ghost btn-sm" data-action="refresh-dept-notices" style="width:auto; padding:3px 9px; font-size:12px; ${isCouncil()?'':'display:none;'}">${ICON.refresh} 새로고침</button>
+        <button type="button" id="dept-notice-refresh-btn" class="btn btn-ghost btn-sm" data-action="refresh-dept-notices" style="width:auto; padding:3px 9px; font-size:12px; ${isCouncil()?'':'display:none;'}">${ICON.download} 사이트에서 불러오기</button>
       </div>
       <div id="dept-notice-status" style="font-size:11.5px; color:var(--text-dim); display:none; padding:6px 0;"></div>
       <div id="dept-notice-list">
@@ -7737,7 +7791,7 @@ function renderDeptNoticeBox(){
           <a href="${escapeHtml(n.href)}" target="_blank" rel="noopener" class="dept-notice-row">
             <span class="dept-notice-title">${escapeHtml(n.title)}</span>
             <span class="dept-notice-date">${escapeHtml(n.date||'')}</span>
-          </a>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); text-align:center; padding:14px 0; margin:0;">불러온 공지가 없어요. 새로고침을 눌러주세요.</p>`}
+          </a>`).join('') : `<p style="font-size:11.5px; color:var(--text-faint); text-align:center; padding:14px 0; margin:0;">불러온 공지가 없어요.${isCouncil() ? ' "사이트에서 불러오기"를 눌러주세요.' : ''}</p>`}
       </div>
     </div>`;
 }
@@ -8925,6 +8979,8 @@ async function fetchDeptNoticesFromSource(silent=false){
   if(statusEl && !silent){ statusEl.style.display='block'; statusEl.innerHTML = '<span style="color:var(--teal);">학과 게시판에서 공지를 불러오는 중…</span>'; }
 
   const proxies = [
+    // 우리 Cloudflare Worker가 학과 게시판을 대신 받아 준다(공개 CORS 프록시는 거의 항상 죽어 있다).
+    () => DEPT_NOTICE_WORKER_URL,
     u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
     u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
     u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
@@ -10946,7 +11002,7 @@ function currentVersionNotesHtml(){
       </div>
       ${(()=>{
         const { features, fixes } = splitPatchItems(items);
-        const row = (it)=>`<li style="margin-bottom:5px;">${escapeHtml(patchNoteItemTitle(it))}</li>`;
+        const row = (it)=>`<li style="margin-bottom:5px;">${escapeHtml(patchNoteItemTitle(it))}${patchNoteSubHtml(it, '10.5px')}</li>`;
         return `
         ${features.length ? `<ul style="margin:0; padding-left:16px; font-size:11.5px; color:var(--text-dim); line-height:1.65;">${features.map(row).join('')}</ul>` : ''}
         ${(features.length && fixes.length) ? `<div style="display:flex; align-items:center; gap:8px; margin:8px 0 6px;"><span style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em;">버그 수정</span><span style="flex:1; height:1px; background:var(--border);"></span></div>` : ''}
@@ -11927,6 +11983,12 @@ async function deleteBugReport(id){
 // admin:true 항목은 학생회(council) 이상에게만 보인다 — 일반 학생에게는 의미 없는
 // 관리 화면 변경사항까지 다 보여주면 패치노트가 TMI로 가득 차기 때문.
 function patchNoteItemText(it){ return typeof it === 'string' ? it : it.text; }
+// 항목 아래에 작게 붙는 소분류(item.sub). 같은 기능에서 갈라져 나온 내용을 한 제목 밑에 모아 보여준다.
+function patchNoteSubHtml(it, fontSize){
+  const sub = (it && typeof it === 'object' && Array.isArray(it.sub)) ? it.sub : null;
+  if(!sub || !sub.length) return '';
+  return `<ul style="margin:3px 0 2px; padding-left:13px; font-size:${fontSize}; color:var(--text-faint); line-height:1.55; list-style:'– ';">${sub.map(s=>`<li style="margin-bottom:2px;">${escapeHtml(s)}</li>`).join('')}</ul>`;
+}
 // "업데이트 확인" 화면에서는 한 줄 제목만 보여준다 — 거기서까지 전문을 늘어놓으면 뭐가
 // 바뀌었는지 훑어보기가 어렵다. 전문은 패치노트 화면에서 그대로 볼 수 있다.
 // 항목에 title을 따로 적어두면 그걸 쓰고, 없으면 본문에서 설명이 시작되는 지점(" — " 또는
@@ -11989,7 +12051,7 @@ function patchNotesModal(){
                 </div>
                 ${(()=>{
                   const { features, fixes } = splitPatchItems(p.visible);
-                  const row = (it)=>`<li>${escapeHtml(patchNoteItemText(it))}${(council && typeof it!=='string' && it.admin) ? ' <span class="tag tag-dim" style="font-size:9px; padding:1px 5px;">관리자</span>' : ''}</li>`;
+                  const row = (it)=>`<li>${escapeHtml(patchNoteItemText(it))}${patchNoteSubHtml(it, '11px')}${(council && typeof it!=='string' && it.admin) ? ' <span class="tag tag-dim" style="font-size:9px; padding:1px 5px;">관리자</span>' : ''}</li>`;
                   return `
                   ${features.length ? `<ul style="margin:0; padding-left:18px; font-size:11.5px; color:var(--text-dim); line-height:1.7;">${features.map(row).join('')}</ul>` : ''}
                   ${(features.length && fixes.length) ? `<div style="display:flex; align-items:center; gap:8px; margin:10px 0 8px;"><span style="font-size:10px; font-weight:700; color:var(--text-faint); letter-spacing:.02em;">버그 수정</span><span style="flex:1; height:1px; background:var(--border);"></span></div>` : ''}
