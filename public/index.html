@@ -981,6 +981,9 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .bldg-btn svg{width:13px; height:13px; flex-shrink:0; color:var(--text-dim); transition:transform .15s;}
 .bldg-btn.open svg{transform:rotate(180deg);}
 .field .bldg-row input.bldg-room{flex:1; min-width:0; width:auto;}
+/* 팝업(건물 목록 · 날짜 달력)은 나타날 때 아래에서 위로 살짝 떠오른다 */
+@keyframes popRise{from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:translateY(0);}}
+.bldg-pop, .date-field > .date-field-panel{animation:popRise .22s cubic-bezier(.22,1,.36,1);}
 /* 건물 목록: 버튼 아래에 겹쳐 뜨는 세로 목록(카드 높이는 그대로) */
 .bldg-anchor{position:relative;}
 .bldg-pop{position:absolute; left:0; top:calc(100% + 4px); z-index:30; width:max-content; min-width:58%; max-width:100%; max-height:300px; overflow-y:auto; padding:4px; border-radius:14px; background:var(--surface); border:1px solid var(--border-light, var(--border)); box-shadow:0 10px 28px rgba(0,0,0,.4);}
@@ -1660,7 +1663,7 @@ const PATCH_NOTES = [
       '현재 시간선 색은 앱 포인트 색으로 고를 수 있어요',
       '"기본값" 버튼으로 한 번에 되돌려요',
     ] },
-    { title:'날짜 선택이 팝업으로', text:'학사일정 · 알림 · 투표 마감 등에서 날짜를 누르면 달력이 칸을 늘리지 않고 버튼 아래(공간이 모자라면 위)에 팝업으로 떠요. 날짜를 고르거나 바깥을 누르면 닫혀요' },
+    { title:'날짜 선택이 팝업으로', text:'학사일정 · 알림 · 투표 마감 등에서 날짜를 누르면 달력이 칸을 늘리지 않고 버튼 아래(공간이 모자라면 위)에 팝업으로 떠요. 날짜를 고르거나 바깥을 누르면 닫혀요. 건물 목록과 함께 아래에서 위로 떠오르며 나타나요' },
     { title:'학과 공지 "사이트에서 불러오기"', text:'학사일정 탭의 학과 공지에서 "사이트에서 불러오기"를 누르면 학과 게시판을 지금 바로 받아 와요(학생회 전용). 예전엔 접속이 막혀 자주 실패했는데 우리 서버를 거치도록 바꿨어요' },
     { title:'색 고르기에서 검정이 안 보이던 문제 수정', text:'일정 · 수업 색 고르기의 색 동그라미에 얇은 회색 테두리를 둘러서 검정(또는 흰색)도 배경에 묻히지 않고 보여요', type:'fix' },
     { title:'수업 추가 화면 오류 수정', text:'수업 추가 화면에서 헷갈리거나 사라지던 부분을 고쳤어요', type:'fix', sub:[
@@ -1668,6 +1671,7 @@ const PATCH_NOTES = [
       '시간대를 지워도 "기타(직접 입력)"로 적은 강의실이 사라지지 않아요',
     ] },
     { title:'시간표 수업은 꾹 눌러서 수정', text:'시간표에서 수업을 한 번 누르면 눌리는 모션만 나오고, 꾹 누르면 수정 화면이 열려요. 스크롤하다가 실수로 열리지 않아요', sub:[ '수업 개수는 과목 이름 기준(수업 9개)으로, 요일·시간 칸은 시간대(14개)로 따로 보여 줘요', '에브리타임 링크 가져오기를 열어도 키보드가 저절로 올라오지 않아요' ] },
+    { title:'MY 아이콘 정리', text:'비밀번호 변경은 열쇠 모양을 다듬었고, 회원 탈퇴는 사람 위에 오른쪽 위에서 왼쪽 아래로 굵은 사선을 그어 더 분명하게 보이게 했어요' },
     { title:'키보드가 올라와도 시간표가 그대로', text:'글자를 입력하려고 키보드가 올라올 때 뒤의 시간표가 쪼그라들며 위로 올라가던 문제를 고쳤어요', type:'fix' },
     { title:'학식 알림 제목 정리', text:'알림 제목이 "조식" · "중식" · "석식"으로 바뀌었어요. 진리관 · 미래관을 둘 다 켜 두면 중식이 한 통으로 와서, 본문에 (진리) · (미래) 메뉴가 한 줄씩 나와요', type:'fix' },
   ]},
@@ -6069,7 +6073,8 @@ const ICON = {
   grid:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg>`,
   calendar:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>`,
   calendarMy:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><text x="12" y="17.6" text-anchor="middle" font-size="6.6" font-weight="800" font-family="system-ui,sans-serif" fill="currentColor" stroke="none">MY</text></svg>`,
-  personOff:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20.5c0-3.6 3.2-6 7-6s7 2.4 7 6"/><path d="M4 4l16 16"/></svg>`,
+  // 회원 탈퇴: 사람 모양 위에 오른쪽 위 → 왼쪽 아래로 굵은 사선을 긋고, 사선 둘레는 비워(마스크) 한눈에 "지워짐"으로 읽히게 한다.
+  personOff:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><defs><mask id="pomask"><rect width="24" height="24" fill="#fff"/><path d="M20.8 3.2 3.2 20.8" stroke="#000" stroke-width="5.2" stroke-linecap="round"/></mask></defs><g mask="url(#pomask)"><circle cx="12" cy="8" r="3.7"/><path d="M5 20.5c0-3.6 3.2-6 7-6s7 2.4 7 6"/></g><path d="M20.8 3.2 3.2 20.8" stroke-width="2.3"/></svg>`,
   grip:`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.6"/><circle cx="15" cy="7" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="17" r="1.6"/><circle cx="15" cy="17" r="1.6"/></svg>`,
   todayCal:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2.3" fill="currentColor" stroke="none"/></svg>`,
   weekBars:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v4M9 9v10M14 12v7M19 6v13"/></svg>`,
@@ -6123,7 +6128,7 @@ const ICON = {
   doc:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"/><path d="M14 2.5v5h5"/><path d="M8.5 13h7M8.5 16.5h4.5"/></svg>`,
   stopCircle:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>`,
   playCircle:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10.2 8.4 16 12l-5.8 3.6z"/></svg>`,
-  key:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.8 12.2 20.5 2.5M21.5 6.5 18 3M17 10.5 14 7.5"/></svg>`,
+  key:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4.6"/><circle cx="8" cy="16" r="1.4" fill="currentColor" stroke="none"/><path d="M11.4 12.6 21 3"/><path d="M17.6 6.4 20.4 9.2"/><path d="M14.6 9.4 16.9 11.7"/></svg>`,
   download:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 20.5h15"/></svg>`,
   party:`<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21.5 8.6 8.2l7.2 7.2z"/><path d="M14 3.5c.9.9.9 2.3 0 3.2M17.5 2c1.9 1.9 1.9 5 0 6.9M19.5 12.5h.01M15.5 10.5h.01M12.5 4.5h.01"/></svg>`,
   bus:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="12" rx="2"/><path d="M3.5 11.5h17"/><circle cx="7.5" cy="19.5" r="1.6"/><circle cx="16.5" cy="19.5" r="1.6"/></svg>`,
