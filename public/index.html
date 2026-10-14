@@ -956,6 +956,14 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .imp-tag{position:absolute; top:9px; right:9px; font-size:9px; font-weight:700; padding:2px 6px; border-radius:6px; color:var(--c); background:rgba(var(--c-rgb),.14);}
 .imp-hint{margin-top:12px; font-size:11px; color:var(--text-dim); line-height:1.5; text-align:center; padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px dashed var(--border-light);}
 .imp-hint b{color:var(--text);}
+/* 링크 가져오기 수업 색: 에타 색 / 앱 색 */
+.color-mode{display:flex; align-items:center; gap:6px; margin-bottom:10px;}
+.color-mode > span{font-size:11px; color:var(--text-dim); margin-right:auto;}
+.cm-opt{display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font-size:11px; font-weight:700; font-family:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.cm-opt.on{border-color:var(--teal); color:var(--teal); background:rgba(224,172,85,.10);}
+.cm-dots{display:flex; font-style:normal;}
+.cm-dots em{width:9px; height:9px; border-radius:50%; margin-left:-3px; border:1px solid rgba(0,0,0,.15);}
+.cm-dots em:first-child{margin-left:0;}
 /* 추가 / 교체 선택 */
 .save-mode{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:12px;}
 .sm-opt{display:flex; flex-direction:column; gap:2px; text-align:left; padding:9px 10px; border-radius:12px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-family:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;}
@@ -1566,7 +1574,7 @@ const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
   { version:'Beta 0.5.6', date:'2026-10-14', summary:'시간표 가져오기 개편!', items:[
     { title:'시간표 가져오기', text:'+ 버튼과 시간표 메뉴의 "가져오기"에서 에브리타임 링크 · 사진으로 인식 중에 골라요. 링크가 안 되면 사진으로, 사진 인식이 안 되면 링크로 가져오면 돼요' },
-    { title:'에브리타임 링크로 가져오기', text:'에브리타임 시간표 공유 링크를 붙여 넣으면 공개된 대표 시간표를 시간 · 강의실 그대로, 빠르고 정확하게 가져와요(에브리타임에서 공개 범위를 전체 공개로 해 주세요). 토 · 일 수업은 빼고 가져와요' },
+    { title:'에브리타임 링크로 가져오기', text:'에브리타임 시간표 공유 링크를 붙여 넣으면 공개된 대표 시간표를 시간 · 강의실 그대로, 빠르고 정확하게 가져와요(에브리타임에서 공개 범위를 전체 공개로 해 주세요). 수업 색도 에타 색 그대로 가져오고, 앱 색으로 고를 수도 있어요. 토 · 일 수업은 빼고 가져와요' },
     { title:'이전 학기 시간표도 한 번에', text:'"이전 학기 대표 시간표도 모두 가져오기"를 켜 두면 지난 학기들의 공개된 대표 시간표도 각 학기에 새 시간표로 함께 추가돼요' },
     { title:'추가할지 교체할지 골라요', text:'가져온 수업을 등록할 때 "새 시간표로 추가"(기본)와 "지금 시간표 교체" 중에서 골라요. 사진 인식도 이제 기존 시간표를 지우지 않고 추가할 수 있어요' },
   ]},
@@ -7303,6 +7311,11 @@ function ocrModal(mode = 'photo'){
         </div>
         <span class="ck"><input type="checkbox" id="et-all-check" checked><span class="ck-box"></span></span>
       </label>
+      <div class="color-mode" id="et-color-mode" style="display:none;">
+        <span>수업 색</span>
+        <button type="button" class="cm-opt on" data-mode="everytime"><i class="cm-dots">${EVERYTIME_COLORS.slice(0, 4).map(c => `<em style="background:${c}"></em>`).join('')}</i>에타 색</button>
+        <button type="button" class="cm-opt" data-mode="app"><i class="cm-dots">${CLASS_PALETTE.slice(0, 4).map(c => `<em style="background:${c}"></em>`).join('')}</i>앱 색</button>
+      </div>
       <div class="save-mode" id="ocr-save-mode">
         <button type="button" class="sm-opt on" data-mode="add"><b>새 시간표로 추가</b><small id="sm-add-desc">지금 시간표는 그대로 둬요</small></button>
         <button type="button" class="sm-opt" data-mode="replace"><b>지금 시간표 교체</b><small id="sm-replace-desc">보고 있는 시간표를 바꿔요</small></button>
@@ -12668,6 +12681,13 @@ function setupOcrModalListeners(){
   };
   document.querySelectorAll('#ocr-save-mode .sm-opt').forEach(b=>{ b.onclick=()=>{ state.ocrSaveMode=b.dataset.mode; updateSaveUi(); }; });
 
+  // 링크로 가져올 때 수업 색: 에타 색(기본) / 앱 색
+  state.etColorMode='everytime';
+  document.querySelectorAll('#et-color-mode .cm-opt').forEach(b=>{ b.onclick=()=>{
+    state.etColorMode=b.dataset.mode;
+    document.querySelectorAll('#et-color-mode .cm-opt').forEach(x=>x.classList.toggle('on', x===b));
+  }; });
+
   if(dropzone && fileInput){
     dropzone.onclick=()=>fileInput.click();
     fileInput.onchange=async (e)=>{
@@ -12698,6 +12718,7 @@ function setupOcrModalListeners(){
       // 사진 인식 결과는 지금 보고 있는 학기에 넣는다(링크 가져오기 상태를 지운다).
       state.etImport=null;
       { const w=document.getElementById('et-all-wrap'); if(w) w.style.display='none'; }
+      { const cm=document.getElementById('et-color-mode'); if(cm) cm.style.display='none'; }
       updateSaveUi();
       if(recognized.length===0){
         if(statusBox) statusBox.innerHTML='<span style="color:var(--amber); font-weight:700;">인식된 수업이 없습니다.</span><br><span style="font-size:11.5px; color:var(--text-faint);">시간표 전체가 선명하게 보이는 캡처를 쓰거나, 아래 에브리타임 링크로 가져와 주세요.</span>';
@@ -12733,6 +12754,7 @@ function setupOcrModalListeners(){
         if(allWrap) allWrap.style.display=otherTables.length ? 'flex' : 'none';
         const allDesc=document.getElementById('et-all-desc');
         if(allDesc) allDesc.textContent=`공개된 대표 시간표 ${otherTables.length}개 학기 · 이전 학기는 항상 새 시간표로 추가돼요`;
+        { const cm=document.getElementById('et-color-mode'); if(cm) cm.style.display='flex'; }
         updateSaveUi();
         if(list.length===0){
           if(statusBox) statusBox.innerHTML='<span style="color:var(--amber); font-weight:700;">가져올 평일 수업이 없어요.</span><br><span style="font-size:11px; color:var(--text-faint);">에브리타임에서 학기가 맞는 시간표를 공유했는지 확인해 주세요.</span>';
@@ -12765,7 +12787,7 @@ function setupOcrModalListeners(){
         const allWrap=document.getElementById('et-all-wrap');
         const includeAll=!!(allCheck && allCheck.checked && allWrap && allWrap.style.display!=='none');
         btnSave.disabled=true;
-        const r=await saveEverytimeImport(list, state.etImport, includeAll, replace, (i, n, label)=>{
+        const r=await saveEverytimeImport(list, state.etImport, includeAll, replace, state.etColorMode || 'everytime', (i, n, label)=>{
           if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal);">이전 학기 가져오는 중… ${i}/${n} (${escapeHtml(label)})</span>`;
         });
         btnSave.disabled=false;
@@ -12793,6 +12815,8 @@ function setupOcrModalListeners(){
 // 에브리타임 공유 링크로 시간표 가져오기. 브라우저에서 에브리타임을 바로 부르면 CORS에 막혀서
 // Cloudflare Worker(worker/src/index.js의 /everytime)가 대신 받아 수업 목록만 돌려준다. AI를 쓰지 않는다.
 const EVERYTIME_PROXY_URL = 'https://ku-ise-ocr.kuaisemi.workers.dev/everytime';
+// 에브리타임 웹 시간표 색(everytime.kr/css/container.table.css의 .color1~8, 8개가 반복). 글자는 진한 색.
+const EVERYTIME_COLORS = ['#f2e8e8', '#ffe9e9', '#eff9cc', '#dcf2e9', '#dee8f6', '#fff8cc', '#ffedda', '#dceef2'];
 
 // "에브리타임에서 ○○님의 … 확인해보세요! https://everytime.kr/app/@xxxx" 같은 공유 문구를 통째로 붙여 넣어도 식별자만 뽑는다.
 function everytimeIdFromText(text){
@@ -12819,10 +12843,17 @@ async function fetchEverytimeTimetable(identifier){
     throw new Error('에브리타임에서 시간표를 가져오지 못했어요. 잠시 뒤 다시 시도하거나 직접 추가해 주세요.');
   }
   const all = Array.isArray(data.classes) ? data.classes : [];
+  // 에브리타임은 과목이 나온 순서대로 color1, color2 …를 입힌다. 토·일 수업도 순서에 들어가므로 빼기 전에 번호를 매긴다.
+  const order = new Map();
+  all.forEach(c => { const k = String(c.subject || '').trim(); if(!order.has(k)) order.set(k, order.size); });
   // 시간표 화면이 월~금만 그리므로 토·일 수업은 뺀다.
   const weekdays = all.filter(c => c.day >= 0 && c.day <= 4);
   const list = weekdays
-    .map(c => ({ day:c.day, start:c.start, end:c.end, subject:String(c.subject || '').trim() || '수업', professor:c.professor || '', room:c.room || '' }))
+    .map(c => {
+      const key = String(c.subject || '').trim();
+      return { day:c.day, start:c.start, end:c.end, subject:key || '수업', professor:c.professor || '', room:c.room || '',
+        etColor: EVERYTIME_COLORS[order.get(key) % EVERYTIME_COLORS.length] };
+    })
     .sort((a, b) => a.day - b.day || a.start - b.start);
   const tables = (Array.isArray(data.tables) ? data.tables : [])
     .filter(t => t && t.identifier && everytimeSemesterKey(t.year, t.semester));
@@ -12836,15 +12867,21 @@ function everytimeSemesterKey(year, semester){
   return y && season ? `${y}-${season}` : '';
 }
 
-// 인식·가져온 수업 목록 → 시간표 칸. 같은 과목은 한 색으로 묶고, 과목마다 다른 색을 무작위로 준다(앞 7가지 먼저, 최대 10가지).
-function ocrToSlots(list){
+// 인식·가져온 수업 목록 → 시간표 칸. 같은 과목은 한 색으로 묶는다.
+// 색: 'app'이면 앱 색을 과목마다 무작위로(앞 7가지 먼저, 최대 10가지, 흰 글씨),
+//     'everytime'이면 에브리타임에서 가져온 색(etColor) 그대로(연한 바탕이라 검은 글씨).
+function ocrToSlots(list, colorMode = 'app'){
   const out = []; const map = new Map(); let ci = 0;
   const palette = [...shuffledArr(CLASS_PALETTE.slice(0, 7)), ...shuffledArr(CLASS_PALETTE.slice(7))];
   list.forEach(c => {
     const key = (c.subject || '').trim();
-    if(!map.has(key)){ map.set(key, { groupId:'grp_'+uid(), color:palette[ci % palette.length] }); ci++; }
+    if(!map.has(key)){
+      const et = colorMode === 'everytime' && c.etColor;
+      map.set(key, { groupId:'grp_'+uid(), color: et ? c.etColor : palette[ci % palette.length], textColor: et ? '#000000' : '#FFFFFF' });
+      if(!et) ci++;
+    }
     const g = map.get(key);
-    out.push({ id:uid(), groupId:g.groupId, day:c.day, start:c.start, end:c.end, subject:c.subject, professor:c.professor||'', room:c.room||'', color:g.color, textColor:'#FFFFFF' });
+    out.push({ id:uid(), groupId:g.groupId, day:c.day, start:c.start, end:c.end, subject:c.subject, professor:c.professor||'', room:c.room||'', color:g.color, textColor:g.textColor });
   });
   return out;
 }
@@ -12884,7 +12921,7 @@ function replaceVariantSlots(semKey, slots, base){
 
 // 링크로 가져온 시간표 저장: 이 학기는 체크한 수업을 고른 방식(추가/교체)대로, 이전 학기들은(선택 시)
 // 하나씩 가져와 항상 새 시간표로 추가. 마지막에 한 번만 서버에 저장한다(saveTimetable이 학기 전체 묶음을 통째로 쓴다).
-async function saveEverytimeImport(list, imp, includeAll, replace, onProgress){
+async function saveEverytimeImport(list, imp, includeAll, replace, colorMode, onProgress){
   const mainKey = everytimeSemesterKey(imp.year, imp.semester) || state.activeSemester || currentSemesterKey();
   const others = includeAll ? imp.tables.filter(t => t.identifier !== imp.identifier && everytimeSemesterKey(t.year, t.semester) !== mainKey) : [];
   const fetched = [];
@@ -12894,11 +12931,11 @@ async function saveEverytimeImport(list, imp, includeAll, replace, onProgress){
     if(onProgress) onProgress(i + 1, others.length, semesterLabel(everytimeSemesterKey(t.year, t.semester)));
     try{
       const r = await fetchEverytimeTimetable(t.identifier);
-      if(r.list.length) fetched.push({ key: everytimeSemesterKey(t.year, t.semester), slots: ocrToSlots(r.list) });
+      if(r.list.length) fetched.push({ key: everytimeSemesterKey(t.year, t.semester), slots: ocrToSlots(r.list, colorMode) });
     }catch(e){ failed++; }
   }
   fetched.forEach(f => addNamedVariant(f.key, f.slots, '에브리타임'));
-  const slots = ocrToSlots(list);
+  const slots = ocrToSlots(list, colorMode);
   const main = replace ? replaceVariantSlots(mainKey, slots, '에브리타임') : addNamedVariant(mainKey, slots, '에브리타임');
   state.activeSemester = mainKey;
   state.activeVariant = main.idx;
