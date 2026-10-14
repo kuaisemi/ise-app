@@ -964,14 +964,31 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .bldg-btn svg{width:13px; height:13px; flex-shrink:0; color:var(--text-dim); transition:transform .15s;}
 .bldg-btn.open svg{transform:rotate(180deg);}
 .field .bldg-row input.bldg-room{flex:1; min-width:0; width:auto;}
-.bldg-pop{margin-top:6px; padding:8px; border-radius:12px; background:var(--surface); border:1px solid var(--border);}
-.bldg-opts{display:flex; flex-wrap:wrap; gap:5px;}
-.bldg-more{margin-top:5px;}
-.bldg-pop-foot{display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:7px; padding-top:7px; border-top:1px dashed var(--border);}
-.bldg-opt{padding:6px 11px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:11.5px; font-weight:600; font-family:var(--font-display); cursor:pointer; -webkit-tap-highlight-color:transparent;}
-.bldg-opt.on{border-color:var(--teal); color:var(--teal); background:rgba(224,172,85,.10);}
-.bldg-more-btn{display:flex; align-items:center; gap:3px; background:none; border:none; padding:4px 2px; color:var(--text-dim); font-size:11px; font-weight:700; font-family:inherit; cursor:pointer;}
+/* 건물 목록: 버튼 아래에 겹쳐 뜨는 세로 목록(카드 높이는 그대로) */
+.slot-room-field{position:relative;}
+.bldg-pop{position:absolute; left:0; top:calc(100% + 4px); z-index:30; width:max-content; min-width:58%; max-width:100%; max-height:260px; overflow-y:auto; padding:4px; border-radius:14px; background:var(--surface); border:1px solid var(--border-light, var(--border)); box-shadow:0 10px 28px rgba(0,0,0,.4);}
+.bldg-opt{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:11px 12px; border:none; border-radius:10px; background:transparent; color:var(--text); font-size:13px; font-weight:600; font-family:var(--font-display); text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.bldg-opt:active{background:var(--surface-3);}
+.bldg-opt i{font-style:normal; color:var(--teal); font-weight:800;}
+.bldg-opt.on{color:var(--teal);}
+.bldg-opt + .bldg-opt, .bldg-more-btn + .bldg-more, .bldg-more .bldg-opt{border-top:1px solid var(--border); border-radius:0;}
+.bldg-custom{border-top:1px solid var(--border); border-radius:0; color:var(--text-dim);}
+.bldg-custom.on{color:var(--teal);}
+.bldg-more-btn{display:flex; align-items:center; justify-content:center; gap:4px; width:100%; padding:9px 0; border:none; border-top:1px solid var(--border); background:transparent; color:var(--text-dim); font-size:11.5px; font-weight:700; font-family:inherit; cursor:pointer;}
 .bldg-more-btn svg{width:12px; height:12px;}
+/* 요일 · 시작 ~ 종료를 한 줄에: 요일은 시간 선택기와 같은 위·아래 화살표 칸 */
+.slot-time-row{display:flex; align-items:center; gap:5px;}
+.slot-time-row .sep{color:var(--text-faint); font-weight:700; flex:0 0 auto; font-size:12px;}
+.slot-time-row .time-picker{display:flex; flex:1 1 0; min-width:0;}
+.slot-time-row .time-picker .tp-col{flex:1 1 0; min-width:0;}
+.slot-time-row .time-picker .tp-btn, .slot-time-row .time-picker .tp-col-ampm .tp-btn{width:100%;}
+.slot-time-row .time-picker .tp-val{min-width:0; width:100%; font-size:15px;}
+.slot-time-row .time-picker .tp-ampm{font-size:11px; min-width:0; width:100%;}
+.slot-time-row .time-picker .tp-colon{font-size:14px; padding:0;}
+.dayp{flex:0 0 auto; width:38px; display:flex; flex-direction:column; align-items:stretch; border:1px solid var(--border); background:var(--surface-2); border-radius:var(--radius-sm); overflow:hidden;}
+.dayp-btn{width:100%; height:22px; border:none; background:transparent; color:var(--text-faint); font-size:8px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none;}
+.dayp-btn:active{background:var(--teal); color:var(--teal-ink);}
+.dayp-val{height:28px; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:var(--teal); user-select:none;}
 /* 시간표 메뉴: 수업 색 테마 */
 .ttm-sec{display:flex; align-items:baseline; gap:6px; margin:16px 2px 8px;}
 .ttm-sec b{font-size:12px; color:var(--text);}
@@ -1594,7 +1611,7 @@ const PATCH_NOTES = [
   { version:'Beta 0.5.7', date:'2026-10-14', summary:'시간표 색 테마가 생겼어요!', items:[
     { title:'시간표 색 테마', text:'시간표 메뉴(⋯)의 "수업 색 테마"에서 기본 · 에타 · 파스텔 · 마카롱 · 화이트 · 캔디 · 바다 · 숲 · 노을 · 모노 중에 고르면 지금 시간표의 수업 색이 한 번에 바뀌어요. 같은 과목은 같은 색으로 묶여요' },
     { title:'글자색 자동', text:'수업 바탕이 흰색이나 파스텔처럼 밝으면 글자가 자동으로 검정이 돼요. 테마 적용 · 가져오기 · 수업 편집 모두 똑같이 맞춰지고, 수업 편집에서 글자색을 직접 고를 수도 있어요' },
-    { title:'강의실 입력이 간단해졌어요', text:'수업 추가에서 강의실을 "건물 | 호수" 한 줄로 입력해요. 건물을 누르면 자주 쓰는 건물부터 나오고, 나머지는 더보기 · 기타(직접 입력)로 골라요' },
+    { title:'수업 추가가 간단해졌어요', text:'요일과 수업 시간(시작 ~ 종료)이 한 줄에 모였고, 요일도 시간처럼 ▲▼로 바꿔요. 강의실은 "건물 | 호수" 한 줄이고, 건물을 누르면 자주 쓰는 건물부터 세로로 내려오며 나머지는 더보기 · 기타(직접 입력)로 골라요' },
   ]},
   { version:'Beta 0.5.6', date:'2026-10-14', summary:'시간표 가져오기 개편!', items:[
     { title:'시간표 가져오기', text:'+ 버튼과 시간표 메뉴의 "가져오기"에서 에브리타임 링크 · 사진으로 인식 중에 골라요. 링크가 안 되면 사진으로, 사진 인식이 안 되면 링크로 가져오면 돼요' },
@@ -7191,7 +7208,8 @@ function applyTtOptions(){
   toast('시간표 표시 설정이 적용되었습니다');
 }
 
-// 건물 고르기 패널(건물 버튼 바로 아래에 펼침 — 모달 안에 모달을 띄우면 입력 중인 폼이 날아가서 인라인으로).
+// 건물 고르기 목록: 건물 버튼 바로 아래에 세로로 쭉 내려오는 드롭다운. 칸을 밀어내지 않고 위에 겹쳐 뜬다
+// (모달 안에 모달을 띄우면 입력 중인 폼이 날아가서 같은 모달 안의 겹침 패널로 만든다).
 // 내 시간표에서 자주 쓴 건물을 앞에 두고 4개만 보이고, 나머지는 "더보기"로 접는다.
 const BLDG_VISIBLE = 4;
 function buildingsByUsage(){
@@ -7201,16 +7219,25 @@ function buildingsByUsage(){
 }
 function renderBuildingPopHtml(selected){
   const list = buildingsByUsage();
-  const opt = b => `<button type="button" class="bldg-opt ${b === selected ? 'on' : ''}" data-action="pick-bldg" data-bldg="${escapeHtml(b)}">${escapeHtml(b)}</button>`;
+  const opt = b => `<button type="button" class="bldg-opt ${b === selected ? 'on' : ''}" data-action="pick-bldg" data-bldg="${escapeHtml(b)}"><span>${escapeHtml(b)}</span>${b === selected ? '<i>✓</i>' : ''}</button>`;
   // 고른 건물이 접힌 쪽에 있으면 처음부터 펼쳐 둔다.
   const openMore = list.slice(BLDG_VISIBLE).includes(selected);
   return `<div class="bldg-pop" style="display:none;">
-    <div class="bldg-opts">${list.slice(0, BLDG_VISIBLE).map(opt).join('')}</div>
-    <div class="bldg-opts bldg-more" style="${openMore ? '' : 'display:none;'}">${list.slice(BLDG_VISIBLE).map(opt).join('')}</div>
-    <div class="bldg-pop-foot">
-      ${openMore ? '' : `<button type="button" class="bldg-more-btn" data-action="bldg-more">더보기 ${ICON.chevDown}</button>`}
-      <button type="button" class="bldg-opt ${selected === '__custom__' ? 'on' : ''}" data-action="pick-bldg" data-bldg="__custom__">기타 (직접 입력)</button>
-    </div>
+    ${list.slice(0, BLDG_VISIBLE).map(opt).join('')}
+    ${openMore ? '' : `<button type="button" class="bldg-more-btn" data-action="bldg-more">더보기 (${list.length - BLDG_VISIBLE}) ${ICON.chevDown}</button>`}
+    <div class="bldg-more" style="${openMore ? '' : 'display:none;'}">${list.slice(BLDG_VISIBLE).map(opt).join('')}</div>
+    <button type="button" class="bldg-opt bldg-custom ${selected === '__custom__' ? 'on' : ''}" data-action="pick-bldg" data-bldg="__custom__"><span>기타 (직접 입력)</span>${selected === '__custom__' ? '<i>✓</i>' : ''}</button>
+  </div>`;
+}
+
+// 요일: 시간 선택기와 같은 모양의 위·아래 화살표 칸(▲ 다음 요일 / ▼ 이전 요일, 월~금을 돈다).
+function renderDayPicker(name, day){
+  const d = Math.min(Math.max(parseInt(day, 10) || 0, 0), DAYS.length - 1);
+  return `<div class="dayp" data-name="${name}">
+    <button type="button" class="dayp-btn" data-action="day-step" data-dir="1" aria-label="다음 요일">▲</button>
+    <span class="dayp-val">${DAYS[d]}</span>
+    <button type="button" class="dayp-btn" data-action="day-step" data-dir="-1" aria-label="이전 요일">▼</button>
+    <input type="hidden" name="${name}" value="${d}">
   </div>`;
 }
 
@@ -7228,18 +7255,15 @@ function renderSlotHtml(slot, index, total){
         ${total>1 ? `<button type="button" class="btn btn-danger btn-sm" data-action="del-slot" data-idx="${index}" style="width:auto; padding:2px 6px; font-size:12px;">삭제</button>` : ''}
       </div>
       <div class="field" style="margin-bottom:8px;">
-        <label>요일</label>
-        ${renderSegPicker('slot_day', DAYS.map((d,i)=>[i,d]), slot.day||0, true, '', true)}
-      </div>
-      <div class="field" style="margin-bottom:8px;">
-        <label>수업 시간 (시작 ~ 종료)</label>
-        <div class="time-slot-inline">
+        <label>요일 · 수업 시간 (시작 ~ 종료)</label>
+        <div class="slot-time-row">
+          ${renderDayPicker('slot_day', slot.day||0)}
           ${renderTimePicker('slot_start', slot.start||540)}
           <span class="sep">~</span>
           ${renderTimePicker('slot_end', slot.end||600)}
         </div>
       </div>
-      <div class="field" style="margin-bottom:0;">
+      <div class="field slot-room-field" style="margin-bottom:0;">
         <label>강의실 (건물 | 호수)</label>
         <div class="bldg-row">
           <button type="button" class="bldg-btn" data-action="toggle-bldg-pop"><span class="bldg-btn-txt">${escapeHtml(isCustom ? '기타' : bldg)}</span>${ICON.chevDown}</button>
@@ -14266,6 +14290,13 @@ INLINE_COLOR_HANDLERS['widget-accent'] = (hex)=>{
   });
 };
 
+// 건물 목록은 바깥을 누르면 닫는다.
+document.addEventListener('click', (e)=>{
+  if(e.target.closest && e.target.closest('.bldg-pop, .bldg-btn')) return;
+  document.querySelectorAll('.bldg-pop').forEach(p => { if(p.style.display !== 'none') p.style.display = 'none'; });
+  document.querySelectorAll('.bldg-btn.open').forEach(b => b.classList.remove('open'));
+});
+
 document.addEventListener('change', async (e)=>{
   const t = e.target;
   if(!t) return;
@@ -14887,11 +14918,22 @@ document.addEventListener('click', async (e)=>{
       document.querySelectorAll('.bldg-btn.open').forEach(b => b.classList.remove('open'));
       pop.style.display = open ? 'block' : 'none';
       el.classList.toggle('open', open);
+      if(open) try{ pop.scrollIntoView({ block:'nearest', behavior:'smooth' }); }catch(_){}
     }
     else if(a === 'bldg-more'){
       const more = el.closest('.bldg-pop')?.querySelector('.bldg-more');
       if(more) more.style.display = '';
       el.remove();
+    }
+    else if(a === 'day-step'){
+      const wrap = el.closest('.dayp');
+      const hidden = wrap && wrap.querySelector('input[type=hidden]');
+      if(!hidden) return;
+      const n = DAYS.length;
+      const next = ((parseInt(hidden.value, 10) || 0) + parseInt(el.dataset.dir, 10) + n) % n;
+      hidden.value = String(next);
+      const val = wrap.querySelector('.dayp-val');
+      if(val) val.textContent = DAYS[next];
     }
     else if(a === 'pick-bldg'){
       const card = el.closest('.slot-item-card');
@@ -14899,7 +14941,13 @@ document.addEventListener('click', async (e)=>{
       const b = el.dataset.bldg, custom = b === '__custom__';
       card.querySelector('[name="slot_building"]').value = b;
       card.querySelector('.bldg-btn-txt').textContent = custom ? '기타' : b;
-      card.querySelectorAll('.bldg-opt').forEach(o => o.classList.toggle('on', o.dataset.bldg === b));
+      card.querySelectorAll('.bldg-opt').forEach(o => {
+        const on = o.dataset.bldg === b;
+        o.classList.toggle('on', on);
+        const mark = o.querySelector('i');
+        if(on && !mark) o.insertAdjacentHTML('beforeend', '<i>✓</i>');
+        if(!on && mark) mark.remove();
+      });
       const detail = card.querySelector('[name="slot_roomDetail"]'), customIn = card.querySelector('[name="slot_roomCustom"]');
       if(detail) detail.style.display = custom ? 'none' : '';
       if(customIn) customIn.style.display = custom ? '' : 'none';
