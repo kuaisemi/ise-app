@@ -636,14 +636,19 @@ async function main() {
     // 아침 07~08시는 그보다 이른 시각이라 항상 데이터가 없어서 조식 알림이 통째로
     // 빠지고 있었다. 데이터가 늦게 들어와도(예: 10시 13분) 오전 중에는 따라잡아
     // 보내도록 유예를 4시간(240분)으로 늘렸다 — 늦게라도 오는 게 영영 안 오는 것보다 낫다.
+    // 중식·석식 유예를 60분 → 120분으로 늘렸다. GitHub Actions 크론이 "매시 정각"으로 설정돼 있어도
+    // 실제로는 3~9시간 간격으로 드문드문 돌아서(2026-10-09~14 실행 기록 확인) 60분 창을 자주 놓친다.
     { key: 'breakfast', label: '조식', h: 7, m: 0, grace: 240 },
-    { key: 'lunch', label: '중식', h: 10, m: 30 },
-    { key: 'dinner', label: '석식', h: 16, m: 30 },
+    { key: 'lunch', label: '중식', h: 10, m: 30, grace: 120 },
+    { key: 'dinner', label: '석식', h: 16, m: 30, grace: 120 },
   ];
   const MEAL_CAFETERIAS = [
     { key: 'jinri', label: '진리관 학생식당', slots: ['breakfast', 'lunch', 'dinner'] },
     { key: 'mirae', label: '미래관 교직원식당', slots: ['lunch'] },
   ];
+  const SHORT_CAFE = { jinri: '진리관', mirae: '미래관' };
+  // 그 끼니를 두 식당 이상이 내는지(= 제목에 식당 이름이 필요한지)
+  const shared2 = (slotKey) => MEAL_CAFETERIAS.filter((c) => c.slots.includes(slotKey)).length > 1;
   const todayMealsByCafeteria = {
     jinri: (mealsByDate[today] && mealsByDate[today].student) || null,
     mirae: (mealsByDate[today] && mealsByDate[today].staff) || null,
@@ -676,18 +681,21 @@ async function main() {
       const solo = e.tokens.filter((t) => !tokenSets.some((set, j) => j !== i && set.has(t)));
       if (solo.length) {
         console.log(`식단 알림(${e.cafe.label} ${slot.label}):`, e.body.slice(0, 40));
-        await sendToTokens(solo, `오늘의 ${slot.label} (${e.cafe.label})`, e.body.slice(0, 200), 'meal');
+        // 제목은 끼니 이름만("조식" · "석식" · "중식"). 같은 끼니를 두 식당이 내는 중식만 어느 식당인지 덧붙인다.
+        const title = shared2(slot.key) ? `${slot.label} (${SHORT_CAFE[e.cafe.key] || e.cafe.label})` : slot.label;
+        await sendToTokens(solo, title, e.body.slice(0, 200), 'meal');
       }
     }
     if (entries.length > 1) {
       const both = entries[0].tokens.filter((t) => tokenSets.slice(1).every((set) => set.has(t)));
       const uniqueBoth = [...new Set(both)];
       if (uniqueBoth.length) {
-        const short = { jinri: '진리관', mirae: '미래관' };
+        // 두 식당을 다 켜 둔 사람: 제목은 "중식", 본문은 식당마다 한 줄씩 — "(진리) …" 줄바꿈 "(미래) …"
+        const SHORT_PAREN = { jinri: '진리', mirae: '미래' };
         const per = Math.floor(190 / entries.length) - 6;
-        const body = entries.map((e) => `${short[e.cafe.key] || e.cafe.label} ${e.body.slice(0, per)}`).join(' | ');
-        console.log(`식단 알림(합침 ${slot.label}, ${uniqueBoth.length}명):`, body.slice(0, 40));
-        await sendToTokens(uniqueBoth, `오늘의 ${slot.label}`, body.slice(0, 200), 'meal');
+        const body = entries.map((e) => `(${SHORT_PAREN[e.cafe.key] || e.cafe.label}) ${e.body.slice(0, per)}`).join('\n');
+        console.log(`식단 알림(합침 ${slot.label}, ${uniqueBoth.length}명):`, body.slice(0, 40).replace(/\n/g, ' ⏎ '));
+        await sendToTokens(uniqueBoth, slot.label, body.slice(0, 200), 'meal');
       }
     }
     for (const e of entries) newMealKeys.push(e.dedupKey);
