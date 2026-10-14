@@ -442,24 +442,25 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-opts-card{padding:4px 14px;}
 .opt-sec{padding:12px 0;}
 .opt-sec + .opt-sec{border-top:1px solid var(--hairline);}
-/* 화면 표시 설정: 실시간 미리보기 + 표시 항목 칩 */
-.ttp-wrap{margin-bottom:10px;}
-.ttp{position:relative; overflow:hidden; border:1px solid var(--border); border-radius:14px; line-height:1.25;}
-.ttp-lines{position:absolute; left:0; right:0; bottom:0; background-image:linear-gradient(to right, var(--ttp-line) 1px, transparent 1px), linear-gradient(to bottom, var(--ttp-line) 1px, transparent 1px);}
-.ttp-day{position:absolute; top:0; height:20px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--ttp-dim);}
-.ttp-day.today{color:var(--teal);}
-.ttp-today{position:absolute; bottom:0; background:rgba(224,172,85,.10);}
-.ttp-block{position:absolute; border-radius:6px; padding:3px 4px; overflow:hidden; display:flex; flex-direction:column; gap:1px; word-break:keep-all;}
-.ttp-block b{font-weight:800;}
-.ttp-block span{opacity:.9; font-size:.88em;}
-.ttp-now{position:absolute; left:0; right:0; height:2px; box-shadow:0 0 4px rgba(0,0,0,.25);}
-.opt-note{margin-left:6px; font-size:10px; font-weight:500; color:var(--text-faint);}
-.opt-chips{display:flex; flex-wrap:wrap; gap:6px;}
-.opt-chip{display:inline-flex; align-items:center; gap:5px; padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .18s, color .18s, border-color .18s, transform .1s;}
-.opt-chip i{font-style:normal; width:0; overflow:hidden; opacity:0; transition:width .18s, opacity .18s;}
-.opt-chip:active{transform:scale(.96);}
-.opt-chip.on{border-color:var(--teal); color:var(--teal); background:rgba(224,172,85,.12);}
-.opt-chip.on i{width:11px; opacity:1;}
+/* 화면 표시 설정: 표시 항목 타일 + 카드 */
+.tt-opts-v2{padding:2px 0 4px;}
+.opt-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+.opt-tile{display:flex; flex-direction:column; align-items:center; gap:7px; padding:14px 4px 11px; border-radius:16px; background:var(--surface-2); border:1.5px solid transparent; color:var(--text-dim); font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .18s, color .18s, border-color .18s, transform .1s;}
+.opt-tile svg{width:20px; height:20px;}
+.opt-tile:active{transform:scale(.96);}
+.opt-tile.on{background:rgba(224,172,85,.12); border-color:var(--teal); color:var(--teal);}
+.opt-box{background:var(--surface-2); border-radius:16px; padding:12px 14px; margin-top:10px;}
+.opt-box h4{margin:0 0 8px; font-size:12px; color:var(--text-dim); font-weight:800;}
+.opt-box-now{margin-top:10px;}
+.opt-colrow{display:flex; align-items:center; gap:10px; padding:5px 0;}
+.opt-colrow .opt-name{flex:0 0 52px; font-size:12.5px; font-weight:600; color:var(--text);}
+.opt-colrow .swatches{flex:1; min-width:0; flex-wrap:wrap; gap:7px; zoom:calc(1 / var(--font-scale, 1));}
+.opt-colrow .swatch{flex:0 0 auto; width:30px; height:30px; font-size:11px;}
+.opt-colrow .swatch.line-default{font-size:9px;}
+.opt-box-now .opt-colrow{gap:8px;}
+.opt-box-now .opt-colrow .opt-name{flex-basis:44px; font-size:11.5px; line-height:1.25;}
+.opt-box-now .opt-colrow .swatches{gap:5px; flex-wrap:nowrap;}
+.opt-box-now .opt-colrow .swatch{width:26px; height:26px;}
 .opt-slider{display:flex; align-items:center; gap:8px; margin-top:2px;}
 .opt-slider input[type=range]{flex:1; min-width:0;}
 .opt-name{flex:0 0 44px; font-size:11px; font-weight:600; color:var(--text-dim);}
@@ -1428,6 +1429,12 @@ details.likers-accordion > div, details.voters-accordion > div{
   position:absolute; left:0; right:0; top:100%; z-index:6;
   box-shadow:0 10px 26px rgba(0,0,0,.20);
 }
+/* 날짜 달력은 칸을 늘리지 않고 버튼 아래(공간이 모자라면 위)에 겹쳐 뜨는 팝업이다.
+   좁은 반 칸에 놓여도 달력 폭은 그대로 두고, 시트 밖으로 나가면 JS(placeDatePanel)가 옆으로 밀어 넣는다. */
+.date-field{position:relative;}
+.date-field > .date-field-panel{position:absolute; left:0; right:auto; top:calc(100% + 4px); bottom:auto; z-index:40; width:282px; max-width:calc(100vw - 40px); box-sizing:border-box; margin-top:0; background:var(--surface); box-shadow:0 12px 30px rgba(0,0,0,.38);}
+.date-field > .date-field-panel.up{top:auto; bottom:calc(100% + 4px);}
+#poll-deadline-inputs .date-field > .date-field-panel{width:238px; margin-top:0;}
 .dp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:12.5px; font-weight:800;}
 .dp-nav{background:none; border:none; color:var(--text-dim); padding:4px; cursor:pointer; display:flex;}
 .dp-nav svg{width:14px; height:14px;}
@@ -1636,7 +1643,8 @@ const PATCH_NOTES = [
     { title:'수업 색 테마', text:'시간표 메뉴(⋯)의 "수업 색 테마"에서 기본 · 에타 · 파스텔 · 마카롱 · 화이트 · 캔디 · 바다 · 숲 · 노을 · 모노 중에 고르면 지금 시간표의 수업 색이 한 번에 바뀌어요. 같은 과목은 같은 색으로 묶여요' },
     { title:'글자색 자동', text:'수업 바탕이 흰색이나 파스텔처럼 밝으면 글자가 자동으로 검정이 돼요. 테마 적용 · 가져오기 · 수업 편집 모두 똑같이 맞춰지고, 수업 편집에서 글자색을 직접 고를 수도 있어요' },
     { title:'수업 추가가 간단해졌어요', text:'요일과 수업 시간(시작 ~ 종료)이 한 줄에 모였고, 요일도 시간처럼 ▲▼로 바꿔요(▼를 누르면 월 → 화 → 수). 강의실은 "건물 | 호수" 한 줄이고, 건물을 누르면 자주 쓰는 건물부터 세로 목록으로 펼쳐지며 아래 공간이 모자라면 위로 펼쳐져요' },
-    { title:'화면 표시 설정 개편', text:'위쪽에 작은 시간표 미리보기가 생겨서 표시 항목 · 색 · 크기를 바꾸는 대로 바로 보여요. 표시 항목은 눌러서 켜고 끄는 칩으로 바뀌었고, "기본값" 버튼으로 한 번에 되돌릴 수 있어요' },
+    { title:'화면 표시 설정 개편', text:'표시 항목이 아이콘 타일로 바뀌어 눌러서 켜고 끌 수 있고, 크기 · 색상은 카드로 묶어 한 화면에 모았어요. "기본값" 버튼으로 한 번에 되돌릴 수 있어요' },
+    { title:'날짜 선택이 팝업으로', text:'학사일정 · 알림 · 투표 마감 등에서 날짜를 누르면 달력이 칸을 늘리지 않고 버튼 아래(공간이 모자라면 위)에 팝업으로 떠요. 날짜를 고르거나 바깥을 누르면 닫혀요' },
     { title:'키보드가 올라와도 시간표가 그대로', text:'글자를 입력하려고 키보드가 올라올 때 뒤의 시간표가 쪼그라들며 위로 올라가던 문제를 고쳤어요', type:'fix' },
     { title:'요일과 오전/오후 색이 겹쳐 헷갈리던 것 수정', text:'수업 추가에서 요일 글자를 흰색 칸으로 바꿔 오전/오후(노란색)와 구분되게 했어요', type:'fix' },
     { title:'시간대를 지워도 직접 입력한 강의실이 유지', text:'수업 추가에서 "기타(직접 입력)"로 적은 강의실이 다른 시간대를 삭제하면 사라지던 문제를 고쳤어요', type:'fix' },
@@ -2505,8 +2513,8 @@ function renderSegPicker(name, options, value, equal=true, inputId='', slide=fal
 }
 
 // 안드로이드 기본 <input type=date> 대신 쓰는 자체 제작 달력 선택기.
-// 버튼을 누르면 인라인으로 달력이 펼쳐지고(모달 안에 모달을 또 띄우면 폼 상태가 날아가서
-// 인라인 확장 패널 방식을 쓴다 — 위젯 색상 선택기와 같은 방식), 날짜를 고르면 접힌다.
+// 버튼을 누르면 달력이 버튼 아래에 팝업으로 겹쳐 뜨고(칸 높이는 그대로 — 모달 안에 모달을 또 띄우면
+// 폼 상태가 날아가서 같은 모달 안의 겹침 패널로 만든다), 날짜를 고르거나 바깥을 누르면 닫힌다.
 function dateFieldHtml(name, value, opts={}){
   const v = value || todayStr();
   return `
@@ -2518,6 +2526,38 @@ function dateFieldHtml(name, value, opts={}){
       ${opts.external ? '' : `<div class="date-field-panel" id="date-panel-${name}" style="display:none;"></div>`}
     </div>`;
 }
+// 날짜 달력 팝업 위치 잡기: 기본은 버튼 왼쪽 아래. 시트 오른쪽을 넘으면 옆으로 밀고, 아래 공간이 모자라고 위가 더 넓으면 위로 펼친다.
+function placeDatePanel(panel){
+  const field = panel && panel.closest && panel.closest('.date-field');
+  if(!field) return;
+  panel.classList.remove('up');
+  panel.style.left = '';
+  const sheet = field.closest('.modal-sheet');
+  const sr = sheet ? sheet.getBoundingClientRect() : { left:0, right:window.innerWidth, top:0, bottom:window.innerHeight };
+  const pr = panel.getBoundingClientRect(), fr = field.getBoundingClientRect();
+  const z = panel.offsetWidth ? (pr.width / panel.offsetWidth) : 1;   // 글씨 크기(zoom) 배율
+  const maxRight = sr.right - 8, minLeft = sr.left + 8;
+  let dx = 0;
+  if(pr.right > maxRight) dx = maxRight - pr.right;
+  if(pr.left + dx < minLeft) dx = minLeft - pr.left;
+  if(dx) panel.style.left = (dx / z) + 'px';
+  const bottomLimit = Math.min(sr.bottom, window.innerHeight) - 8;
+  const topLimit = Math.max(sr.top, 0) + 8;
+  const below = bottomLimit - fr.bottom - 4, above = fr.top - topLimit - 4;
+  if(pr.height > below){
+    // 위로 펼칠 때는 위쪽 공간이 달력 높이 이상이어야 한다(위로 넘친 부분은 스크롤로 닿을 수 없다).
+    // 위도 모자라면 아래로 두고 시트를 스크롤해서 달력이 보이게 한다.
+    if(above >= pr.height) panel.classList.add('up');
+    else try{ panel.scrollIntoView({ block:'nearest', behavior:'smooth' }); }catch(_){}
+  }
+}
+// 날짜 달력은 바깥을 누르면 닫는다.
+document.addEventListener('click', (e)=>{
+  if(e.target.closest && e.target.closest('.date-field')) return;
+  document.querySelectorAll('.date-field > .date-field-panel').forEach(p=>{
+    if(p.style.display !== 'none'){ p.style.display = 'none'; setTimeout(()=>{ if(p.style.display === 'none') p.innerHTML = ''; }, 320); }
+  });
+});
 function dateGridHtml(name, ym, selected){
   const [y,m] = ym.split('-').map(Number);
   const first = new Date(y, m-1, 1);
@@ -7064,52 +7104,6 @@ const TT_CHECK_SVG_OLD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="
 // 화면 표시 설정을 열 때(또는 "기본값"을 눌렀을 때) 쓰는 기본값. state.ttOpts의 초기값과 같다.
 const TT_OPT_DEFAULTS = { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B', bgColor:'', gridColor:'', fontScale:1, rowScale:1, scrollable:false };
 
-// 설정 위쪽의 실시간 미리보기: 아래에서 바꾸는 값(표시 항목 · 색 · 크기)이 바로 반영된 작은 시간표.
-// 실제 시간표를 그리는 renderTimetable()과 별개의 가벼운 그림이라 모양은 근사치다.
-function ttPreviewHtml(o){
-  const fs = Math.min(1.6, Math.max(0.7, Number(o.fontScale) || 1));
-  const rs = Math.min(1.6, Math.max(0.6, Number(o.rowScale) || 1));
-  const H = Math.round(34 * rs);            // 한 시간 높이(px)
-  const HEAD = 20, HOURS = 4;
-  const hex = /^#[0-9a-fA-F]{6}$/;
-  const bg = hex.test(o.bgColor || '') ? o.bgColor : '';
-  const ln = hex.test(o.gridColor || '') ? o.gridColor : '';
-  const bgLight = bg ? isLightColor(bg) : !Ui_isDarkTheme();
-  const textMain = bg ? (bgLight ? '#111' : '#fff') : 'var(--text)';
-  const textDim = bg ? (bgLight ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.6)') : 'var(--text-dim)';
-  const line = ln ? ln + '55' : 'var(--border)';
-  const days = ['월', '화', '수', '목', '금'];
-  const todayCol = 2;
-  const samples = [
-    { d:0, s:0, e:2, subject:'전자회로II', prof:'이현근', time:'9:00–10:50', room:'과기2관 216', c:CLASS_PALETTE[5] },
-    { d:2, s:1, e:3, subject:'반도체소자', prof:'김성준', time:'10:00–11:50', room:'산협관 114', c:CLASS_PALETTE[3] },
-    { d:3, s:0, e:1, subject:'센서공학', prof:'노연욱', time:'9:00–9:50', room:'산협관 425', c:CLASS_PALETTE[1] },
-    { d:1, s:2, e:4, subject:'프로그래밍', prof:'신용구', time:'11:00–12:50', room:'과기1관 311', c:CLASS_PALETTE[6] },
-  ];
-  const col = 100 / 5;
-  const blocks = samples.map(b => {
-    const tc = autoTextColor(b.c);
-    const parts = [];
-    if(o.subject) parts.push(`<b>${b.subject}</b>`);
-    if(o.professor) parts.push(`<span>${b.prof}</span>`);
-    if(o.time) parts.push(`<span>${b.time}</span>`);
-    if(o.room) parts.push(`<span>${b.room}</span>`);
-    return `<div class="ttp-block" style="left:calc(${b.d * col}% + 1.5px); width:calc(${col}% - 3px); top:${HEAD + b.s * H + 1.5}px; height:${(b.e - b.s) * H - 3}px; background:${b.c}; color:${tc};">${parts.join('')}</div>`;
-  }).join('');
-  const nowTop = HEAD + H * 1.35;
-  const now = o.currentTime ? `<div class="ttp-now" style="top:${nowTop}px; background:${hex.test(o.currentTimeColor || '') ? o.currentTimeColor : '#FF6B6B'};"></div>` : '';
-  const total = HEAD + HOURS * H;
-  return `<div class="ttp" style="height:${total}px; font-size:${(9 * fs).toFixed(1)}px; background:${bg || 'var(--surface-2)'}; color:${textMain}; --ttp-line:${line}; --ttp-dim:${textDim}; background-image:
-      repeating-linear-gradient(to bottom, transparent 0, transparent ${HEAD}px, transparent ${HEAD}px),
-      linear-gradient(to right, ${line} 1px, transparent 1px);">
-    <div class="ttp-lines" style="top:${HEAD}px; background-size:${col}% 100%, 100% ${H}px;"></div>
-    ${days.map((d, i) => `<div class="ttp-day ${o.todayDate && i === todayCol ? 'today' : ''}" style="left:${i * col}%; width:${col}%;">${d}</div>`).join('')}
-    ${o.todayDate ? `<div class="ttp-today" style="left:${todayCol * col}%; width:${col}%; top:${HEAD}px;"></div>` : ''}
-    ${blocks}${now}
-  </div>`;
-}
-function Ui_isDarkTheme(){ return document.documentElement.getAttribute('data-theme') !== 'light'; }
-
 // 화면 표시 설정 창에서 아직 "적용"을 누르지 않은 값(토글·색·슬라이더)을 읽어 온다.
 function readPendingTtOpts(){
   const panel = document.getElementById('tt-opts-panel');
@@ -7131,30 +7125,29 @@ function readPendingTtOpts(){
 
 function ttOptionsModal(o = state.ttOpts){
   const colors = ['#FF6B6B', '#3ED6B5', '#5B9DFF', '#FFB454', '#B98CFF', '#FFFFFF'];
-  const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘 요일 강조'], ['currentTime', '현재 시간선']];
+  // 표시 항목: 아이콘 + 이름의 큰 타일(켜진 타일은 노란 테두리). 눌러서 켜고 끈다.
+  const opts = [['subject', '과목명', ICON.eye], ['professor', '교수명', ICON.person], ['time', '시간', ICON.clock], ['room', '강의실', ICON.frame], ['todayDate', '오늘 강조', ICON.todayCal], ['currentTime', '시간선', ICON.nextClass]];
   const fontScale = o.fontScale || 1;
   const rowScale = o.rowScale || 1;
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">화면 표시 설정<button data-action="close-modal">${ICON.close}</button></div>
-    <div class="ttp-wrap" id="tt-opts-preview">${ttPreviewHtml(o)}</div>
-    <div class="card tt-opts-card" id="tt-opts-panel">
-      <div class="opt-sec">
-        <p class="set-label sm">표시 항목 <span class="opt-note">눌러서 켜고 끄기</span></p>
-        <div class="opt-chips">
-          ${opts.map(([key, label]) => `<button type="button" class="opt-chip tt-opt-pending ${o[key]?'on':''}" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"><i>✓</i>${label}</button>`).join('')}
-        </div>
-        <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-sub">
-          <span class="opt-name">선 색상</span>
+    <div id="tt-opts-panel" class="tt-opts-v2">
+      <div class="opt-tiles">
+        ${opts.map(([key, label, icon]) => `<button type="button" class="opt-tile tt-opt-pending ${o[key]?'on':''}" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}">${icon}<span>${label}</span></button>`).join('')}
+      </div>
+      <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-box opt-box-now">
+        <div class="opt-colrow">
+          <span class="opt-name">시간선 색</span>
           <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
             ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
             ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
           </div>
-          ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
-        </div></div></div>
-      </div>
-      <div class="opt-sec">
-        <p class="set-label sm">크기</p>
+        </div>
+        ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
+      </div></div></div>
+      <div class="opt-box">
+        <h4>크기</h4>
         <div class="opt-slider">
           <span class="opt-name">글씨</span>
           <input type="range" id="tt-font-scale-slider" min="0.7" max="1.6" step="0.01" value="${fontScale}">
@@ -7165,33 +7158,32 @@ function ttOptionsModal(o = state.ttOpts){
           <input type="range" id="tt-row-scale-slider" min="0.6" max="${o.scrollable ? 1.6 : 1}" step="0.01" value="${rowScale}">
           <span class="range-val"><input type="number" id="tt-row-scale-label" class="range-num" inputmode="numeric" min="60" max="${o.scrollable ? 160 : 100}" value="${Math.round(rowScale*100)}"><b>%</b></span>
         </div>
-        <div class="opt-row" style="margin-top:4px;">
+        <div class="opt-row" style="margin-top:4px; padding-bottom:0;">
           <span>스크롤로 더 크게 보기</span>
           <button type="button" class="tgl ${o.scrollable?'on':''} tt-opt-pending" data-opt="scrollable" data-checked="${o.scrollable?'1':'0'}" role="switch" aria-checked="${!!o.scrollable}"></button>
         </div>
         <p class="opt-hint" id="tt-row-scale-hint">${o.scrollable ? '시간표를 100%보다 크게 키울 수 있어요. 화면을 넘는 부분은 아래로 스크롤해서 봐요.' : '시간표 100%는 화면에 꽉 차는 크기예요.'}</p>
         <p id="tt-row-scale-warn" class="opt-hint" style="color:var(--amber); ${rowScale<=0.8?'':'display:none;'}">⚠ 너무 줄이면 글자가 잘릴 수 있어요.</p>
       </div>
-      <div class="opt-sec">
-        <div class="opt-two">
-          <div class="opt-col">
-        <p class="set-label sm">배경 색상</p>
-        <div class="swatches" id="tt-bg-color-swatches" data-selected="${o.bgColor||''}">
-          <button type="button" class="swatch tt-bg-pending ${!o.bgColor ? 'selected' : ''}" data-hex="" title="기본(테마 색)" style="background:transparent;"><svg width="100%" height="100%" viewBox="0 0 30 30" style="display:block;"><path d="M15 0a15 15 0 0 0 0 30z" fill="#fff"/><path d="M15 0a15 15 0 0 1 0 30z" fill="#000"/><circle cx="15" cy="15" r="14.5" fill="none" stroke="rgba(128,128,128,.55)"/></svg></button>
-          ${TT_BG_PRESETS.map(hex => `<button type="button" class="swatch tt-bg-pending ${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);">${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? TT_CHECK_SVG : ''}</button>`).join('')}
-          ${inlineColorSwatchHtml('ttbg', o.bgColor || '#000000', !!o.bgColor && !TT_BG_PRESETS.some(h=>h.toLowerCase()===o.bgColor.toLowerCase()))}
-        </div>
-          </div>
-          <div class="opt-col">
-        <p class="set-label sm">줄 색상</p>
-        <div class="swatches" id="tt-line-color-swatches" data-selected="${o.gridColor||''}">
-          <button type="button" class="swatch tt-line-pending line-default ${!o.gridColor ? 'selected' : ''}" data-hex="" title="기본">기본</button>
-          ${TT_LINE_PRESETS.map(hex => `<button type="button" class="swatch tt-line-pending ${(o.gridColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>`).join('')}
-          ${inlineColorSwatchHtml('ttline', o.gridColor || '#FFFFFF', !!o.gridColor && !TT_LINE_PRESETS.some(h=>h.toLowerCase()===o.gridColor.toLowerCase()))}
-        </div>
+      <div class="opt-box">
+        <h4>색상</h4>
+        <div class="opt-colrow">
+          <span class="opt-name">배경</span>
+          <div class="swatches" id="tt-bg-color-swatches" data-selected="${o.bgColor||''}">
+            <button type="button" class="swatch tt-bg-pending ${!o.bgColor ? 'selected' : ''}" data-hex="" title="기본(테마 색)" style="background:transparent;"><svg width="100%" height="100%" viewBox="0 0 30 30" style="display:block;"><path d="M15 0a15 15 0 0 0 0 30z" fill="#fff"/><path d="M15 0a15 15 0 0 1 0 30z" fill="#000"/><circle cx="15" cy="15" r="14.5" fill="none" stroke="rgba(128,128,128,.55)"/></svg></button>
+            ${TT_BG_PRESETS.map(hex => `<button type="button" class="swatch tt-bg-pending ${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);">${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? TT_CHECK_SVG : ''}</button>`).join('')}
+            ${inlineColorSwatchHtml('ttbg', o.bgColor || '#000000', !!o.bgColor && !TT_BG_PRESETS.some(h=>h.toLowerCase()===o.bgColor.toLowerCase()))}
           </div>
         </div>
         ${inlineColorPanelHtml('ttbg', o.bgColor || '#000000')}
+        <div class="opt-colrow">
+          <span class="opt-name">줄</span>
+          <div class="swatches" id="tt-line-color-swatches" data-selected="${o.gridColor||''}">
+            <button type="button" class="swatch tt-line-pending line-default ${!o.gridColor ? 'selected' : ''}" data-hex="" title="기본">기본</button>
+            ${TT_LINE_PRESETS.map(hex => `<button type="button" class="swatch tt-line-pending ${(o.gridColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>`).join('')}
+            ${inlineColorSwatchHtml('ttline', o.gridColor || '#FFFFFF', !!o.gridColor && !TT_LINE_PRESETS.some(h=>h.toLowerCase()===o.gridColor.toLowerCase()))}
+          </div>
+        </div>
         ${inlineColorPanelHtml('ttline', o.gridColor || '#FFFFFF')}
       </div>
     </div>
@@ -7284,16 +7276,6 @@ function setupTtOptionsModalListeners(){
     };
     rowLabel.onkeydown = (e)=>{ if(e.key === 'Enter') rowLabel.blur(); };
   }
-  // 아래에서 바꾸는 값이 위쪽 미리보기에 바로 반영되게 한다(색 고르기는 끌어서 바뀌므로 pointermove도 본다).
-  let raf = 0;
-  const refreshPreview = ()=>{
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(()=>{
-      const host = document.getElementById('tt-opts-preview');
-      if(host) host.innerHTML = ttPreviewHtml(readPendingTtOpts());
-    });
-  };
-  ['click', 'input', 'change', 'pointermove', 'touchmove'].forEach(ev => panel.addEventListener(ev, ()=>setTimeout(refreshPreview, 0), { passive:true }));
 }
 function applyTtOptions(){
   const panel = document.getElementById('tt-opts-panel');
@@ -14508,6 +14490,7 @@ document.addEventListener('click', async (e)=>{
       if(show){
         panel.innerHTML = dateGridHtml(name, ym, hidden ? hidden.value : '');
         panel.style.display = 'block';
+        placeDatePanel(panel);
       } else {
         panel.style.display = 'none';
         setTimeout(()=>{ if(panel.style.display === 'none') panel.innerHTML = ''; }, 320);
@@ -14518,7 +14501,7 @@ document.addEventListener('click', async (e)=>{
       const panel = document.getElementById('date-panel-'+name);
       const wrap = el.closest('.date-field') || document.querySelector('.date-field[data-name="' + name + '"]');
       const hidden = wrap && wrap.querySelector('input[type=hidden]');
-      if(panel) panel.innerHTML = dateGridHtml(name, el.dataset.ym, hidden ? hidden.value : '');
+      if(panel){ panel.innerHTML = dateGridHtml(name, el.dataset.ym, hidden ? hidden.value : ''); placeDatePanel(panel); }
     }
     else if(a === 'dp-pick-day'){
       const name = el.dataset.name;
