@@ -442,6 +442,24 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-opts-card{padding:4px 14px;}
 .opt-sec{padding:12px 0;}
 .opt-sec + .opt-sec{border-top:1px solid var(--hairline);}
+/* 화면 표시 설정: 실시간 미리보기 + 표시 항목 칩 */
+.ttp-wrap{margin-bottom:10px;}
+.ttp{position:relative; overflow:hidden; border:1px solid var(--border); border-radius:14px; line-height:1.25;}
+.ttp-lines{position:absolute; left:0; right:0; bottom:0; background-image:linear-gradient(to right, var(--ttp-line) 1px, transparent 1px), linear-gradient(to bottom, var(--ttp-line) 1px, transparent 1px);}
+.ttp-day{position:absolute; top:0; height:20px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--ttp-dim);}
+.ttp-day.today{color:var(--teal);}
+.ttp-today{position:absolute; bottom:0; background:rgba(224,172,85,.10);}
+.ttp-block{position:absolute; border-radius:6px; padding:3px 4px; overflow:hidden; display:flex; flex-direction:column; gap:1px; word-break:keep-all;}
+.ttp-block b{font-weight:800;}
+.ttp-block span{opacity:.9; font-size:.88em;}
+.ttp-now{position:absolute; left:0; right:0; height:2px; box-shadow:0 0 4px rgba(0,0,0,.25);}
+.opt-note{margin-left:6px; font-size:10px; font-weight:500; color:var(--text-faint);}
+.opt-chips{display:flex; flex-wrap:wrap; gap:6px;}
+.opt-chip{display:inline-flex; align-items:center; gap:5px; padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .18s, color .18s, border-color .18s, transform .1s;}
+.opt-chip i{font-style:normal; width:0; overflow:hidden; opacity:0; transition:width .18s, opacity .18s;}
+.opt-chip:active{transform:scale(.96);}
+.opt-chip.on{border-color:var(--teal); color:var(--teal); background:rgba(224,172,85,.12);}
+.opt-chip.on i{width:11px; opacity:1;}
 .opt-slider{display:flex; align-items:center; gap:8px; margin-top:2px;}
 .opt-slider input[type=range]{flex:1; min-width:0;}
 .opt-name{flex:0 0 44px; font-size:11px; font-weight:600; color:var(--text-dim);}
@@ -986,10 +1004,11 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .slot-time-row .time-picker .tp-val{min-width:0; width:100%; font-size:16.5px; height:30px;}
 .slot-time-row .time-picker .tp-ampm{font-size:12px; min-width:0; width:100%;}
 .slot-time-row .time-picker .tp-colon{font-size:15px; padding:0;}
-.dayp{flex:0 0 auto; width:40px; display:flex; flex-direction:column; align-items:stretch; border:1px solid var(--border); background:var(--surface-2); border-radius:var(--radius-sm); overflow:hidden;}
+.dayp{flex:0 0 auto; width:40px; display:flex; flex-direction:column; align-items:stretch; border:1px solid var(--border); background:var(--surface-3); border-radius:var(--radius-sm); overflow:hidden; box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);}
+.dayp-val{border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--surface-2);}
 .dayp-btn{width:100%; height:24px; border:none; background:transparent; color:var(--text-faint); font-size:8px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none;}
 .dayp-btn:active{background:var(--teal); color:var(--teal-ink);}
-.dayp-val{height:30px; display:flex; align-items:center; justify-content:center; font-size:16.5px; font-weight:800; color:var(--teal); user-select:none;}
+.dayp-val{height:30px; display:flex; align-items:center; justify-content:center; font-size:16.5px; font-weight:800; color:var(--text); user-select:none;}
 /* 시간표 메뉴: 수업 색 테마 */
 .ttm-sec{display:flex; align-items:baseline; gap:6px; margin:16px 2px 8px;}
 .ttm-sec b{font-size:12px; color:var(--text);}
@@ -1617,7 +1636,9 @@ const PATCH_NOTES = [
     { title:'수업 색 테마', text:'시간표 메뉴(⋯)의 "수업 색 테마"에서 기본 · 에타 · 파스텔 · 마카롱 · 화이트 · 캔디 · 바다 · 숲 · 노을 · 모노 중에 고르면 지금 시간표의 수업 색이 한 번에 바뀌어요. 같은 과목은 같은 색으로 묶여요' },
     { title:'글자색 자동', text:'수업 바탕이 흰색이나 파스텔처럼 밝으면 글자가 자동으로 검정이 돼요. 테마 적용 · 가져오기 · 수업 편집 모두 똑같이 맞춰지고, 수업 편집에서 글자색을 직접 고를 수도 있어요' },
     { title:'수업 추가가 간단해졌어요', text:'요일과 수업 시간(시작 ~ 종료)이 한 줄에 모였고, 요일도 시간처럼 ▲▼로 바꿔요(▼를 누르면 월 → 화 → 수). 강의실은 "건물 | 호수" 한 줄이고, 건물을 누르면 자주 쓰는 건물부터 세로 목록으로 펼쳐지며 아래 공간이 모자라면 위로 펼쳐져요' },
+    { title:'화면 표시 설정 개편', text:'위쪽에 작은 시간표 미리보기가 생겨서 표시 항목 · 색 · 크기를 바꾸는 대로 바로 보여요. 표시 항목은 눌러서 켜고 끄는 칩으로 바뀌었고, "기본값" 버튼으로 한 번에 되돌릴 수 있어요' },
     { title:'키보드가 올라와도 시간표가 그대로', text:'글자를 입력하려고 키보드가 올라올 때 뒤의 시간표가 쪼그라들며 위로 올라가던 문제를 고쳤어요', type:'fix' },
+    { title:'요일과 오전/오후 색이 겹쳐 헷갈리던 것 수정', text:'수업 추가에서 요일 글자를 흰색 칸으로 바꿔 오전/오후(노란색)와 구분되게 했어요', type:'fix' },
     { title:'시간대를 지워도 직접 입력한 강의실이 유지', text:'수업 추가에서 "기타(직접 입력)"로 적은 강의실이 다른 시간대를 삭제하면 사라지던 문제를 고쳤어요', type:'fix' },
   ]},  { version:'Beta 0.5.5', date:'2026-10-06', summary:'회원가입 동의 · 공휴일 인사 · 게시판 정리', items:[
     { title:'회원가입 개인정보 동의', text:'가입할 때 수집 항목·이용 목적·보유 기간을 안내하고, 필수 동의에 체크해야 가입돼요' },
@@ -7040,16 +7061,98 @@ const TT_LINE_PRESETS = ['#FFFFFF', '#E0AC55'];
 const TT_BG_PRESETS = ['#000000', '#FFFFFF'];
 // 배경 색 견본의 선택 표시: 흰 배경·검은 배경 어디서든 보이도록 검은 테두리를 깐 체크 그림(글자 ✓는 반반 원에서 네모 자국처럼 보였다)
 const TT_CHECK_SVG_OLD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#000" stroke-opacity=".6" stroke-width="5.4"/><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#fff" stroke-width="3"/></svg>';
-function ttOptionsModal(){
-  const o = state.ttOpts;
+// 화면 표시 설정을 열 때(또는 "기본값"을 눌렀을 때) 쓰는 기본값. state.ttOpts의 초기값과 같다.
+const TT_OPT_DEFAULTS = { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B', bgColor:'', gridColor:'', fontScale:1, rowScale:1, scrollable:false };
+
+// 설정 위쪽의 실시간 미리보기: 아래에서 바꾸는 값(표시 항목 · 색 · 크기)이 바로 반영된 작은 시간표.
+// 실제 시간표를 그리는 renderTimetable()과 별개의 가벼운 그림이라 모양은 근사치다.
+function ttPreviewHtml(o){
+  const fs = Math.min(1.6, Math.max(0.7, Number(o.fontScale) || 1));
+  const rs = Math.min(1.6, Math.max(0.6, Number(o.rowScale) || 1));
+  const H = Math.round(34 * rs);            // 한 시간 높이(px)
+  const HEAD = 20, HOURS = 4;
+  const hex = /^#[0-9a-fA-F]{6}$/;
+  const bg = hex.test(o.bgColor || '') ? o.bgColor : '';
+  const ln = hex.test(o.gridColor || '') ? o.gridColor : '';
+  const bgLight = bg ? isLightColor(bg) : !Ui_isDarkTheme();
+  const textMain = bg ? (bgLight ? '#111' : '#fff') : 'var(--text)';
+  const textDim = bg ? (bgLight ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.6)') : 'var(--text-dim)';
+  const line = ln ? ln + '55' : 'var(--border)';
+  const days = ['월', '화', '수', '목', '금'];
+  const todayCol = 2;
+  const samples = [
+    { d:0, s:0, e:2, subject:'전자회로II', prof:'이현근', time:'9:00–10:50', room:'과기2관 216', c:CLASS_PALETTE[5] },
+    { d:2, s:1, e:3, subject:'반도체소자', prof:'김성준', time:'10:00–11:50', room:'산협관 114', c:CLASS_PALETTE[3] },
+    { d:3, s:0, e:1, subject:'센서공학', prof:'노연욱', time:'9:00–9:50', room:'산협관 425', c:CLASS_PALETTE[1] },
+    { d:1, s:2, e:4, subject:'프로그래밍', prof:'신용구', time:'11:00–12:50', room:'과기1관 311', c:CLASS_PALETTE[6] },
+  ];
+  const col = 100 / 5;
+  const blocks = samples.map(b => {
+    const tc = autoTextColor(b.c);
+    const parts = [];
+    if(o.subject) parts.push(`<b>${b.subject}</b>`);
+    if(o.professor) parts.push(`<span>${b.prof}</span>`);
+    if(o.time) parts.push(`<span>${b.time}</span>`);
+    if(o.room) parts.push(`<span>${b.room}</span>`);
+    return `<div class="ttp-block" style="left:calc(${b.d * col}% + 1.5px); width:calc(${col}% - 3px); top:${HEAD + b.s * H + 1.5}px; height:${(b.e - b.s) * H - 3}px; background:${b.c}; color:${tc};">${parts.join('')}</div>`;
+  }).join('');
+  const nowTop = HEAD + H * 1.35;
+  const now = o.currentTime ? `<div class="ttp-now" style="top:${nowTop}px; background:${hex.test(o.currentTimeColor || '') ? o.currentTimeColor : '#FF6B6B'};"></div>` : '';
+  const total = HEAD + HOURS * H;
+  return `<div class="ttp" style="height:${total}px; font-size:${(9 * fs).toFixed(1)}px; background:${bg || 'var(--surface-2)'}; color:${textMain}; --ttp-line:${line}; --ttp-dim:${textDim}; background-image:
+      repeating-linear-gradient(to bottom, transparent 0, transparent ${HEAD}px, transparent ${HEAD}px),
+      linear-gradient(to right, ${line} 1px, transparent 1px);">
+    <div class="ttp-lines" style="top:${HEAD}px; background-size:${col}% 100%, 100% ${H}px;"></div>
+    ${days.map((d, i) => `<div class="ttp-day ${o.todayDate && i === todayCol ? 'today' : ''}" style="left:${i * col}%; width:${col}%;">${d}</div>`).join('')}
+    ${o.todayDate ? `<div class="ttp-today" style="left:${todayCol * col}%; width:${col}%; top:${HEAD}px;"></div>` : ''}
+    ${blocks}${now}
+  </div>`;
+}
+function Ui_isDarkTheme(){ return document.documentElement.getAttribute('data-theme') !== 'light'; }
+
+// 화면 표시 설정 창에서 아직 "적용"을 누르지 않은 값(토글·색·슬라이더)을 읽어 온다.
+function readPendingTtOpts(){
+  const panel = document.getElementById('tt-opts-panel');
+  const next = { ...state.ttOpts };
+  if(!panel) return next;
+  panel.querySelectorAll('.tt-opt-pending').forEach(btn=>{ next[btn.dataset.opt] = btn.dataset.checked === '1'; });
+  const swatchWrap = document.getElementById('tt-now-color-swatches');
+  if(swatchWrap) next.currentTimeColor = swatchWrap.dataset.selected || next.currentTimeColor;
+  const bgWrapEl = document.getElementById('tt-bg-color-swatches');
+  if(bgWrapEl) next.bgColor = bgWrapEl.dataset.selected || '';
+  const lineWrapEl = document.getElementById('tt-line-color-swatches');
+  if(lineWrapEl) next.gridColor = lineWrapEl.dataset.selected || '';
+  const rowSlider = document.getElementById('tt-row-scale-slider');
+  if(rowSlider) next.rowScale = parseFloat(rowSlider.value) || 1;
+  const fontSlider = document.getElementById('tt-font-scale-slider');
+  if(fontSlider) next.fontScale = parseFloat(fontSlider.value) || 1;
+  return next;
+}
+
+function ttOptionsModal(o = state.ttOpts){
   const colors = ['#FF6B6B', '#3ED6B5', '#5B9DFF', '#FFB454', '#B98CFF', '#FFFFFF'];
-  const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘 요일 강조'], ['currentTime', '현재 시간 표시선']];
+  const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘 요일 강조'], ['currentTime', '현재 시간선']];
   const fontScale = o.fontScale || 1;
   const rowScale = o.rowScale || 1;
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">화면 표시 설정<button data-action="close-modal">${ICON.close}</button></div>
+    <div class="ttp-wrap" id="tt-opts-preview">${ttPreviewHtml(o)}</div>
     <div class="card tt-opts-card" id="tt-opts-panel">
+      <div class="opt-sec">
+        <p class="set-label sm">표시 항목 <span class="opt-note">눌러서 켜고 끄기</span></p>
+        <div class="opt-chips">
+          ${opts.map(([key, label]) => `<button type="button" class="opt-chip tt-opt-pending ${o[key]?'on':''}" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"><i>✓</i>${label}</button>`).join('')}
+        </div>
+        <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-sub">
+          <span class="opt-name">선 색상</span>
+          <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
+            ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
+            ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
+          </div>
+          ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
+        </div></div></div>
+      </div>
       <div class="opt-sec">
         <p class="set-label sm">크기</p>
         <div class="opt-slider">
@@ -7091,24 +7194,9 @@ function ttOptionsModal(){
         ${inlineColorPanelHtml('ttbg', o.bgColor || '#000000')}
         ${inlineColorPanelHtml('ttline', o.gridColor || '#FFFFFF')}
       </div>
-      <div class="opt-sec">
-        <p class="set-label sm">표시 항목</p>
-        ${opts.map(([key, label]) => `
-        <div class="opt-row">
-          <span>${label}</span>
-          <button type="button" class="tgl ${o[key]?'on':''} tt-opt-pending" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}"></button>
-        </div>${key==='currentTime' ? `
-        <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-sub">
-          <span class="opt-name">선 색상</span>
-          <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
-            ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
-            ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
-          </div>
-          ${inlineColorPanelHtml('ttnow', o.currentTimeColor || '#FF6B6B')}
-        </div></div></div>` : ''}`).join('')}
-      </div>
     </div>
     <div class="modal-actions" style="gap:8px;">
+      <button type="button" class="btn btn-ghost" data-action="reset-tt-opts" style="flex:0 0 auto; width:auto; padding-left:14px; padding-right:14px;">기본값</button>
       <button type="button" class="btn btn-ghost" data-action="close-modal" style="flex:1;">취소</button>
       <button type="button" class="btn btn-primary" data-action="apply-tt-opts" style="flex:1;">적용</button>
     </div>
@@ -7196,23 +7284,21 @@ function setupTtOptionsModalListeners(){
     };
     rowLabel.onkeydown = (e)=>{ if(e.key === 'Enter') rowLabel.blur(); };
   }
+  // 아래에서 바꾸는 값이 위쪽 미리보기에 바로 반영되게 한다(색 고르기는 끌어서 바뀌므로 pointermove도 본다).
+  let raf = 0;
+  const refreshPreview = ()=>{
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(()=>{
+      const host = document.getElementById('tt-opts-preview');
+      if(host) host.innerHTML = ttPreviewHtml(readPendingTtOpts());
+    });
+  };
+  ['click', 'input', 'change', 'pointermove', 'touchmove'].forEach(ev => panel.addEventListener(ev, ()=>setTimeout(refreshPreview, 0), { passive:true }));
 }
 function applyTtOptions(){
   const panel = document.getElementById('tt-opts-panel');
   if(!panel) return;
-  const next = { ...state.ttOpts };
-  panel.querySelectorAll('.tt-opt-pending').forEach(btn=>{ next[btn.dataset.opt] = btn.dataset.checked === '1'; });
-  const swatchWrap = document.getElementById('tt-now-color-swatches');
-  if(swatchWrap) next.currentTimeColor = swatchWrap.dataset.selected || next.currentTimeColor;
-  const bgWrapEl = document.getElementById('tt-bg-color-swatches');
-  if(bgWrapEl) next.bgColor = bgWrapEl.dataset.selected || '';
-  const lineWrapEl = document.getElementById('tt-line-color-swatches');
-  if(lineWrapEl) next.gridColor = lineWrapEl.dataset.selected || '';
-  const rowSlider = document.getElementById('tt-row-scale-slider');
-  if(rowSlider) next.rowScale = parseFloat(rowSlider.value) || 1;
-  const fontSlider = document.getElementById('tt-font-scale-slider');
-  if(fontSlider) next.fontScale = parseFloat(fontSlider.value) || 1;
-  state.ttOpts = next;
+  state.ttOpts = readPendingTtOpts();
   localSet('tt_display_opts', state.ttOpts);
   closeModal();
   renderMain();
@@ -14623,6 +14709,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'open-capture-mode'){ openCaptureModeView(); }
     else if(a === 'close-capture-mode'){ const ov = document.getElementById('capture-overlay-box'); if(ov) ov.remove(); }
     else if(a === 'open-tt-options'){ openModal(ttOptionsModal()); setupTtOptionsModalListeners(); }
+    else if(a === 'reset-tt-opts'){ swapModal(ttOptionsModal({ ...TT_OPT_DEFAULTS })); setupTtOptionsModalListeners(); toast('기본값을 불러왔어요. 적용을 눌러야 저장돼요'); }
     else if(a === 'apply-tt-opts'){ applyTtOptions(); }
     else if(a === 'verify-council'){ openModal(councilVerifyModal()); }
     else if(a === 'revoke-council'){ await setRole('student'); }
