@@ -444,23 +444,19 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .opt-sec + .opt-sec{border-top:1px solid var(--hairline);}
 /* 화면 표시 설정: 표시 항목 타일 + 카드 */
 .tt-opts-v2{padding:2px 0 4px;}
-.opt-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
-.opt-tile{display:flex; flex-direction:column; align-items:center; gap:7px; padding:14px 4px 11px; border-radius:16px; background:var(--surface-2); border:1.5px solid transparent; color:var(--text-dim); font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .18s, color .18s, border-color .18s, transform .1s;}
-.opt-tile svg{width:20px; height:20px;}
-.opt-tile:active{transform:scale(.96);}
+.opt-tiles{display:grid; grid-template-columns:repeat(6,1fr); gap:5px; zoom:calc(1 / var(--font-scale, 1));}
+.opt-tile{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-width:0; padding:10px 0 8px; border-radius:12px; background:var(--surface-2); border:1.5px solid transparent; color:var(--text-dim); font-family:inherit; font-size:10px; font-weight:700; letter-spacing:-.02em; white-space:nowrap; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:background .18s, color .18s, border-color .18s, transform .1s;}
+.opt-tile svg{width:18px; height:18px;}
+.opt-tile span{line-height:1.1;}
+.opt-tile:active{transform:scale(.95);}
 .opt-tile.on{background:rgba(224,172,85,.12); border-color:var(--teal); color:var(--teal);}
 .opt-box{background:var(--surface-2); border-radius:16px; padding:12px 14px; margin-top:10px;}
 .opt-box h4{margin:0 0 8px; font-size:12px; color:var(--text-dim); font-weight:800;}
 .opt-box-now{margin-top:10px;}
-.opt-colrow{display:flex; align-items:center; gap:10px; padding:5px 0;}
-.opt-colrow .opt-name{flex:0 0 52px; font-size:12.5px; font-weight:600; color:var(--text);}
-.opt-colrow .swatches{flex:1; min-width:0; flex-wrap:wrap; gap:7px; zoom:calc(1 / var(--font-scale, 1));}
-.opt-colrow .swatch{flex:0 0 auto; width:30px; height:30px; font-size:11px;}
-.opt-colrow .swatch.line-default{font-size:9px;}
-.opt-box-now .opt-colrow{gap:8px;}
-.opt-box-now .opt-colrow .opt-name{flex-basis:44px; font-size:11.5px; line-height:1.25;}
-.opt-box-now .opt-colrow .swatches{gap:5px; flex-wrap:nowrap;}
-.opt-box-now .opt-colrow .swatch{width:26px; height:26px;}
+.opt-box-now .opt-sub{padding:0;}
+.opt-box-now .opt-sub .swatches{flex-wrap:nowrap; zoom:calc(1 / var(--font-scale, 1));}
+/* 배경 색상 | 줄 색상은 반반 칸 안에서 한 줄에 맞아야 하므로 견본을 조금 작게(26px) */
+.tt-opts-v2 .opt-two #tt-bg-color-swatches .swatch, .tt-opts-v2 .opt-two #tt-line-color-swatches .swatch{width:26px; height:26px;}
 .opt-slider{display:flex; align-items:center; gap:8px; margin-top:2px;}
 .opt-slider input[type=range]{flex:1; min-width:0;}
 .opt-name{flex:0 0 44px; font-size:11px; font-weight:600; color:var(--text-dim);}
@@ -1080,7 +1076,7 @@ html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .modal-title button{background:none; border:none; color:var(--text-dim); cursor:pointer; padding:10px; margin:-8px -8px -8px 0;}
 
 .swatches{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
-.swatch{-webkit-tap-highlight-color:transparent; outline:none; -webkit-appearance:none; appearance:none; padding:0; overflow:hidden; width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11.5px; font-weight:800;}
+.swatch{-webkit-tap-highlight-color:transparent; outline:none; -webkit-appearance:none; appearance:none; padding:0; overflow:hidden; width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid rgba(128,128,128,.45); display:flex; align-items:center; justify-content:center; color:#fff; font-size:11.5px; font-weight:800;}
 .swatch.selected{border-color:#fff; transform:scale(1.08);}
 .swatch[data-action="toggle-inline-color"]{text-shadow:0 0 3px rgba(0,0,0,.65);}
 .swatch.line-default{background:var(--surface-2); border:2px dashed var(--border-light); color:var(--text-dim); font-size:10px; font-weight:700;}
@@ -1645,6 +1641,7 @@ const PATCH_NOTES = [
     { title:'수업 추가가 간단해졌어요', text:'요일과 수업 시간(시작 ~ 종료)이 한 줄에 모였고, 요일도 시간처럼 ▲▼로 바꿔요(▼를 누르면 월 → 화 → 수). 강의실은 "건물 | 호수" 한 줄이고, 건물을 누르면 자주 쓰는 건물부터 세로 목록으로 펼쳐지며 아래 공간이 모자라면 위로 펼쳐져요' },
     { title:'화면 표시 설정 개편', text:'표시 항목이 아이콘 타일로 바뀌어 눌러서 켜고 끌 수 있고, 크기 · 색상은 카드로 묶어 한 화면에 모았어요. "기본값" 버튼으로 한 번에 되돌릴 수 있어요' },
     { title:'날짜 선택이 팝업으로', text:'학사일정 · 알림 · 투표 마감 등에서 날짜를 누르면 달력이 칸을 늘리지 않고 버튼 아래(공간이 모자라면 위)에 팝업으로 떠요. 날짜를 고르거나 바깥을 누르면 닫혀요' },
+    { title:'색 고르기에서 검정이 안 보이던 문제 수정', text:'일정 · 수업 색 고르기의 색 동그라미에 얇은 회색 테두리를 둘러서 검정(또는 흰색)도 배경에 묻히지 않고 보여요', type:'fix' },
     { title:'키보드가 올라와도 시간표가 그대로', text:'글자를 입력하려고 키보드가 올라올 때 뒤의 시간표가 쪼그라들며 위로 올라가던 문제를 고쳤어요', type:'fix' },
     { title:'요일과 오전/오후 색이 겹쳐 헷갈리던 것 수정', text:'수업 추가에서 요일 글자를 흰색 칸으로 바꿔 오전/오후(노란색)와 구분되게 했어요', type:'fix' },
     { title:'시간대를 지워도 직접 입력한 강의실이 유지', text:'수업 추가에서 "기타(직접 입력)"로 적은 강의실이 다른 시간대를 삭제하면 사라지던 문제를 고쳤어요', type:'fix' },
@@ -7125,8 +7122,17 @@ function readPendingTtOpts(){
 
 function ttOptionsModal(o = state.ttOpts){
   const colors = ['#FF6B6B', '#3ED6B5', '#5B9DFF', '#FFB454', '#B98CFF', '#FFFFFF'];
-  // 표시 항목: 아이콘 + 이름의 큰 타일(켜진 타일은 노란 테두리). 눌러서 켜고 끈다.
-  const opts = [['subject', '과목명', ICON.eye], ['professor', '교수명', ICON.person], ['time', '시간', ICON.clock], ['room', '강의실', ICON.frame], ['todayDate', '오늘 강조', ICON.todayCal], ['currentTime', '시간선', ICON.nextClass]];
+  // 표시 항목: 한 줄 6칸의 작은 타일(아이콘 + 짧은 이름). 켜진 타일은 노란 테두리. 눌러서 켜고 끈다.
+  const tileSvg = body => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+  const TILE_ICONS = {
+    subject:     tileSvg('<path d="M4 6.5h16"/><path d="M4 12h11"/><path d="M4 17.5h14"/>'),                                   // 글줄(과목명)
+    professor:   tileSvg('<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/>'),                    // 사람(교수명)
+    time:        tileSvg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),                                      // 시계(시간)
+    room:        tileSvg('<path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/>'), // 핀(강의실)
+    todayDate:   tileSvg('<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.6" fill="currentColor"/>'), // 달력+점(오늘)
+    currentTime: tileSvg('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 14h16"/><circle cx="8.5" cy="14" r="1.7" fill="currentColor"/>'),                  // 칸+가로선(현재 시간선)
+  };
+  const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘'], ['currentTime', '시간선']];
   const fontScale = o.fontScale || 1;
   const rowScale = o.rowScale || 1;
   return `
@@ -7134,11 +7140,11 @@ function ttOptionsModal(o = state.ttOpts){
     <div class="modal-title">화면 표시 설정<button data-action="close-modal">${ICON.close}</button></div>
     <div id="tt-opts-panel" class="tt-opts-v2">
       <div class="opt-tiles">
-        ${opts.map(([key, label, icon]) => `<button type="button" class="opt-tile tt-opt-pending ${o[key]?'on':''}" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}">${icon}<span>${label}</span></button>`).join('')}
+        ${opts.map(([key, label]) => `<button type="button" class="opt-tile tt-opt-pending ${o[key]?'on':''}" data-opt="${key}" data-checked="${o[key]?'1':'0'}" role="switch" aria-checked="${!!o[key]}" title="${key==='todayDate' ? '오늘 요일 강조' : key==='currentTime' ? '현재 시간 표시선' : label}">${TILE_ICONS[key]}<span>${label}</span></button>`).join('')}
       </div>
       <div id="tt-now-color-section" class="opt-collapse ${o.currentTime ? 'open' : ''}"><div class="opt-collapse-in"><div class="opt-box opt-box-now">
-        <div class="opt-colrow">
-          <span class="opt-name">시간선 색</span>
+        <div class="opt-sub">
+          <span class="opt-name">선 색상</span>
           <div class="swatches" id="tt-now-color-swatches" data-selected="${o.currentTimeColor||'#FF6B6B'}">
             ${colors.map(hex => `<button type="button" class="swatch tt-color-pending ${o.currentTimeColor === hex ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}">${o.currentTimeColor === hex ? '✓' : ''}</button>`).join('')}
             ${inlineColorSwatchHtml('ttnow', o.currentTimeColor || '#FF6B6B', !colors.includes(o.currentTimeColor))}
@@ -7166,24 +7172,25 @@ function ttOptionsModal(o = state.ttOpts){
         <p id="tt-row-scale-warn" class="opt-hint" style="color:var(--amber); ${rowScale<=0.8?'':'display:none;'}">⚠ 너무 줄이면 글자가 잘릴 수 있어요.</p>
       </div>
       <div class="opt-box">
-        <h4>색상</h4>
-        <div class="opt-colrow">
-          <span class="opt-name">배경</span>
-          <div class="swatches" id="tt-bg-color-swatches" data-selected="${o.bgColor||''}">
-            <button type="button" class="swatch tt-bg-pending ${!o.bgColor ? 'selected' : ''}" data-hex="" title="기본(테마 색)" style="background:transparent;"><svg width="100%" height="100%" viewBox="0 0 30 30" style="display:block;"><path d="M15 0a15 15 0 0 0 0 30z" fill="#fff"/><path d="M15 0a15 15 0 0 1 0 30z" fill="#000"/><circle cx="15" cy="15" r="14.5" fill="none" stroke="rgba(128,128,128,.55)"/></svg></button>
-            ${TT_BG_PRESETS.map(hex => `<button type="button" class="swatch tt-bg-pending ${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);">${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? TT_CHECK_SVG : ''}</button>`).join('')}
-            ${inlineColorSwatchHtml('ttbg', o.bgColor || '#000000', !!o.bgColor && !TT_BG_PRESETS.some(h=>h.toLowerCase()===o.bgColor.toLowerCase()))}
+        <div class="opt-two">
+          <div class="opt-col">
+            <p class="set-label sm">배경 색상</p>
+            <div class="swatches" id="tt-bg-color-swatches" data-selected="${o.bgColor||''}">
+              <button type="button" class="swatch tt-bg-pending ${!o.bgColor ? 'selected' : ''}" data-hex="" title="기본(테마 색)" style="background:transparent;"><svg width="100%" height="100%" viewBox="0 0 30 30" style="display:block;"><path d="M15 0a15 15 0 0 0 0 30z" fill="#fff"/><path d="M15 0a15 15 0 0 1 0 30z" fill="#000"/><circle cx="15" cy="15" r="14.5" fill="none" stroke="rgba(128,128,128,.55)"/></svg></button>
+              ${TT_BG_PRESETS.map(hex => `<button type="button" class="swatch tt-bg-pending ${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);">${(o.bgColor||'').toLowerCase() === hex.toLowerCase() ? TT_CHECK_SVG : ''}</button>`).join('')}
+              ${inlineColorSwatchHtml('ttbg', o.bgColor || '#000000', !!o.bgColor && !TT_BG_PRESETS.some(h=>h.toLowerCase()===o.bgColor.toLowerCase()))}
+            </div>
+          </div>
+          <div class="opt-col">
+            <p class="set-label sm">줄 색상</p>
+            <div class="swatches" id="tt-line-color-swatches" data-selected="${o.gridColor||''}">
+              <button type="button" class="swatch tt-line-pending line-default ${!o.gridColor ? 'selected' : ''}" data-hex="" title="기본">기본</button>
+              ${TT_LINE_PRESETS.map(hex => `<button type="button" class="swatch tt-line-pending ${(o.gridColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>`).join('')}
+              ${inlineColorSwatchHtml('ttline', o.gridColor || '#FFFFFF', !!o.gridColor && !TT_LINE_PRESETS.some(h=>h.toLowerCase()===o.gridColor.toLowerCase()))}
+            </div>
           </div>
         </div>
         ${inlineColorPanelHtml('ttbg', o.bgColor || '#000000')}
-        <div class="opt-colrow">
-          <span class="opt-name">줄</span>
-          <div class="swatches" id="tt-line-color-swatches" data-selected="${o.gridColor||''}">
-            <button type="button" class="swatch tt-line-pending line-default ${!o.gridColor ? 'selected' : ''}" data-hex="" title="기본">기본</button>
-            ${TT_LINE_PRESETS.map(hex => `<button type="button" class="swatch tt-line-pending ${(o.gridColor||'').toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" data-hex="${hex}" style="background:${hex}; box-shadow:inset 0 0 0 1px rgba(128,128,128,.4);"></button>`).join('')}
-            ${inlineColorSwatchHtml('ttline', o.gridColor || '#FFFFFF', !!o.gridColor && !TT_LINE_PRESETS.some(h=>h.toLowerCase()===o.gridColor.toLowerCase()))}
-          </div>
-        </div>
         ${inlineColorPanelHtml('ttline', o.gridColor || '#FFFFFF')}
       </div>
     </div>
