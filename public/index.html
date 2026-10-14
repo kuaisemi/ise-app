@@ -618,6 +618,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
    글씨는 오히려 키워서 눌린 만큼 안 읽히는 일이 없게 한다. */
 .tt-block{margin:1px 2px; border-radius:6px; padding:3px 5px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.18); z-index:2;}
 .tt-block:active{transform:scale(0.96);}
+.tt-block{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none; transition:transform .12s;}
 .tt-block b{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; font-size:calc(12.5px * var(--tt-font-scale, 1)); font-weight:800; line-height:1.15; margin-bottom:1px; overflow:hidden; word-break:break-all;}
 .tt-block span.time-tag{display:block; font-size:calc(9.5px * var(--tt-font-scale, 1)); font-family:var(--font-mono); line-height:1.1; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .tt-block span.prof-tag{display:block; font-size:calc(10.5px * var(--tt-font-scale, 1)); font-weight:600; line-height:1.1; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
@@ -1666,6 +1667,7 @@ const PATCH_NOTES = [
       '요일과 오전/오후 색이 겹쳐 헷갈리던 것을 구분',
       '시간대를 지워도 "기타(직접 입력)"로 적은 강의실이 사라지지 않아요',
     ] },
+    { title:'시간표 수업은 꾹 눌러서 수정', text:'시간표에서 수업을 한 번 누르면 눌리는 모션만 나오고, 꾹 누르면 수정 화면이 열려요. 스크롤하다가 실수로 열리지 않아요', sub:[ '수업 개수는 과목 이름 기준(수업 9개)으로, 요일·시간 칸은 시간대(14개)로 따로 보여 줘요', '에브리타임 링크 가져오기를 열어도 키보드가 저절로 올라오지 않아요' ] },
     { title:'키보드가 올라와도 시간표가 그대로', text:'글자를 입력하려고 키보드가 올라올 때 뒤의 시간표가 쪼그라들며 위로 올라가던 문제를 고쳤어요', type:'fix' },
     { title:'학식 알림 제목 정리', text:'알림 제목이 "조식" · "중식" · "석식"으로 바뀌었어요. 진리관 · 미래관을 둘 다 켜 두면 중식이 한 통으로 와서, 본문에 (진리) · (미래) 메뉴가 한 줄씩 나와요', type:'fix' },
   ]},
@@ -5218,7 +5220,7 @@ function primaryTimetableModal(){
           ${variants.map((v,i)=>`
             <div class="tt-list-row ${cur && cur.sem===k && cur.idx===i?'active':''}" data-action="pick-primary-variant" data-key="${k}" data-idx="${i}">
               <span>${escapeHtml(v.name)}</span>
-              <span class="tt-list-row-meta">${v.slots.length}개 수업</span>
+              <span class="tt-list-row-meta">${fmtClassStats(v.slots)}</span>
             </div>`).join('')}
         </div>`;
       }).join('')}
@@ -6717,7 +6719,7 @@ function renderHome(){
     <div class="hero-greet">
       <div class="hero-trace">${ICON.trace}</div>
       <p class="greet-name"><span data-action="go-my-tab" style="cursor:pointer;">${escapeHtml(getNickname() || state.user.name)}</span>님, 안녕하세요</p>
-      <p class="greet-sub">${holName !== null ? (holName ? `오늘은 ${escapeHtml(holName)}이에요, 즐겁고 편안한 하루 보내세요` : '오늘은 공휴일이에요, 즐겁고 편안한 하루 보내세요') : di>=0 ? `오늘은 ${DAYS[di]}요일, 수업 ${todays.length}개가 있어요` : '오늘은 주말이에요, 편안한 하루 보내세요'}</p>
+      <p class="greet-sub">${holName !== null ? (holName ? `오늘은 ${escapeHtml(holName)}이에요, 즐겁고 편안한 하루 보내세요` : '오늘은 공휴일이에요, 즐겁고 편안한 하루 보내세요') : di>=0 ? `오늘은 ${DAYS[di]}요일, 수업 ${classStats(todays).classes}개가 있어요` : '오늘은 주말이에요, 편안한 하루 보내세요'}</p>
     </div>
 
     ${(openPolls.length && !(hp.hideVotedPolls && unvoted.length===0)) ? `
@@ -6781,7 +6783,7 @@ function ttMoreMenuModal(){
     <div class="modal-handle"></div>
     <div class="modal-title">시간표 메뉴<button data-action="close-modal">${ICON.close}</button></div>
     <div class="ttm-head">
-      <div class="ttm-head-txt"><b>${escapeHtml(activeVariantName())}</b><small>${sem} · 수업 ${(state.timetable||[]).length}개</small></div>
+      <div class="ttm-head-txt"><b>${escapeHtml(activeVariantName())}</b><small>${sem} · ${fmtClassStats(state.timetable)}</small></div>
       <button type="button" class="ttm-icbtn" data-action="rename-variant" title="이름 변경">${ICON.pencil}</button>
       <button type="button" class="ttm-icbtn danger" data-action="reset-timetable" title="이 시간표 지우기">${ICON.trash}</button>
     </div>
@@ -6956,7 +6958,7 @@ function renderTimetable(isCapture=false){
     const startRow = 2 + Math.floor((start-TIME_START)/TIMETABLE_GRID_STEP);
     const endRow = Math.max(startRow+1, 2 + Math.ceil((end-TIME_START)/TIMETABLE_GRID_STEP));
     const textColor = c.textColor || '#FFFFFF';
-    const actionAttr = isCapture ? '' : `data-action="edit-class" data-id="${c.id}"`;
+    const actionAttr = isCapture ? '' : `data-edit-id="${c.id}"`;   // 짧게 누르면 눌림 모션만, 꾹 누르면 수정(아래 setupBlockLongPress)
     blocks += `<div class="tt-block" ${actionAttr}
       style="grid-column:${c.day+2}; grid-row:${startRow} / ${endRow}; background:${c.color||COLORS[0].hex}; color:${textColor};">
       ${o.subject ? `<b style="color:${textColor};">${escapeHtml(c.subject)}</b>` : ''}
@@ -7416,6 +7418,54 @@ function renderSlotHtml(slot, index, total){
     </div>`;
 }
 
+// 수업은 "과목 이름" 기준으로 세고, 같은 과목의 요일·시간 칸은 시간대로 센다.
+// 예) 전자회로II가 화·목 두 칸이면 수업 1개 · 시간대 2개.
+function classStats(slots){
+  const list = Array.isArray(slots) ? slots : [];
+  const names = new Set(list.map(c => String((c && c.subject) || '').trim() || (c && c.groupId) || (c && c.id) || ''));
+  return { classes: names.size, slots: list.length };
+}
+function fmtClassStats(slots){
+  const s = classStats(slots);
+  return s.slots === 0 ? '수업 없음' : `수업 ${s.classes}개 · 시간대 ${s.slots}개`;
+}
+// 시간표에서 수업을 꾹 눌렀을 때(또는 예전 방식으로 호출될 때) 수정 화면을 연다.
+// 시간표의 수업 칸: 한 번 누르면 눌리는 모션(:active)만 있고, 0.5초 꾹 누르면 수정 화면이 열린다.
+// 누른 채로 8px 이상 움직이면(스크롤하려는 동작) 취소하고, 길게 눌러 열린 뒤에 따라오는 클릭은 버린다.
+let blockLongPressBound = false;
+function setupBlockLongPress(){
+  if(blockLongPressBound) return;
+  blockLongPressBound = true;
+  const HOLD_MS = 500, MOVE_PX = 8;
+  let timer = null, sx = 0, sy = 0, id = null, fired = false;
+  const cancel = ()=>{ if(timer){ clearTimeout(timer); timer = null; } };
+  const blockOf = (t)=> t && t.closest ? t.closest('.tt-block[data-edit-id]') : null;
+  document.addEventListener('pointerdown', (e)=>{
+    const el = blockOf(e.target);
+    if(!el) return;
+    cancel(); fired = false; id = el.dataset.editId; sx = e.clientX; sy = e.clientY;
+    timer = setTimeout(()=>{
+      timer = null; fired = true;
+      try{ if(navigator.vibrate) navigator.vibrate(18); }catch(_){}
+      openClassEditor(id);
+    }, HOLD_MS);
+  }, true);
+  document.addEventListener('pointermove', (e)=>{
+    if(timer && (Math.abs(e.clientX - sx) > MOVE_PX || Math.abs(e.clientY - sy) > MOVE_PX)) cancel();
+  }, true);
+  ['pointerup', 'pointercancel', 'scroll'].forEach(ev => document.addEventListener(ev, cancel, true));
+  // 꾹 눌렀을 때 시스템 메뉴·글자 선택이 뜨지 않게 한다.
+  document.addEventListener('contextmenu', (e)=>{ if(blockOf(e.target)) e.preventDefault(); }, true);
+  // 길게 눌러서 이미 열렸으면, 손을 뗄 때 따라오는 클릭이 뒤의 요소를 건드리지 않게 막는다.
+  document.addEventListener('click', (e)=>{
+    if(fired && blockOf(e.target)){ e.stopPropagation(); e.preventDefault(); fired = false; }
+  }, true);
+}
+setupBlockLongPress();
+function openClassEditor(id){
+  const c = (state.timetable || []).find(x => x.id === id);
+  if(c){ openModal(classModal(c)); setupClassModalListeners(); }
+}
 function classModal(cls){
   const isEdit = !!cls;
   let slots = [], subject = '', professor = '', color = randomClassColor(), textColor = isLightColor(color) ? '#000000' : '#FFFFFF', groupId = '';
@@ -7550,7 +7600,7 @@ function ocrModal(mode = 'photo'){
     </div>
     <div id="ocr-status-box" style="font-size:11.5px; color:var(--text-dim); margin-bottom:12px; display:none; line-height:1.5;"></div>
     <div id="ocr-results-wrap" style="display:none;">
-      <div class="section-title" style="margin:8px 0 6px;">인식된 수업 (<span id="ocr-count">0</span>개)</div>
+      <div class="section-title" style="margin:8px 0 6px;">가져올 수업 · <span id="ocr-count">0</span></div>
       <div id="ocr-items-list" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:14px; padding:2px 12px; background:var(--surface-2); margin-bottom:12px;"></div>
       <label class="ocr-row" id="et-all-wrap" style="display:none; border:1px solid var(--border); border-radius:14px; padding:10px 12px; margin-bottom:12px; background:var(--surface-2);">
         <div style="min-width:0;">
@@ -12193,7 +12243,7 @@ function ttListBody(k){
     return `
     <div class="ttl-row ${act ? 'active' : ''}" data-action="pick-variant" data-key="${k}" data-idx="${i}">
       <span class="ttl-radio">${act ? ICON.tick : ''}</span>
-      <span class="ttl-row-main"><b>${escapeHtml(v.name)}</b><small>${(v.slots || []).length}개 수업</small></span>
+      <span class="ttl-row-main"><b>${escapeHtml(v.name)}</b><small>${fmtClassStats(v.slots)}</small></span>
       <span class="ttl-dots">${dots}</span>
       <button type="button" class="ttl-del" data-action="delete-variant" data-key="${k}" data-idx="${i}" title="삭제">${ICON.close}</button>
     </div>`;
@@ -12905,7 +12955,7 @@ function setupOcrModalListeners(){
     etWrap.style.display='block';
     if(etToggle) etToggle.style.display='none';
   };
-  if(etToggle) etToggle.onclick=()=>{ openEtLink(); if(etInput) etInput.focus(); };
+  if(etToggle) etToggle.onclick=()=>{ openEtLink(); };
 
   const renderItems=(list)=>{
     if(!itemsList) return;
@@ -12971,8 +13021,8 @@ function setupOcrModalListeners(){
         openEtLink();
         return;
       }
-      if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${recognized.length}개 수업 인식 완료 (시작은 정각, 끝은 50분으로 맞췄어요)</span>`;
-      if(countEl) countEl.textContent=recognized.length;
+      if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${fmtClassStats(recognized)} 인식 완료 (시작은 정각, 끝은 50분으로 맞췄어요)</span>`;
+      if(countEl) countEl.textContent=fmtClassStats(recognized);
       renderItems(recognized);
       if(resultsWrap) resultsWrap.style.display='block';
     };
@@ -13005,9 +13055,9 @@ function setupOcrModalListeners(){
           return;
         }
         const term = year && semester ? `${escapeHtml(year)}년 ${escapeHtml(semester)}${/^\d+$/.test(semester) ? '학기' : ''} ` : '';
-        if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${term}시간표에서 ${list.length}개 수업을 가져왔어요</span>`
+        if(statusBox) statusBox.innerHTML=`<span style="color:var(--teal); font-weight:700;">✓ ${term}시간표에서 ${fmtClassStats(list)}를 가져왔어요</span>`
           + (weekend ? `<br><span style="font-size:11px; color:var(--text-faint);">토·일 수업 ${weekend}개는 뺐어요.</span>` : '');
-        if(countEl) countEl.textContent=list.length;
+        if(countEl) countEl.textContent=fmtClassStats(list);
         renderItems(list);
         if(resultsWrap) resultsWrap.style.display='block';
       }catch(err){
@@ -13050,7 +13100,7 @@ function setupOcrModalListeners(){
       syncActiveTimetable();
       const ok=await saveTimetable(state.user.uid, state.timetable);
       closeModal(); renderMain();
-      saveResultToast(ok, replace ? `'${r.name}' 시간표를 ${slots.length}개 수업으로 교체했어요` : `${semesterLabel(sem)}에 '${r.name}' 시간표를 추가했어요`);
+      saveResultToast(ok, replace ? `'${r.name}' 시간표를 ${fmtClassStats(slots)}로 교체했어요` : `${semesterLabel(sem)}에 '${r.name}' 시간표를 추가했어요`);
     };
   }
 }
@@ -15038,7 +15088,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'close-tt-fab'){ setTtFab(false); }
     else if(a === 'tt-fab-more'){ setTtFab(false); openModal(ttMoreMenuModal()); }
     else if(a === 'add-class'){ setTtFab(false); openModal(classModal(null)); setupClassModalListeners(); }
-    else if(a === 'edit-class'){ const c = state.timetable.find(x => x.id === el.dataset.id); if(c){ openModal(classModal(c)); setupClassModalListeners(); } }
+    else if(a === 'edit-class'){ openClassEditor(el.dataset.id); }
     else if(a === 'delete-class-group'){ await deleteClassGroup(el.dataset.groupId); }
     else if(a === 'tt-import'){ setTtFab(false); openModal(importChooserModal()); }
     else if(a === 'apply-tt-theme'){
@@ -15051,7 +15101,7 @@ document.addEventListener('click', async (e)=>{
       saveResultToast(ok, `'${theme.name}' 테마를 적용했어요`);
     }
     else if(a === 'ocr-timetable'){ setTtFab(false); openModal(ocrModal('photo')); setupOcrModalListeners(); }
-    else if(a === 'et-link-import'){ setTtFab(false); openModal(ocrModal('link')); setupOcrModalListeners(); const inp=document.getElementById('et-link-input'); if(inp) setTimeout(()=>inp.focus(), 250); }
+    else if(a === 'et-link-import'){ setTtFab(false); openModal(ocrModal('link')); setupOcrModalListeners(); }
     else if(a === 'pick-color'){
       // 프리셋을 고르면 "직접 선택" 스와치는 다시 무지개(선택 안 됨) 상태로 되돌린다
       document.querySelectorAll('#class-swatches-wrap .swatch').forEach(s => {
