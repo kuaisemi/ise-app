@@ -11144,7 +11144,7 @@ function renderMypage(){
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row" data-action="toggle-trouble"><span class="link-row-label">${ICON.phoneAlert} 앱이 이상할 때</span> <span class="sub"><span class="trouble-chev" style="display:inline-flex; transition:transform .2s;">${ICON.chevR}</span></span></div>
+      <div class="link-row" data-action="toggle-trouble"><span class="link-row-label">${ICON.phoneAlert} 앱이 이상할 때</span> <span class="sub"><span class="trouble-chev" style="display:inline-flex; transition:transform .2s; transform:rotate(90deg);">${ICON.chevR}</span></span></div>
       <div id="trouble-body" style="display:none; padding-left:14px;">
         <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="global-refresh"><span class="link-row-label">${ICON.refresh} 새로고침<span class="rf-cd"></span></span> <span class="sub">${ICON.chevR}</span></div>
@@ -14882,7 +14882,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'toggle-trouble'){
       const body = document.getElementById('trouble-body'); if(!body) return;
       const open = body.style.display === 'none'; body.style.display = open ? '' : 'none';
-      const ch = el.querySelector('.trouble-chev'); if(ch) ch.style.transform = open ? 'rotate(90deg)' : '';
+      const ch = el.querySelector('.trouble-chev'); if(ch) ch.style.transform = open ? 'rotate(-90deg)' : 'rotate(90deg)';
       if(open) refreshCdTick();
     }
     else if(a === 'clear-app-cache'){
