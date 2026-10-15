@@ -1219,6 +1219,7 @@ html.tab-wide .cal-left .meal-nav{max-width:none;}
 @media (prefers-reduced-motion:reduce){ .bus-body,.bus-road,.bus-cloud{animation:none;} }
 /* 왼쪽 위(ISE) · 왼쪽 아래(소셜 · 알림 · 내 정보) */
 html.tab-ui:not(.tab-wide) .rail-me{display:none;}
+.rail-me{display:none;}   /* 폰 · 일반 화면에서는 보이지 않는다(가로 태블릿 레일에서만) */
 html.tab-ui.tab-wide .topbar{top:14px; bottom:14px; width:clamp(58px, 5.4vw, 76px); height:auto; padding:0; background:none; border:none; box-shadow:none; backdrop-filter:none; pointer-events:none; border-radius:0;}
 html.tab-ui.tab-wide .topbar-row{display:flex; flex-direction:column; align-items:center; height:100%; gap:8px;}
 html.tab-ui.tab-wide .topbar-row > *{pointer-events:auto;}
@@ -3433,6 +3434,7 @@ function syncSystemBars(){
   try{
     const WB = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.WidgetBridge;
     if(!WB || typeof WB.setBars !== 'function') return;
+    if(!document.documentElement.classList.contains('tab-ui')) return;   // 폰은 기존 상단 바 색을 그대로 둔다
     const bg = getComputedStyle(document.body).backgroundColor || '';
     const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(bg);
     if(!m) return;
@@ -7473,12 +7475,16 @@ function fitTimetableGrid(){
   // 더 키우는 건 허용하지 않는다(스크롤 금지 원칙을 항상 지키기 위해).
   const scrollable = !!(state.ttOpts && state.ttOpts.scrollable);
   const userScale = Math.max(0.6, Math.min(scrollable ? 1.6 : 1, ttRowScaleVal()));
-  const rowPx = Math.max(8, maxSafeRowPx * userScale);
+  // 태블릿 가로에서 화면이 너무 낮으면 칸을 더 줄이지 않고(글씨가 뭉개진다) 최소 높이에서 멈추고 시간표 안에서 스크롤한다.
+  const minRowPx = isWideUI() ? 20 : 8;
+  const rowPx = Math.max(minRowPx, maxSafeRowPx * userScale);
+  const wideNeedsScroll = isWideUI() && (rowPx * effectiveRows + headerPx > available + 1);
   grid.style.setProperty('--tt-row-h', rowPx+'px');
   wrap.style.maxHeight = (scrollable && userScale > 1) ? 'none' : available+'px';
   // 시간표 위에서 손가락을 위아래로 끌 때 페이지가 스크롤되도록: 시간표 상자의 overscroll-behavior:contain이 위아래 스크롤을 뒤 페이지로 넘기지 않아서
   // 스크롤 허용으로 100%보다 크게 볼 때는 auto로 풀어 준다
   wrap.style.overscrollBehavior = (scrollable && userScale > 1) ? 'auto' : '';
+  wrap.style.overflowY = wideNeedsScroll ? 'auto' : '';
   __ttLastFit = { row: rowPx, maxH: wrap.style.maxHeight, over: wrap.style.overscrollBehavior };
   // 칸 높이가 바뀌었으니 "지금" 표시하는 빨간 줄 위치도 새 칸 높이에 맞춰 다시 계산한다.
   const nowLine = grid.querySelector('.tt-now-line');
