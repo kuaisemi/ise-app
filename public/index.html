@@ -2847,6 +2847,8 @@ async function recordDailyVisit(){
   try{ await setDoc(doc(db,'dailyVisits',day), { [state.user.uid]: now() }, { merge:true }); localSet('visit_day', day); }
   catch(e){ console.warn('[dailyVisit]', e); }
 }
+// 앱을 닫지 않고 백그라운드에 둔 채 다음 날 다시 열어도 그날 방문으로 잡히게 한다(오늘 이미 적었으면 바로 끝나서 요청이 없다).
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) recordDailyVisit(); });
 async function loadTodayVisitors(){
   if(!state.user) return;
   if(todayVisitorsCount != null && Date.now() - todayVisitorsAt < 5 * 60 * 1000) return;
