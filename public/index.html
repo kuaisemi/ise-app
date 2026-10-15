@@ -6100,7 +6100,36 @@ function setupWidgetDeepLink(){
   }
   WB.consumeDeepLink().then(r=>{ if(r && r.target) applyWidgetDeepLink(r.target); }).catch(()=>{});
 }
+// 다른 앱(에브리타임 등)의 공유 창에서 "KU ISE"를 골라 들어온 텍스트: 에브리타임 시간표 링크면 바로 가져오기 창을 열고 가져온다.
+function handleSharedText(text){
+  const id = everytimeIdFromText(text);
+  if(!id){ toast('에브리타임 시간표 링크가 아니에요'); return; }
+  if(!state.user){
+    try{ sessionStorage.setItem('ku_ise_pending_share', text); }catch(_){}
+    toast('로그인하면 시간표를 가져와요');
+    return;
+  }
+  try{
+    state.view = 'timetable';
+    if(document.getElementById('main-content')){ renderMain(); } else { renderShell(); }
+    openModal(ocrModal('link'));
+    setupOcrModalListeners();
+    setTimeout(()=>{
+      const inp = document.getElementById('et-link-input'), btn = document.getElementById('et-link-btn');
+      if(inp){ inp.value = text; }
+      if(btn) btn.click();
+    }, 250);
+  }catch(e){ toast('시간표를 가져오지 못했어요'); }
+}
+function maybeProcessPendingShare(){
+  let t = null;
+  try{ t = sessionStorage.getItem('ku_ise_pending_share'); }catch(_){}
+  if(!t || !state.user) return;
+  try{ sessionStorage.removeItem('ku_ise_pending_share'); }catch(_){}
+  setTimeout(()=>handleSharedText(t), 600);
+}
 function applyWidgetDeepLink(target){
+  if(typeof target === 'string' && target.startsWith('share:')){ handleSharedText(target.slice(6)); return; }
   if(target === 'examCal'){
     state.view = 'info';
     state.infoTab = 'examCal';
@@ -6933,6 +6962,7 @@ function renderShell(){
     </div>`;
   renderMain();
   refreshCdStart();
+  maybeProcessPendingShare();
 }
 // 태블릿 가로 화면: 왼쪽 아래에 내 아이콘과 이름.
 // 태블릿 가로: 추가·작성·새로고침 같은 작업 버튼은 왼쪽 메뉴(탭) 바로 아래로 모은다.

@@ -23,6 +23,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- 공유 창에 "KU ISE"가 뜨게 한다: 에브리타임 등에서 시간표 링크(텍스트)를 공유하면 바로 가져오기로 이어진다. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
         </activity>
 
         <!-- 홈 화면 위젯 4종. 데이터는 앱이 WidgetBridge로 넣어준 값을 읽어서 그린다. -->

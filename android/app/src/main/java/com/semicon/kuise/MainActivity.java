@@ -54,6 +54,19 @@ public class MainActivity extends BridgeActivity {
         // 플러그인에 값만 남겨두고, JS가 부팅 후 consumeDeepLink()로 직접 가져가게 한다.
         String target = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_WIDGET_TARGET);
         if (target != null) WidgetBridgePlugin.setPendingTarget(target);
+        // 다른 앱의 "공유"로 들어온 텍스트(에브리타임 시간표 링크 등)
+        String shared = sharedText(getIntent());
+        if (shared != null) WidgetBridgePlugin.setPendingTarget("share:" + shared);
+    }
+
+    /** ACTION_SEND(text/plain)로 들어온 공유 텍스트. 없으면 null. */
+    private static String sharedText(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return null;
+        CharSequence t = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+        if (t == null) return null;
+        String s = t.toString().trim();
+        if (s.isEmpty()) return null;
+        return s.length() > 2000 ? s.substring(0, 2000) : s;
     }
 
     /**
@@ -67,6 +80,8 @@ public class MainActivity extends BridgeActivity {
         setIntent(intent);
         String target = intent == null ? null : intent.getStringExtra(EXTRA_WIDGET_TARGET);
         if (target != null) WidgetBridgePlugin.notifyDeepLink(target);
+        String shared = sharedText(intent);
+        if (shared != null) WidgetBridgePlugin.notifyDeepLink("share:" + shared);
     }
 
     /**
