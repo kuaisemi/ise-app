@@ -1480,6 +1480,12 @@ html.tab-wide .cal-list-col > .card, html.tab-wide .cal-left > .card:last-child{
 /* 시간표 이미지 미리 보기 */
 .tt-img-prev{max-height:min(60vh, 560px); overflow:auto; border:1px solid var(--border); border-radius:14px; background:var(--surface-2); padding:6px; margin-bottom:12px;}
 .tt-img-prev img{display:block; width:100%; height:auto; border-radius:10px;}
+/* ===== 학생사회(가로): 왼쪽 탭·작업 카드는 고정, 게시글 영역만 스크롤 ===== */
+html.tab-wide main[data-view="council"]{flex:0 0 auto !important; height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); box-sizing:border-box; overflow:hidden !important; padding-top:18px; padding-bottom:18px;}
+html.tab-wide main[data-view="council"] .app-version{display:none;}
+html.tab-wide main[data-view="council"] .wide-split{height:100%; align-items:stretch;}
+html.tab-wide main[data-view="council"] .wide-side{position:static; height:100%; min-height:0; max-height:none;}
+html.tab-wide main[data-view="council"] .wide-body{height:100%; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-bottom:20px;}
 /* 낮고 넓은 화면(폰 가로): 하단 막대가 화면을 너무 많이 먹지 않게 얇게 */
 @media (max-height:480px) and (orientation:landscape){
   .bottomnav{padding-top:2px; padding-bottom:calc(2px + var(--safe-bottom));}
