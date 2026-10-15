@@ -1237,7 +1237,8 @@ html.tab-ui.tab-wide .bottomnav{width:clamp(72px, 6.4vw, 96px); left:clamp(8px, 
 html.tab-ui.tab-wide .top-actions{flex-direction:row !important; flex-wrap:wrap; justify-content:center; gap:4px !important; width:100%;}
 html.tab-ui.tab-wide .top-actions .btn-top-refresh{width:30px; height:30px;}
 /* 시간표: 왼쪽은 좁게, 메뉴는 오른쪽 끝에 붙여 정렬 */
-.tt-split{grid-template-columns:clamp(330px, 32vw, 480px) clamp(300px, 27vw, 400px) !important; justify-content:space-evenly !important; margin:0; width:100%;}
+.tt-split{grid-template-columns:minmax(0, 1.25fr) minmax(300px, clamp(300px, 27vw, 400px)) !important; justify-content:space-evenly !important; margin:0; width:100%;}
+.tt-left{display:flex; flex-direction:column; align-items:center;}
 .tt-side{width:100%;}
 /* 달력: 더 크게(좌우 · 상하) */
 .cal-split{grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) !important; justify-content:stretch;}
@@ -7415,6 +7416,42 @@ function ttRowKey(){ return isWideUI() ? 'rowScaleWide' : 'rowScale'; }
 function ttRowScaleVal(){ const o = state.ttOpts || {}; return o[ttRowKey()] || 1; }
 // 마지막으로 맞춘 칸 높이 · 시간표 최대 높이. 입력 중이라 다시 재지 않을 때도 이 값을 그대로 써서, 화면을 다시 그릴 때 움찔하지 않게 한다.
 let __ttLastFit = null;
+// 태블릿 가로: 기준 태블릿에서 보기 좋은 시간표 카드(가로 510 · 세로 800)의 모양을 그대로 두고,
+// 창 크기에 맞춰 통째로 키우거나 줄인다(정사각형 창에서도 길쭉하게 늘어나지 않는다).
+function fitTimetableWide(wrap, grid){
+  const REF_W = 510, REF_H = 800, headerPx = 24;
+  const container = wrap.closest('.tt-card-container');
+  const col = container && container.parentElement;
+  if(!container || !col) return;
+  const cs = getComputedStyle(document.documentElement);
+  const z = (parseFloat(cs.getPropertyValue('--font-scale')) || 1) * (parseFloat(cs.getPropertyValue('--tab-z')) || 1);
+  const viewportH = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  container.style.width = REF_W + 'px';
+  container.style.marginLeft = 'auto'; container.style.marginRight = 'auto';
+  container.style.zoom = String(1 / z);   // 위치를 재는 동안만 배율 1로 둔다
+  const top = container.getBoundingClientRect().top;
+  const colW = col.getBoundingClientRect().width;
+  const availH = viewportH - top - 20;
+  let sc = Math.min(colW / REF_W, availH / REF_H);
+  sc = Math.max(0.45, Math.min(1.7, sc));
+  container.style.zoom = String(sc / z);
+  const baselineRows = Math.ceil((TIMETABLE_BASE_END - TIME_START) / TIMETABLE_GRID_STEP);
+  const actualRows = parseInt(grid.dataset.rows || '0', 10) || baselineRows;
+  const effectiveRows = Math.max(baselineRows, actualRows);
+  const scrollable = !!(state.ttOpts && state.ttOpts.scrollable);
+  const userScale = Math.max(0.6, Math.min(scrollable ? 1.6 : 1, ttRowScaleVal()));
+  const rowPx = Math.max(14, (REF_H - headerPx) / effectiveRows * userScale);
+  grid.style.setProperty('--tt-row-h', rowPx + 'px');
+  const needScroll = rowPx * effectiveRows + headerPx > REF_H + 1;
+  wrap.style.maxHeight = needScroll ? REF_H + 'px' : 'none';
+  wrap.style.overflowY = needScroll ? 'auto' : '';
+  const nowLine = grid.querySelector('.tt-now-line');
+  if(nowLine){
+    const t = new Date(), minsNow = t.getHours() * 60 + t.getMinutes();
+    if(minsNow >= TIME_START) nowLine.style.top = (headerPx + ((minsNow - TIME_START) / TIMETABLE_GRID_STEP) * rowPx) + 'px';
+  }
+  __ttLastFit = { row: rowPx, maxH: wrap.style.maxHeight, over: wrap.style.overscrollBehavior, zoom: container.style.zoom, width: container.style.width, wideScroll: wrap.style.overflowY };
+}
 function fitTimetableGrid(){
   if(state.view!=='timetable') return;
   if(isTypingNow()){
@@ -7423,6 +7460,8 @@ function fitTimetableGrid(){
       g0.style.setProperty('--tt-row-h', __ttLastFit.row + 'px');
       w0.style.maxHeight = __ttLastFit.maxH;
       w0.style.overscrollBehavior = __ttLastFit.over;
+      if(__ttLastFit.zoom){ const c0 = w0.closest('.tt-card-container'); if(c0){ c0.style.zoom = __ttLastFit.zoom; c0.style.width = __ttLastFit.width; } }
+      if(__ttLastFit.wideScroll !== undefined) w0.style.overflowY = __ttLastFit.wideScroll;
     }
     return;
   }
@@ -7430,6 +7469,7 @@ function fitTimetableGrid(){
   const grid = document.querySelector('.tt-grid');
   const nav = document.querySelector('.bottomnav');
   if(!wrap || !grid || !nav) return;
+  if(document.documentElement.classList.contains('tab-ui')){ fitTimetableWide(wrap, grid); return; }   // 태블릿 UI(가로 · 세로 모두): 기준 모양 유지
   const wrapTop = wrap.getBoundingClientRect().top;
   // 일반 브라우저 탭에서는 주소창이 떠 있을 때 position:fixed 요소(bottomnav)가 실제
   // "지금 보이는 화면"이 아니라 주소창까지 합친 더 큰 레이아웃 뷰포트 기준으로 위치를
