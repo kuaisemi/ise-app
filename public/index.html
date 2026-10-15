@@ -11142,11 +11142,14 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
-      <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">앱이 이상할 때는?</p>
-      <div class="link-row" data-action="global-refresh"><span class="link-row-label">${ICON.refresh} 새로고침<span class="rf-cd"></span></span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
+      <div class="link-row" data-action="toggle-trouble"><span class="link-row-label">${ICON.refresh} 앱이 이상할 때</span> <span class="sub"><span class="trouble-chev" style="display:inline-flex; transition:transform .2s;">${ICON.chevR}</span></span></div>
+      <div id="trouble-body" style="display:none; padding-left:14px;">
+        <div class="divider" style="margin:2px 0;"></div>
+        <div class="link-row" data-action="global-refresh"><span class="link-row-label">${ICON.refresh} 새로고침<span class="rf-cd"></span></span> <span class="sub">${ICON.chevR}</span></div>
+        <div class="divider" style="margin:2px 0;"></div>
+        <div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
+      </div>
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
@@ -14875,6 +14878,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'reset-timetable'){ await resetTimetable(); }
     else if(a === 'set-theme'){ setThemeOverride(el.dataset.themeV); }
     else if(a === 'open-avatar-editor'){ openAvatarEditor(); }
+    else if(a === 'toggle-trouble'){
+      const body = document.getElementById('trouble-body'); if(!body) return;
+      const open = body.style.display === 'none'; body.style.display = open ? '' : 'none';
+      const ch = el.querySelector('.trouble-chev'); if(ch) ch.style.transform = open ? 'rotate(90deg)' : '';
+      if(open) refreshCdTick();
+    }
     else if(a === 'clear-app-cache'){
       // 남발하면 서버 읽기가 다시 늘어나므로 10분에 한 번만. 평소에는 앱이 알아서 정리한다.
       const wait = 10 * 60 * 1000 - (Date.now() - localGet('cache_cleared_at', 0));
