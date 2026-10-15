@@ -6144,6 +6144,7 @@ const ICON = {
   sunrise:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v3M5.5 8.2 7.4 10M18.5 8.2 16.6 10M2.5 17.5h19"/><path d="M8 14.5a4 4 0 0 1 8 0"/></svg>`,
   sun:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>`,
   moon:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.3A8.5 8.5 0 1 1 10.7 3.5a6.7 6.7 0 0 0 9.8 9.8z"/></svg>`,
+  phoneAlert:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="11" height="17" rx="2.5"/><path d="M7.5 18h2"/><path d="M19 6v6"/><path d="M19 16.5v.01"/></svg>`,
   refresh:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 3.5v6h-6"/></svg>`,
   globe:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.2 9.5h17.6M3.2 14.5h17.6"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>`,
   eye:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>`,
@@ -11143,7 +11144,7 @@ function renderMypage(){
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row" data-action="toggle-trouble"><span class="link-row-label">${ICON.refresh} 앱이 이상할 때</span> <span class="sub"><span class="trouble-chev" style="display:inline-flex; transition:transform .2s;">${ICON.chevR}</span></span></div>
+      <div class="link-row" data-action="toggle-trouble"><span class="link-row-label">${ICON.phoneAlert} 앱이 이상할 때</span> <span class="sub"><span class="trouble-chev" style="display:inline-flex; transition:transform .2s;">${ICON.chevR}</span></span></div>
       <div id="trouble-body" style="display:none; padding-left:14px;">
         <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="global-refresh"><span class="link-row-label">${ICON.refresh} 새로고침<span class="rf-cd"></span></span> <span class="sub">${ICON.chevR}</span></div>
