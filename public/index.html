@@ -8424,12 +8424,16 @@ function ocrModal(mode = 'photo'){
           <li>에브리타임 앱 → <b>시간표</b> 탭</li>
           <li>오른쪽 위 <b>⚙</b> → 공개 범위를 <b style="color:var(--text);">전체 공개</b>로 (친구 공개·비공개면 못 가져와요)</li>
           <li>같은 메뉴의 <b>URL로 공유하기</b>로 링크 복사</li>
-          <li>아래 칸에 붙여 넣기 (공유 문구를 통째로 붙여 넣어도 돼요)</li>
+          <li>아래 칸에 붙여 넣고 <b>확인</b>(또는 키보드 엔터) — 공유 문구를 통째로 붙여 넣어도 돼요</li>
         </ol>
+        <div style="margin-top:6px; padding:8px 10px; border-radius:10px; background:var(--surface-3); color:var(--text);">💡 에브리타임에서 <b>공유하기</b>를 누르고 목록에서 <b>KU ISE</b>를 고르면 붙여 넣지 않고 바로 가져와요 <span style="color:var(--text-faint);">(최신 앱 설치 후)</span></div>
         <div style="margin-top:6px;">토·일 수업은 빼고 가져와요. 가져온 뒤 공개 범위는 원래대로 돌려도 괜찮아요.</div>
       </div>
-      <input type="text" id="et-link-input" class="user-search-input" placeholder="https://everytime.kr/@..." autocomplete="off" style="margin-bottom:8px;">
-      <button type="button" class="btn btn-teal btn-sm" id="et-link-btn" style="width:100%; margin-bottom:12px;">링크로 가져오기</button>
+      <a class="btn btn-ghost btn-sm" href="https://everytime.kr/timetable" target="_blank" rel="noopener" style="width:100%; margin-bottom:8px; text-decoration:none; display:flex; justify-content:center;">에브리타임 열어서 링크 복사하기 ↗</a>
+      <div style="display:flex; gap:6px; margin-bottom:12px;">
+        <input type="text" id="et-link-input" class="user-search-input" placeholder="https://everytime.kr/@..." autocomplete="off" inputmode="url" enterkeyhint="go" style="flex:1; min-width:0;">
+        <button type="button" class="btn btn-teal btn-sm" id="et-link-btn" style="width:auto; flex-shrink:0; padding:0 16px;">확인</button>
+      </div>
     </div>
     <div id="ocr-status-box" style="font-size:11.5px; color:var(--text-dim); margin-bottom:12px; display:none; line-height:1.5;"></div>
     <div id="ocr-results-wrap" style="display:none;">
@@ -14110,6 +14114,7 @@ function setupOcrModalListeners(){
     if(etToggle) etToggle.style.display='none';
   };
   if(etToggle) etToggle.onclick=()=>{ openEtLink(); };
+  if(etInput) etInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); if(etBtn) etBtn.click(); } });
 
   const renderItems=(list)=>{
     if(!itemsList) return;
