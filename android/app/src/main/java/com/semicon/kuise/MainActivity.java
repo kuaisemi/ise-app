@@ -39,6 +39,12 @@ public class MainActivity extends BridgeActivity {
         // 웹 패치가 깨져서 화면이 안 뜨는 경우를 위한 되돌리기 — 브리지가 저장된 패치 경로를 읽기 전에 해야 한다.
         OtaPlugin.guardBoot(this);
         super.onCreate(savedInstanceState);
+        // 폰은 매니페스트의 세로 고정을 그대로 두고, 태블릿(최소 폭 600dp 이상)만 가로·세로 회전을 허용한다.
+        if (getResources().getConfiguration().smallestScreenWidthDp >= 600) {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
+        } else {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
         disableAlgorithmicDarkening();
         setupStatusBar();
         createNotificationChannel();

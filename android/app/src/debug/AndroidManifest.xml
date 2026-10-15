@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 시험용(태블릿) 빌드 전용: 태블릿이 가로로 켜져 있으면 처음부터 가로로 뜨도록 방향 고정을 풀어 둔다.
+     폰은 MainActivity에서 세로로 고정한다. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="fullUser"
+            tools:replace="android:screenOrientation" />
+    </application>
+</manifest>

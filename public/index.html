@@ -101,7 +101,7 @@ a{color:inherit;}
 ::selection{background:var(--crimson-glow);}
 ::-webkit-scrollbar{width:0; height:0;}
 
-#app{max-width:480px; margin:0 auto; min-height:100vh; position:relative; display:flex; flex-direction:column; background:var(--bg);}
+#app{max-width:var(--app-w,480px); margin:0 auto; min-height:100vh; position:relative; display:flex; flex-direction:column; background:var(--bg);}
 .circuit-bg{position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0;}
 /* 네이티브 스플래시가 사라진 뒤 JS가 뜨기 전까지의 틈을 메우는 화면. 테마가 아직
    적용되기 전이라 --bg를 쓰면 기기별로 색이 들쭉날쭉해서, 기기의 라이트/다크 설정을
@@ -577,7 +577,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 @keyframes av-in{from{opacity:0; transform:translateY(-8px);}to{opacity:1; transform:none;}}
 @keyframes av-out{from{opacity:1; transform:none;}to{opacity:0; transform:translateY(-8px);}}
 .av-ov{position:fixed; inset:0; z-index:90; background:rgba(4,6,10,.82); display:flex; align-items:flex-end; justify-content:center;}
-.av-ov-sheet{width:100%; max-width:480px; max-height:96vh; overflow-y:auto; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom, 0px));}
+.av-ov-sheet{width:100%; max-width:var(--sheet-w,480px); max-height:96vh; overflow-y:auto; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom, 0px));}
 .av-ov .av-editor{margin:0; padding:0; border:none;}
 .fr-av{flex:none; width:30px; height:30px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--teal); overflow:hidden;}
 .av-nick{width:100%; box-sizing:border-box; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:12.5px; font-family:inherit;}
@@ -612,7 +612,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-wrap.has-line .tt-cell.hour-cell{border-top-color:var(--tt-line-strong) !important;}
 .tt-cell.hour-cell{border-top:1px solid rgba(255,255,255,0.12);}
 /* 정각 줄만 보이는 민무늬: 30분 칸의 위쪽 선은 그리지 않는다 */
-.tt-cell:not(.hour-cell){border-top-color:transparent !important;}
+.tt-cell:not(.hour-cell), .tt-wrap.has-line .tt-cell:not(.hour-cell), .tt-wrap.bg-light .tt-cell:not(.hour-cell){border-top-color:transparent !important;}   /* 30분 사이의 점선은 줄 색을 골라도 그리지 않는다 */
 .tt-cell.today-col{background:var(--teal-glow-5);}
 /* 행 높이는 더 눌러서 한 화면에 더 많은 시간대가 들어오게 하고, 대신 블록 안
    글씨는 오히려 키워서 눌린 만큼 안 읽히는 일이 없게 한다. */
@@ -626,7 +626,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-now-line{position:absolute; left:21px; right:0; height:2px; opacity:.55; z-index:8; box-shadow:0 0 8px currentColor; pointer-events:none;}
 .tt-options-trigger{width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:5px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:11.5px; font-weight:700; cursor:pointer;}
 
-.tt-fab{position:fixed; z-index:16; right:calc(50% - 240px + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:var(--on-crimson,#fff); border:none; display:flex; align-items:center; justify-content:center; box-shadow:none; cursor:pointer; transition:transform .32s cubic-bezier(.3,.7,.3,1), opacity .25s; touch-action:none; -webkit-tap-highlight-color:transparent;}
+.tt-fab{position:fixed; z-index:16; right:calc(50% - var(--app-w,480px)/2 + 18px); bottom:calc(84px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--crimson); color:var(--on-crimson,#fff); border:none; display:flex; align-items:center; justify-content:center; box-shadow:none; cursor:pointer; transition:transform .32s cubic-bezier(.3,.7,.3,1), opacity .25s; touch-action:none; -webkit-tap-highlight-color:transparent;}
 .tt-fab-wrap.docked .tt-fab{transform:translateX(42px); opacity:.92;}
 .tt-fab svg{transition:opacity .32s cubic-bezier(.3,.7,.3,1);}
 .tt-fab::before{content:''; position:absolute; left:8px; top:50%; width:7px; height:7px; border-left:2.5px solid #fff; border-bottom:2.5px solid #fff; transform:translateY(-50%) rotate(45deg); border-radius:1px; opacity:0; transition:opacity .32s cubic-bezier(.3,.7,.3,1);}
@@ -659,12 +659,12 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .ttm-ic{width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(var(--c-rgb), .16); color:var(--c); margin-bottom:1px;}
 .ttm-ic svg{width:16px; height:16px;}
 .tt-fab-backdrop{position:fixed; inset:0; z-index:14; background:transparent;}
-.tt-fab-option{position:fixed; z-index:16; right:calc(50% - 240px + 18px + 5px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
+.tt-fab-option{position:fixed; z-index:16; right:calc(50% - var(--app-w,480px)/2 + 18px + 5px); bottom:calc(84px + var(--safe-bottom) + 62px + (var(--i) * 54px)); display:flex; align-items:center; gap:8px; justify-content:flex-end; width:min(220px, calc(100% - 36px)); border:none; background:none; padding:0; cursor:pointer; animation:tt-fab-pop .16s ease both; animation-delay:calc(var(--i) * 0.03s);}
 @media (max-width:480px){ .tt-fab-option{right:23px;} }
 .tt-fab-option-label{border:1px solid var(--border-light); background:var(--surface-2); color:var(--text); font-size:10.5px; font-weight:700; padding:6px 0; min-width:78px; text-align:center; border-radius:20px;  white-space:nowrap;}
 .meal-side{font-size:.86em; color:var(--text-dim);}
 /* ===== 친구 시간표 전체 화면 창 ===== */
-.friends-page{position:fixed; inset:0; z-index:45; max-width:480px; margin:0 auto; background:var(--bg); display:flex; flex-direction:column; padding-top:env(safe-area-inset-top, 0px); transform:translateY(100%); transition:transform .4s cubic-bezier(.22,1,.36,1);}
+.friends-page{position:fixed; inset:0; z-index:45; max-width:var(--app-w,480px); margin:0 auto; background:var(--bg); display:flex; flex-direction:column; padding-top:env(safe-area-inset-top, 0px); transform:translateY(100%); transition:transform .4s cubic-bezier(.22,1,.36,1);}
 .friends-page.open{transform:none;}
 .fp-head{display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border);}
 .fp-head b{flex:1; text-align:center; font-size:14px; font-weight:800;}
@@ -1078,7 +1078,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 .tt-fab-option.closing{animation:tt-fab-out .18s ease both; animation-delay:calc((1 - var(--i)) * 0.03s);}
 @keyframes tt-fab-pop{from{opacity:0; transform:translateY(8px) scale(.9);}to{opacity:1; transform:translateY(0) scale(1);}}
 
-.bottomnav{position:fixed; left:0; right:0; bottom:0; z-index:20; max-width:480px; margin:0 auto; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); border-top:1px solid var(--border); display:flex; padding:8px 6px calc(8px + var(--safe-bottom));}
+.bottomnav{position:fixed; left:0; right:0; bottom:0; z-index:20; max-width:var(--app-w,480px); margin:0 auto; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); border-top:1px solid var(--border); display:flex; padding:8px 6px calc(8px + var(--safe-bottom));}
 .navbtn{position:relative; flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; background:none; border:none; cursor:pointer; color:var(--text-faint);}
 .navbtn.active{color:var(--teal);}
 /* iOS는 홈 인디케이터 때문에 safe-area-inset-bottom이 34px쯤 잡혀서, 같은 CSS인데도
@@ -1088,9 +1088,405 @@ html.is-ios .bottomnav{padding-top:9px; padding-bottom:calc(6px + var(--safe-bot
 html.is-ios .navbtn{padding-top:5px; padding-bottom:5px;}
 .navbtn span{font-size:9.5px; font-weight:700;}
 
+
+/* ===== 태블릿 · 가로 화면: 화면 폭에 따라 앱 폭이 단계적으로 늘어난다 =====
+   폰(≤600px)은 그대로 480px 한 칸. 태블릿 세로는 넓은 한 칸, 가로(≥1000px)는 홈이 두 칸으로 나뉜다.
+   메뉴는 하단 막대 대신 가운데 떠 있는 둥근 알약이고, 스크롤을 내리면 숨었다가 올리면 떠오른다.
+   html.tab-ui / tab-wide 클래스는 applyTabletMode()가 화면 폭과 MY → 태블릿 모드 설정으로 정한다. */
+html.tab-ui{--app-w:min(clamp(560px, 82vw, 800px), 100vw); --sheet-w:clamp(420px, 70vw, 600px);}
+html.tab-ui .auth-wrap{max-width:480px; margin:0 auto; width:100%;}
+html.tab-ui main{padding-left:24px; padding-right:24px; padding-bottom:calc(110px + var(--safe-bottom));}
+html.tab-ui .bottomnav{left:50%; right:auto; bottom:calc(14px + var(--safe-bottom)); width:min(440px, calc(100vw - 48px)); transform:translateX(-50%); border:1px solid var(--border-light, var(--border)); border-radius:999px; padding:6px 10px; box-shadow:0 12px 32px rgba(0,0,0,.35); transition:transform .38s cubic-bezier(.22,1,.36,1), opacity .25s;}
+html.tab-ui.is-ios .bottomnav{padding:6px 10px;}
+html.tab-ui .bottomnav.nav-hide{transform:translateX(-50%) translateY(calc(100% + 40px)); opacity:0; pointer-events:none;}
+html.tab-ui .navbtn{border-radius:999px; padding:7px 2px; transition:background .2s, color .2s;}
+html.tab-ui .navbtn.active{background:var(--surface-3);}
+html.tab-ui .navbtn span{font-size:10.5px;}
+html.tab-ui .toast{bottom:calc(100px + var(--safe-bottom));}
+html.tab-ui .tt-fab{bottom:calc(92px + var(--safe-bottom));}
+html.tab-ui .tt-fab-option{bottom:calc(92px + var(--safe-bottom) + 62px + (var(--i) * 54px));}
+html.tab-ui .tt-fab{right:calc(50% - var(--app-w,480px)/2 + 18px);}
+html.tab-ui.tab-wide{--app-w:min(1180px, 100vw); --sheet-w:620px;}
+html.tab-ui.tab-wide main[data-view="home"]{column-count:2; column-gap:22px; padding-top:8px;}
+html.tab-ui.tab-wide main[data-view="home"] > *{break-inside:avoid;}
+html.tab-ui.tab-wide main[data-view="home"] > .hero-greet,
+html.tab-ui.tab-wide main[data-view="home"] > .app-version{column-span:all;}
+html.tab-ui.tab-wide main[data-view="home"] > .section-title{break-after:avoid;}
+
+/* ---- 위쪽 바: 네모난 띠 대신 떠 있는 둥근 카드 ---- */
+html.tab-ui .topbar{margin:10px 16px 0; top:8px; border:1px solid var(--border); border-radius:20px; padding:10px 16px; box-shadow:0 6px 20px rgba(0,0,0,.18);}
+html.tab-ui main{padding-top:14px;}
+/* ---- 가로(태블릿): 왼쪽 세로 메뉴 · 좌우 분할 · 옆에서 열리는 패널 ---- */
+html.tab-ui.tab-wide body{padding-left:clamp(76px, 7.5vw, 112px);}
+html.tab-ui.tab-wide{--app-w:100%; --sheet-w:clamp(380px, 38vw, 560px);}
+html.tab-ui.tab-wide #app{max-width:none; margin:0;}
+html.tab-ui.tab-wide main{max-width:clamp(820px, 92vw, 1500px); width:100%; margin:0 auto; padding-left:clamp(14px, 1.8vw, 28px); padding-right:clamp(14px, 1.8vw, 28px);}
+html.tab-ui.tab-wide main[data-view="timetable"], html.tab-ui.tab-wide main[data-view="mypage"]{max-width:clamp(460px, 44vw, 760px); margin:0;}
+html.tab-ui.tab-wide .bottomnav{left:clamp(8px, 1.2vw, 18px); right:auto; top:50%; bottom:auto; width:clamp(58px, 5.4vw, 76px); max-width:none; transform:translateY(-50%); flex-direction:column; gap:4px; padding:10px 6px; border-radius:30px;}
+html.tab-ui.tab-wide .bottomnav.nav-hide{transform:translateY(-50%); opacity:1; pointer-events:auto;}
+html.tab-ui.tab-wide .navbtn{flex:none; padding:10px 2px; border-radius:22px;}
+html.tab-ui.tab-wide .tt-fab{right:24px; bottom:24px;}
+html.tab-ui.tab-wide .tt-fab-option{right:29px; bottom:calc(24px + 62px + (var(--i) * 54px));}
+html.tab-ui.tab-wide .toast{bottom:28px;}
+html.tab-ui.tab-wide main[data-view="home"]{column-gap:20px;}
+.wide-split{display:grid; grid-template-columns:clamp(120px, 14vw, 190px) minmax(0,1fr); gap:clamp(12px, 1.8vw, 24px); align-items:start;}
+.wide-rail{flex-direction:column !important; overflow:visible !important; position:sticky; top:84px; margin-bottom:0 !important; gap:4px !important; padding:6px !important; touch-action:auto !important;}
+.wide-rail .subtab{flex:none; text-align:left; padding:11px 14px; border-radius:12px;}
+html.tab-wide .wide-rail .subtab-thumb{display:none;}
+html.tab-wide .wide-rail.has-thumb .subtab.active{background:var(--crimson) !important; color:var(--on-crimson,#fff);}
+.wide-body{min-width:0;}
+.wide-body.dual{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:clamp(12px, 1.8vw, 24px); align-items:start;}
+.wide-body.single > *{max-width:clamp(440px, 46vw, 760px);}
+/* 옆 패널(삼성 설정처럼): 떠 있는 창이 아니라 화면 오른쪽에 붙어서 보이는 칸. 어둡게 덮지 않아 왼쪽 목록은 그대로 눌린다. */
+html.tab-wide .modal-overlay{justify-content:flex-end; align-items:stretch; padding:0; background:none; backdrop-filter:none; pointer-events:none;}
+html.tab-wide .modal-overlay.open{pointer-events:none;}
+html.tab-wide .modal-sheet{pointer-events:auto; width:clamp(380px, 38vw, 580px); max-width:none; max-height:none; height:100%; border-radius:0; border:none; border-left:1px solid var(--border); box-shadow:-12px 0 32px rgba(0,0,0,.22); transform:translateX(104%); padding:20px clamp(16px,1.6vw,26px) calc(24px + var(--safe-bottom));}
+html.tab-wide .modal-overlay.open .modal-sheet{transform:none;}
+html.tab-wide .modal-handle{display:none;}
+html.tab-wide .friends-page{left:auto; right:0; top:0 !important; bottom:0; width:clamp(380px, 38vw, 580px); max-width:none; border-radius:0; border:none; border-left:1px solid var(--border); overflow:hidden; transform:translateX(104%); box-shadow:-12px 0 32px rgba(0,0,0,.22); padding-top:var(--safe-top);}
+html.tab-wide .friends-page.open{transform:none;}
+/* 상태바(ISE · 버튼)는 위쪽 띠 대신 왼쪽 메뉴 위로 */
+html.tab-ui.tab-wide .topbar{position:fixed; left:clamp(8px, 1.2vw, 18px); top:14px; width:clamp(58px, 5.4vw, 76px); margin:0; padding:10px 4px; border-radius:30px; z-index:21; backdrop-filter:blur(16px);}
+html.tab-ui.tab-wide .topbar-row{flex-direction:column; gap:10px; justify-content:center;}
+html.tab-ui.tab-wide .topbar .brand-mini{flex-direction:column; gap:4px; font-size:10px;}
+html.tab-ui.tab-wide .topbar .brand-mini .mark svg{width:24px; height:24px;}
+html.tab-ui.tab-wide .topbar .brand-mini b{font-size:14px;}
+html.tab-ui.tab-wide .topbar .brand-mini{padding:14px 6px;}
+html.tab-ui.tab-wide .topbar .role-badge, html.tab-ui.tab-wide .topbar .date-pill, html.tab-ui.tab-wide .topbar .btn-top-refresh[data-action="apk-popup-open-confirm"]{display:none;}
+html.tab-ui.tab-wide .top-actions{flex-direction:column !important; gap:6px !important;}
+html.tab-ui.tab-wide main{padding-top:18px;}
+html.tab-ui.tab-wide .bottomnav{top:calc(50% + 40px);}
+/* 시간표: 왼쪽 시간표 + 오른쪽 늘 떠 있는 메뉴 */
+html.tab-ui.tab-wide main[data-view="timetable"]{max-width:none; margin:0;}
+.tt-split{display:grid; grid-template-columns:minmax(340px, 1.15fr) minmax(260px, .85fr); gap:clamp(14px, 2vw, 28px); align-items:start;}
+.tt-left{min-width:0;}
+.tt-side{position:sticky; top:18px; min-width:0;}
+html.tab-wide .tt-fab-wrap{display:none;}
+/* 탭을 옮길 때 슉 하고 밀려 들어오는 효과 */
+@keyframes tabRise{from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:none;}}
+main.slide-r, main.slide-l{animation:none !important;}
+@media (prefers-reduced-motion:reduce){ main.slide-r, main.slide-l{animation:none;} }
+/* 달력: 가로에서는 칸을 낮게, 달력과 오른쪽 일정 사이는 넉넉히 */
+html.tab-wide .wide-body.dual{column-gap:clamp(24px, 3.2vw, 48px);}
+html.tab-wide .wide-body .cal-day{min-height:clamp(36px, 4.6vh, 46px); padding:2px 1px;}
+html.tab-wide .wide-body .cal-grid{gap:3px;}
+html.tab-wide .wide-body .meal-nav{justify-content:flex-start; gap:10px;}
+/* 학식: 학생(왼쪽) · 교직원(오른쪽), 날짜 버튼은 왼쪽 */
+/* 셔틀: 왼쪽 카운트다운, 오른쪽 전체 시간표(작게) */
+.wide-body.shuttle{display:grid; grid-template-columns:minmax(260px, .8fr) minmax(0, 1.2fr); gap:clamp(14px, 2vw, 28px); align-items:start;}
+.shuttle-full{font-size:.92em;}
+.shuttle-full .card{margin-top:0 !important;}
+/* 게시판 · 공지 한 칸은 가운데로 */
+.wide-body.single.center{display:flex; flex-direction:column; align-items:center;}
+.wide-body.single.center > *{width:100%;}
+
+/* ---- 태블릿: 글씨 8% 키움, 시간표 폭 고정, 달력 슬림, 왼쪽 아래 내 정보 ---- */
+html.tab-ui{--tab-z:1.08;}
+.ttd-pick{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;}
+.ttd-sem{position:relative; text-align:left; padding:10px 30px 10px 14px; border-radius:16px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); cursor:pointer; min-width:0; font-family:var(--font-display); -webkit-tap-highlight-color:transparent;}
+.ttd-sem:active{transform:scale(.97);}
+.ttd-sem small{display:block; font-size:10.5px; font-weight:700; color:var(--text-dim); margin-bottom:2px;}
+.ttd-sem b{display:block; font-size:14px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.ttd-sem span{position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-dim); display:flex;}
+.ttd-sem span svg{width:14px; height:14px;}
+.ttm-dock{gap:8px;}
+.ttm-dock .ttm-tile{padding:12px 4px 10px;}
+.ttm-dock .ttm-tile b{white-space:nowrap; font-size:11.5px;}
+.ttm-dock .ttm-tile small{white-space:nowrap; font-size:9.5px; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+html.tab-ui main, html.tab-ui #modal-root, html.tab-ui .fp-body{zoom:calc(var(--font-scale, 1) * var(--tab-z));}
+html.tab-ui .tt-card-container, html.tab-ui .tt-fab-wrap, html.tab-ui .tt-switcher-icon-btn{zoom:calc(1 / (var(--font-scale, 1) * var(--tab-z)));}
+html.tab-ui.tab-wide main{padding-bottom:20px;}
+.tt-split{grid-template-columns:clamp(420px, 42vw, 620px) clamp(300px, 27vw, 400px) !important; justify-content:start;}
+html.tab-wide .wide-body.examcal{max-width:none;}
+.cal-split{display:grid; grid-template-columns:clamp(320px, 31vw, 440px) minmax(280px, 420px); gap:clamp(20px, 3vw, 44px); align-items:start; justify-content:start;}
+.cal-left, .cal-right{min-width:0;}
+html.tab-wide .cal-left .cal-day{min-height:clamp(34px, 4.4vh, 44px); padding:2px 1px;}
+html.tab-wide .wide-body .meal-nav{justify-content:space-between;}
+html.tab-wide .cal-left .meal-nav{max-width:none;}
+.wide-body.single{display:flex; flex-direction:column; align-items:center;}
+.wide-body.single > *{width:100%; max-width:clamp(440px, 46vw, 720px);}
+/* 셔틀 버스 그림 */
+.bus-art{background:var(--surface-2); border:1px solid var(--border); border-radius:18px; padding:8px 10px 0; margin-bottom:10px; overflow:hidden;}
+.bus-art svg{width:100%; height:auto; display:block;}
+.bus-body{animation:busBob .5s ease-in-out infinite alternate; transform-box:fill-box; transform-origin:center bottom;}
+.bus-body{transform:translateX(0); animation:busBob .5s ease-in-out infinite alternate, busGo 7s linear infinite;}
+.bus-road{animation:roadMove .9s linear infinite;}
+.bus-cloud.c1{animation:cloudDrift 18s linear infinite;} .bus-cloud.c2{animation:cloudDrift 26s linear infinite reverse;}
+@keyframes busBob{from{transform:translateY(0);} to{transform:translateY(-2px);}}
+@keyframes busGo{0%{translate:-120px 0;} 100%{translate:330px 0;}}
+@keyframes roadMove{from{transform:translateX(0);} to{transform:translateX(-48px);}}
+@keyframes cloudDrift{from{transform:translateX(-30px);} to{transform:translateX(40px);}}
+@media (prefers-reduced-motion:reduce){ .bus-body,.bus-road,.bus-cloud{animation:none;} }
+/* 왼쪽 위(ISE) · 왼쪽 아래(소셜 · 알림 · 내 정보) */
+html.tab-ui:not(.tab-wide) .rail-me{display:none;}
+html.tab-ui.tab-wide .topbar{top:14px; bottom:14px; width:clamp(58px, 5.4vw, 76px); height:auto; padding:0; background:none; border:none; box-shadow:none; backdrop-filter:none; pointer-events:none; border-radius:0;}
+html.tab-ui.tab-wide .topbar-row{display:flex; flex-direction:column; align-items:center; height:100%; gap:8px;}
+html.tab-ui.tab-wide .topbar-row > *{pointer-events:auto;}
+html.tab-ui.tab-wide .topbar .brand-mini{background:rgba(var(--surface-rgb),.94); border:1px solid var(--border); border-radius:22px; padding:10px 6px; width:100%; justify-content:center;}
+html.tab-ui.tab-wide .top-actions{margin-top:auto; background:rgba(var(--surface-rgb),.94); border:1px solid var(--border); border-radius:22px; padding:8px 4px; align-items:center;}
+html.tab-ui.tab-wide .rail-me{display:flex; flex-direction:column; align-items:center; gap:5px; width:100%; padding:8px 2px 4px; cursor:pointer; background:rgba(var(--surface-rgb),.94); border:1px solid var(--border); border-radius:22px;}
+html.tab-ui.tab-wide .rail-av{width:38px; height:38px; flex-shrink:0;}
+html.tab-ui.tab-wide .rail-name{font-size:10.5px; font-weight:700; max-width:100%; padding:0 4px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);}
+html.tab-ui.tab-wide .bottomnav{top:50%; max-height:calc(100vh - 360px);}
+
+/* ---- 가로 배치 다듬기 ---- */
+html.tab-ui.tab-wide body{padding-left:clamp(92px, 8vw, 130px);}
+html.tab-ui.tab-wide .topbar{width:clamp(72px, 6.4vw, 96px);}
+html.tab-ui.tab-wide .bottomnav{width:clamp(72px, 6.4vw, 96px); left:clamp(8px, 1.2vw, 18px);}
+html.tab-ui.tab-wide .top-actions{flex-direction:row !important; flex-wrap:wrap; justify-content:center; gap:4px !important; width:100%;}
+html.tab-ui.tab-wide .top-actions .btn-top-refresh{width:30px; height:30px;}
+/* 시간표: 왼쪽은 좁게, 메뉴는 오른쪽 끝에 붙여 정렬 */
+.tt-split{grid-template-columns:clamp(330px, 32vw, 480px) clamp(300px, 27vw, 400px) !important; justify-content:space-evenly !important; margin:0; width:100%;}
+.tt-side{width:100%;}
+/* 달력: 더 크게(좌우 · 상하) */
+.cal-split{grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) !important; justify-content:stretch;}
+.cal-left{max-width:clamp(360px, 36vw, 520px);}
+html.tab-wide .cal-left .cal-day{aspect-ratio:1 / 1; min-height:0 !important; font-size:13px;}
+html.tab-wide .cal-left .cal-head{font-size:13px; padding:8px 0;}
+html.tab-wide .cal-left .cal-grid{gap:5px;}
+/* 학식: 학생(조·중·석) 왼쪽 위, 날짜 → 교직원 오른쪽, 두 박스 높이 맞춤 */
+.wide-body.meal{display:grid !important; grid-template-columns:repeat(2, minmax(0,1fr)); grid-template-rows:auto 1fr; gap:14px clamp(14px, 2vw, 28px); align-items:stretch;}
+.wide-body.meal > :nth-child(1){grid-column:2; grid-row:1; max-width:none;}
+.wide-body.meal > :nth-child(2){grid-column:1; grid-row:1 / span 2; margin:0 !important;}
+.wide-body.meal > :nth-child(3){grid-column:2; grid-row:2; margin:0 !important;}
+.wide-body.meal > :nth-child(n+4){grid-column:1 / -1; grid-row:auto;}
+/* 메뉴 아래 작업 버튼 */
+.rail-actions{display:flex; flex-direction:column; gap:8px;}
+.rail-actions .btn, .rail-actions a.btn{width:100%; margin:0 !important; flex:none !important; justify-content:center;}
+.rail-actions .fetch-status:empty{display:none;}
+/* 내 · 홈 다단 */
+html.tab-ui.tab-wide main[data-view="mypage"]{max-width:clamp(460px, 44vw, 720px); margin:0; column-count:1;}
+html.tab-ui.tab-wide main[data-view="home"] .section-title{margin-top:0; padding-top:24px;}
+html.tab-ui.tab-wide main[data-view="home"] > .hero-greet + .section-title{padding-top:18px;}
+/* 셔틀 경로 */
+.route-svg{display:block; width:100%; max-width:300px; margin:8px auto 0;}
+.route-bus{transition:transform 1s linear;}
+/* ---- 글씨 크기 통일(태블릿): 너무 작은 것은 12.5px 이상으로 ---- */
+html.tab-ui main [style*="font-size:9px"],
+html.tab-ui #modal-root [style*="font-size:9px"],
+html.tab-ui main [style*="font-size: 9px"],
+html.tab-ui #modal-root [style*="font-size: 9px"],
+html.tab-ui main [style*="font-size:9.5px"],
+html.tab-ui #modal-root [style*="font-size:9.5px"],
+html.tab-ui main [style*="font-size: 9.5px"],
+html.tab-ui #modal-root [style*="font-size: 9.5px"],
+html.tab-ui main [style*="font-size:10px"],
+html.tab-ui #modal-root [style*="font-size:10px"],
+html.tab-ui main [style*="font-size: 10px"],
+html.tab-ui #modal-root [style*="font-size: 10px"],
+html.tab-ui main [style*="font-size:10.5px"],
+html.tab-ui #modal-root [style*="font-size:10.5px"],
+html.tab-ui main [style*="font-size: 10.5px"],
+html.tab-ui #modal-root [style*="font-size: 10.5px"],
+html.tab-ui main [style*="font-size:11px"],
+html.tab-ui #modal-root [style*="font-size:11px"],
+html.tab-ui main [style*="font-size: 11px"],
+html.tab-ui #modal-root [style*="font-size: 11px"],
+html.tab-ui main [style*="font-size:11.5px"],
+html.tab-ui #modal-root [style*="font-size:11.5px"],
+html.tab-ui main [style*="font-size: 11.5px"],
+html.tab-ui #modal-root [style*="font-size: 11.5px"]{font-size:12.5px !important;}
+html.tab-ui main [style*="font-size:12px"],
+html.tab-ui #modal-root [style*="font-size:12px"],
+html.tab-ui main [style*="font-size: 12px"],
+html.tab-ui #modal-root [style*="font-size: 12px"],
+html.tab-ui main [style*="font-size:12.5px"],
+html.tab-ui #modal-root [style*="font-size:12.5px"],
+html.tab-ui main [style*="font-size: 12.5px"],
+html.tab-ui #modal-root [style*="font-size: 12.5px"]{font-size:13px !important;}
+html.tab-ui .meta, html.tab-ui .tag, html.tab-ui .m-label, html.tab-ui .week-note, html.tab-ui .shop-day, html.tab-ui .shop-time, html.tab-ui .shop-last, html.tab-ui .shop-name small, html.tab-ui .shop-foot, html.tab-ui .dept-notice-title, html.tab-ui .meal-block .m-text, html.tab-ui .list-item .body, html.tab-ui .cal-item-body .meta{font-size:12.5px;}
+html.tab-ui .dept-notice-date, html.tab-ui .subtab, html.tab-ui .btn-sm{font-size:12.5px;}
+html.tab-ui .navbtn span{font-size:11px;}
+.wide-col > .row-between:first-child{margin-top:0 !important;}
+html.tab-ui .shop-block{grid-template-columns:20px minmax(96px, 1.1fr) minmax(70px, .7fr) minmax(0, 1.2fr) auto; column-gap:12px;}
+html.tab-ui .shop-name b{font-size:13px;}
+html.tab-ui .shop-name small{font-size:11.5px;}
+html.tab-ui .shop-day, html.tab-ui .shop-time{font-size:12.5px;}
+html.tab-ui .shop-last{font-size:12px;}
+html.tab-ui .section-title{font-size:13.5px;}
+
+/* 상가 3칸 카드 */
+.shop-tiles{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:clamp(12px, 1.6vw, 22px);}
+.shop-tile{padding:16px 18px !important; margin:0 !important;}
+.shop-tile-head{display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--border);}
+.shop-tile-ico{width:42px; height:42px; border-radius:14px; background:rgba(var(--amber-rgb), .14); color:var(--amber); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.shop-tile-ico svg{width:22px; height:22px;}
+.shop-tile-head b{display:block; font-size:15px; font-weight:800;}
+.shop-tile-head small{display:block; font-size:12px; color:var(--text-dim); margin-top:2px;}
+.shop-row{display:grid; grid-template-columns:auto 1fr; gap:2px 12px; align-items:baseline; padding:6px 0;}
+.shop-row-day{font-size:13px; font-weight:800; color:var(--text);}
+.shop-row-time{font-family:var(--font-mono); font-size:13.5px; font-weight:700;}
+.shop-row-note{grid-column:2; font-size:12px; color:var(--text-faint);}
+.shop-tile-foot{margin:8px 0 0; font-size:12px; color:var(--text-faint);}
+.shop-foot-wide{margin:10px 2px 0; font-size:12px; color:var(--text-faint);}
+/* 셔틀 버스 대기 모션 */
+.route-bus .bus-zzz{opacity:0;}
+.route-bus.waiting .bus-zzz{opacity:1; animation:busZzz 1.2s ease-in-out infinite;}
+.route-bus.waiting .bus-inner{animation:busWait .9s ease-in-out infinite alternate;}
+@keyframes busWait{from{transform:translateY(0);} to{transform:translateY(-1.6px);}}
+@keyframes busZzz{0%,100%{opacity:.25; transform:translateY(0);} 50%{opacity:1; transform:translateY(-2px);}}
+
+/* 왼쪽 열: 탭 카드 + (분리된) 작업 버튼 카드 */
+.wide-side{position:sticky; top:18px; display:flex; flex-direction:column; gap:12px; min-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1)));}
+.wide-side > .wide-rail{position:static !important; flex:0 0 auto;}
+.wide-rail:has(.rail-actions){min-height:0 !important; max-height:none !important; overflow:visible !important;}
+.wide-side > .rail-actions{margin-top:auto; padding:14px; background:var(--surface); border:1px solid var(--border); border-radius:18px; overflow-y:auto;}
+.rail-actions .board-searchrow{margin:0; width:100%;}
+.rail-actions .board-searchrow .field{margin:0;}
+.rail-actions .row-between{padding:0 2px 6px; margin:0 !important; flex-wrap:wrap;}
+/* 투표: 카드는 게시판과 같은 폭·간격 그대로, 버튼 박스(다시 열기 · 명단 · 삭제 · 공유)는 카드 오른쪽 바깥에 따로 */
+.wide-body.single:has(.poll-row) > .card{margin-right:calc(clamp(100px, 8.4vw, 122px) + 18px);}
+.poll-row{position:relative;}
+.poll-row > .list-item{min-width:0;}
+.poll-side{position:absolute; left:calc(100% + 18px); top:0; bottom:0; width:clamp(100px, 8.4vw, 122px); display:flex; flex-direction:column; gap:8px; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:16px;}
+.poll-side .act-bar{display:flex; flex-direction:column; gap:8px; margin:0;}
+.poll-side .act-cell{grid-column:auto !important;}
+.poll-side .btn{width:100%; justify-content:center; text-align:center;}
+.poll-side .poll-share{margin-top:auto;}
+/* 옆 패널의 프로필 수정: 아이콘·이모지 고르는 스크롤 칸이 패널 높이에 맞춰 늘어난다 */
+html.tab-wide #settings-page .av-scroll, html.tab-wide #settings-page .av-scroll.icon, html.tab-wide #settings-page .av-scroll.emoji{max-height:max(200px, calc((100vh - 470px) / (var(--font-scale, 1) * var(--tab-z, 1))));}
+html.tab-wide #settings-page .av-slots .av-slot{height:clamp(58px, 7.5vh, 84px);}
+html.tab-wide #settings-page .av-grid{gap:8px;}
+html.tab-wide #settings-page .fp-body{padding-top:18px;}
+/* 시간표 오른쪽 메뉴: 색 테마는 열의 맨 아래로 */
+html.tab-wide .tt-side{display:flex; flex-direction:column; min-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1)));}
+.ttd-themes{margin-top:auto; padding-top:16px;}
+.tt-theme.on{border-color:var(--crimson); box-shadow:0 0 0 1px var(--crimson) inset;}
+.ttd-apply{display:flex; gap:8px; margin-top:10px;}
+.ttd-apply .btn{flex:1;}
+/* 학생회 일정 ON/OFF 버튼: 작업 카드와 따로 */
+.rail-toggle{padding:8px; background:var(--surface); border:1px solid var(--border); border-radius:18px;}
+.rail-toggle .btn{width:100% !important; justify-content:center; margin:0; padding:9px 8px !important; font-size:12.5px !important;}
+.wide-side > .rail-toggle{margin-top:auto;}
+.wide-side > .rail-toggle + .rail-actions{margin-top:0;}
+/* 키보드가 올라와도 왼쪽 레일은 찌그러지지 않고 크기 그대로 위로 올라간다 */
+html.tab-ui.tab-wide .topbar-row > *, html.tab-ui.tab-wide .navbtn{flex-shrink:0;}
+html.tab-ui.tab-wide .bottomnav{max-height:none !important; overflow:visible;}
+html.tab-ui.kb-open.tab-wide .bottomnav{top:116px !important; transform:none !important; bottom:auto;}
+html.tab-ui.kb-open.tab-wide .bottomnav .navbtn span{display:none;}
+html.tab-ui.kb-open.tab-wide .bottomnav .navbtn{padding:6px 2px;}
+html.kb-open.tab-wide .topbar{top:8px; bottom:8px;}
+/* 옆 패널(메모 입력 등)이 열려도 학사 달력은 가려지지 않게 본문이 비켜난다 */
+html.tab-wide main{transition:padding-right .28s cubic-bezier(.22,1,.36,1);}
+html.tab-wide:has(#modal-overlay.open) main[data-view="info"]{padding-right:calc(clamp(380px, 38vw, 580px) + 18px);}
+html.tab-wide:has(#modal-overlay.open) main[data-view="info"] .cal-split{grid-template-columns:minmax(0, 1fr) !important;}
+html.tab-wide:has(#modal-overlay.open) main[data-view="info"] .cal-left{max-width:none;}
+
+/* ===== 가로 화면: 왼쪽 열이 스크롤을 따라 움직이지 않게(main이 스크롤 상자가 되어 sticky가 풀리던 문제) ===== */
+html.tab-wide main{overflow:visible !important; overflow-x:clip !important;}
+/* ===== 학사정보: 페이지 스크롤 없음. 기기 높이에 맞춰 상하 정렬, 목록만 안에서 스크롤 ===== */
+html.tab-wide main[data-view="info"]{flex:0 0 auto !important; height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); box-sizing:border-box; overflow:hidden !important; padding-top:18px; padding-bottom:18px;}
+html.tab-wide main[data-view="info"] .app-version{display:none;}
+html.tab-wide main[data-view="info"] .wide-split{height:100%; align-items:stretch;}
+html.tab-wide main[data-view="info"] .wide-side{position:static; height:100%; min-height:0; max-height:none;}
+html.tab-wide main[data-view="info"] .wide-body{height:100%; min-height:0; overflow:hidden;}
+/* 학사일정: 왼쪽 일정 목록(안에서 스크롤) / 오른쪽 공지 두 칸(같은 높이) */
+html.tab-wide main[data-view="info"] .wide-body.dual{grid-template-rows:minmax(0, 1fr); align-items:stretch;}
+html.tab-wide .cal-list-col{display:flex; flex-direction:column; min-height:0;}
+html.tab-wide .cal-list-col > .card{flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;}
+html.tab-wide .cal-list-col > .meal-nav{flex:0 0 auto;}
+html.tab-wide .notice-col{display:flex; flex-direction:column; gap:clamp(10px, 1.6vh, 18px); min-height:0;}
+html.tab-wide .notice-slot{flex:1 1 0; min-height:0; display:flex; flex-direction:column;}
+html.tab-wide .notice-slot > .row-between{flex:0 0 auto; margin:0 0 8px !important;}
+html.tab-wide .notice-slot > .card{flex:1 1 auto; min-height:0; overflow:hidden; display:flex; flex-direction:column;}
+html.tab-wide .notice-slot .dept-notice-row{padding:clamp(6px, 1vh, 10px) 2px;}
+/* 학사 달력: 달력은 높이에 맞춰, 일정 목록은 남는 칸 안에서 스크롤 */
+html.tab-wide main[data-view="info"] .wide-body.examcal{height:100%;}
+html.tab-wide main[data-view="info"] .cal-split{height:100%; align-items:stretch;}
+html.tab-wide .cal-left{display:flex; flex-direction:column; min-height:0; max-width:clamp(320px, calc((100vh / (var(--font-scale, 1) * var(--tab-z, 1)) - 330px) * 1.1), 540px);}
+html.tab-wide .cal-left > .meal-nav{flex:0 0 auto;}
+html.tab-wide .cal-left > .card:first-of-type{flex:0 0 auto;}
+html.tab-wide .cal-left > .card:last-child{flex:1 1 auto; min-height:90px; overflow-y:auto; overscroll-behavior:contain;}
+/* 학식 · 셔틀: 기기 크기에 맞춰 꽉 채우고 스크롤은 없음 */
+html.tab-wide main[data-view="info"] .wide-body.meal{grid-template-rows:auto minmax(0, 1fr) auto auto auto;}
+html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(2), html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(3){overflow:hidden; min-height:0;}
+html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(4){grid-row:3;}
+html.tab-wide main[data-view="info"] .wide-body.meal > .shop-tiles{grid-row:4;}
+html.tab-wide main[data-view="info"] .wide-body.meal > .shop-foot-wide{grid-row:5;}
+html.tab-wide main[data-view="info"] .wide-body.shuttle{grid-template-rows:minmax(0, 1fr);}
+html.tab-wide .shuttle-side{min-height:0; overflow:hidden;}
+html.tab-wide .shuttle-full{min-height:0; height:100%; overflow:hidden;}
+html.tab-wide .shuttle-full > .card{height:100%; overflow:hidden; margin:0 !important;}
+
+/* ===== 학사정보: 기본 간격 그대로, 깨질 때만 줄이거나 스크롤 ===== */
+html.tab-wide .cal-list-col > .card{flex:0 1 auto !important; min-height:0; max-height:100%; overflow-y:auto;}
+html.tab-wide .notice-slot{flex:0 0 auto !important;}
+html.tab-wide .notice-slot > .card{flex:0 0 auto !important; overflow:visible;}
+html.tab-wide main[data-view="info"] .wide-body.dual{align-items:start;}
+html.tab-wide .notice-col{overflow:hidden; height:100%;}
+html.tab-wide main[data-view="info"] .wide-body.meal{grid-template-rows:auto minmax(0, auto) auto auto auto; align-content:start; align-items:stretch;}
+/* 식단 날짜 줄은 위에 고정: 카드 높이가 바뀌어도 늘어나거나 밀리지 않는다 */
+html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(1){align-self:start; height:auto; position:sticky; top:0; z-index:2;}
+html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(2), html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(3){overflow:visible;}
+html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(2){grid-row:1 / span 2;}
+html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(3){grid-row:2;}
+html.tab-wide main[data-view="info"] .wide-body.meal > :nth-child(4){grid-row:3;}
+html.tab-wide main[data-view="info"] .wide-body.shuttle{grid-template-rows:none; align-items:start;}
+html.tab-wide .shuttle-full, html.tab-wide .shuttle-full > .card{height:auto;}
+/* 달력 쪽 일정 목록: 남는 칸이 모자랄 때만 최대 높이에서 스크롤 */
+html.tab-wide .cal-left > .card:last-child{flex:0 1 auto; max-height:100%;}
+/* ===== 게시판 검색: 글 왼쪽 바깥의 아이콘 → 누르면 막대가 열리고 게시글이 아래로 밀린다 ===== */
+html.tab-wide .bb{position:relative; display:block; height:0; margin:0; flex:none; overflow:visible; transition:height .38s cubic-bezier(.22,1,.36,1), margin .38s cubic-bezier(.22,1,.36,1);}
+html.tab-wide .bb.open{height:46px; margin-bottom:14px;}
+html.tab-wide .bb .bb-search{display:flex; align-items:center; justify-content:center; position:absolute; left:-60px; top:0; width:46px; height:46px; border-radius:15px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); cursor:pointer; z-index:3; transition:left .4s cubic-bezier(.22,1,.36,1), background .2s, color .2s;}
+html.tab-wide .bb.open .bb-search{left:calc(100% - 46px); background:var(--crimson); color:var(--on-crimson,#fff); border-color:var(--crimson);}
+html.tab-wide .bb .bb-field{position:absolute; left:0; top:0; right:54px; height:46px; margin:0; clip-path:inset(0 0 0 100% round 15px); opacity:0; pointer-events:none; transition:clip-path .4s cubic-bezier(.22,1,.36,1), opacity .2s;}
+html.tab-wide .bb.open .bb-field{clip-path:inset(0 0 0 0 round 15px); opacity:1; pointer-events:auto;}
+html.tab-wide .bb .bb-field input{height:46px; box-sizing:border-box; border-radius:15px; padding-left:16px;}
+html.tab-wide .bb .board-filter-wrap{position:absolute; left:-60px; top:54px; height:46px; transition:opacity .22s, transform .38s cubic-bezier(.22,1,.36,1);}
+html.tab-wide .bb .board-filter-btn{height:46px; border-radius:15px;}
+html.tab-wide .bb .board-filter-wrap{transition:top .4s cubic-bezier(.22,1,.36,1), opacity .22s;}
+html.tab-wide .bb.open .board-filter-wrap{top:0;}   /* 검색이 열리면 필터는 사라지지 않고 검색 아이콘이 있던 자리로 올라간다 */
+html.tab-wide .bb .board-menu{left:0; right:auto;}
+/* ===== 투표: 왼쪽 가장자리는 게시판과 똑같이, 오른쪽으로 조금 늘려 구분선 다단 ===== */
+html.tab-wide .wide-body.single:has(.poll-row){align-items:flex-start; padding-left:calc((100% - clamp(440px, 46vw, 720px)) / 2);}
+html.tab-wide .wide-body.single:has(.poll-row) > .card{max-width:100% !important; width:calc(clamp(440px, 46vw, 720px) + clamp(100px, 8.4vw, 122px) + 14px); margin-right:0 !important; container-type:inline-size;}
+.poll-row{position:static !important; display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:stretch;}
+.poll-row.no-side{grid-template-columns:minmax(0, 1fr);}
+.poll-side{position:static !important; width:clamp(100px, 8.4vw, 122px) !important; margin-left:14px; padding:0 0 0 14px !important; border:none !important; border-left:1px solid var(--border) !important; border-radius:0 !important; background:none !important;}
+.poll-row > .list-item{border-bottom:none !important; padding-bottom:0 !important;}
+.poll-share{display:flex; justify-content:flex-start; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);}
+.poll-share .btn{width:auto;}
+@container (max-width: 560px){
+  .poll-row{grid-template-columns:minmax(0, 1fr);}
+  .poll-side{width:auto !important; margin:10px 0 0; padding:10px 0 0 !important; border-left:none !important; border-top:1px solid var(--border) !important; flex-direction:row; flex-wrap:wrap;}
+  .poll-side .act-bar{flex-direction:row; flex-wrap:wrap;}
+  .poll-side .btn{width:auto; justify-content:center;}
+}
+/* 수업 추가 미리보기 칸 */
+.tt-grid .tt-ghost{outline:2px dashed var(--teal); outline-offset:-2px; opacity:.88; pointer-events:none; z-index:7; box-shadow:0 0 0 3px rgba(var(--teal-rgb, 224,172,85), .25); animation:ghostPulse 1.4s ease-in-out infinite;}
+@keyframes ghostPulse{0%,100%{filter:brightness(1);} 50%{filter:brightness(1.18);}}
+/* 화면이 너무 낮을 때: 한글은 빼고 SVG(아이콘)만, 소셜·알림은 MY 아래로 숨기고 위로 쓸면 나온다 */
+html.tab-ui.tab-wide.rail-short .navbtn span, html.tab-ui.tab-wide.rail-short .rail-name, html.tab-ui.tab-wide.rail-short .topbar .brand-mini b{display:none;}
+html.tab-ui.tab-wide.rail-short .navbtn{padding:9px 2px;}
+html.tab-ui.tab-wide.rail-short .top-actions{position:absolute; left:0; right:0; bottom:calc(100% + 4px); opacity:0; pointer-events:none; transform:translateY(26px) scale(.85); transition:opacity .22s, transform .3s cubic-bezier(.22,1,.36,1);}
+html.tab-ui.tab-wide.rail-short.actions-open .top-actions{opacity:1; pointer-events:auto; transform:none;}
+html.tab-ui.tab-wide.rail-short .rail-me{position:relative; touch-action:none;}
+html.tab-ui.tab-wide.rail-short .rail-me::after{content:''; position:absolute; left:50%; top:3px; width:18px; height:3px; margin-left:-9px; border-radius:2px; background:var(--text-faint); opacity:.6;}
+html.tab-ui.tab-wide.rail-short .rail-actions .btn:has(svg), html.tab-ui.tab-wide.rail-short .rail-toggle .btn:has(svg){font-size:0 !important; gap:0; min-height:40px;}
+html.tab-ui.tab-wide.rail-short .rail-actions .btn svg, html.tab-ui.tab-wide.rail-short .rail-toggle .btn svg{width:18px; height:18px;}
+html.tab-ui.tab-wide.rail-short .wide-rail .subtab{font-size:0; padding:12px 4px; min-height:40px; position:relative;}
+html.tab-ui.tab-wide.rail-short .wide-rail .subtab::before{content:attr(data-tab); font-size:10px; font-weight:800; text-transform:uppercase;}
+/* ===== 학사정보: 화면이 모자라면 줄이지 않고 각 탭이 스크롤된다 ===== */
+html.tab-wide main[data-view="info"]{overflow-y:auto !important; overflow-x:clip !important; overscroll-behavior:contain;}
+html.tab-wide main[data-view="info"] .wide-split{height:auto; min-height:100%;}
+html.tab-wide main[data-view="info"] .wide-side{position:sticky; top:0; height:auto; min-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1)) - 36px); max-height:none;}
+html.tab-wide main[data-view="info"] .wide-body{height:auto; overflow:visible;}
+html.tab-wide main[data-view="info"] .notice-col{height:auto; overflow:visible;}
+html.tab-wide main[data-view="info"] .cal-split{height:auto;}
+html.tab-wide .cal-list-col > .card, html.tab-wide .cal-left > .card:last-child{max-height:none;}
+/* 시간표 이미지 미리 보기 */
+.tt-img-prev{max-height:min(60vh, 560px); overflow:auto; border:1px solid var(--border); border-radius:14px; background:var(--surface-2); padding:6px; margin-bottom:12px;}
+.tt-img-prev img{display:block; width:100%; height:auto; border-radius:10px;}
+/* 낮고 넓은 화면(폰 가로): 하단 막대가 화면을 너무 많이 먹지 않게 얇게 */
+@media (max-height:480px) and (orientation:landscape){
+  .bottomnav{padding-top:2px; padding-bottom:calc(2px + var(--safe-bottom));}
+  .navbtn{flex-direction:row; justify-content:center; gap:6px; padding:4px 2px;}
+  main{padding-bottom:calc(60px + var(--safe-bottom));}
+}
 .modal-overlay{position:fixed; inset:0; background:rgba(4,6,10,.75); z-index:50; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .26s ease; backdrop-filter:blur(3px);}
 .modal-overlay.open{opacity:1; pointer-events:auto;}
-.modal-sheet{width:100%; max-width:480px; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom)); max-height:88vh; overflow-y:auto; transform:translateY(100%); transition:transform .26s cubic-bezier(.4,0,1,1); will-change:transform;}
+.modal-sheet{width:100%; max-width:var(--sheet-w,480px); background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--border); border-bottom:none; padding:18px 18px calc(24px + var(--safe-bottom)); max-height:88vh; overflow-y:auto; transform:translateY(100%); transition:transform .26s cubic-bezier(.4,0,1,1); will-change:transform;}
 /* 가입자가 늘면 380px 목록으로는 감당이 안 돼서, 이 모달만 화면 위쪽까지 쓴다.
    :has()를 못 쓰는 브라우저에서도 시트 자체가 스크롤되므로 목록이 잘리지는 않는다. */
 .modal-sheet:has(#users-list-body){max-height:96vh;}
@@ -1652,7 +2048,7 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.5.6';
+const APP_VERSION = 'Beta 0.6.0';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
@@ -1661,6 +2057,30 @@ const ANDROID_VERSION_CODE = 175;
 // 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
+  { version:'Beta 0.6.0', date:'2026-10-16', summary:'태블릿 모드 · 가로 모드가 생겼어요!', items:[
+    { title:'태블릿 모드', text:'화면이 넓은 태블릿에서는 앱이 넓은 화면에 맞게 다시 짜여요. MY → 추가기능 → 태블릿 모드에서 자동 / 항상 켜기 / 끄기를 고를 수 있어요', sub:[
+      '왼쪽에 세로 메뉴(ISE · 홈 · 시간표 · 학사정보 · 학생사회 · MY), 왼쪽 아래에 친구 · 알림 · 내 아이콘',
+      '내 아이콘을 누르면 MY로 이동하면서 프로필 아이콘 창이 옆에 떠요',
+      '팝업과 환경설정은 아래에서 올라오는 대신 오른쪽 옆 패널로 열려요(하나만 열려요)',
+      '화면이 너무 작아지면 자동으로 일반 모드로 돌아가요',
+    ] },
+    { title:'가로 모드', text:'태블릿을 가로로 돌리면 홈 · 학사정보 · 학생사회가 좌우 다단으로 보여요', sub:[
+      '학사일정: 일정 목록 / 학과 공지 · 융합전공 공지(10개씩)',
+      '학사 달력: 달력 아래에 일정 목록, 일정 추가 버튼은 왼쪽 메뉴 아래로',
+      '학식: 학생 식단표 왼쪽, 교직원 식단표 오른쪽, 구시아푸드 · 휴김밥 · bbq는 3칸 카드',
+      '셔틀버스: 카운트다운과 버스 위치 · 전체 시간표',
+      '공지사항에 진행 중인 투표가 있으면 오른쪽에 같이 보여요',
+      '앱을 가로로 켜 두었으면 처음부터 가로로 열려요',
+    ] },
+    { title:'시간표 · 게시판 다듬기', text:'태블릿에서 시간표와 게시판이 더 편해졌어요', sub:[
+      '시간표 오른쪽에 메뉴가 늘 떠 있어요(직접 추가 · 가져오기 · 친구 · 이미지 저장 · 표시 설정 · 목록 · 색 테마)',
+      '색 테마와 화면 표시 설정은 만지는 대로 미리 보이고, 적용을 눌러야 저장돼요',
+      '수업 추가 창에서 입력하는 대로 들어갈 자리가 시간표에 점선으로 미리 보여요',
+      '이미지 저장: 지금 보이는 시간표를 그대로 잘라 미리 보고 저장해요',
+      '게시판 검색은 글 왼쪽 아이콘을 누르면 막대가 열려요',
+      '융합전공 공지가 학사일정에 추가됐어요',
+    ] },
+  ] },
   { version:'Beta 0.5.6', date:'2026-10-14', summary:'시간표 가져오기 개편 · 수업 색 테마 · 수업 추가 정리!', items:[
     { title:'시간표 가져오기 개편', text:'+ 버튼과 시간표 메뉴의 "가져오기"에서 에브리타임 링크 또는 사진 인식으로 시간표를 가져오고, 등록할 때 새 시간표로 추가할지 지금 시간표를 교체할지 골라요', sub:[
       '에브리타임 링크: 공유 링크만 붙여 넣으면 시간 · 강의실을 그대로 가져와요(토 · 일 수업 제외, 에타에서 공개 범위를 전체 공개로)',
@@ -2181,7 +2601,8 @@ function mealHoursSpan(key){
 const MEAL_SOURCE_URL = 'https://gpa.korea.ac.kr/koreaSejong/8028/subview.do';
 async function loadDeptNotices(){
   const s = await loadShared('deptNotices', { items: [], updatedAt: 0 });
-  return { items: (s && s.items) || [], updatedAt: (s && s.updatedAt) || 0 };
+  const f = (s && s.fusion) || {};
+  return { items: (s && s.items) || [], updatedAt: (s && s.updatedAt) || 0, fusionItems: f.items || [], fusionUpdatedAt: f.updatedAt || 0 };
 }
 /* ===== 공휴일 판정 (알림 · 셔틀 공용) ===== */
 // 공휴일을 보는 곳이 두 군데 있다 — 평일 알림("오늘의 시간표"를 공휴일엔 안 보내야 함)과
@@ -2445,7 +2866,7 @@ const state = {
   activeSemester: null,
   timetablesBySemester: {},
   activeVariant: 0,
-  deptNotices: [], deptNoticesUpdatedAt: 0,
+  deptNotices: [], deptNoticesUpdatedAt: 0, fusionNotices: [], fusionNoticesUpdatedAt: 0,
   bugReports: [],
   memos: {}, // 날짜별 개인 메모 { 'YYYY-MM-DD': '내용' }
   shuttle: { weekday: [], sunday: [], fridayOffNos: [] },
@@ -3005,7 +3426,21 @@ function applyTheme(theme){
   // 상태표시줄(시계·배터리가 있는 최상단 영역)은 테마와 무관하게 크림슨으로 통일.
   const meta = document.querySelector('meta[name="theme-color"]');
   if(meta){ const cc = (getComputedStyle(document.documentElement).getPropertyValue('--crimson') || '').trim(); meta.setAttribute('content', cc || (theme==='light' ? '#8C1D2B' : '#A72A3A')); }
+  setTimeout(syncSystemBars, 60);
 }
+// 상태표시줄(맨 위 시계 줄) · 내비게이션 바 색을 지금 화면 배경색에 맞춘다(앱 버전 175 이상 · 네이티브 setBars가 있을 때만).
+function syncSystemBars(){
+  try{
+    const WB = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.WidgetBridge;
+    if(!WB || typeof WB.setBars !== 'function') return;
+    const bg = getComputedStyle(document.body).backgroundColor || '';
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(bg);
+    if(!m) return;
+    const hex = '#' + [m[1], m[2], m[3]].map(v=>('0' + parseInt(v, 10).toString(16)).slice(-2)).join('');
+    WB.setBars({ color: hex });
+  }catch(_){}
+}
+window.addEventListener('load', ()=>{ setTimeout(syncSystemBars, 400); });
 function systemPrefersLight(){
   return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
 }
@@ -4690,6 +5125,8 @@ if(!window.__subtabBound){
     const tab = e.target.closest && e.target.closest('.subtabs .subtab');
     if(!tab) return;
     if(tab.dataset.slid){ delete tab.dataset.slid; return; }
+    // 태블릿 UI: 탭 표시 칸이 미끄러지는 동안 기다리지 않고 누르는 즉시 바뀐다.
+    if(document.documentElement.classList.contains('tab-ui')) return;
     const bar = tab.closest('.subtabs');
     if(!bar || !bar.classList.contains('has-thumb') || tab.classList.contains('active')) return;
     e.stopPropagation(); e.preventDefault();
@@ -6026,6 +6463,8 @@ async function loadAllData(preloadedUsers){
     state.roster=roster||{};
     state.deptNotices = deptN.items || [];
     state.deptNoticesUpdatedAt = deptN.updatedAt || 0;
+    state.fusionNotices = deptN.fusionItems || [];
+    state.fusionNoticesUpdatedAt = deptN.fusionUpdatedAt || 0;
     state.memos = memos || {};
     state.shuttle = shuttle || {weekday:[],sunday:[],fridayOffNos:[]};
     state.holidays = holidays || {byYear:{},updatedAt:0};
@@ -6489,6 +6928,7 @@ function renderShell(){
             <button type="button" class="btn-top-refresh btn-top-bell" data-action="open-notif-feed" title="알림">${ICON.bell}${hasUnseenNotifications() ? '<span class="bell-dot"></span>' : ''}</button>
             <span class="date-pill" data-action="go-calendar-tab">${dateLabel}</span>
           </div>
+          <div class="rail-me" data-action="rail-me" title="MY · 프로필 아이콘">${railMeHtml()}</div>
         </div>
       </div>
       <main id="main-content"></main>
@@ -6504,6 +6944,97 @@ function renderShell(){
     </div>`;
   renderMain();
   refreshCdStart();
+}
+// 태블릿 가로 화면: 왼쪽 아래에 내 아이콘과 이름.
+// 태블릿 가로: 추가·작성·새로고침 같은 작업 버튼은 왼쪽 메뉴(탭) 바로 아래로 모은다.
+function relocateRailActions(root){
+  const side = root.querySelector('.wide-side');
+  if(!side) return;
+  const acts = ['add-event','ocr-calendar','open-official-schedule','delete-all-calendar','add-student-event','add-exam-event','add-council-event','edit-meal','fetch-meal-page','add-notice','add-poll','add-recruitment','clear-all-board'];
+  const sel = acts.map(a=>`.wide-body [data-action="${a}"]`).concat([`.wide-body a[href="${MEAL_SOURCE_URL}"]`, `.wide-body a[href="${SHUTTLE_SOURCE_URL}"]`, '.wide-body #fetch-meal-status']).join(',');
+  const nodes = Array.from(root.querySelectorAll(sel));
+  // 학사 달력의 "학생회 일정 표시" 줄은 일정 추가 버튼 위로.
+  const tog = root.querySelector('.wide-body [data-action="toggle-council-filter"]');
+  const togRow = tog ? tog.closest('.row-between') : null;
+  if(!nodes.length && !togRow) return;
+  const box = document.createElement('div');
+  box.className = 'rail-actions';
+  const put = (n)=>{
+    const par = n.parentElement;
+    box.appendChild(n);
+    if(par && par !== root && !par.children.length && !par.textContent.trim()) par.remove();
+  };
+  let togBox = null;
+  if(togRow){
+    // 안내 문구는 없애고 버튼만 따로 박스로 뺀다.
+    togBox = document.createElement('div');
+    togBox.className = 'rail-toggle';
+    togBox.appendChild(tog);
+    const par = togRow.parentElement;
+    togRow.remove();
+    if(par && par !== root && !par.children.length && !par.textContent.trim()) par.remove();
+  }
+  nodes.forEach(n=>{ if(!(togRow && togRow.contains(n))) put(n); });
+  if(togBox) side.appendChild(togBox);
+  if(box.children.length) side.appendChild(box);
+}
+// 태블릿 가로(투표 탭): 투표 카드는 그대로 두고, 카드 안의 버튼들(다시 열기 · 명단 CSV · 공유 · 삭제 등)은 오른쪽의 별도 박스로.
+function movePollActions(root){
+  root.querySelectorAll('.wide-body.single .list-item[id^="poll-"]').forEach(item=>{
+    const bars = Array.from(item.querySelectorAll(':scope > .act-bar'));
+    if(!bars.length || item.parentElement.classList.contains('poll-row')) return;
+    const row = document.createElement('div');
+    row.className = 'poll-row';
+    item.parentNode.insertBefore(row, item);
+    row.appendChild(item);
+    const side = document.createElement('aside');
+    side.className = 'poll-side';
+    bars.forEach(b=>side.appendChild(b));
+    // 공유는 재학생에게도 보이므로 투표 카드 안 왼쪽 아래로 둔다.
+    const share = side.querySelector('[data-action="share-link"]');
+    if(share){
+      const cell = share.closest('.act-cell') || share;
+      const foot = document.createElement('div');
+      foot.className = 'poll-share';
+      foot.appendChild(share);
+      cell.remove();
+      item.appendChild(foot);
+    }
+    Array.from(side.querySelectorAll('.act-bar')).forEach(b=>{ if(!b.querySelector('.btn, button')) b.remove(); });
+    if(side.children.length) row.appendChild(side); else row.classList.add('no-side');
+  });
+}
+// 옆 패널의 프로필 아이콘 편집: 아이콘·이모지 목록 칸이 패널의 남는 높이를 채운다.
+function fitAvScroll(){
+  if(!isWideUI()) return;
+  const sc = document.querySelector('#modal-root .modal-sheet .av-scroll');
+  const sheet = sc && sc.closest('.modal-sheet');
+  if(!sc || !sheet) return;
+  const cs = getComputedStyle(document.documentElement);
+  const z = (parseFloat(cs.getPropertyValue('--font-scale')) || 1) * (parseFloat(cs.getPropertyValue('--tab-z')) || 1);
+  sc.style.setProperty('max-height', 'none', 'important');
+  const sr = sheet.getBoundingClientRect();
+  const padB = parseFloat(getComputedStyle(sheet).paddingBottom) || 0;
+  const last = sheet.lastElementChild;
+  const used = last.getBoundingClientRect().bottom;
+  const free = sr.bottom - padB - used;
+  const cur = sc.getBoundingClientRect().height;
+  // 목록이 내용보다 길 필요는 없다: 내용 높이와 (현재 + 남는 공간) 중 작은 쪽.
+  const want = Math.max(200 * z, cur + free);
+  sc.style.setProperty('max-height', Math.floor(Math.min(want, sc.scrollHeight * z) / z) + 'px', 'important');
+}
+window.addEventListener('resize', ()=>{ try{ fitAvScroll(); }catch(_){} });
+// 태블릿 가로 · 학사정보: 기본 간격 그대로 두고, 세로가 넘칠 때만 맞춘다.
+//  - 학식 · 셔틀: 넘치면 비율을 줄인다(최소 60%).
+//  - 학사일정: 넘치면 공지는 융합전공부터 한 줄씩 줄이고, 일정 목록은 최대 높이에서 스크롤한다.
+function fitInfoNoScroll(root){
+  // 예전에는 넘치는 내용을 비율로 줄이거나 공지를 잘라 맞췄지만, 지금은 그대로 두고 각 탭이 스크롤된다(CSS).
+  return;
+}
+function railMeHtml(){
+  if(!state.user) return '';
+  const nm = getNickname() || state.user.name || '';
+  return `<div class="mypage-avatar rail-av" style="${avStyle(getAvatar())}">${avInner(getAvatar(), 26)}</div><span class="rail-name">${escapeHtml(nm)}</span>`;
 }
 function navBtn(view, icon, label){
   return `<button class="navbtn ${state.view===view?'active':''}" data-action="nav" data-view="${view}">${icon}<span>${label}</span></button>`;
@@ -6524,8 +7055,20 @@ function renderMain(){
   // 20~21시 사이거나 그 이상이면 여백이 거의 없어서 넣으면 넘칠 수 있으니 뺀다.
   const showTtFooter = state.view==='timetable' && timetableVisibleEnd() <= 19*60;
   const inFriendDetail = state.view==='council' && state.councilTab==='social' && state.friendsUI && state.friendsUI.screen==='detail';
-  const skipFooter = state.view==='mypage' || inFriendDetail || (state.view==='timetable' && !showTtFooter);
+  const skipFooter = state.view==='mypage' || inFriendDetail || (state.view==='timetable' && (!showTtFooter || isWideUI()));
+  {
+    const order = ['home','timetable','info','council','mypage'];
+    const prev = el.dataset.view, cur = state.view;
+    if(cur === 'timetable') el.classList.remove('slide-r','slide-l');
+    if(prev && prev !== cur && cur !== 'timetable' && document.documentElement.classList.contains('tab-ui')){
+      const dir = order.indexOf(cur) > order.indexOf(prev) ? 'r' : 'l';
+      el.classList.remove('slide-r','slide-l');   // 탭 이동 모션은 쓰지 않는다(멀미)
+    }
+  }
+  { const me = document.querySelector('.rail-me'); if(me) me.innerHTML = railMeHtml(); }
+  el.dataset.view = state.view;
   el.innerHTML = html + (skipFooter ? '' : versionFooter());
+  if(isWideUI()){ relocateRailActions(el); movePollActions(el); requestAnimationFrame(()=>fitInfoNoScroll(el)); }
   // 글자 선택(복사)을 허용하는 화면: 학사정보의 학사일정·학사 달력·학식. 홈을 포함한 나머지는 막는다.
   if(state.view==='info' && ['calendar','examCal','meal'].includes(state.infoTab)) el.setAttribute('data-sel','ok'); else el.removeAttribute('data-sel');
   refreshSettingsPage();
@@ -6535,6 +7078,7 @@ function renderMain(){
   setupShuttleTimer();
   setupHomeReorderDrag();
   if(state.view==='timetable'){
+    try{ fitTimetableGrid(); }catch(_){}   // 처음 그릴 때 바로 맞춰서, 작았다가 커지는 깜빡임을 없앤다
     requestAnimationFrame(fitTimetableGrid);
     // 모바일 브라우저 탭(주소창이 있는 일반 브라우저)은 처음 페이지가 그려질 때
     // window.innerHeight가 주소창이 곧 접힐/펼쳐질 걸 미리 반영하지 못한 값으로 잡힐 때가
@@ -6878,9 +7422,22 @@ function isTypingNow(){
   if(a.isContentEditable || a.tagName === 'TEXTAREA') return true;
   return a.tagName === 'INPUT' && /^(text|search|number|tel|email|url|password|)$/i.test(a.getAttribute('type') || '');
 }
+// 시간표 상하 간격(칸 높이 배율)은 세로 화면과 가로(태블릿 넓은) 화면을 따로 저장한다.
+function ttRowKey(){ return isWideUI() ? 'rowScaleWide' : 'rowScale'; }
+function ttRowScaleVal(){ const o = state.ttOpts || {}; return o[ttRowKey()] || 1; }
+// 마지막으로 맞춘 칸 높이 · 시간표 최대 높이. 입력 중이라 다시 재지 않을 때도 이 값을 그대로 써서, 화면을 다시 그릴 때 움찔하지 않게 한다.
+let __ttLastFit = null;
 function fitTimetableGrid(){
   if(state.view!=='timetable') return;
-  if(isTypingNow()) return;
+  if(isTypingNow()){
+    const w0 = document.querySelector('.tt-wrap'), g0 = document.querySelector('.tt-grid');
+    if(__ttLastFit && w0 && g0){
+      g0.style.setProperty('--tt-row-h', __ttLastFit.row + 'px');
+      w0.style.maxHeight = __ttLastFit.maxH;
+      w0.style.overscrollBehavior = __ttLastFit.over;
+    }
+    return;
+  }
   const wrap = document.querySelector('.tt-wrap');
   const grid = document.querySelector('.tt-grid');
   const nav = document.querySelector('.bottomnav');
@@ -6894,8 +7451,8 @@ function fitTimetableGrid(){
   // "지금 실제로 보이는" 화면 높이를 정확히 알려주므로 그걸 기준으로 쓰고, bottomnav는
   // 자기 자신의 높이(위치가 아니라 크기)만 가져다 쓴다 — 크기는 이 문제와 무관하게 항상 정확하다.
   const viewportH = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  const navHeight = nav.getBoundingClientRect().height;
-  const bottomMargin = 12;
+  const navHeight = isWideUI() ? 0 : nav.getBoundingClientRect().height;   // 가로 화면의 메뉴는 옆으로 가서 높이를 차지하지 않는다
+  const bottomMargin = isWideUI() ? 20 : 12;
   // 시간표 화면 여백이 넉넉해서 버전 표시("ISE · Beta…")가 tt-wrap 아래에 같이 떠 있을 때,
   // 그 표시가 차지할 자리(위쪽 여백 28px 포함)를 미리 빼두지 않으면 grid 높이를 계산할 때는
   // 자리가 있다고 봤다가 실제로는 그 아래로 밀려나면서 페이지 전체가 스크롤되는 원인이 된다.
@@ -6915,13 +7472,14 @@ function fitTimetableGrid(){
   // 작게(0.6~1.0배)만 줄일 수 있게 한다 — 100%가 이미 스크롤 없이 들어가는 최대치라,
   // 더 키우는 건 허용하지 않는다(스크롤 금지 원칙을 항상 지키기 위해).
   const scrollable = !!(state.ttOpts && state.ttOpts.scrollable);
-  const userScale = Math.max(0.6, Math.min(scrollable ? 1.6 : 1, (state.ttOpts && state.ttOpts.rowScale) || 1));
+  const userScale = Math.max(0.6, Math.min(scrollable ? 1.6 : 1, ttRowScaleVal()));
   const rowPx = Math.max(8, maxSafeRowPx * userScale);
   grid.style.setProperty('--tt-row-h', rowPx+'px');
   wrap.style.maxHeight = (scrollable && userScale > 1) ? 'none' : available+'px';
   // 시간표 위에서 손가락을 위아래로 끌 때 페이지가 스크롤되도록: 시간표 상자의 overscroll-behavior:contain이 위아래 스크롤을 뒤 페이지로 넘기지 않아서
   // 스크롤 허용으로 100%보다 크게 볼 때는 auto로 풀어 준다
   wrap.style.overscrollBehavior = (scrollable && userScale > 1) ? 'auto' : '';
+  __ttLastFit = { row: rowPx, maxH: wrap.style.maxHeight, over: wrap.style.overscrollBehavior };
   // 칸 높이가 바뀌었으니 "지금" 표시하는 빨간 줄 위치도 새 칸 높이에 맞춰 다시 계산한다.
   const nowLine = grid.querySelector('.tt-now-line');
   if(nowLine){
@@ -7035,8 +7593,9 @@ function renderTimetable(isCapture=false){
   }
 
   const ttBg = ttBgAttrs();
+  const wideTt = isWideUI();
   return `
-    ${renderSemesterTabs()}
+    ${wideTt ? '<div class="tt-split"><div class="tt-left">' : renderSemesterTabs()}
 
     ${state.timetable.length===0 ? `
       <div class="card empty">
@@ -7061,7 +7620,48 @@ function renderTimetable(isCapture=false){
       ${state.ttFabOpen ? ttFabOptionsHtml() : ''}
       <button type="button" class="tt-fab" data-action="toggle-tt-fab">${ICON.plus}</button>
     </div>
+    ${wideTt ? `</div><aside class="tt-side">${ttDockMenuHtml()}</aside></div>` : ''}
   `;
+}
+// 태블릿 가로: 시간표 옆에 늘 떠 있는 메뉴(더보기 메뉴 + 친구·공유 + 표시 설정).
+function ttDockMenuHtml(){
+  const sem = state.activeSemester ? semesterLabel(state.activeSemester) : '학기 없음';
+  // 위쪽에 있던 학기 · 시간표 이름 선택을 이쪽으로: 크고 읽기 쉬운 두 칸.
+  const pick = `
+    <div class="ttd-pick">
+      <button type="button" class="ttd-sem" data-action="${state.activeSemester ? 'open-semester-picker' : 'open-semester-picker'}">
+        <small>학기</small><b>${state.activeSemester ? sem : '학기를 선택해주세요'}</b><span>${ICON.chevDown}</span>
+      </button>
+      ${state.activeSemester ? `<button type="button" class="ttd-sem" data-action="open-timetable-list">
+        <small>시간표</small><b>${escapeHtml(activeVariantName())}</b><span>${ICON.chevDown}</span>
+      </button>` : ''}
+    </div>`;
+  return pick + `
+    <div class="ttm-head">
+      <div class="ttm-head-txt"><b>${escapeHtml(activeVariantName())}</b><small>${sem} · ${fmtClassStats(state.timetable)}</small></div>
+      <button type="button" class="ttm-icbtn" data-action="rename-variant" title="이름 변경">${ICON.pencil}</button>
+      <button type="button" class="ttm-icbtn danger" data-action="reset-timetable" title="이 시간표 지우기">${ICON.trash}</button>
+    </div>
+    <div class="ttm-grid c3 ttm-dock" style="margin-top:10px;">
+      <div class="ttm-tile" data-action="add-class" style="--c:#4ECDC4; --c-rgb:78,205,196;"><span class="ttm-ic">${ICON.plus}</span><b>직접 추가</b><small>하나씩 입력</small></div>
+      <div class="ttm-tile" data-action="tt-import" style="--c:var(--teal); --c-rgb:224,172,85;"><span class="ttm-ic">${ICON.importIcon}</span><b>가져오기</b><small>사진 · 에타 링크</small></div>
+      <div class="ttm-tile" data-action="open-friends-page" style="--c:var(--blue); --c-rgb:var(--blue-rgb);"><span class="ttm-ic">${ICON.users}</span><b>친구 · 공유하기</b><small>친구 시간표 보기</small></div>
+      <div class="ttm-tile" data-action="save-tt-image" style="--c:var(--purple); --c-rgb:var(--purple-rgb);"><span class="ttm-ic">${ICON.frame}</span><b>이미지 저장</b><small>보이는 시간표만</small></div>
+      <div class="ttm-tile" data-action="open-tt-options" style="--c:var(--amber); --c-rgb:var(--amber-rgb);"><span class="ttm-ic">${ICON.gear}</span><b>표시 설정</b><small>간격 · 글씨 · 색</small></div>
+      <div class="ttm-tile" data-action="open-timetable-list" style="--c:var(--purple); --c-rgb:var(--purple-rgb);"><span class="ttm-ic">${ICON.clipboard}</span><b>시간표 목록</b><small>학기 · 변형</small></div>
+    </div>
+    <div class="ttd-themes">
+      <div class="ttm-sec"><b>수업 색 테마</b><small>눌러서 미리 보고, 마음에 들면 적용하세요</small></div>
+      <div class="tt-themes">
+        ${TT_THEMES.map(t => `<button type="button" class="tt-theme${state.ttThemePreview===t.id?' on':''}" data-action="preview-tt-theme" data-theme="${t.id}">
+          <span class="tt-theme-sw">${t.colors.slice(0, 4).map(c => `<i style="background:${c}"></i>`).join('')}</span>
+          <b>${t.name}</b></button>`).join('')}
+      </div>
+      <div class="ttd-apply" id="ttd-apply" style="${state.ttThemePreview?'':'display:none;'}">
+        <button type="button" class="btn btn-ghost btn-sm" data-action="cancel-tt-theme">취소</button>
+        <button type="button" class="btn btn-primary btn-sm" data-action="confirm-tt-theme">이 테마로 적용</button>
+      </div>
+    </div></div>`;
 }
 function ttFabOptionsHtml(){
   return `
@@ -7140,6 +7740,135 @@ function setTtFab(open){
   wrap.classList.toggle('open', state.ttFabOpen);
 }
 
+// 지금 시간표에 보이는 것만(요일 줄 + 수업 칸) 딱 맞게 잘라 그린 이미지. 캡처 화면의 "이미지로 저장"이 쓴다.
+function buildTimetableCanvas(){
+  const o = state.ttOpts || {};
+  const light = getTheme() === 'light';
+  const bg = light ? '#FFFFFF' : '#000000';
+  const line = light ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
+  const lineStrong = light ? 'rgba(0,0,0,0.26)' : 'rgba(255,255,255,0.22)';
+  const txt = light ? '#222' : '#DDD';
+  const startMin = TIME_START, endMin = timetableVisibleEnd();
+  const step = TIMETABLE_GRID_STEP;
+  const rows = Math.max(1, Math.ceil((endMin - startMin) / step));
+  const colW = 150, timeW = 44, headH = 38, rowH = 26, S = 2;
+  const W = timeW + DAYS.length * colW, H = headH + rows * rowH;
+  const cv = document.createElement('canvas');
+  cv.width = W * S; cv.height = H * S;
+  const g = cv.getContext('2d');
+  g.scale(S, S);
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  g.textBaseline = 'middle';
+  // 요일
+  g.font = '700 14px sans-serif'; g.fillStyle = txt; g.textAlign = 'center';
+  DAYS.forEach((d, i)=>{ g.fillText(d, timeW + i * colW + colW / 2, headH / 2); });
+  // 가로줄(30분 옅게, 정시 진하게) + 시각
+  for(let r = 0; r <= rows; r++){
+    const mins = startMin + r * step, y = headH + r * rowH;
+    if(mins % 60 === 0 || r === rows){   // 정시 줄만(30분 사이 점선은 그리지 않는다)
+      g.strokeStyle = lineStrong; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(timeW, y + .5); g.lineTo(W, y + .5); g.stroke();
+    }
+    if(mins % 60 === 0 && r < rows){ g.font = '600 11px sans-serif'; g.fillStyle = txt; g.textAlign = 'right'; g.fillText(String(Math.floor(mins / 60)), timeW - 8, y + 10); }
+  }
+  // 세로줄
+  g.strokeStyle = line;
+  for(let i = 0; i <= DAYS.length; i++){ const x = timeW + i * colW; g.beginPath(); g.moveTo(x + .5, headH); g.lineTo(x + .5, H); g.stroke(); }
+  // 수업 칸
+  const rr = (x, y, w, h, r)=>{ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  (state.timetable || []).forEach(c=>{
+    const start = Math.max(startMin, Number(c.start) || startMin);
+    if(start >= endMin) return;
+    const end = Math.min(endMin, Number(c.end) || start + 60);
+    const x = timeW + c.day * colW + 2, y = headH + (start - startMin) / step * rowH + 1;
+    const w = colW - 4, h = Math.max(rowH - 2, (end - start) / step * rowH - 2);
+    g.fillStyle = c.color || '#3C7AA0'; rr(x, y, w, h, 6); g.fill();
+    const tc = c.textColor || '#FFFFFF';
+    g.fillStyle = tc; g.textAlign = 'left';
+    let ty = y + 13;
+    const put = (text, font, gap)=>{ if(!text || ty > y + h - 4) return; g.font = font; let t = String(text); while(t.length > 1 && g.measureText(t).width > w - 12) t = t.slice(0, -1); g.fillText(t, x + 7, ty); ty += gap; };
+    if(o.subject !== false) put(c.subject, '700 13px sans-serif', 16);
+    if(o.time) put(minutesToLabel(Number(c.start)) + '–' + minutesToLabel(Number(c.end)), '500 11px sans-serif', 14);
+    if(o.professor && c.professor) put(c.professor, '500 11px sans-serif', 14);
+    if(o.room && c.room) put(c.room, '500 11px sans-serif', 14);
+  });
+  return cv;
+}
+// 화면에 보이는 요소를 그대로(색 · 글씨 · 칸 모양 모두) 이미지로 만든다: 계산된 스타일을 복사해 SVG foreignObject에 얹어 캔버스에 그린다.
+async function elementToPngBlob(el){
+  const rect = el.getBoundingClientRect();
+  const w = Math.ceil(rect.width), h = Math.ceil(rect.height);
+  const clone = el.cloneNode(true);
+  const src = [el].concat(Array.from(el.querySelectorAll('*')));
+  const dst = [clone].concat(Array.from(clone.querySelectorAll('*')));
+  src.forEach((sn, i)=>{
+    const dn = dst[i]; if(!dn || !dn.setAttribute) return;
+    const cs = getComputedStyle(sn);
+    let css = '';
+    for(let k = 0; k < cs.length; k++){ const pn = cs[k]; if(pn === 'zoom') continue; css += pn + ':' + cs.getPropertyValue(pn) + ';'; }
+    dn.setAttribute('style', css);
+    if(dn.classList && dn.classList.contains('tt-ghost')) dn.remove();
+  });
+  clone.style.width = w + 'px'; clone.style.height = h + 'px'; clone.style.margin = '0';
+  clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(clone)}</foreignObject></svg>`;
+  const img = new Image();
+  await new Promise((res, rej)=>{ img.onload = res; img.onerror = rej; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
+  const S = 2, cv = document.createElement('canvas');
+  cv.width = w * S; cv.height = h * S;
+  const g = cv.getContext('2d'); g.scale(S, S); g.drawImage(img, 0, 0, w, h);
+  return await new Promise(r=>cv.toBlob(r, 'image/png'));
+}
+async function saveTimetableImage(){
+  try{
+    // 지금 화면의 시간표 카드(요일 줄 + 칸)만 그대로 잘라 저장한다. 실패하면 다시 그린 이미지로 대신한다.
+    let blob = null;
+    const live = document.querySelector('.capture-overlay .tt-card-container') || document.querySelector('main .tt-card-container');
+    if(live){ try{ blob = await elementToPngBlob(live); }catch(_){ blob = null; } }
+    if(!blob){
+      const cv = buildTimetableCanvas();
+      blob = await new Promise(r=>cv.toBlob(r, 'image/png'));
+    }
+    if(!blob){ toast('이미지를 만들지 못했어요'); return; }
+    // 바로 저장하지 않고 미리 보여 주고 "저장할까요?"를 묻는다.
+    state.__ttImgBlob = blob;
+    if(state.__ttImgUrl){ try{ URL.revokeObjectURL(state.__ttImgUrl); }catch(_){} }
+    state.__ttImgUrl = URL.createObjectURL(blob);
+    openModal(`
+      <div class="modal-handle"></div>
+      <div class="modal-title">시간표 이미지<button data-action="close-modal">${ICON.close}</button></div>
+      <p style="margin:0 0 10px; font-size:13px; color:var(--text-dim);">지금 보이는 시간표를 이 이미지로 저장할까요?</p>
+      <div class="tt-img-prev"><img src="${state.__ttImgUrl}" alt="시간표 미리보기"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-action="close-modal">취소</button>
+        <button type="button" class="btn btn-primary" data-action="confirm-save-tt-image">저장</button>
+      </div>`);
+  }catch(e){ toast('이미지 만들기에 실패했어요'); }
+}
+async function deliverTimetableImage(){
+  try{
+    const blob = state.__ttImgBlob;
+    if(!blob) return;
+    // 1) 앱: 사진 보관함(Pictures/ISE)에 바로 저장(공유 창 없음)
+    try{
+      const WB = typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.WidgetBridge;
+      if(WB && typeof WB.saveImage === 'function'){
+        const b64 = await new Promise((res, rej)=>{ const fr = new FileReader(); fr.onload = ()=>res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+        const stamp = new Date(); const pad2 = n=>String(n).padStart(2, '0');
+        const name = `시간표_${stamp.getFullYear()}${pad2(stamp.getMonth()+1)}${pad2(stamp.getDate())}_${pad2(stamp.getHours())}${pad2(stamp.getMinutes())}.png`;
+        await WB.saveImage({ data: b64, name });
+        toast('사진 보관함(Pictures/ISE)에 저장했어요');
+        return;
+      }
+    }catch(e){}
+    // 2) 웹/그 밖: 브라우저 다운로드
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = '시간표.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    toast('시간표 이미지를 다운로드했어요');
+  }catch(e){ toast('이미지 저장에 실패했어요'); }
+}
 function openCaptureModeView(){
   const root=document.getElementById('modal-root');
   if(!root) return;
@@ -7150,7 +7879,10 @@ function openCaptureModeView(){
       <div class="capture-container">
         <div class="capture-topbar row-between" style="padding-top:${Math.round(16*deviceRatioScale())}px; padding-bottom:${Math.round(12*deviceRatioScale())}px;">
           <b style="font-size:14.5px; color:var(--capture-border);">시간표 캡처 모드</b>
-          <button class="btn btn-primary btn-sm" data-action="close-capture-mode" style="width:auto;">닫기 / 캡처 완료</button>
+          <span style="display:flex; gap:6px;">
+            <button class="btn btn-teal btn-sm" data-action="save-tt-image" style="width:auto;">이미지로 저장</button>
+            <button class="btn btn-primary btn-sm" data-action="close-capture-mode" style="width:auto;">닫기</button>
+          </span>
         </div>
         ${renderTimetable(true)}
       </div>
@@ -7183,7 +7915,7 @@ const TT_BG_PRESETS = ['#000000', '#FFFFFF'];
 // 배경 색 견본의 선택 표시: 흰 배경·검은 배경 어디서든 보이도록 검은 테두리를 깐 체크 그림(글자 ✓는 반반 원에서 네모 자국처럼 보였다)
 const TT_CHECK_SVG_OLD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#000" stroke-opacity=".6" stroke-width="5.4"/><path d="M5.5 12.5l4.2 4.2L18.5 7.8" stroke="#fff" stroke-width="3"/></svg>';
 // 화면 표시 설정을 열 때(또는 "기본값"을 눌렀을 때) 쓰는 기본값. state.ttOpts의 초기값과 같다.
-const TT_OPT_DEFAULTS = { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B', bgColor:'', gridColor:'', fontScale:1, rowScale:1, scrollable:false };
+const TT_OPT_DEFAULTS = { subject:true, time:true, professor:true, room:true, currentTime:false, todayDate:true, currentTimeColor:'#FF6B6B', bgColor:'', gridColor:'', fontScale:1, rowScale:1, rowScaleWide:1, scrollable:false };
 
 // 화면 표시 설정 창에서 아직 "적용"을 누르지 않은 값(토글·색·슬라이더)을 읽어 온다.
 function readPendingTtOpts(){
@@ -7198,7 +7930,7 @@ function readPendingTtOpts(){
   const lineWrapEl = document.getElementById('tt-line-color-swatches');
   if(lineWrapEl) next.gridColor = lineWrapEl.dataset.selected || '';
   const rowSlider = document.getElementById('tt-row-scale-slider');
-  if(rowSlider) next.rowScale = parseFloat(rowSlider.value) || 1;
+  if(rowSlider) next[ttRowKey()] = parseFloat(rowSlider.value) || 1;
   const fontSlider = document.getElementById('tt-font-scale-slider');
   if(fontSlider) next.fontScale = parseFloat(fontSlider.value) || 1;
   return next;
@@ -7219,7 +7951,7 @@ function ttOptionsModal(o = state.ttOpts){
   };
   const opts = [['subject', '과목명'], ['professor', '교수명'], ['time', '시간'], ['room', '강의실'], ['todayDate', '오늘'], ['currentTime', '시간선']];
   const fontScale = o.fontScale || 1;
-  const rowScale = o.rowScale || 1;
+  const rowScale = o[ttRowKey()] || 1;
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">화면 표시 설정<button data-action="close-modal">${ICON.close}</button></div>
@@ -7372,6 +8104,7 @@ function setupTtOptionsModalListeners(){
 function applyTtOptions(){
   const panel = document.getElementById('tt-opts-panel');
   if(!panel) return;
+  state.__ttOptsBackup = null;   // 적용: 미리 보기를 확정
   state.ttOpts = readPendingTtOpts();
   localSet('tt_display_opts', state.ttOpts);
   closeModal();
@@ -7922,7 +8655,26 @@ function setupOfficialScheduleModalListeners(){
 }
 
 /* ===== 학사정보 탭 ===== */
+function isWideUI(){ return document.documentElement.classList.contains('tab-wide'); }
+// 태블릿 가로: 위쪽 탭이 왼쪽 세로 목록이 되고, 짝이 되는 화면은 한 번에 좌·우로 같이 보여준다.
+function wideSplitHtml(tabs, activeKey, bodyHtml, cls){
+  const rail = tabs.map(t=>`<div class="subtab ${t.on?'active':''}" data-action="${t.action}" data-tab="${t.key}">${t.label}</div>`).join('');
+  return `<div class="wide-split"><div class="wide-side"><div class="subtabs wide-rail">${rail}</div></div><div class="wide-body ${cls||''}">${bodyHtml}</div></div>`;
+}
 function renderInfo(){
+  if(isWideUI()){
+    const t = state.infoTab;
+    const tabs = [
+      { key:'calendar', label:'학사일정', action:'info-tab', on:t==='calendar' },
+      { key:'examCal', label:'학사 달력', action:'info-tab', on:t==='examCal' },
+      { key:'meal', label:'학식', action:'info-tab', on:t==='meal' },
+      { key:'shuttle', label:'셔틀버스', action:'info-tab', on:t==='shuttle' },
+    ];
+    if(t==='calendar') return wideSplitHtml(tabs, t, `<div class="wide-col cal-list-col">${renderCalendarTab()}</div><div class="wide-col notice-col"><div class="notice-slot">${renderDeptNoticeBox()}</div><div class="notice-slot">${renderFusionNoticeBox()}</div></div>`, 'dual');
+    if(t==='examCal') return wideSplitHtml(tabs, t, renderExamCalTab(), 'examcal');
+    if(t==='shuttle') return wideSplitHtml(tabs, t, renderShuttleTab(), 'shuttle');
+    return wideSplitHtml(tabs, t, renderMealTab(), 'meal');
+  }
   return `
     <div class="subtabs">
       <div class="subtab ${state.infoTab==='calendar'?'active':''}" data-action="info-tab" data-tab="calendar">학사일정</div>
@@ -7936,22 +8688,28 @@ function renderInfo(){
 const DEPT_NOTICE_URL = 'https://aisemi.korea.ac.kr/AISEMI/3600/subview.do';
 const DEPT_NOTICE_WORKER_URL = 'https://ku-ise-ocr.kuaisemi.workers.dev/dept-notices';
 // 학사일정 탭 맨 아래에 붙는 학과 공지 박스 (별도 서브탭이 아니라 학사일정 탭 안에서 바로 확인)
-function renderDeptNoticeBox(){
-  const items = state.deptNotices || [];
-  const updatedAt = state.deptNoticesUpdatedAt || 0;
+const FUSION_NOTICE_URL = 'https://kusemicon.korea.ac.kr/kusemicon/6876/subview.do';
+function renderFusionNoticeBox(){
+  // 아직 목록이 없으면 한 번만 조용히 불러온다(누구나 볼 수 있게).
+  if(!(state.fusionNotices||[]).length && !state.__fusionTried){ state.__fusionTried = true; setTimeout(()=>fetchFusionNoticesFromSource(true), 0); }
+  return renderDeptNoticeBox({ title:'융합전공 공지', url:FUSION_NOTICE_URL, items:state.fusionNotices || [], updatedAt:state.fusionNoticesUpdatedAt || 0, id:'fusion-notice', action:'refresh-fusion-notices' }); }
+function renderDeptNoticeBox(cfg){
+  cfg = cfg || { title:'학과 공지', url:DEPT_NOTICE_URL, items:state.deptNotices || [], updatedAt:state.deptNoticesUpdatedAt || 0, id:'dept-notice', action:'refresh-dept-notices' };
+  const items = isWideUI() ? (cfg.items || []).slice(0, 10) : cfg.items;
+  const updatedAt = cfg.updatedAt;
   return `
     <div class="row-between" style="margin:18px 0 10px;">
-      <div class="section-title" style="margin:0;">학과 공지</div>
-      <a href="${DEPT_NOTICE_URL}" target="_blank" rel="noopener" style="font-size:11px; color:var(--teal); font-weight:700; text-decoration:none; display:flex; align-items:center; gap:2px;">공식 페이지 ${ICON.chevR}</a>
+      <div class="section-title" style="margin:0;">${cfg.title}</div>
+      <a href="${cfg.url}" target="_blank" rel="noopener" style="font-size:11px; color:var(--teal); font-weight:700; text-decoration:none; display:flex; align-items:center; gap:2px;">공식 페이지 ${ICON.chevR}</a>
     </div>
 
-    <div class="card" id="dept-notice-box">
+    <div class="card" id="${cfg.id}-box">
       <div class="row-between" style="margin-bottom:${items.length?'8px':'0'};">
         <span style="font-size:12px; color:var(--text-faint);">${updatedAt ? `${fmtDateTime(updatedAt)} 기준` : '아직 불러오지 않았어요'}</span>
-        <button type="button" id="dept-notice-refresh-btn" class="btn btn-ghost btn-sm" data-action="refresh-dept-notices" style="width:auto; padding:3px 9px; font-size:12px; ${isCouncil()?'':'display:none;'}">${ICON.download} 사이트에서 불러오기</button>
+        <button type="button" id="${cfg.id}-refresh-btn" class="btn btn-ghost btn-sm" data-action="${cfg.action}" style="width:auto; padding:3px 9px; font-size:12px; ${isCouncil()?'':'display:none;'}">${ICON.download} 사이트에서 불러오기</button>
       </div>
-      <div id="dept-notice-status" style="font-size:11.5px; color:var(--text-dim); display:none; padding:6px 0;"></div>
-      <div id="dept-notice-list">
+      <div id="${cfg.id}-status" style="font-size:11.5px; color:var(--text-dim); display:none; padding:6px 0;"></div>
+      <div id="${cfg.id}-list">
         ${items.length ? items.map(n=>`
           <a href="${escapeHtml(n.href)}" target="_blank" rel="noopener" class="dept-notice-row">
             <span class="dept-notice-title">${escapeHtml(n.title)}</span>
@@ -8010,6 +8768,7 @@ async function deleteAllCalendarEvents(){
 
 function renderCalendarTab(){
   const council = isCouncil();
+  const showNav = true;
   const [ms,me] = monthBounds(state.calendarMonth);
   // 이 탭은 "학사일정"이라 학교 공식 일정과 학생회 일정만 보여준다.
   // 예전에는 시험(exam)만 걸러서, 학생이 학사 달력에서 추가한 개인 일정(source:'personal')이
@@ -8019,11 +8778,11 @@ function renderCalendarTab(){
     .filter(ev=>ev.category!=='exam' && !isPersonalEvent(ev) && ev.startDate<=me && ev.endDate>=ms)
     .sort((a,b)=>a.startDate.localeCompare(b.startDate));
   return `
-    <div class="meal-nav">
+    ${showNav ? `<div class="meal-nav">
       <button data-action="cal-month-prev">${ICON.chevL}</button>
       <span class="meal-date">${fmtMonthLabel(state.calendarMonth)}</span>
       <button data-action="cal-month-next">${ICON.chevR}</button>
-    </div>
+    </div>` : ''}
     ${council ? `
     <div style="display:flex; gap:8px; margin-bottom:8px;">
       <button class="btn btn-primary btn-sm" data-action="add-event" style="flex:1;">${ICON.plus} 학사일정 추가</button>
@@ -8044,7 +8803,7 @@ function renderCalendarTab(){
           </div>
         </div>`).join('') : `<div class="empty"><p>이 달에는 등록된 학사일정이 없습니다.</p></div>`}
     </div>
-    ${renderDeptNoticeBox()}`;
+    ${isWideUI() ? '' : renderDeptNoticeBox()}`;
 }
 
 function renderExamCalTab(){
@@ -8128,40 +8887,8 @@ function renderExamCalTab(){
   const selectedEvents = allEvents.filter(ev => ev.startDate <= state.selectedExamDate && ev.endDate >= state.selectedExamDate);
   const council = isCouncil();
 
-  return `
-    <div class="meal-nav">
-      <button data-action="cal-month-prev">${ICON.chevL}</button>
-      <span class="meal-date">${fmtMonthLabel(calMonth)}</span>
-      <button data-action="cal-month-next">${ICON.chevR}</button>
-    </div>
-
-    <div class="card" style="padding:10px 8px; margin-bottom:12px;">
-      <div class="cal-grid" style="margin-bottom:0;">
-        ${headHtml}
-        ${calCells}
-      </div>
-    </div>
-
-    <div style="display:flex; gap:6px; margin-bottom:12px;">
-      <button class="btn btn-teal btn-sm" data-action="add-student-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 일정 추가</button>
-      <button class="btn btn-primary btn-sm" data-action="add-exam-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 시험 추가</button>
-      ${council ? `<button class="btn btn-blue btn-sm" data-action="add-council-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 학생회 일정</button>` : ''}
-    </div>
-
-    ${(()=>{
-      const memoText = (state.memos && state.memos[state.selectedExamDate]) || '';
-      return `
-      <div class="card" style="margin-bottom:12px;">
-        <div class="row-between" style="margin-bottom:8px;">
-          <div class="section-title" style="margin:0; color:var(--teal);">${ICON.clipboard} 내 메모</div>
-          <button type="button" class="btn btn-ghost btn-sm" data-action="edit-memo" data-date="${state.selectedExamDate}" style="width:auto; padding:3px 10px; font-size:10.5px;">${memoText ? `${ICON.pencil} 수정` : `${ICON.plus} 작성`}</button>
-        </div>
-        ${memoText
-          ? `<div class="memo-text" data-action="edit-memo" data-date="${state.selectedExamDate}">${escapeHtml(memoText)}</div>`
-          : `<p class="memo-empty" data-action="edit-memo" data-date="${state.selectedExamDate}">과제 · 준비물 등 이 날 기억할 것을 적어두세요. 나만 볼 수 있어요.</p>`}
-      </div>`;
-    })()}
-
+  const wideCal = isWideUI();
+  const listHtml = `
     <div class="card">
       <div class="section-title" style="margin:2px 0 10px; color:var(--teal);">${ICON.calendar} ${fmtDateLabel(state.selectedExamDate)} 일정 목록</div>
       ${selectedEvents.length ? selectedEvents.map(ev => {
@@ -8211,12 +8938,53 @@ function renderExamCalTab(){
       }).join('') : `<div class="empty" style="padding:18px 0;"><p>선택한 날짜에 등록된 일정이 없습니다.</p></div>`}
     </div>
 
+`;
+  return `
+    ${wideCal ? '<div class="cal-split"><div class="cal-left">' : ''}
+    <div class="meal-nav">
+      <button data-action="cal-month-prev">${ICON.chevL}</button>
+      <span class="meal-date">${fmtMonthLabel(calMonth)}</span>
+      <button data-action="cal-month-next">${ICON.chevR}</button>
+    </div>
+
+    <div class="card" style="padding:10px 8px; margin-bottom:12px;">
+      <div class="cal-grid" style="margin-bottom:0;">
+        ${headHtml}
+        ${calCells}
+      </div>
+    </div>
+    ${wideCal ? listHtml : ''}
+    ${wideCal ? '</div><div class="cal-right">' : ''}
+
+    <div style="display:flex; gap:6px; margin-bottom:12px;">
+      <button class="btn btn-teal btn-sm" data-action="add-student-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 일정 추가</button>
+      <button class="btn btn-primary btn-sm" data-action="add-exam-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 시험 추가</button>
+      ${council ? `<button class="btn btn-blue btn-sm" data-action="add-council-event" data-date="${state.selectedExamDate}" style="flex:1;">+ 학생회 일정</button>` : ''}
+    </div>
+
+    ${(()=>{
+      const memoText = (state.memos && state.memos[state.selectedExamDate]) || '';
+      return `
+      <div class="card" style="margin-bottom:12px;">
+        <div class="row-between" style="margin-bottom:8px;">
+          <div class="section-title" style="margin:0; color:var(--teal);">${ICON.clipboard} 내 메모</div>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="edit-memo" data-date="${state.selectedExamDate}" style="width:auto; padding:3px 10px; font-size:10.5px;">${memoText ? `${ICON.pencil} 수정` : `${ICON.plus} 작성`}</button>
+        </div>
+        ${memoText
+          ? `<div class="memo-text" data-action="edit-memo" data-date="${state.selectedExamDate}">${escapeHtml(memoText)}</div>`
+          : `<p class="memo-empty" data-action="edit-memo" data-date="${state.selectedExamDate}">과제 · 준비물 등 이 날 기억할 것을 적어두세요. 나만 볼 수 있어요.</p>`}
+      </div>`;
+    })()}
+
+    ${wideCal ? '' : listHtml}
+
     <div class="row-between" style="margin-top:14px; padding:0 2px; gap:8px;">
       <span style="font-size:11px; color:var(--text-faint); line-height:1.5;">학사 달력에 학생회 일정을 ${state.showCouncilEvents ? '표시합니다' : '숨깁니다'}</span>
       <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-council-filter" style="width:auto; flex-shrink:0; padding:3px 8px; font-size:10.5px;">
         ${state.showCouncilEvents ? `${ICON.eye} 학생회 일정: ON` : `${ICON.eyeOff} 학생회 일정: OFF`}
       </button>
-    </div>`;
+    </div>    ${wideCal ? '</div></div>' : ''}
+  `;
 }
 
 // ev/reminder: 수정 화면일 때 미리 읽어둔 기존 일정·알림 예약(새로 만드는 화면이면 둘 다 null).
@@ -8495,6 +9263,22 @@ function eventModal(ev, reminder){
     </form>`;
 }
 
+// 가로 화면: 구시아푸드 · 휴김밥 · bbq를 나란히 놓는 3칸 카드.
+function shopTilesHtml(){
+  const rows = (list)=>list.map(r=>`<div class="shop-row"><span class="shop-row-day">${r[0]}</span><span class="shop-row-time">${r[1]}</span>${r[2] ? `<span class="shop-row-note">${r[2]}</span>` : ''}</div>`).join('');
+  const tile = (icon, name, where, body, foot)=>`
+    <div class="card shop-tile">
+      <div class="shop-tile-head"><span class="shop-tile-ico">${icon}</span><div><b>${name}</b><small>${where}</small></div></div>
+      ${body}
+      ${foot ? `<p class="shop-tile-foot">${foot}</p>` : ''}
+    </div>`;
+  return `<div class="shop-tiles">
+    ${tile(ICON.utensils, '구시아푸드', '학생회관 1층', rows([['평일','10:00~19:30','라스트오더 19:00'],['토·일','11:00~15:00','라스트오더 14:40']]), '')}
+    ${tile(ICON.gimbap, '휴김밥', '호익플라자 1층', rows([['월~금','08:00~19:00','']]), '주말 미운영')}
+    ${tile(ICON.drumstick, 'bbq', '호익플라자 2층', rows([['월~금·일','10:00~22:00','']]), '토요일 미운영 · 단체/예약은 토요일도 가능')}
+  </div>
+  <p class="shop-foot-wide">※ 교직원식당 · 학생식당 · 휴김밥은 주말과 공휴일에, bbq는 공휴일에 운영하지 않아요.</p>`;
+}
 function renderMealTab(){
   const council = isCouncil();
   const weekDates = getWeekdayDates(state.mealDate);
@@ -8536,7 +9320,8 @@ function renderMealTab(){
     <div id="fetch-meal-status" class="fetch-status"></div>
     <a href="${MEAL_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; margin-top:12px; text-decoration:none;">공식 식단표 페이지 열기 ↗</a>
     <div class="week-note-wrap"><p class="week-note">※ 한 주치 식단은 <b>매주 월요일 10시 이후</b>에 올라와요</p></div>
-    <div class="card shop-card">
+    ${isWideUI() ? shopTilesHtml() : ''}
+    <div class="card shop-card"${isWideUI() ? ' hidden' : ''}>
       <div class="shop-block" style="--n:2;">
         <span class="shop-ico is-fork" style="grid-row:1 / span 2;">${ICON.utensils}</span>
         <span class="shop-name" style="grid-row:1 / span 2;"><b>구시아푸드</b><small>학생회관 1층</small></span>
@@ -8706,6 +9491,35 @@ function shuttlePointState(point){
   if(!next || next.dep.toDateString() !== now.toDateString()) return { kind:'after' };
   return { kind:'live', next };
 }
+// 출발지까지 버스가 "어디만큼 왔는지" 보여주는 작은 경로. 출발 15분 전부터 점점 가까워진다.
+// 출발 14분 전에 출발해서 약 7분 걸려 정류장에 도착(출발 7분 전)하고, 그 뒤로는 기다린다.
+function shuttleProgress(ms){
+  const m = ms / 60000;
+  if(m >= 14) return 0;
+  if(m <= 7) return 1;
+  return (14 - m) / 7;
+}
+function shuttleRouteHtml(label, dep){
+  const x0 = 14, x1 = 226, busW = 28;
+  const ms = dep ? dep - Date.now() : null;
+  const prog = ms == null ? 0 : shuttleProgress(ms);
+  const bx = x0 + (x1 - x0 - busW) * prog;
+  return `<svg class="route-svg" viewBox="0 0 240 54" aria-hidden="true">
+    <line x1="${x0}" y1="36" x2="${x1}" y2="36" stroke="var(--border-light, var(--border))" stroke-width="5" stroke-linecap="round"/>
+    <line class="route-prog" x1="${x0}" y1="36" x2="${bx + busW / 2}" y2="36" stroke="var(--crimson)" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+    <circle cx="${x0}" cy="36" r="4" fill="var(--text-faint)"/>
+    <circle cx="${x1}" cy="36" r="8" fill="var(--teal)"/><circle cx="${x1}" cy="36" r="3.2" fill="var(--bg)"/>
+    <text x="${x1}" y="52" text-anchor="end" font-size="9" font-weight="700" fill="var(--text-dim)">${escapeHtml(label)}</text>
+    <g class="route-bus ${prog >= 1 ? 'waiting' : ''}" ${dep ? `data-dep="${dep}"` : ''} data-x0="${x0}" data-span="${x1 - x0 - busW}" style="transform:translateX(${bx}px)">
+      <g class="bus-inner">
+      <text class="bus-zzz" x="30" y="12" font-size="8" font-weight="800" fill="var(--text-dim)">…</text>
+      <rect x="0" y="14" width="${busW}" height="17" rx="5" fill="var(--crimson)"/>
+      <rect x="4" y="18" width="6" height="6" rx="1.5" fill="#fff" opacity=".92"/><rect x="12" y="18" width="6" height="6" rx="1.5" fill="#fff" opacity=".92"/><rect x="20" y="18" width="5" height="9" rx="1.5" fill="#fff" opacity=".85"/>
+      <circle cx="8" cy="32" r="3.4" fill="#2a2a32"/><circle cx="21" cy="32" r="3.4" fill="#2a2a32"/>
+      </g>
+    </g>
+  </svg>`;
+}
 function shuttleCountdownCard(point, label){
   const labelHtml = `<b style="color:var(--teal);">${label}</b>에서 출발까지`;
   const st = shuttlePointState(point);
@@ -8714,18 +9528,21 @@ function shuttleCountdownCard(point, label){
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div style="font-size:19px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);">--:--</div>
       <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${st.label ? '공휴일이라 운행하지 않아요' : '오늘은 운행하지 않아요'}</div>
+      ${isWideUI() ? shuttleRouteHtml(label, null) : ''}
     </div>`;
   if(st.kind==='before') return `
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div style="font-size:19px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);">--:--</div>
       <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${pad(st.first.getHours())}:${pad(st.first.getMinutes())}부터 운행을 시작해요</div>
+      ${isWideUI() ? shuttleRouteHtml(label, null) : ''}
     </div>`;
   if(st.kind==='after') return `
     <div class="card" style="text-align:center; padding:11px 10px;">
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div style="font-size:19px; font-weight:800; color:var(--text-faint);">운행 종료</div>
       <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">오늘 운행이 모두 끝났어요</div>
+      ${isWideUI() ? shuttleRouteHtml(label, null) : ''}
     </div>`;
   const next = st.next;
   const ms = next.dep.getTime() - Date.now();
@@ -8734,6 +9551,7 @@ function shuttleCountdownCard(point, label){
       <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">${labelHtml}</div>
       <div class="shuttle-countdown-val" data-point="${point}" style="font-size:19px; font-weight:800; color:var(--crimson);">${fmtShuttleCountdown(ms)}</div>
       <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">${shuttleDepLabel(next.dep)} 출발</div>
+      ${isWideUI() ? shuttleRouteHtml(label, next.dep.getTime()) : ''}
     </div>`;
 }
 // 홈 화면용 한 줄짜리 축약 카드. 전체 카운트다운 카드(shuttleCountdownCard)와 달리 한 줄에
@@ -8820,6 +9638,16 @@ function setupShuttleTimer(){
       if(ms<=0){ needsRerender = true; return; }
       el.textContent = fmtShuttleCountdown(ms);
     });
+    // 경로 위 버스: 출발이 가까울수록 도착점 쪽으로.
+    document.querySelectorAll('.route-bus[data-dep]').forEach(g=>{
+      const ms = parseInt(g.dataset.dep, 10) - Date.now();
+      const prog = shuttleProgress(ms);
+      g.classList.toggle('waiting', prog >= 1);
+      const x0 = parseFloat(g.dataset.x0), span = parseFloat(g.dataset.span);
+      g.style.transform = `translateX(${x0 + span * prog}px)`;
+      const pl = g.parentNode.querySelector('.route-prog');
+      if(pl) pl.setAttribute('x2', String(x0 + span * prog + 14));
+    });
     if(needsRerender) renderMain();
   }, 1000);
 }
@@ -8836,7 +9664,43 @@ function shuttleHolidayBanner(){
       </div>
     </div>`;
 }
+// 길 위를 뽈뽈 달리는 귀여운 셔틀버스(가로 화면 전용 장식). CSS 애니메이션만 쓴다.
+function shuttleBusArt(){
+  return `<div class="bus-art" aria-hidden="true">
+    <svg viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg">
+      <g class="bus-cloud c1"><ellipse cx="60" cy="26" rx="22" ry="8" fill="var(--text-faint)" opacity=".28"/><ellipse cx="76" cy="22" rx="14" ry="7" fill="var(--text-faint)" opacity=".28"/></g>
+      <g class="bus-cloud c2"><ellipse cx="230" cy="40" rx="18" ry="6" fill="var(--text-faint)" opacity=".22"/><ellipse cx="244" cy="36" rx="11" ry="5" fill="var(--text-faint)" opacity=".22"/></g>
+      <rect x="0" y="92" width="320" height="28" rx="6" fill="var(--surface-3)"/>
+      <g class="bus-road"><rect x="0" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/><rect x="48" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/><rect x="96" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/><rect x="144" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/><rect x="192" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/><rect x="240" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/><rect x="288" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/><rect x="336" y="104" width="26" height="4" rx="2" fill="var(--text-faint)" opacity=".55"/></g>
+      <g class="bus-body">
+        <rect x="0" y="40" width="104" height="48" rx="14" fill="var(--crimson)"/>
+        <rect x="0" y="70" width="104" height="8" fill="#000" opacity=".16"/>
+        <rect x="10" y="48" width="20" height="18" rx="5" fill="#fff" opacity=".92"/>
+        <rect x="36" y="48" width="20" height="18" rx="5" fill="#fff" opacity=".92"/>
+        <rect x="62" y="48" width="20" height="18" rx="5" fill="#fff" opacity=".92"/>
+        <rect x="86" y="48" width="12" height="30" rx="4" fill="#fff" opacity=".85"/>
+        <circle cx="97" cy="82" r="3" fill="#FFD27A"/>
+        <path d="M8 40c2-9 10-14 20-14h48c10 0 18 5 20 14" fill="var(--crimson)"/>
+        <circle cx="26" cy="88" r="10" fill="#2a2a32"/><circle cx="26" cy="88" r="4" fill="#9a9aa8"/>
+        <circle cx="78" cy="88" r="10" fill="#2a2a32"/><circle cx="78" cy="88" r="4" fill="#9a9aa8"/>
+      </g>
+    </svg>
+  </div>`;
+}
 function renderShuttleTab(){
+  if(isWideUI()){
+    // 가로 화면: 왼쪽에 휴일 안내 + 카운트다운, 오른쪽에 전체 시간표(조금 작게).
+    return `
+    <div class="shuttle-side">
+      ${shuttleHolidayBanner()}
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;">
+        ${shuttleCountdownCard('school', '학교')}
+        ${shuttleCountdownCard('mid', '조치원역')}
+      </div>
+      <a href="${SHUTTLE_SOURCE_URL}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="width:100%; text-decoration:none;">공식 셔틀 시간표 페이지 열기 ↗</a>
+    </div>
+    <div class="shuttle-full">${shuttleFullListHtml()}</div>`;
+  }
   return `
     ${shuttleHolidayBanner()}
     <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -9120,7 +9984,7 @@ async function fetchMealFromSource(silent=false){
 }
 
 /* ===== 학과 공지 실시간 파싱 ===== */
-function parseDeptNoticeTable(dom){
+function parseDeptNoticeTable(dom, base){
   const table = dom.querySelector('table.board-table') || Array.from(dom.querySelectorAll('table')).find(t=>t.querySelector('a[href*="artclView.do"]'));
   if(!table) return [];
   const rows = Array.from(table.querySelectorAll('tbody tr'));
@@ -9131,7 +9995,7 @@ function parseDeptNoticeTable(dom){
     if(!title) return null;
     let href = link.getAttribute('href') || '';
     if(href && !/^https?:\/\//.test(href)){
-      href = 'https://aisemi.korea.ac.kr' + (href.startsWith('/') ? href : '/'+href);
+      href = (base || 'https://aisemi.korea.ac.kr') + (href.startsWith('/') ? href : '/'+href);
     }
     const dateEl = tr.querySelector('.td-date, td.date, td:last-child');
     let date = dateEl ? dateEl.textContent.trim() : '';
@@ -9190,15 +10054,53 @@ async function fetchDeptNoticesFromSource(silent=false){
 
     state.deptNotices = items;
     state.deptNoticesUpdatedAt = now();
-    const ok = await saveShared('deptNotices', { items, updatedAt: state.deptNoticesUpdatedAt });
+    const ok = await saveShared('deptNotices', { items, updatedAt: state.deptNoticesUpdatedAt, fusion: { items: state.fusionNotices || [], updatedAt: state.fusionNoticesUpdatedAt || 0 } });
     if(statusEl) statusEl.style.display='none';
     if(state.view==='info' && state.infoTab==='calendar') renderMain();
     if(!silent) toast(ok ? '학과 공지를 새로 불러왔습니다' : '불러왔지만 공유 저장에는 실패했습니다');
+    fetchFusionNoticesFromSource(true);   // 융합전공 공지도 같이
   }catch(err){
     fail('공지 목록 파싱 중 오류가 발생했습니다.');
   }finally{
     setBtnDisabled(false);
   }
+}
+
+async function fetchFusionNoticesFromSource(silent=false){
+  const statusEl = document.getElementById('fusion-notice-status');
+  const btn = ()=>document.getElementById('fusion-notice-refresh-btn');
+  if(btn()) btn().disabled = true;
+  if(statusEl && !silent){ statusEl.style.display='block'; statusEl.innerHTML = '<span style="color:var(--teal);">융합전공 게시판에서 공지를 불러오는 중…</span>'; }
+  const gens = [
+    () => DEPT_NOTICE_WORKER_URL + '?src=fusion',
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+  ];
+  const fail = (msg)=>{
+    if(statusEl && !silent){ statusEl.style.display='block'; statusEl.innerHTML = `<span style="color:var(--danger);">${escapeHtml(msg)}</span>`; }
+    if(!silent) toast('융합전공 공지를 불러오지 못했습니다');
+  };
+  try{
+    let html = null;
+    for(const gen of gens){
+      try{
+        const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 7000);
+        const res = await fetch(gen(FUSION_NOTICE_URL), { cache:'no-store', signal: ctrl.signal }).finally(()=>clearTimeout(t));
+        if(!res.ok) continue;
+        const txt = await res.text();
+        if(txt && txt.length > 500 && /artclView\.do/.test(txt)){ html = txt; break; }
+      }catch(e){}
+    }
+    if(!html){ fail('융합전공 게시판에 접근하지 못했습니다.'); return; }
+    const items = parseDeptNoticeTable(new DOMParser().parseFromString(html, 'text/html'), 'https://kusemicon.korea.ac.kr');
+    if(!items.length){ fail('공지 목록 구조를 인식하지 못했습니다.'); return; }
+    state.fusionNotices = items; state.fusionNoticesUpdatedAt = now();
+    // 공유 저장은 학생회만(권한). 일반 학생은 이 기기에서만 보여준다.
+    const ok = isCouncil() ? await saveShared('deptNotices', { items: state.deptNotices || [], updatedAt: state.deptNoticesUpdatedAt || 0, fusion: { items, updatedAt: state.fusionNoticesUpdatedAt } }) : true;
+    if(state.view==='info') renderMain();
+    if(!silent) toast(ok ? '융합전공 공지를 새로 불러왔습니다' : '불러왔지만 공유 저장에는 실패했습니다');
+  }catch(err){ fail('공지 목록 파싱 중 오류가 발생했습니다.'); }
+  finally{ if(btn()) btn().disabled = false; }
 }
 
 /* ===== 따봉(Like) UI 헬퍼 ===== */
@@ -9236,6 +10138,17 @@ function renderCouncil(){
   const valid = tabs.some(([k])=>k===state.councilTab);
   if(!valid) state.councilTab='notice';
   const labels = tabs.map(([k,l])=>`<div class="subtab ${state.councilTab===k?'active':''}" data-action="council-tab" data-tab="${k}">${l}</div>`).join('');
+  if(isWideUI()){
+    const t = state.councilTab;
+    const wtabs = tabs.map(([k,l])=>({ key:k, label:l, action:'council-tab', on:t===k }));
+    if(t==='notice'){
+      // 진행 중인 투표가 있으면 공지 오른쪽에 붙여서 같이 보여준다. 없으면 공지만.
+      const hasPoll = live(state.polls).some(p=>!isPollEnded(p));
+      return hasPoll ? wideSplitHtml(wtabs, t, `<div class="wide-col">${renderNoticeTab({ noPolls:true })}</div><div class="wide-col">${renderPollTab()}</div>`, 'dual')
+                     : wideSplitHtml(wtabs, t, renderNoticeTab(), 'single');
+    }
+    return wideSplitHtml(wtabs, t, t==='board' ? renderBoardTab() : (t==='poll' ? renderPollTab() : renderRecruitmentTab()), t==='board' ? 'single center' : 'single');
+  }
   let body='';
   if(state.councilTab==='notice') body=renderNoticeTab();
   else if(state.councilTab==='board') body=renderBoardTab();
@@ -9455,7 +10368,8 @@ function postCardHtml(n, opts){
 }
 
 // 공지사항 탭: 게시글 → 투표 → 구인글 순서의 섹션.
-function renderNoticeTab(){
+function renderNoticeTab(opts){
+  const noPolls = !!(opts && opts.noPolls);   // 가로 화면에서 투표가 오른쪽에 따로 있을 때 요약을 또 보여주지 않는다
   const posts = announcedPosts();
   const hasPin = posts.some(n=>n.pinned);
   const shownIds = new Set(posts.map(n=>n.id));
@@ -9476,7 +10390,7 @@ function renderNoticeTab(){
   return `
     ${secTitle('게시글', hasPin ? ' <span class="count">고정</span>' : '')}
     ${postsHtml}
-    ${polls.length ? secTitle('투표', ` <span class="count">총 ${polls.length}개</span>`) + pollsHtml : ''}
+    ${(polls.length && !noPolls) ? secTitle('투표', ` <span class="count">총 ${polls.length}개</span>`) + pollsHtml : ''}
     ${recruits.length ? secTitle('구인글') + recruitsHtml : ''}`;
 }
 
@@ -9486,8 +10400,9 @@ function renderBoardTab(){
   const curCat = state.boardCat || 'all';
   const opts = [['all','전체'],...BOARD_CATS].map(([k,l])=>`<button type="button" class="board-opt${curCat===k?' on':''}" data-action="board-cat" data-cat="${k}">${l}</button>`).join('');
   return `
-    <div class="board-searchrow">
-      <div class="field"><input type="text" id="board-search" placeholder="게시글 검색 (제목·내용)" value="${escapeHtml(state.boardQ||'')}" autocomplete="off"></div>
+    <div class="board-searchrow bb${state.boardQ ? ' open' : ''}" id="bb">
+      <button type="button" class="bb-search" data-action="bb-search" aria-label="검색"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
+      <div class="field bb-field"><input type="text" id="board-search" placeholder="게시글 검색 (제목·내용)" value="${escapeHtml(state.boardQ||'')}" autocomplete="off"></div>
       <div class="board-filter-wrap">
         <button type="button" class="board-filter-btn${curCat!=='all'?' active':''}" id="board-filter-btn" data-action="board-cat-toggle" title="분류 선택" aria-label="분류 선택">${BOARD_FILTER_ICON}${curCat!=='all' ? `<span class="bf-label">${boardCatLabel(curCat)}</span>` : ''}</button>
         <div class="board-menu" id="board-menu">${opts}</div>
@@ -10768,6 +11683,7 @@ function renderAvBody(){
   }
   if(avTab === 'pixel' && avEditor) setupAvCanvas();
   updateAvPreview();
+  requestAnimationFrame(()=>requestAnimationFrame(fitAvScroll));
 }
 function avPxDraw(){
   const c = document.getElementById('av-canvas'); if(!c) return;
@@ -11059,6 +11975,7 @@ function morphChildren(dst, src){
 }
 function openSettingsPage(opts){
   if(!state.user || document.getElementById('settings-page')) return;
+  if(isWideUI()) closeModal();   // 옆 패널은 하나만
   const wrap = document.createElement('div');
   wrap.className = 'friends-page';
   wrap.id = 'settings-page';
@@ -11143,6 +12060,8 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
       ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="cycle-tablet-mode"><span class="link-row-label">${PHONE_WIDE_ICON} 태블릿 모드</span> <span class="sub" style="font-size:11.5px; color:var(--text-dim);">${({auto:'자동', on:'항상 켜기', off:'끄기'})[tabletMode()]}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="toggle-trouble"><span class="link-row-label">${ICON.phoneAlert} 앱이 이상할 때</span> <span class="sub"><span class="trouble-chev" style="display:inline-flex; transition:transform .2s; transform:rotate(90deg);">${ICON.chevR}</span></span></div>
       <div id="trouble-body" style="display:none; padding-left:14px;">
@@ -12852,6 +13771,7 @@ function swapModal(html){
 function openModal(html){
   const root=document.getElementById('modal-root');
   if(!root) return;
+  if(isWideUI()) closeSettingsPage();   // 옆 패널은 하나만: 환경설정이 열려 있으면 닫고 이걸 연다
   // 이미 열려 있는 모달 안에서 다른 내용으로 바뀔 때(목록 → 학기 선택 등)는 시트를 새로 만들지 않고 안쪽만 바꾼다 — 아래에서 다시 올라오는 깜빡임이 없다
   const openOv = document.getElementById('modal-overlay');
   if(openOv && openOv.classList.contains('open')){
@@ -12912,6 +13832,11 @@ function setupModalDragToDismiss(overlay){
   handle.addEventListener('mousedown', onStart);
 }
 function closeModal(){
+  // 시간표 표시 설정을 적용하지 않고 닫으면 미리 보기를 원래대로 되돌린다.
+  if(state.__ttOptsBackup){
+    state.ttOpts = state.__ttOptsBackup; state.__ttOptsBackup = null;
+    try{ renderMain(); }catch(_){}
+  }
   const ov=document.getElementById('modal-overlay');
   if(!ov) return;
   const wasOpen = ov.classList.contains('open');
@@ -14648,7 +15573,18 @@ INLINE_COLOR_HANDLERS['widget-accent'] = (hex)=>{
 };
 
 // 건물 목록 펼치기 / 접기. 칸마다 --i(지연 순서)를 정해서 CSS가 한 줄씩 말려 내려오고 올라가게 한다.
+// 목록이 열리고 닫히는 동안 시트의 스크롤바·스크롤 위치가 출렁이지 않게 잠깐 잠근다(겹침 패널이 스크롤 높이를 바꿔서 생기는 깜빡임).
+function lockSheetScroll(pop, ms){
+  const sheet = pop && pop.closest && pop.closest('.modal-sheet');
+  if(!sheet) return;
+  const top = sheet.scrollTop;
+  sheet.style.overflowY = 'hidden';
+  sheet.scrollTop = top;
+  clearTimeout(sheet.__lockT);
+  sheet.__lockT = setTimeout(()=>{ sheet.style.overflowY = ''; sheet.scrollTop = top; }, ms);
+}
 function openBldgPop(pop, up){
+  lockSheetScroll(pop, 700);
   const items = Array.from(pop.querySelectorAll('.bldg-opt'));
   const n = items.length;
   items.forEach((el, i) => el.style.setProperty('--i', String(up ? n - 1 - i : i)));
@@ -14670,6 +15606,7 @@ function closeBldgPop(pop, instant){
   pop.classList.remove('rolling-in');
   pop.classList.add('rolling-out');
   pop.__closing = true;
+  lockSheetScroll(pop, 260 + n * 28 + 60);
   setTimeout(()=>{ pop.style.display = 'none'; pop.classList.remove('rolling-out'); pop.__closing = false; }, 260 + n * 28);
 }
 // 건물 목록은 바깥을 누르면 닫는다.
@@ -14679,6 +15616,61 @@ document.addEventListener('click', (e)=>{
   document.querySelectorAll('.bldg-btn.open').forEach(b => b.classList.remove('open'));
 });
 
+
+
+// 가로로 눕힌 스마트폰 모양(태블릿 모드 줄 아이콘)
+const PHONE_WIDE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="3.6" width="20.4" height="16.8" rx="3"/><path d="M10 17h4" stroke-width="1.7"/></svg>`;
+// 태블릿 모드(MY → 추가기능): 자동(화면 폭 601px 넘으면 태블릿 UI) / 항상 켜기 / 끄기(폰 UI 그대로).
+function tabletMode(){ const m = localGet('tablet_mode', 'auto'); return (m === 'on' || m === 'off') ? m : 'auto'; }
+function applyTabletMode(){
+  const m = tabletMode(), w = window.innerWidth || 0;
+  const hh = window.innerHeight || 0;
+  const tooSmall = w < 520 || hh < 360;   // 너무 무리해서 줄이면 태블릿 UI를 접고 곧바로 일반 모드로
+  const ui = !tooSmall && (m === 'on' || (m === 'auto' && w > 600));
+  const root = document.documentElement;
+  root.classList.toggle('tab-ui', ui);
+  const h = window.innerHeight || 1;
+  root.classList.toggle('tab-wide', ui && w >= 900 && w >= h * 1.15);   // 가로 폭이 충분하고 가로로 긴 화면일 때만(4:3 · 16:10 · 3:2 모두 비율로 판단)
+}
+let __maxInnerH = window.innerHeight || 0, __lastInnerW = window.innerWidth || 0;
+function updateKeyboardState(){
+  const w = window.innerWidth || 0, h = window.innerHeight || 0;
+  if(Math.abs(w - __lastInnerW) > 40){ __maxInnerH = h; __lastInnerW = w; }   // 회전 · 창 크기 변경이면 기준을 다시 잡는다
+  if(h > __maxInnerH) __maxInnerH = h;
+  document.documentElement.classList.toggle('kb-open', h < __maxInnerH - 140);
+  document.documentElement.classList.toggle('rail-short', h < 560);   // 화면이 너무 낮으면 글씨는 빼고 아이콘만, 소셜·알림은 MY 아래로 숨긴다
+}
+applyTabletMode();
+updateKeyboardState();
+window.addEventListener('resize', ()=>{
+  updateKeyboardState();
+  const was = document.documentElement.className;
+  applyTabletMode();
+  const now_ = document.documentElement.className;
+  if(was !== now_){
+    try{
+      if(was.includes('tab-wide') !== now_.includes('tab-wide')) renderMain();   // 좌·우 배치가 달라지므로 화면을 다시 그린다
+      else if(state.view === 'timetable') requestAnimationFrame(fitTimetableGrid);
+    }catch(_){}
+  }
+});
+// 태블릿 둥근 메뉴: 아래로 스크롤하면 숨고, 위로 올리거나 멈추면 다시 떠오른다. 방향이 바뀌면 시간표 칸도 다시 맞춘다.
+(function(){
+  let lastY = 0, idle = 0;
+  const nav = ()=>document.querySelector('.bottomnav');
+  const onScroll = ()=>{
+    const n = nav(); if(!n) return;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    if(document.documentElement.classList.contains('tab-ui')){
+      if(y > lastY + 6 && y > 80) n.classList.add('nav-hide');
+      else if(y < lastY - 4 || y < 80) n.classList.remove('nav-hide');
+      clearTimeout(idle); idle = setTimeout(()=>{ const m = nav(); if(m) m.classList.remove('nav-hide'); }, 900);
+    } else n.classList.remove('nav-hide');
+    lastY = y;
+  };
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('orientationchange', ()=>setTimeout(()=>{ try{ if(state.view==='timetable') fitTimetableGrid(); }catch(_){} }, 300));
+})();
 document.addEventListener('change', async (e)=>{
   const t = e.target;
   if(!t) return;
@@ -14735,6 +15727,7 @@ document.addEventListener('click', async (e)=>{
       location.reload();
     }
     else if(a === 'nav'){
+      if(isWideUI()){ closeModal(); closeSettingsPage(); }
       const retap = state.view === el.dataset.view;
       state.view = el.dataset.view;
       // 이미 그 탭에 있는 채로 하단 탭을 또 누르면 첫 번째 하위 탭(학사일정 / 공지사항)으로 돌아간다.
@@ -14755,6 +15748,20 @@ document.addEventListener('click', async (e)=>{
       if(state.infoTab === 'calendar'){ checkAutoDeptNoticeFetch(); }
     }
     else if(a === 'refresh-dept-notices'){ await fetchDeptNoticesFromSource(false); }
+    else if(a === 'refresh-fusion-notices'){ await fetchFusionNoticesFromSource(false); }
+    else if(a === 'bb-search'){
+      const bb = document.getElementById('bb'), inp = document.getElementById('board-search');
+      if(!bb || !inp) return;
+      if(!bb.classList.contains('open')){
+        bb.classList.add('open');
+        setTimeout(()=>{ try{ inp.focus({ preventScroll:true }); }catch(_){ inp.focus(); } }, 200);
+      } else {
+        // 열려 있을 때는 "확인": 지금 입력으로 목록을 거르고, 비어 있으면 다시 접는다.
+        state.boardQ = inp.value;
+        const bl = document.getElementById('board-list'); if(bl) bl.innerHTML = boardListHtml();
+        if(!inp.value.trim()) bb.classList.remove('open'); else inp.blur();
+      }
+    }
     else if(a === 'council-tab'){
       state.councilTab = el.dataset.tab;
       // 소셜 탭은 다른 화면(친구 상세 등)을 보고 있어도 탭 버튼을 다시 누르면 목록으로 리셋.
@@ -14834,6 +15841,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'go-recruitment-tab'){ state.view = 'council'; state.councilTab = 'recruitment'; renderShell(); }
     else if(a === 'go-notice-tab'){ state.view = 'council'; state.councilTab = 'notice'; renderShell(); }
     else if(a === 'go-my-tab'){ state.view = 'mypage'; renderShell(); }
+    else if(a === 'rail-me'){ if(state.view !== 'mypage'){ state.view = 'mypage'; renderShell(); } openAvatarEditor(); }
     else if(a === 'go-calendar-tab'){ state.view = 'info'; state.infoTab = 'examCal'; renderShell(); }
     // 홈의 "다가오는 내 일정": 학사 달력을 열고 그 일정의 날짜(진행 중인 일정은 오늘)를 선택해 둔다.
     else if(a === 'go-my-event'){
@@ -15000,8 +16008,13 @@ document.addEventListener('click', async (e)=>{
     }
     else if(a === 'reset-all-timetables'){ await resetAllTimetables(); }
     else if(a === 'open-capture-mode'){ openCaptureModeView(); }
+    else if(a === 'save-tt-image'){ await saveTimetableImage(); }
+    else if(a === 'confirm-save-tt-image'){ closeModal(); await deliverTimetableImage(); }
     else if(a === 'close-capture-mode'){ const ov = document.getElementById('capture-overlay-box'); if(ov) ov.remove(); }
-    else if(a === 'open-tt-options'){ openModal(ttOptionsModal()); setupTtOptionsModalListeners(); }
+    else if(a === 'open-tt-options'){
+      state.__ttOptsBackup = JSON.parse(JSON.stringify(state.ttOpts || {}));   // 적용 전까지는 미리 보기만
+      openModal(ttOptionsModal()); setupTtOptionsModalListeners();
+    }
     else if(a === 'reset-tt-opts'){ swapModal(ttOptionsModal({ ...TT_OPT_DEFAULTS })); setupTtOptionsModalListeners(); toast('기본값을 불러왔어요. 적용을 눌러야 저장돼요'); }
     else if(a === 'apply-tt-opts'){ applyTtOptions(); }
     else if(a === 'verify-council'){ openModal(councilVerifyModal()); }
@@ -15042,6 +16055,12 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'open-friends-page'){ await openFriendsPage(); }
     else if(a === 'close-friends-page'){ closeFriendsPage(); }
     else if(a === 'open-settings-page'){ openSettingsPage(); }
+    else if(a === 'open-profile-edit'){
+      // 환경설정을 열고 "프로필" 탭으로 바로 간다.
+      state.settingsTab = 'profile';
+      if(document.getElementById('settings-page')) refreshSettingsPage(); else openSettingsPage();
+      setTimeout(()=>{ state.settingsTab = 'profile'; refreshSettingsPage(); }, 80);
+    }
     else if(a === 'close-settings-page'){ closeSettingsPage(); }
     else if(a === 'settings-jump'){ const sec = document.getElementById('st-sec-' + el.dataset.tab); if(sec) sec.scrollIntoView({ behavior:'smooth', block:'start' }); }
     else if(a === 'open-update-check'){
@@ -15277,6 +16296,34 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'edit-class'){ openClassEditor(el.dataset.id); }
     else if(a === 'delete-class-group'){ await deleteClassGroup(el.dataset.groupId); }
     else if(a === 'tt-import'){ setTtFab(false); openModal(importChooserModal()); }
+    else if(a === 'preview-tt-theme'){
+      const theme = TT_THEMES.find(t => t.id === el.dataset.theme);
+      if(!theme) return;
+      if(!(state.timetable || []).length){ toast('이 시간표에 수업이 없어요'); return; }
+      state.ttThemePreview = theme.id;
+      // 저장하지 않고 화면의 수업 칸 색만 임시로 바꿔 보여준다.
+      const order = new Map();
+      (state.timetable || []).forEach(sl => { const k = sl.groupId || sl.subject || sl.id; if(!order.has(k)) order.set(k, order.size); });
+      document.querySelectorAll('.tt-block[data-edit-id]').forEach(b=>{
+        const sl = (state.timetable || []).find(x => x.id === b.dataset.editId);
+        if(!sl) return;
+        const color = theme.colors[order.get(sl.groupId || sl.subject || sl.id) % theme.colors.length];
+        const tc = autoTextColor(color);
+        b.style.background = color; b.style.backgroundColor = color; b.style.color = tc;
+        b.querySelectorAll('*').forEach(c=>{ c.style.color = tc; });
+      });
+      document.querySelectorAll('.tt-theme').forEach(x=>x.classList.toggle('on', x.dataset.theme === theme.id));
+      const bar = document.getElementById('ttd-apply'); if(bar) bar.style.display = '';
+    }
+    else if(a === 'confirm-tt-theme'){
+      const id = state.ttThemePreview; state.ttThemePreview = null;
+      const theme = TT_THEMES.find(t => t.id === id);
+      if(!theme) return;
+      const ok = await applyTimetableTheme(theme.id);
+      renderMain();
+      saveResultToast(ok, `'${theme.name}' 테마를 적용했어요`);
+    }
+    else if(a === 'cancel-tt-theme'){ state.ttThemePreview = null; renderMain(); }
     else if(a === 'apply-tt-theme'){
       const theme = TT_THEMES.find(t => t.id === el.dataset.theme);
       if(!theme) return;
@@ -15299,6 +16346,14 @@ document.addEventListener('click', async (e)=>{
       if(inp) inp.value = el.dataset.hex;
       applyClassTextAuto(el.dataset.hex);
     }
+    else if(a === 'cycle-tablet-mode'){
+      const order = ['auto', 'on', 'off'];
+      const next = order[(order.indexOf(tabletMode()) + 1) % order.length];
+      localSet('tablet_mode', next);
+      applyTabletMode();
+      renderMain();
+      toast('태블릿 모드: ' + ({auto:'자동 (화면이 넓으면 태블릿 화면)', on:'항상 켜기', off:'끄기 (폰 화면 그대로)'})[next]);
+    }
     else if(a === 'toggle-bldg-pop'){
       const card = el.closest('.slot-item-card');
       const pop = card && card.querySelector('.bldg-pop');
@@ -15311,6 +16366,7 @@ document.addEventListener('click', async (e)=>{
       // 보이는 화면(모달 시트) 안에서 아래 공간이 모자라고 위가 더 넓으면 위로 펼친다. 둘 다 모자라면 넓은 쪽에 맞춰 높이를 줄인다.
       pop.classList.remove('up');
       pop.style.maxHeight = '';
+      lockSheetScroll(pop, 700);
       pop.style.display = 'block';
       const sheet = card.closest('.modal-sheet');
       const sr = sheet ? sheet.getBoundingClientRect() : { top:0, bottom:window.innerHeight };
@@ -15353,7 +16409,7 @@ document.addEventListener('click', async (e)=>{
       closeBldgPop(card.querySelector('.bldg-pop'));
       card.querySelector('.bldg-btn').classList.remove('open');
       const focusEl = custom ? customIn : detail;
-      if(focusEl && !focusEl.value) focusEl.focus();
+      if(focusEl && !focusEl.value) focusEl.focus({ preventScroll:true });
     }
     else if(a === 'pick-schedule-color'){
       document.querySelectorAll('#schedule-swatches-wrap .swatch').forEach(s => {

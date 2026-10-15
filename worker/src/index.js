@@ -93,7 +93,9 @@ async function proxyFixedPage(url, origin, ttlSeconds) {
 }
 const handleScheduleProxy = (origin) => proxyFixedPage(REGISTRAR_SCHEDULE_URL, origin, 3600);
 // 수동 "불러오기" 버튼용이라 오래 캐시하지 않는다(1분) — 눌렀는데 한 시간 전 목록이 오면 곤란하다.
-const handleDeptNoticeProxy = (origin) => proxyFixedPage(DEPT_NOTICE_URL, origin, 60);
+// 융합전공 공지(?src=fusion). 고정된 두 주소만 부른다.
+const FUSION_NOTICE_URL = 'https://kusemicon.korea.ac.kr/kusemicon/6876/subview.do';
+const handleDeptNoticeProxy = (origin, src) => proxyFixedPage(src === 'fusion' ? FUSION_NOTICE_URL : DEPT_NOTICE_URL, origin, 60);
 
 // 에브리타임 시간표 공유 링크 가져오기.
 // 공유 링크(everytime.kr/@식별자) 페이지는 화면이 뜬 뒤 아래 주소에 식별자를 보내 시간표 XML을
@@ -195,7 +197,7 @@ export default {
       if (request.method !== 'GET') {
         return json({ error: { message: 'GET만 허용됩니다.' } }, 405, origin);
       }
-      return handleDeptNoticeProxy(origin);
+      return handleDeptNoticeProxy(origin, new URL(request.url).searchParams.get('src'));
     }
     if (request.method !== 'POST') {
       return json({ error: { message: 'POST만 허용됩니다.' } }, 405, origin);

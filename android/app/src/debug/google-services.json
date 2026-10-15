@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "808683287364",
+    "project_id": "ku-ise-d95ee",
+    "storage_bucket": "ku-ise-d95ee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808683287364:android:56b35fa7baee85fa949d11",
+        "android_client_info": {
+          "package_name": "com.semicon.kuise.tab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA21fzfbj6o-jVD702ZEa-uU5zLHqNR3yE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

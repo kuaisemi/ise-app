@@ -1,5 +1,20 @@
 package com.semicon.kuise;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Base64;
+import java.io.OutputStream;
+import android.view.Window;
+
+import androidx.core.graphics.ColorUtils;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -30,6 +45,87 @@ public class WidgetBridgePlugin extends Plugin {
     @Override
     public void load() {
         activeInstance = this;
+    }
+
+    /**
+     * 상태표시줄(맨 위 시계 줄)과 내비게이션 바 색을 앱 배경색에 맞춘다.
+     * 웹이 테마를 바꿀 때마다 { color: "#rrggbb" }로 부른다. 배경이 밝으면 아이콘을 어둡게 한다.
+     * (삼성 태블릿 하단 작업표시줄은 시스템 소유라 앱이 칠할 수 없다.)
+     */
+    @PluginMethod
+    public void setBars(final PluginCall call) {
+        final String color = call.getString("color");
+        if (color == null || getActivity() == null) {
+            call.resolve();
+            return;
+        }
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int c = Color.parseColor(color);
+                    Window w = getActivity().getWindow();
+                    w.setStatusBarColor(c);
+                    w.setNavigationBarColor(c);
+                    WindowInsetsControllerCompat ctrl = WindowCompat.getInsetsController(w, w.getDecorView());
+                    if (ctrl != null) {
+                        boolean lightBg = ColorUtils.calculateLuminance(c) > 0.5;
+                        ctrl.setAppearanceLightStatusBars(lightBg);
+                        ctrl.setAppearanceLightNavigationBars(lightBg);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        });
+        call.resolve();
+    }
+
+    /**
+     * PNG(base64)를 기기의 사진 보관함(Pictures/ISE)에 저장한다. 공유 창 없이 바로 저장되고,
+     * Android 10 이상에서는 별도 권한이 필요 없다(MediaStore).
+     */
+    @PluginMethod
+    public void saveImage(PluginCall call) {
+        String b64 = call.getString("data");
+        String name = call.getString("name", "timetable.png");
+        if (b64 == null) {
+            call.reject("data가 없습니다");
+            return;
+        }
+        try {
+            byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
+            ContentResolver resolver = getContext().getContentResolver();
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+            values.put(MediaStore.MediaColumns.MIME_TYPE, "image/png");
+            if (Build.VERSION.SDK_INT >= 29) {
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/ISE");
+                values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+            }
+            Uri uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) {
+                call.reject("저장 위치를 만들지 못했습니다");
+                return;
+            }
+            OutputStream os = resolver.openOutputStream(uri);
+            if (os == null) {
+                call.reject("저장 위치를 열지 못했습니다");
+                return;
+            }
+            os.write(bytes);
+            os.close();
+            if (Build.VERSION.SDK_INT >= 29) {
+                ContentValues done = new ContentValues();
+                done.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                resolver.update(uri, done, null, null);
+            }
+            JSObject ret = new JSObject();
+            ret.put("ok", true);
+            ret.put("uri", uri.toString());
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("이미지를 저장하지 못했습니다: " + e.getMessage());
+        }
     }
 
     /** payload(JSON 문자열)를 저장하고 홈 화면 위젯을 즉시 다시 그린다. */
