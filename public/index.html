@@ -6464,10 +6464,7 @@ function refreshCdLeft(){ return Math.max(0, Math.ceil((Number(localGet('refresh
 let refreshCdTimer = null;
 function refreshCdTick(){
   const left = refreshCdLeft();
-  document.querySelectorAll('[data-action="global-refresh"]').forEach(btn=>{
-    if(left > 0){ btn.classList.add('cooling'); btn.innerHTML = ICON.refresh + ' 새로고침 <span class="rf-n">' + left + '</span>'; }
-    else if(btn.classList.contains('cooling')){ btn.classList.remove('cooling'); btn.innerHTML = ICON.refresh + ' 새로고침'; }
-  });
+  document.querySelectorAll('[data-action="global-refresh"] .rf-cd').forEach(el=>{ el.textContent = left > 0 ? ' (' + left + ')' : ''; });
   if(left <= 0 && refreshCdTimer){ clearInterval(refreshCdTimer); refreshCdTimer = null; }
 }
 function refreshCdStart(){
@@ -11141,21 +11138,15 @@ function renderMypage(){
       <span class="dev-card-visitors">오늘 방문자 <b id="today-visitors">${traffic.todayVisitors}</b>명</span>
     </div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
-      <p style="font-size:11.5px; font-weight:700; color:var(--text-dim); margin:6px 2px 8px;">알아보기 · 의견 보내기</p>
-      <div style="display:flex; gap:8px;">
-        <button type="button" class="btn btn-ghost btn-sm" style="flex:1; padding:12px 6px;" data-action="open-bug-report">${ICON.bug} 제보 · 제안</button>
-        <button type="button" class="btn btn-ghost btn-sm" style="flex:1; padding:12px 6px;" data-action="show-patch-notes">${ICON.clipboard} 패치노트</button>
-        ${isNativeApp ? `<button type="button" class="btn btn-ghost btn-sm" style="flex:1; padding:12px 6px;" data-action="open-update-check">${ICON.download} 업데이트 확인</button>` : ''}
-      </div>
-      <div class="divider" style="margin:12px 0 2px;"></div>
-      <div style="padding:10px 2px 6px;">
-        <p style="font-size:11.5px; font-weight:700; color:var(--text-dim); margin:0 0 8px;">앱이 이상할 때는?</p>
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="btn btn-ghost btn-sm" style="flex:1; padding:12px 8px;" data-action="global-refresh">${ICON.refresh} 새로고침</button>
-          <button type="button" class="btn btn-ghost btn-sm" style="flex:1; padding:12px 8px;" data-action="clear-app-cache">${ICON.trash} 캐시 비우기 <span style="font-size:10px; font-weight:600; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span></button>
-        </div>
-        <p style="font-size:10px; color:var(--text-faint); margin:6px 0 0;">먼저 새로고침을 눌러 보고, 그래도 이상하면 캐시를 비워 주세요.</p>
-      </div>
+      <div class="link-row" data-action="open-bug-report"><span class="link-row-label">${ICON.bug} 제보 · 제안하기</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="show-patch-notes"><span class="link-row-label">${ICON.clipboard} 패치노트</span> <span class="sub">${ICON.chevR}</span></div>
+      ${isNativeApp ? `<div class="divider" style="margin:2px 0;"></div><div class="link-row" data-action="open-update-check"><span class="link-row-label">${ICON.download} 업데이트 확인</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
+      <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">앱이 이상할 때는?</p>
+      <div class="link-row" data-action="global-refresh"><span class="link-row-label">${ICON.refresh} 새로고침<span class="rf-cd"></span></span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
