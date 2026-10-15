@@ -7893,7 +7893,19 @@ async function deliverTimetableImage(){
         return;
       }
     }catch(e){}
-    // 2) 웹/그 밖: 브라우저 다운로드
+    // 2) 옛 앱(네이티브 저장 기능이 없는 APK): 임시 파일로 만든 뒤 기기의 저장/공유 창으로 넘긴다
+    //    (갤러리 · 내 파일 · 드라이브 등에 저장할 수 있다). 앱을 새로 설치하지 않아도 되는 경로.
+    try{
+      const FS = typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.Filesystem;
+      const SH = typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.Share;
+      if(FS && SH){
+        const b64 = await new Promise((res, rej)=>{ const fr = new FileReader(); fr.onload = ()=>res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+        const w = await FS.writeFile({ path:'timetable.png', data:b64, directory:'CACHE' });
+        await SH.share({ title:'시간표 이미지 저장', url:w.uri, dialogTitle:'저장할 곳을 고르세요' });
+        return;
+      }
+    }catch(e){ if(e && (e.name === 'AbortError' || /cancel/i.test(String(e.message || '')))) return; }
+    // 3) 웹/그 밖: 브라우저 다운로드
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = '시간표.png';
     document.body.appendChild(a); a.click(); a.remove();
