@@ -1456,6 +1456,9 @@ html.tt-split-p:has(main[data-view="timetable"]), html.tt-split-p:has(main[data-
 html.tt-split-p main[data-view="timetable"] .tt-wrap{overflow:hidden !important; max-height:none !important;}
 /* 창이 열려 있는 동안 아래 메뉴(홈 · 시간표 · 학사정보 …)는 살짝 숨는다 */
 html.tt-split-p:has(main[data-view="timetable"]):has(#modal-overlay.open) .bottomnav{transform:translateX(-50%) translateY(calc(100% + 40px)); opacity:0; pointer-events:none;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card{padding:7px 10px !important; margin-bottom:5px !important;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .row-between{margin-bottom:3px !important;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .field{margin-bottom:5px !important;}
 /* 아래 시트 안에서: 수업 추가는 왼쪽(과목 · 교수 · 색상) / 오른쪽(시간대 · 강의실)으로 3 : 3 (가져오기 두 카드도 좌우 그대로) */
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form{display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); column-gap:20px; align-items:start;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > *{grid-column:1;}
@@ -8516,6 +8519,7 @@ function setupClassGhostListeners(){
   let t = 0;
   const upd = ()=>{ clearTimeout(t); t = setTimeout(updateClassGhosts, 30); };
   ['click', 'input', 'change'].forEach(ev=>form.addEventListener(ev, upd));
+  try{ new MutationObserver(upd).observe(form, { childList:true, subtree:true }); }catch(_){}   // 시간대를 지우거나 늘려 폼이 다시 그려질 때도 점선 칸을 맞춘다
   upd();
 }
 function setupClassModalListeners(){
