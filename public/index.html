@@ -1116,6 +1116,9 @@ html.tab-ui.tab-wide main[data-view="home"] > .section-title{break-after:avoid;}
 /* ---- 위쪽 바: 네모난 띠 대신 떠 있는 둥근 카드 ---- */
 html.tab-ui .topbar{margin:10px 16px 0; top:8px; border:1px solid var(--border); border-radius:20px; padding:10px 16px; box-shadow:0 6px 20px rgba(0,0,0,.18);}
 html.tab-ui main{padding-top:14px;}
+/* 태블릿 세로: 아래로 스크롤하면 맨 위 ISE 바도 위로 숨고, 올리면 다시 내려온다(둥근 메뉴와 같은 동작) */
+html.tab-ui:not(.tab-wide) .topbar{transition:transform .38s cubic-bezier(.22,1,.36,1), opacity .25s;}
+html.tab-ui:not(.tab-wide) .topbar.top-hide{transform:translateY(calc(-100% - 24px)); opacity:0; pointer-events:none;}
 /* ---- 가로(태블릿): 왼쪽 세로 메뉴 · 좌우 분할 · 옆에서 열리는 패널 ---- */
 html.tab-ui.tab-wide body{padding-left:clamp(76px, 7.5vw, 112px);}
 html.tab-ui.tab-wide{--app-w:100%; --sheet-w:clamp(380px, 38vw, 560px);}
@@ -1244,17 +1247,17 @@ html.tt-split-p .tt-fab-wrap{display:none;}
 /* 왼쪽: 박스 없이 한 줄씩 "학기" / "시간표 이름", 맨 아래(시간표 아래쪽에 맞춰)에 이름 변경 · 지우기 */
 html.tt-split-p .tt-side{display:flex; flex-direction:column; justify-content:space-between; align-self:stretch; gap:10px;}
 html.tt-split-p .ttp-info{padding:2px 2px 0;}
-html.tt-split-p .ttp-sem{font-size:11px; color:var(--text-dim); line-height:1.35;}
-html.tt-split-p .ttp-name{font-size:14px; font-weight:800; line-height:1.3; margin-top:3px; word-break:keep-all; overflow-wrap:anywhere;}
+html.tt-split-p .ttp-sem{font-size:clamp(10.5px, 1.3vw, 13.5px); color:var(--text-dim); line-height:1.35;}
+html.tt-split-p .ttp-name{font-size:clamp(13px, 1.75vw, 18px); font-weight:800; line-height:1.3; margin-top:3px; word-break:keep-all; overflow-wrap:anywhere;}
 html.tt-split-p .ttp-left-acts{display:flex; flex-direction:column; gap:6px;}
-html.tt-split-p .ttp-left-acts .btn{width:100%; padding:7px 4px; font-size:10.5px; gap:4px; line-height:1.25; white-space:normal; justify-content:center; text-align:center;}
-html.tt-split-p .ttp-left-acts .btn svg{width:12px; height:12px; flex-shrink:0;}
+html.tt-split-p .ttp-left-acts .btn{width:100%; padding:clamp(6px, 0.9vw, 9px) 4px; font-size:clamp(10px, 1.15vw, 12px); gap:4px; border-radius:12px; line-height:1.25; white-space:normal; justify-content:center; text-align:center;}
+html.tt-split-p .ttp-left-acts .btn svg{width:clamp(12px, 1.5vw, 15px); height:clamp(12px, 1.5vw, 15px); flex-shrink:0; opacity:.9;}
 html.tt-split-p .ttp-more{display:none !important;}
 html.tt-split-p.tt-more-collapsed .ttp-more{display:flex !important;}   /* 시간표가 100%보다 작아질 만큼 여백이 없으면 아래 메뉴줄 대신 + 더보기 */
 html.tt-split-p.tt-more-collapsed .tt-bottom-p{display:none;}
 /* 나머지 설정은 화면 맨 아래로, 한 줄로 압축해서 시간표가 최대한 커지게 */
-html.tt-split-p main[data-view="timetable"]{display:flex; flex-direction:column; min-height:calc(100vh - 96px - 110px);}
-html.tt-split-p .tt-bottom-p{margin-top:auto; padding-top:14px;}
+html.tt-split-p main[data-view="timetable"]{display:flex; flex-direction:column; box-sizing:border-box; min-height:calc(100vh - 60px);}
+html.tt-split-p .tt-bottom-p{margin-top:auto; position:sticky; bottom:calc(92px + var(--safe-bottom)); z-index:15; padding:12px; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid var(--border-light, var(--border)); border-radius:22px; box-shadow:0 12px 32px rgba(0,0,0,.35);}
 /* 무지개 순서 */
 html.tt-split-p .tt-bottom-p [data-action="open-timetable-list"]{--c:#FF6B6B !important; --c-rgb:255,107,107 !important;}
 html.tt-split-p .tt-bottom-p [data-action="tt-import"]{--c:#FF9F4A !important; --c-rgb:255,159,74 !important;}
@@ -1423,15 +1426,23 @@ html.tab-wide:has(#modal-overlay.open) main[data-view="info"]{padding-right:calc
 html.tab-wide:has(#modal-overlay.open) main[data-view="info"] .cal-split{grid-template-columns:minmax(0, 1fr) !important;}
 html.tab-wide:has(#modal-overlay.open) main[data-view="info"] .cal-left{max-width:none;}
 
-/* 태블릿 세로 · 시간표: 창(직접 추가 · 표시 설정 · 더보기 …)은 왼쪽 옆 패널로 열리고, 시간표는 그 옆에서 그대로 보인다 */
-html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay{justify-content:flex-start; align-items:stretch; padding:0; background:none; backdrop-filter:none; pointer-events:none;}
-html.tt-split-p:has(main[data-view="timetable"]) .modal-sheet{pointer-events:auto; width:clamp(260px, 30vw, 300px); max-width:none; max-height:none; height:100%; border-radius:0; border:none; border-right:1px solid var(--border); box-shadow:12px 0 32px rgba(0,0,0,.22); transform:translateX(-104%); padding:20px 14px calc(24px + var(--safe-bottom));}
+/* 태블릿 세로 · 시간표: 창(직접 추가 · 표시 설정 · 더보기 …)은 아래에서 떠오르는 플로팅 시트로 열린다.
+   시간표는 그 위로 줄어들어서(JS fit) 가려지지 않고, 시트를 보면서 바로 수정할 수 있다. */
+html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay{justify-content:center; align-items:flex-end; padding:0 12px calc(16px + var(--safe-bottom)); background:none; backdrop-filter:none; pointer-events:none;}
+html.tt-split-p:has(main[data-view="timetable"]) .modal-sheet{pointer-events:auto; width:min(100%, 720px); max-width:none; max-height:min(560px, 50vh); border-radius:22px; border:1px solid var(--border-light, var(--border)); box-shadow:0 16px 40px rgba(0,0,0,.45); transform:translateY(130%);}
 html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.open .modal-sheet{transform:none;}
-html.tt-split-p:has(main[data-view="timetable"]) .modal-handle{display:none;}
-html.tt-split-p main[data-view="timetable"]{transition:padding-left .28s cubic-bezier(.22,1,.36,1);}
-html.tt-split-p:has(#modal-overlay.open) main[data-view="timetable"]{padding-left:max(24px, calc(clamp(260px, 30vw, 300px) + 12px - (100vw - var(--app-w)) / 2));}
-html.tt-split-p:has(#modal-overlay.open) main[data-view="timetable"] .tt-split{grid-template-columns:minmax(0, 1fr) !important;}
-html.tt-split-p:has(#modal-overlay.open) main[data-view="timetable"] .tt-side, html.tt-split-p:has(#modal-overlay.open) main[data-view="timetable"] .tt-bottom-p{display:none;}
+html.tt-split-p:has(#modal-overlay.open) main[data-view="timetable"] .tt-bottom-p{display:none;}
+/* 시간표 제1법칙: 이 화면은 스크롤되지 않는다(페이지도, 시간표 칸도) */
+html.tt-split-p:has(main[data-view="timetable"]), html.tt-split-p:has(main[data-view="timetable"]) body{overflow:hidden !important; overscroll-behavior:none;}
+html.tt-split-p main[data-view="timetable"] .tt-wrap{overflow:hidden !important; max-height:none !important;}
+/* 창이 열려 있는 동안 아래 메뉴(홈 · 시간표 · 학사정보 …)는 살짝 숨는다 */
+html.tt-split-p:has(main[data-view="timetable"]):has(#modal-overlay.open) .bottomnav{transform:translateX(-50%) translateY(calc(100% + 40px)); opacity:0; pointer-events:none;}
+/* 아래 시트 안에서: 수업 추가는 왼쪽(과목 · 교수 · 색상) / 오른쪽(시간대 · 강의실)으로 3 : 3 (가져오기 두 카드도 좌우 그대로) */
+html.tt-split-p:has(main[data-view="timetable"]) #class-form{display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); column-gap:20px; align-items:start;}
+html.tt-split-p:has(main[data-view="timetable"]) #class-form > *{grid-column:1;}
+html.tt-split-p:has(main[data-view="timetable"]) #class-form > .row-between{grid-column:2; grid-row:1; margin-top:0 !important;}
+html.tt-split-p:has(main[data-view="timetable"]) #class-form > #slots-container{grid-column:2; grid-row:2 / span 5;}
+html.tt-split-p:has(main[data-view="timetable"]) #class-form > .modal-actions{grid-column:1 / -1; grid-row:auto;}
 
 /* ===== 가로 화면: 왼쪽 열이 스크롤을 따라 움직이지 않게(main이 스크롤 상자가 되어 sticky가 풀리던 문제) ===== */
 html.tab-wide main{overflow:visible !important; overflow-x:clip !important;}
@@ -7531,14 +7542,15 @@ function fitTimetableWide(wrap, grid){
     const rootEl = document.documentElement, botP = document.querySelector('.tt-bottom-p');
     if(botP && botP.offsetHeight) window.__ttBotH = botP.offsetHeight;
     const botH = window.__ttBotH || 250, collapsed = rootEl.classList.contains('tt-more-collapsed');
-    const withRow = (viewportH - top - botH - 14 - 110) / REF_H;
+    const topAbs = top;
+    const withRow = (viewportH - topAbs - botH - 14 - 110) / REF_H;
     const panelOpen = !!document.querySelector('#modal-overlay.open');
     if(!panelOpen){
       if(!collapsed && withRow < 1) rootEl.classList.add('tt-more-collapsed');
       else if(collapsed && withRow >= 1.05) rootEl.classList.remove('tt-more-collapsed');
     }
-    const nowCollapsed = rootEl.classList.contains('tt-more-collapsed') || panelOpen;
-    availH = nowCollapsed ? (viewportH - top - 110) : (viewportH - top - botH - 14 - 110);
+    const nowCollapsed = rootEl.classList.contains('tt-more-collapsed');
+    availH = nowCollapsed ? (viewportH - topAbs - 110) : (viewportH - topAbs - botH - 14 - 110);   // 창이 열려도 시간표 크기는 그대로(아래에서 떠오른 시트가 위에 얹힌다)
   }
   let sc = Math.min(colW / REF_W, availH / REF_H);
   sc = Math.max(0.45, Math.min(1.7, sc));
@@ -7546,7 +7558,7 @@ function fitTimetableWide(wrap, grid){
   const baselineRows = Math.ceil((TIMETABLE_BASE_END - TIME_START) / TIMETABLE_GRID_STEP);
   const actualRows = parseInt(grid.dataset.rows || '0', 10) || baselineRows;
   const effectiveRows = Math.max(baselineRows, actualRows);
-  const scrollable = !!(state.ttOpts && state.ttOpts.scrollable);
+  const scrollable = !!(state.ttOpts && state.ttOpts.scrollable) && !document.documentElement.classList.contains('tt-split-p');   // 세로 분할에서는 스크롤 금지
   const userScale = Math.max(0.6, Math.min(scrollable ? 1.6 : 1, ttRowScaleVal()));
   const rowPx = Math.max(14, (REF_H - headerPx) / effectiveRows * userScale);
   grid.style.setProperty('--tt-row-h', rowPx + 'px');
@@ -7737,7 +7749,7 @@ function renderTimetable(isCapture=false){
   const wideTt = isWideUI() || splitP;
   const dockP = splitP ? ttDockParts() : null;
   return `
-    ${splitP ? `<div class="tt-split"><aside class="tt-side"><div class="ttp-info"><div class="ttp-sem">${state.activeSemester ? escapeHtml(semesterLabel(state.activeSemester)) : '학기 없음'}</div><div class="ttp-name">${escapeHtml(activeVariantName())}</div></div><div class="ttp-left-acts"><button type="button" class="btn btn-ghost btn-sm ttp-more" data-action="tt-fab-more">${ICON.plus} 더보기</button><button type="button" class="btn btn-ghost btn-sm" data-action="rename-variant">${ICON.pencil} 이름 변경</button><button type="button" class="btn btn-ghost btn-sm" data-action="reset-timetable" style="color:var(--danger-text);">${ICON.trash} 이 시간표 지우기</button></div></aside><div class="tt-left">` : (wideTt ? '<div class="tt-split"><div class="tt-left">' : renderSemesterTabs())}
+    ${splitP ? `<div class="tt-split"><aside class="tt-side"><div class="ttp-info"><div class="ttp-sem">${state.activeSemester ? escapeHtml(semesterLabel(state.activeSemester)) : '학기 없음'}</div><div class="ttp-name">${escapeHtml(activeVariantName())}</div></div><div class="ttp-left-acts"><button type="button" class="btn btn-ghost btn-sm ttp-more" data-action="tt-fab-more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> 더보기</button><button type="button" class="btn btn-ghost btn-sm" data-action="rename-variant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> 이름 변경</button><button type="button" class="btn btn-ghost btn-sm" data-action="reset-timetable" style="color:var(--danger-text);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l.8 12.5h9.4L17.5 7"/><path d="M10 11v5M14 11v5"/></svg> 이 시간표 지우기</button></div></aside><div class="tt-left">` : (wideTt ? '<div class="tt-split"><div class="tt-left">' : renderSemesterTabs())}
 
     ${state.timetable.length===0 ? `
       <div class="card empty">
@@ -8221,6 +8233,19 @@ function setupTtOptionsModalListeners(){
       if(lineWrap) lineWrap.dataset.selected = btn.dataset.hex;
     };
   });
+  // 미리 보기: 고르는 즉시 뒤의 시간표에 반영하되, 「적용」을 눌러야만 저장된다(그냥 닫으면 closeModal이 원래대로 되돌린다)
+  let pvTimer = 0;
+  const previewNow = ()=>{
+    clearTimeout(pvTimer);
+    pvTimer = setTimeout(()=>{
+      if(!state.__ttOptsBackup || !document.getElementById('tt-opts-panel')) return;
+      state.ttOpts = readPendingTtOpts();
+      try{ renderMain(); }catch(_){}
+    }, 40);
+  };
+  panel.addEventListener('click', previewNow);
+  panel.addEventListener('input', previewNow);
+  panel.addEventListener('change', previewNow);
   const swatchWrap = document.getElementById('tt-now-color-swatches');
   panel.querySelectorAll('.tt-color-pending').forEach(btn=>{
     btn.onclick = ()=>{
@@ -13924,6 +13949,14 @@ function closeTopLayer(){
 }
 // 기본 화면에서 뒤로가기 — 네이티브(MainActivity)가 이걸 불러 아래쪽 알림을 띄운다(2초 안에 한 번 더 누르면 네이티브가 앱을 끈다).
 window.__iseBackAtRoot = ()=>{ toast('한번 더 뒤로가기 누르면 종료됩니다'); };
+// 태블릿 세로 · 시간표: 아래에서 떠오른 창 밖의 빈 화면을 누르면 창이 닫힌다
+document.addEventListener('pointerdown', e=>{
+  if(!document.documentElement.classList.contains('tt-split-p')) return;
+  const ov = document.querySelector('#modal-overlay.open');
+  if(!ov || !document.querySelector('main[data-view="timetable"]')) return;
+  if(e.target.closest && e.target.closest('.modal-sheet, .confirm-overlay, #settings-page, #friends-page, .toast')) return;
+  closeModal();
+}, true);
 // 검색 상자가 비어 있을 때 다른 곳을 누르면(뒤로가기와 같은 효과) 닫히는 애니메이션과 함께 접힌다
 document.addEventListener('pointerdown', e=>{
   const bb = document.querySelector('#bb.open');
@@ -15855,10 +15888,11 @@ window.addEventListener('resize', ()=>{
     const n = nav(); if(!n) return;
     const y = window.scrollY || document.documentElement.scrollTop || 0;
     if(document.documentElement.classList.contains('tab-ui')){
-      if(y > lastY + 6 && y > 80) n.classList.add('nav-hide');
-      else if(y < lastY - 4 || y < 80) n.classList.remove('nav-hide');
-      clearTimeout(idle); idle = setTimeout(()=>{ const m = nav(); if(m) m.classList.remove('nav-hide'); }, 900);
-    } else n.classList.remove('nav-hide');
+      const tb = document.querySelector('.topbar'), narrow = !document.documentElement.classList.contains('tab-wide');
+      if(y > lastY + 6 && y > 80){ n.classList.add('nav-hide'); if(tb && narrow) tb.classList.add('top-hide'); }
+      else if(y < lastY - 4 || y < 80){ n.classList.remove('nav-hide'); if(tb) tb.classList.remove('top-hide'); }
+      clearTimeout(idle); idle = setTimeout(()=>{ const m = nav(); if(m) m.classList.remove('nav-hide'); const t2 = document.querySelector('.topbar'); if(t2) t2.classList.remove('top-hide'); }, 900);
+    } else { n.classList.remove('nav-hide'); const t3 = document.querySelector('.topbar'); if(t3) t3.classList.remove('top-hide'); }
     lastY = y;
   };
   window.addEventListener('scroll', onScroll, { passive:true });
