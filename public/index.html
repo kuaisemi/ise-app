@@ -2179,15 +2179,21 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.6.1';
+const APP_VERSION = 'Beta 0.6.2';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 177;
+const ANDROID_VERSION_CODE = 178;
 // 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
+  { version:'Beta 0.6.2', date:'2026-10-17', summary:'태블릿 화면 여백을 다듬었어요!', items:[
+    { title:'상태바에 안 가려져요', text:'다른 태블릿에서 맨 위(시계 줄)와 맨 아래(제스처 바)에 화면이 가려지던 걸 고쳤어요. 상단바 · 메뉴 · 팝업 · 사이드 패널이 모두 그만큼 내려와요' },
+    { title:'가로 모드 상태바', text:'태블릿 가로 모드에서는 상태바를 색칠하지 않고 투명하게 두고, 글자가 겹치면 위쪽이 은은하게 흐려져요' },
+    { title:'시간표 스크롤 · 위치', text:'태블릿 시간표 화면이 가로 · 세로 모두 스크롤되지 않고, 가로에서 오른쪽 아래 메뉴가 바닥에 박히던 것도 고쳤어요' },
+    { title:'고친 것', text:'"한번"을 "한 번"으로 맞춤법을 고쳤어요' },
+  ] },
   { version:'Beta 0.6.1', date:'2026-10-16', summary:'태블릿 시간표가 더 편해졌어요!', items:[
     { title:'태블릿 세로 시간표', text:'세로로 쓰면 왼쪽에 시간표 이름, 아래에 메뉴가 붙어요. 직접 추가 · 표시 설정 같은 창은 아래에서 올라오고, 수업을 추가할 땐 시간표에 "여기에 추가돼요" 점선 칸이 미리 보여요', sub:[
       '자리가 모자라면 아래 메뉴가 "+ 더보기"로 접히고, 더보기는 왼쪽에서 열려요',
