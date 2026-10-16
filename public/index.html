@@ -1257,7 +1257,10 @@ html.tt-split-p .ttp-more{display:none !important;}
 html.tt-split-p.tt-more-collapsed .ttp-more{display:flex !important;}   /* 시간표가 100%보다 작아질 만큼 여백이 없으면 아래 메뉴줄 대신 + 더보기 */
 html.tt-split-p.tt-more-collapsed .tt-bottom-p{display:none;}
 /* 나머지 설정은 화면 맨 아래로, 한 줄로 압축해서 시간표가 최대한 커지게 */
-html.tt-split-p main[data-view="timetable"]{display:flex; flex-direction:column; box-sizing:border-box; min-height:calc(100vh - 60px);}
+html.tt-split-p main[data-view="timetable"]{display:flex; flex-direction:column; box-sizing:border-box; min-height:0;}
+/* 시간표 제1법칙: 세로 태블릿 시간표 화면은 페이지 자체가 절대 스크롤되지 않는다(상태바·제스처 바 여백이 더해져도). */
+html.tt-split-p:has(main[data-view="timetable"]), html.tt-split-p:has(main[data-view="timetable"]) body{overflow:hidden !important; height:100%; overscroll-behavior:none;}
+html.tt-split-p:has(main[data-view="timetable"]) .shell{height:100vh; min-height:0; overflow:hidden;}
 html.tt-split-p .tt-bottom-p{margin-top:auto; position:sticky; bottom:calc(92px + var(--safe-bottom)); z-index:15; padding:12px; background:rgba(var(--surface-rgb),.94); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid var(--border-light, var(--border)); border-radius:22px; box-shadow:0 12px 32px rgba(0,0,0,.35);}
 /* 무지개 순서 */
 html.tt-split-p .tt-bottom-p [data-action="open-timetable-list"]{--c:#FF6B6B !important; --c-rgb:255,107,107 !important;}
