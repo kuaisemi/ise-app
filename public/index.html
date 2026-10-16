@@ -1432,6 +1432,15 @@ html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay{justify-content:
 html.tt-split-p:has(main[data-view="timetable"]) .modal-sheet{pointer-events:auto; width:min(100%, 720px); max-width:none; max-height:min(560px, 50vh); border-radius:22px; border:1px solid var(--border-light, var(--border)); box-shadow:0 16px 40px rgba(0,0,0,.45); transform:translateY(130%);}
 html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.open .modal-sheet{transform:none;}
 html.tt-split-p:has(#modal-overlay.open) main[data-view="timetable"] .tt-bottom-p{display:none;}
+/* 「+ 더보기」 메뉴만은 왼쪽에서 밀려 나오는 옆 패널 — 시간표는 그 옆으로 비켜서 그대로 보인다 */
+html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left{justify-content:flex-start; align-items:stretch; padding:0;}
+html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left .modal-sheet{width:clamp(260px, 30vw, 300px); max-height:none; height:100%; border-radius:0; border:none; border-right:1px solid var(--border); box-shadow:12px 0 32px rgba(0,0,0,.22); transform:translateX(-104%); padding:20px 14px calc(24px + var(--safe-bottom));}
+html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left.open .modal-sheet{transform:none;}
+html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left .modal-handle{display:none;}
+html.tt-split-p main[data-view="timetable"]{transition:padding-left .28s cubic-bezier(.22,1,.36,1);}
+html.tt-split-p:has(#modal-overlay.side-left.open) main[data-view="timetable"]{padding-left:max(24px, calc(clamp(260px, 30vw, 300px) + 12px - (100vw - var(--app-w)) / 2));}
+html.tt-split-p:has(#modal-overlay.side-left.open) main[data-view="timetable"] .tt-split{grid-template-columns:minmax(0, 1fr) !important;}
+html.tt-split-p:has(#modal-overlay.side-left.open) main[data-view="timetable"] .tt-side{display:none;}
 /* 시간표 제1법칙: 이 화면은 스크롤되지 않는다(페이지도, 시간표 칸도) */
 html.tt-split-p:has(main[data-view="timetable"]), html.tt-split-p:has(main[data-view="timetable"]) body{overflow:hidden !important; overscroll-behavior:none;}
 html.tt-split-p main[data-view="timetable"] .tt-wrap{overflow:hidden !important; max-height:none !important;}
@@ -7538,7 +7547,7 @@ function fitTimetableWide(wrap, grid){
   let availH = viewportH - top - 20;
   if(document.documentElement.classList.contains('tt-split-p')){
     // 세로 분할: 아래 설정 줄과 떠 있는 메뉴 자리를 남기고 시간표를 최대한 키운다.
-    // 설정 줄 때문에 시간표가 100%(기준 크기)보다 작아져야 하면 그 줄을 접고 왼쪽 "+ 더보기"로 대신한다.
+    // 설정 줄 때문에 시간표가 (줄이 없을 때보다) 작아져야 하면 그 줄을 접고 왼쪽 "+ 더보기"로 대신한다.
     const rootEl = document.documentElement, botP = document.querySelector('.tt-bottom-p');
     if(botP && botP.offsetHeight) window.__ttBotH = botP.offsetHeight;
     const botH = window.__ttBotH || 250, collapsed = rootEl.classList.contains('tt-more-collapsed');
@@ -7546,8 +7555,10 @@ function fitTimetableWide(wrap, grid){
     const withRow = (viewportH - topAbs - botH - 14 - 110) / REF_H;
     const panelOpen = !!document.querySelector('#modal-overlay.open');
     if(!panelOpen){
-      if(!collapsed && withRow < 1) rootEl.classList.add('tt-more-collapsed');
-      else if(collapsed && withRow >= 1.05) rootEl.classList.remove('tt-more-collapsed');
+      // 아래 설정 줄이 시간표를 잡아먹으면(줄이 없을 때보다 시간표가 작아져야 하면) 줄을 접고 "+ 더보기"로 바꾼다
+      const scWidth = colW / REF_W;
+      if(!collapsed && withRow < Math.min(scWidth, 1.7) - 0.01) rootEl.classList.add('tt-more-collapsed');
+      else if(collapsed && withRow >= Math.min(scWidth, 1.7) + 0.02) rootEl.classList.remove('tt-more-collapsed');
     }
     const nowCollapsed = rootEl.classList.contains('tt-more-collapsed');
     availH = nowCollapsed ? (viewportH - topAbs - 110) : (viewportH - topAbs - botH - 14 - 110);   // 창이 열려도 시간표 크기는 그대로(아래에서 떠오른 시트가 위에 얹힌다)
@@ -16519,7 +16530,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'kick-member'){ openModal(kickMemberModal(el.dataset.sid, el.dataset.name)); }
     else if(a === 'toggle-tt-fab'){ if(state.ttFabDocked){ setTtFabDock(false); } else { setTtFab(!state.ttFabOpen); } }
     else if(a === 'close-tt-fab'){ setTtFab(false); }
-    else if(a === 'tt-fab-more'){ setTtFab(false); openModal(ttMoreMenuModal()); }
+    else if(a === 'tt-fab-more'){ setTtFab(false); openModal(ttMoreMenuModal()); if(document.documentElement.classList.contains('tt-split-p')){ const ovm = document.getElementById('modal-overlay'); if(ovm) ovm.classList.add('side-left'); } }
     else if(a === 'add-class'){ setTtFab(false); openModal(classModal(null)); setupClassModalListeners(); }
     else if(a === 'edit-class'){ openClassEditor(el.dataset.id); }
     else if(a === 'delete-class-group'){ await deleteClassGroup(el.dataset.groupId); }
