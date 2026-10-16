@@ -1456,14 +1456,15 @@ html.tt-split-p:has(main[data-view="timetable"]), html.tt-split-p:has(main[data-
 html.tt-split-p main[data-view="timetable"] .tt-wrap{overflow:hidden !important; max-height:none !important;}
 /* 창이 열려 있는 동안 아래 메뉴(홈 · 시간표 · 학사정보 …)는 살짝 숨는다 */
 html.tt-split-p:has(main[data-view="timetable"]):has(#modal-overlay.open) .bottomnav{transform:translateX(-50%) translateY(calc(100% + 40px)); opacity:0; pointer-events:none;}
-html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card{padding:7px 10px !important; margin-bottom:5px !important;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card{padding:6px 10px !important; margin-bottom:4px !important;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .row-between{margin-bottom:3px !important;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .field{margin-bottom:5px !important;}
 /* 아래 시트 안에서: 수업 추가는 왼쪽(과목 · 교수 · 색상) / 오른쪽(시간대 · 강의실)으로 3 : 3 (가져오기 두 카드도 좌우 그대로) */
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form{display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); column-gap:20px; align-items:start;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > *{grid-column:1;}
-html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > .row-between{grid-column:2; grid-row:1; margin-top:0 !important;}
-html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > #slots-container{grid-column:2; grid-row:2 / span 5;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > .row-between{grid-column:2; grid-row:1; margin:0 !important; height:20px; align-items:flex-start;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > .row-between .btn{padding:2px 9px !important; font-size:11px !important; margin-top:-3px;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > #slots-container{grid-column:2; grid-row:1 / span 6; margin-top:24px;}   /* 「수업 요일 및 시간대」 제목 바로 아래로 붙인다 */
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > .modal-actions{grid-column:1 / -1; grid-row:auto;}
 
 /* ===== 가로 화면: 왼쪽 열이 스크롤을 따라 움직이지 않게(main이 스크롤 상자가 되어 sticky가 풀리던 문제) ===== */
@@ -7995,7 +7996,10 @@ async function elementToPngBlob(el){
     dn.setAttribute('style', css);
     if(dn.classList && dn.classList.contains('tt-ghost')) dn.remove();
   });
-  clone.style.width = w + 'px'; clone.style.height = h + 'px'; clone.style.margin = '0';
+  // 태블릿 시간표 카드는 위쪽(페이지)에서 오는 zoom과 자기 zoom이 겹쳐 있다: 화면에서 잰 크기 ÷ 카드 안쪽 크기 = 실제로 적용된 배율. 그 배율을 복제본 루트에 그대로 준다.
+  const lw = parseFloat(getComputedStyle(el).width) || w;
+  clone.style.zoom = String(w / lw);
+  clone.style.margin = '0';
   clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(clone)}</foreignObject></svg>`;
   const img = new Image();
