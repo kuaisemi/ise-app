@@ -1470,6 +1470,10 @@ html.tt-split-p:has(main[data-view="timetable"]), html.tt-split-p:has(main[data-
 html.tt-split-p main[data-view="timetable"] .tt-wrap{overflow:hidden !important; max-height:none !important;}
 /* 창이 열려 있는 동안 아래 메뉴(홈 · 시간표 · 학사정보 …)는 살짝 숨는다 */
 html.tt-split-p:has(main[data-view="timetable"]):has(#modal-overlay.open) .bottomnav{transform:translateX(-50%) translateY(calc(100% + 40px)); opacity:0; pointer-events:none;}
+/* 태블릿 UI: 상태바(시간 줄)에 가려지지 않게 전체화면 겹침 요소(팝업·사이드 패널·친구/설정 페이지)를 아래로 내린다. */
+html.tab-ui .modal-overlay, html.tab-ui .confirm-overlay, html.tab-ui .apk-popup-overlay, html.tab-ui .av-ov{padding-top:var(--tab-top,var(--safe-top)) !important; box-sizing:border-box;}
+html.tab-ui .friends-page, html.tab-wide .friends-page{padding-top:var(--tab-top,var(--safe-top)) !important;}
+html.tab-ui .capture-overlay{padding-top:var(--tab-top,var(--safe-top));}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card{padding:6px 10px !important; margin-bottom:4px !important;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .row-between{margin-bottom:3px !important;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .field{margin-bottom:5px !important;}
