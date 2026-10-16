@@ -1456,13 +1456,14 @@ html.tab-wide .wide-body.single:has(.poll-row) > .card{max-width:100% !important
 .tt-grid .tt-ghost{outline:2px dashed var(--teal); outline-offset:-2px; opacity:.88; pointer-events:none; z-index:7; box-shadow:0 0 0 3px rgba(var(--teal-rgb, 224,172,85), .25); animation:ghostPulse 1.4s ease-in-out infinite;}
 @keyframes ghostPulse{0%,100%{filter:brightness(1);} 50%{filter:brightness(1.18);}}
 /* 화면이 너무 낮을 때: 한글은 빼고 SVG(아이콘)만, 소셜·알림은 MY 아래로 숨기고 위로 쓸면 나온다 */
-/* 키보드가 올라오거나 화면이 낮으면: 왼쪽엔 홈·시간표·학사정보 같은 메뉴만 남기고, 위아래로 간격을 맞춰 가득 채운다 */
+/* 키보드가 올라오거나 화면이 낮으면: 왼쪽엔 메뉴(홈·시간표·학사정보…)만 원래 크기 그대로 남기고, 남은 높이의 가운데에 둔다.
+   더 낮아지면 ① 한글 이름부터 빼고 ② 그다음 간격을 줄인다. */
 html.tab-ui.tab-wide.rail-short .topbar, html.tab-ui.tab-wide.kb-open .topbar{display:none;}
-html.tab-ui.tab-wide.rail-short .bottomnav, html.tab-ui.tab-wide.kb-open .bottomnav{top:8px !important; bottom:8px !important; transform:none !important; height:auto; max-height:none; justify-content:space-evenly; gap:0; padding:6px; opacity:1 !important; pointer-events:auto !important;}
-html.tab-ui.tab-wide.rail-short .navbtn, html.tab-ui.tab-wide.kb-open .navbtn{padding:7px 2px;}
-/* 그보다 더 낮아지면 한글 이름을 빼고 아이콘만 */
+html.tab-ui.tab-wide.rail-short .bottomnav, html.tab-ui.tab-wide.kb-open .bottomnav{opacity:1 !important; pointer-events:auto !important;}
 html.tab-ui.tab-wide.rail-tiny .navbtn span{display:none;}
-html.tab-ui.tab-wide.rail-tiny .navbtn{padding:5px 2px;}
+html.tab-ui.tab-wide.rail-tiny .navbtn{padding:8px 2px;}
+html.tab-ui.tab-wide.rail-micro .bottomnav{gap:0; padding:4px 6px;}
+html.tab-ui.tab-wide.rail-micro .navbtn{padding:4px 2px;}
 html.tab-ui.tab-wide.rail-short .rail-actions .btn:has(svg), html.tab-ui.tab-wide.rail-short .rail-toggle .btn:has(svg){font-size:0 !important; gap:0; min-height:40px;}
 html.tab-ui.tab-wide.rail-short .rail-actions .btn svg, html.tab-ui.tab-wide.rail-short .rail-toggle .btn svg{width:18px; height:18px;}
 html.tab-ui.tab-wide.rail-short .wide-rail .subtab{font-size:12.5px; padding:8px 12px; min-height:0;}
@@ -15718,7 +15719,8 @@ function updateKeyboardState(){
   if(h > __maxInnerH) __maxInnerH = h;
   document.documentElement.classList.toggle('kb-open', h < __maxInnerH - 140);
   document.documentElement.classList.toggle('rail-short', h < 560);   // 화면이 낮으면 왼쪽엔 메뉴만 남기고 위아래 간격을 맞춘다
-  document.documentElement.classList.toggle('rail-tiny', h < 340);   // 그보다 더 낮으면 한글 이름도 뺀다
+  document.documentElement.classList.toggle('rail-tiny', h < 380);   // ① 더 낮으면 한글 이름부터 뺀다
+  document.documentElement.classList.toggle('rail-micro', h < 280);   // ② 그다음엔 간격을 줄인다
 }
 applyTabletMode();
 updateKeyboardState();
