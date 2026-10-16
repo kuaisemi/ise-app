@@ -67,6 +67,9 @@ public class WidgetBridgePlugin extends Plugin {
                     Window w = getActivity().getWindow();
                     w.setStatusBarColor(c);
                     w.setNavigationBarColor(c);
+                    // targetSdk 36(edge-to-edge)에서는 위 두 호출이 무시되므로, 막대 뒤에 비치는 창 배경을 직접 칠한다
+                    w.getDecorView().setBackgroundColor(c);
+                    w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(c));
                     WindowInsetsControllerCompat ctrl = WindowCompat.getInsetsController(w, w.getDecorView());
                     if (ctrl != null) {
                         boolean lightBg = ColorUtils.calculateLuminance(c) > 0.5;
