@@ -1107,7 +1107,7 @@ html.tab-ui .tt-fab{bottom:calc(92px + var(--safe-bottom));}
 html.tab-ui .tt-fab-option{bottom:calc(92px + var(--safe-bottom) + 62px + (var(--i) * 54px));}
 html.tab-ui .tt-fab{right:calc(50% - var(--app-w,480px)/2 + 18px);}
 html.tab-ui.tab-wide{--app-w:min(1180px, 100vw); --sheet-w:620px;}
-html.tab-ui.tab-wide main[data-view="home"]{column-count:2; column-gap:22px; padding-top:8px;}
+html.tab-ui.tab-wide main[data-view="home"]{column-count:2; column-gap:22px; padding-top:calc(8px + var(--tab-top,var(--safe-top)));}
 html.tab-ui.tab-wide main[data-view="home"] > *{break-inside:avoid;}
 html.tab-ui.tab-wide main[data-view="home"] > .hero-greet,
 html.tab-ui.tab-wide main[data-view="home"] > .app-version{column-span:all;}
@@ -1379,7 +1379,7 @@ html.tab-ui .section-title{font-size:13.5px;}
 @keyframes busZzz{0%,100%{opacity:.25; transform:translateY(0);} 50%{opacity:1; transform:translateY(-2px);}}
 
 /* 왼쪽 열: 탭 카드 + (분리된) 작업 버튼 카드 */
-.wide-side{position:sticky; top:18px; display:flex; flex-direction:column; gap:12px; min-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1)));}
+.wide-side{position:sticky; top:calc(18px + var(--tab-top,var(--safe-top))); display:flex; flex-direction:column; gap:12px; min-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1)));}
 .wide-side > .wide-rail{position:static !important; flex:0 0 auto;}
 .wide-rail:has(.rail-actions){min-height:0 !important; max-height:none !important; overflow:visible !important;}
 .wide-side > .rail-actions{margin-top:auto; flex:0 1 auto; min-height:min(96px, 100%); padding:14px; background:var(--surface); border:1px solid var(--border); border-radius:18px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none;}
@@ -1484,7 +1484,7 @@ html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-le
 /* ===== 가로 화면: 왼쪽 열이 스크롤을 따라 움직이지 않게(main이 스크롤 상자가 되어 sticky가 풀리던 문제) ===== */
 html.tab-wide main{overflow:visible !important; overflow-x:clip !important;}
 /* ===== 학사정보: 페이지 스크롤 없음. 기기 높이에 맞춰 상하 정렬, 목록만 안에서 스크롤 ===== */
-html.tab-wide main[data-view="info"]{flex:0 0 auto !important; height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); box-sizing:border-box; overflow:hidden !important; padding-top:18px; padding-bottom:18px;}
+html.tab-wide main[data-view="info"]{flex:0 0 auto !important; height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); box-sizing:border-box; overflow:hidden !important; padding-top:calc(18px + var(--tab-top,var(--safe-top))); padding-bottom:18px;}
 html.tab-wide main[data-view="info"] .app-version{display:none;}
 html.tab-wide main[data-view="info"] .wide-split{height:100%; align-items:stretch;}
 html.tab-wide main[data-view="info"] .wide-side{position:static; height:100%; min-height:0; max-height:none;}
@@ -1581,7 +1581,7 @@ html.tab-ui.tab-wide.rail-short .wide-rail .subtab{font-size:12.5px; padding:8px
 /* ===== 학사정보: 화면이 모자라면 줄이지 않고 각 탭이 스크롤된다 ===== */
 html.tab-wide main[data-view="info"]{overflow-y:auto !important; overflow-x:clip !important; overscroll-behavior:contain;}
 html.tab-wide main[data-view="info"] .wide-split{height:auto; min-height:100%;}
-html.tab-wide main[data-view="info"] .wide-side{position:sticky; top:0; height:auto; min-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1)) - 36px); max-height:none;}
+html.tab-wide main[data-view="info"] .wide-side{position:sticky; top:var(--tab-top,var(--safe-top)); height:auto; min-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1)) - 36px); max-height:none;}
 html.tab-wide main[data-view="info"] .wide-body{height:auto; overflow:visible;}
 html.tab-wide main[data-view="info"] .notice-col{height:auto; overflow:visible;}
 html.tab-wide main[data-view="info"] .cal-split{height:auto;}
@@ -1590,7 +1590,7 @@ html.tab-wide .cal-list-col > .card, html.tab-wide .cal-left > .card:last-child{
 .tt-img-prev{max-height:min(60vh, 560px); overflow:auto; border:1px solid var(--border); border-radius:14px; background:var(--surface-2); padding:6px; margin-bottom:12px;}
 .tt-img-prev img{display:block; width:100%; height:auto; border-radius:10px;}
 /* ===== 학생사회(가로): 왼쪽 탭·작업 카드는 고정, 게시글 영역만 스크롤 ===== */
-html.tab-wide main[data-view="council"]{flex:0 0 auto !important; height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); box-sizing:border-box; overflow:hidden !important; padding-top:18px; padding-bottom:18px;}
+html.tab-wide main[data-view="council"]{flex:0 0 auto !important; height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc(100vh / (var(--font-scale, 1) * var(--tab-z, 1))); box-sizing:border-box; overflow:hidden !important; padding-top:calc(18px + var(--tab-top,var(--safe-top))); padding-bottom:18px;}
 html.tab-wide main[data-view="council"] .app-version{display:none;}
 html.tab-wide main[data-view="council"] .wide-split{height:100%; align-items:stretch;}
 html.tab-wide main[data-view="council"] .wide-side{position:static; height:100%; min-height:0; max-height:none;}
