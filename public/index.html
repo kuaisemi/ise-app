@@ -1239,6 +1239,7 @@ html.tab-ui.tab-wide .top-actions .btn-top-refresh{width:30px; height:30px;}
 /* 시간표: 왼쪽은 좁게, 메뉴는 오른쪽 끝에 붙여 정렬 */
 .tt-split{grid-template-columns:minmax(0, 1.25fr) minmax(300px, clamp(300px, 27vw, 400px)) !important; justify-content:space-evenly !important; margin:0; width:100%;}
 .tt-left{display:flex; flex-direction:column; align-items:center;}
+.tt-left > .tt-card-container{translate:calc(-1 * clamp(14px, 2.6vw, 44px)) 0;}   /* 칸 안에서 가운데 정렬은 유지하되, 시간표만 중앙보다 살짝 왼쪽으로 */
 .tt-side{width:100%;}
 /* 달력: 더 크게(좌우 · 상하) */
 .cal-split{grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) !important; justify-content:stretch;}
@@ -1344,6 +1345,8 @@ html.tab-ui .section-title{font-size:13.5px;}
 .wide-body .card:has(.poll-row){container-type:inline-size;}
 .wide-body .card > .poll-row{border-bottom:1px solid var(--border);}
 .wide-body .card > .poll-row:last-child{border-bottom:none;}
+/* 게시글: 카드 폭은 그대로 두고 버튼 박스만 투표처럼 오른쪽으로 혹처럼 늘어난다 */
+html.tab-wide .wide-body .notice-card:has(.poll-row){margin-right:calc(-1 * (clamp(100px, 8.4vw, 122px) + 14px)); container-type:inline-size;}
 .poll-row > .list-item{min-width:0;}
 .poll-side{position:absolute; left:calc(100% + 18px); top:0; bottom:0; width:clamp(100px, 8.4vw, 122px); display:flex; flex-direction:column; gap:8px; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:16px;}
 .poll-side .act-bar{display:flex; flex-direction:column; gap:8px; margin:0;}
@@ -1469,8 +1472,8 @@ html.tab-ui.tab-wide.rail-tiny .navbtn span{display:none;}
 html.tab-ui.tab-wide.rail-tiny .navbtn{padding:8px 2px;}
 html.tab-ui.tab-wide.rail-micro .bottomnav{gap:0; padding:4px 6px;}
 html.tab-ui.tab-wide.rail-micro .navbtn{padding:4px 2px;}
-html.tab-ui.tab-wide.rail-short .rail-actions .btn:has(svg), html.tab-ui.tab-wide.rail-short .rail-toggle .btn:has(svg){font-size:0 !important; gap:0; min-height:40px;}
-html.tab-ui.tab-wide.rail-short .rail-actions .btn svg, html.tab-ui.tab-wide.rail-short .rail-toggle .btn svg{width:18px; height:18px;}
+html.tab-ui.tab-wide.rail-tiny .rail-actions .btn:has(svg), html.tab-ui.tab-wide.rail-tiny .rail-toggle .btn:has(svg){font-size:0 !important; gap:0; min-height:40px;}   /* 글쓰기 같은 버튼도 글자는 가장 마지막 단계에서야 뺀다 */
+html.tab-ui.tab-wide.rail-tiny .rail-actions .btn svg, html.tab-ui.tab-wide.rail-tiny .rail-toggle .btn svg{width:18px; height:18px;}
 html.tab-ui.tab-wide.rail-short .wide-rail .subtab{font-size:12.5px; padding:8px 12px; min-height:0;}
 /* ===== 학사정보: 화면이 모자라면 줄이지 않고 각 탭이 스크롤된다 ===== */
 html.tab-wide main[data-view="info"]{overflow-y:auto !important; overflow-x:clip !important; overscroll-behavior:contain;}
@@ -13843,6 +13846,16 @@ function closeTopLayer(){
 }
 // 기본 화면에서 뒤로가기 — 네이티브(MainActivity)가 이걸 불러 아래쪽 알림을 띄운다(2초 안에 한 번 더 누르면 네이티브가 앱을 끈다).
 window.__iseBackAtRoot = ()=>{ toast('한번 더 뒤로가기 누르면 종료됩니다'); };
+// 검색 상자가 비어 있을 때 다른 곳을 누르면(뒤로가기와 같은 효과) 닫히는 애니메이션과 함께 접힌다
+document.addEventListener('pointerdown', e=>{
+  const bb = document.querySelector('#bb.open');
+  if(!bb || bb.contains(e.target)) return;
+  const inp = document.getElementById('board-search');
+  if((inp && inp.value.trim()) || state.boardQ) return;
+  inp && inp.blur();
+  bb.classList.remove('open');
+  uiLayerClosed();
+}, true);
 window.addEventListener('popstate', ()=>{
   const u = uiS();
   if(u.ignore > 0){ u.ignore--; return; }
