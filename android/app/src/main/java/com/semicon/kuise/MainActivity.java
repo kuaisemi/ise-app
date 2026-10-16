@@ -100,7 +100,7 @@ public class MainActivity extends BridgeActivity {
                     webView.goBack();
                     return;
                 }
-                // 더 돌아갈 화면이 없는 기본 화면: 한 번 누르면 "한번 더 뒤로가기 누르면 종료됩니다" 알림만 띄우고,
+                // 더 돌아갈 화면이 없는 기본 화면: 한 번 누르면 "한 번 더 뒤로가기 누르면 종료됩니다" 알림만 띄우고,
                 // 2초 안에 한 번 더 누르면 앱을 끈다(알림은 웹의 토스트, 웹이 못 띄우면 안드로이드 토스트).
                 long now = SystemClock.uptimeMillis();
                 if (now - lastRootBackAt < 2000) {
@@ -111,9 +111,9 @@ public class MainActivity extends BridgeActivity {
                 if (webView != null) {
                     webView.evaluateJavascript(
                         "(function(){ if(window.__iseBackAtRoot){ window.__iseBackAtRoot(); return 'ok'; } return 'none'; })()",
-                        value -> { if (value == null || !value.contains("ok")) Toast.makeText(MainActivity.this, "한번 더 뒤로가기 누르면 종료됩니다", Toast.LENGTH_SHORT).show(); });
+                        value -> { if (value == null || !value.contains("ok")) Toast.makeText(MainActivity.this, "한 번 더 뒤로가기 누르면 종료됩니다", Toast.LENGTH_SHORT).show(); });
                 } else {
-                    Toast.makeText(MainActivity.this, "한번 더 뒤로가기 누르면 종료됩니다", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "한 번 더 뒤로가기 누르면 종료됩니다", Toast.LENGTH_SHORT).show();
                 }
             }
         });
