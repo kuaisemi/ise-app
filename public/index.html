@@ -1238,8 +1238,8 @@ html.tab-ui.tab-wide .top-actions{flex-direction:row !important; flex-wrap:wrap;
 html.tab-ui.tab-wide .top-actions .btn-top-refresh{width:30px; height:30px;}
 /* 시간표: 왼쪽은 좁게, 메뉴는 오른쪽 끝에 붙여 정렬 */
 .tt-split{grid-template-columns:minmax(0, 1.25fr) minmax(300px, clamp(300px, 27vw, 400px)) !important; justify-content:space-evenly !important; margin:0; width:100%;}
-.tt-left{display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 2.4fr); align-items:start;}
-.tt-left > .tt-card-container{grid-column:2;}   /* 칸 안에서 시간표는 중앙보다 왼쪽(왼쪽 : 오른쪽 여백 = 1 : 2.4). 여백이 비율이라 화면이 좁아지면 가운데 간격도 같이 천천히 줄어든다 */   /* 칸 안에서 가운데 정렬은 유지하되, 시간표만 중앙보다 살짝 왼쪽으로 */
+.tt-left{display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 5fr); align-items:start;}
+.tt-left > .tt-card-container{grid-column:2;}   /* 칸 안에서 시간표는 중앙보다 왼쪽(왼쪽 : 오른쪽 여백 = 1 : 5). 여백이 비율이라 화면이 좁아지면 가운데 간격도 같이 천천히 줄어든다 */
 .tt-side{width:100%;}
 /* 달력: 더 크게(좌우 · 상하) */
 .cal-split{grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) !important; justify-content:stretch;}
