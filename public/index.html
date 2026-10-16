@@ -1476,6 +1476,9 @@ html.is-native-app.tab-ui{--safe-bottom:max(env(safe-area-inset-bottom,0px), 20p
 html.tab-ui .modal-overlay, html.tab-ui .confirm-overlay, html.tab-ui .apk-popup-overlay, html.tab-ui .av-ov{padding-top:var(--tab-top,var(--safe-top)) !important; box-sizing:border-box;}
 html.tab-ui .friends-page, html.tab-wide .friends-page{padding-top:var(--tab-top,var(--safe-top)) !important;}
 html.tab-ui .capture-overlay{padding-top:var(--tab-top,var(--safe-top));}
+html.tab-ui .fp-body, html.tab-ui .friends-page, html.tab-ui .modal-sheet, html.tab-ui .av-ov-sheet{overscroll-behavior:contain;}
+html.tab-wide:has(.friends-page.open){overflow:hidden;}
+html.tab-wide:has(.friends-page.open) body{overflow:hidden;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card{padding:6px 10px !important; margin-bottom:4px !important;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .row-between{margin-bottom:3px !important;}
 html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) .slot-item-card .field{margin-bottom:5px !important;}
@@ -7598,8 +7601,11 @@ function fitTimetableWide(wrap, grid){
     const rootEl = document.documentElement, botP = document.querySelector('.tt-bottom-p');
     if(botP && botP.offsetHeight) window.__ttBotH = botP.offsetHeight;
     const botH = window.__ttBotH || 250, collapsed = rootEl.classList.contains('tt-more-collapsed');
+    // 아래 메뉴/제스처 바 자리: 기본 110px + (기기 하단 안전 여백이 기준 0보다 큰 만큼)
+    const sbProbe = document.createElement('div'); sbProbe.style.cssText = 'position:absolute;visibility:hidden;height:var(--safe-bottom,0px);width:0;'; document.body.appendChild(sbProbe);
+    const bottomReserve = 90 + (sbProbe.getBoundingClientRect().height || 0); sbProbe.remove();
     const topAbs = top;
-    const withRow = (viewportH - topAbs - botH - 14 - 110) / REF_H;
+    const withRow = (viewportH - topAbs - botH - 14 - bottomReserve) / REF_H;
     const panelOpen = !!document.querySelector('#modal-overlay.open');
     if(!panelOpen){
       // 아래 설정 줄이 시간표를 잡아먹으면(줄이 없을 때보다 시간표가 작아져야 하면) 줄을 접고 "+ 더보기"로 바꾼다
@@ -7608,7 +7614,7 @@ function fitTimetableWide(wrap, grid){
       else if(collapsed && withRow >= Math.min(scWidth, 1.7) + 0.02) rootEl.classList.remove('tt-more-collapsed');
     }
     const nowCollapsed = rootEl.classList.contains('tt-more-collapsed');
-    availH = nowCollapsed ? (viewportH - topAbs - 110) : (viewportH - topAbs - botH - 14 - 110);   // 창이 열려도 시간표 크기는 그대로(아래에서 떠오른 시트가 위에 얹힌다)
+    availH = nowCollapsed ? (viewportH - topAbs - bottomReserve) : (viewportH - topAbs - botH - 14 - bottomReserve);   // 창이 열려도 시간표 크기는 그대로(아래에서 떠오른 시트가 위에 얹힌다)
   }
   let sc = Math.min(colW / REF_W, availH / REF_H);
   sc = Math.max(0.45, Math.min(1.7, sc));
