@@ -1249,6 +1249,16 @@ html.tt-split-p .ttm-head-txt small{font-size:10px; line-height:1.35;}
 /* 나머지 설정은 화면 맨 아래로, 한 줄로 압축해서 시간표가 최대한 커지게 */
 html.tt-split-p main[data-view="timetable"]{display:flex; flex-direction:column; min-height:calc(100vh - 96px - 110px);}
 html.tt-split-p .tt-bottom-p{margin-top:auto; padding-top:14px;}
+html.tt-split-p .ttp-acts{display:flex; justify-content:flex-end; gap:6px; margin-bottom:8px;}
+html.tt-split-p .ttp-acts .btn{width:auto; padding:6px 12px; font-size:11.5px; gap:5px;}
+html.tt-split-p .ttp-acts .btn svg{width:13px; height:13px;}
+/* 순서: 시간표 목록 · 가져오기 · 직접 추가 · 이미지 저장 · 친구 공유하기 · 표시 설정 */
+html.tt-split-p .tt-bottom-p [data-action="open-timetable-list"]{order:1;}
+html.tt-split-p .tt-bottom-p [data-action="tt-import"]{order:2;}
+html.tt-split-p .tt-bottom-p [data-action="add-class"]{order:3;}
+html.tt-split-p .tt-bottom-p [data-action="save-tt-image"]{order:4;}
+html.tt-split-p .tt-bottom-p [data-action="open-friends-page"]{order:5;}
+html.tt-split-p .tt-bottom-p [data-action="open-tt-options"]{order:6;}
 html.tt-split-p .tt-bottom-p .ttm-grid.c3{grid-template-columns:repeat(6, 1fr); gap:6px; margin-top:0 !important;}
 html.tt-split-p .tt-bottom-p .ttm-tile{padding:8px 2px 7px; gap:4px; border-radius:12px;}
 html.tt-split-p .tt-bottom-p .ttm-ic{width:28px; height:28px;}
@@ -7719,7 +7729,7 @@ function renderTimetable(isCapture=false){
       ${state.ttFabOpen ? ttFabOptionsHtml() : ''}
       <button type="button" class="tt-fab" data-action="toggle-tt-fab">${ICON.plus}</button>
     </div>
-    ${splitP ? `</div></div><div class="tt-bottom-p">${dockP.tiles}${dockP.themes}</div>` : (wideTt ? `</div><aside class="tt-side">${ttDockMenuHtml()}</aside></div>` : '')}
+    ${splitP ? `</div></div><div class="tt-bottom-p"><div class="ttp-acts"><button type="button" class="btn btn-ghost btn-sm" data-action="rename-variant">${ICON.pencil} 이름 변경</button><button type="button" class="btn btn-ghost btn-sm" data-action="reset-timetable" style="color:var(--danger-text);">${ICON.trash} 이 시간표 지우기</button></div>${dockP.tiles}${dockP.themes}</div>` : (wideTt ? `</div><aside class="tt-side">${ttDockMenuHtml()}</aside></div>` : '')}
   `;
 }
 // 태블릿 가로: 시간표 옆에 늘 떠 있는 메뉴(더보기 메뉴 + 친구·공유 + 표시 설정).
@@ -7747,8 +7757,8 @@ function ttDockParts(){
       <div class="ttm-tile" data-action="add-class" style="--c:#4ECDC4; --c-rgb:78,205,196;"><span class="ttm-ic">${ICON.plus}</span><b>직접 추가</b><small>하나씩 입력</small></div>
       <div class="ttm-tile" data-action="tt-import" style="--c:var(--teal); --c-rgb:224,172,85;"><span class="ttm-ic">${ICON.importIcon}</span><b>가져오기</b><small>사진 · 에타 링크</small></div>
       <div class="ttm-tile" data-action="open-friends-page" style="--c:var(--blue); --c-rgb:var(--blue-rgb);"><span class="ttm-ic">${ICON.users}</span><b>친구 · 공유하기</b><small>친구 시간표 보기</small></div>
-      <div class="ttm-tile" data-action="save-tt-image" style="--c:var(--purple); --c-rgb:var(--purple-rgb);"><span class="ttm-ic">${ICON.frame}</span><b>이미지 저장</b><small>보이는 시간표만</small></div>
-      <div class="ttm-tile" data-action="open-tt-options" style="--c:var(--amber); --c-rgb:var(--amber-rgb);"><span class="ttm-ic">${ICON.gear}</span><b>표시 설정</b><small>간격 · 글씨 · 색</small></div>
+      <div class="ttm-tile" data-action="save-tt-image" style="--c:#E86F9A; --c-rgb:232,111,154;"><span class="ttm-ic">${ICON.frame}</span><b>이미지 저장</b><small>보이는 시간표만</small></div>
+      <div class="ttm-tile" data-action="open-tt-options" style="--c:#5BC98A; --c-rgb:91,201,138;"><span class="ttm-ic">${ICON.gear}</span><b>표시 설정</b><small>간격 · 글씨 · 색</small></div>
       <div class="ttm-tile" data-action="open-timetable-list" style="--c:var(--purple); --c-rgb:var(--purple-rgb);"><span class="ttm-ic">${ICON.clipboard}</span><b>시간표 목록</b><small>학기 · 변형</small></div>
     </div>`;
   const themes = `
