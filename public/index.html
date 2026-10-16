@@ -1114,7 +1114,7 @@ html.tab-ui.tab-wide main[data-view="home"] > .app-version{column-span:all;}
 html.tab-ui.tab-wide main[data-view="home"] > .section-title{break-after:avoid;}
 
 /* ---- 위쪽 바: 네모난 띠 대신 떠 있는 둥근 카드 ---- */
-.is-native-app.tab-ui, .is-native-app .tab-ui{--tab-top:max(var(--safe-top), 24px);}
+.is-native-app.tab-ui, .is-native-app .tab-ui{--tab-top:max(var(--safe-top), 40px);}
 html.tab-ui .topbar{margin:calc(10px + var(--tab-top,var(--safe-top))) 16px 0; top:calc(8px + var(--tab-top,var(--safe-top))); border:1px solid var(--border); border-radius:20px; padding:10px 16px; box-shadow:0 6px 20px rgba(0,0,0,.18);}
 html.tab-ui main{padding-top:14px;}
 /* 태블릿 세로: 아래로 스크롤하면 맨 위 ISE 바도 위로 숨고, 올리면 다시 내려온다(둥근 메뉴와 같은 동작) */
@@ -1158,7 +1158,7 @@ html.tab-ui.tab-wide .topbar .brand-mini b{font-size:14px;}
 html.tab-ui.tab-wide .topbar .brand-mini{padding:14px 6px;}
 html.tab-ui.tab-wide .topbar .role-badge, html.tab-ui.tab-wide .topbar .date-pill, html.tab-ui.tab-wide .topbar .btn-top-refresh[data-action="apk-popup-open-confirm"]{display:none;}
 html.tab-ui.tab-wide .top-actions{flex-direction:column !important; gap:6px !important;}
-html.tab-ui.tab-wide main{padding-top:18px;}
+html.tab-ui.tab-wide main{padding-top:calc(18px + var(--tab-top,var(--safe-top)));}
 html.tab-ui.tab-wide .bottomnav{top:calc(50% + 40px);}
 /* 시간표: 왼쪽 시간표 + 오른쪽 늘 떠 있는 메뉴 */
 html.tab-ui.tab-wide main[data-view="timetable"]{max-width:none; margin:0;}
