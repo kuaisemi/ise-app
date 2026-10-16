@@ -268,6 +268,7 @@ main, #modal-root{zoom:var(--font-scale, 1);}
 /* 네이티브 앱은 edge-to-edge라 상태표시줄(시계·배터리) 영역이 비어 보인다.
    그 영역을 크림슨으로 칠해준다. 브라우저에서는 --safe-top이 0이라 보이지 않는다. */
 .statusbar-bg{position:fixed; top:0; left:0; right:0; height:var(--safe-top); background:var(--status-bg,var(--crimson)); z-index:30; pointer-events:none;}
+html.tab-ui.tab-wide .statusbar-bg{display:none;}   /* 태블릿 가로: 상태바 영역을 칠하지 않고 투명하게(뒤 화면 배경이 그대로 보인다) */
 
 .section-title{font-size:15.5px; font-weight:700; color:var(--text); letter-spacing:-0.02em; margin:22px 4px 8px;}
 .section-title:first-child{margin-top:2px;}
