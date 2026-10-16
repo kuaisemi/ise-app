@@ -1426,6 +1426,19 @@ html.tab-wide:has(#modal-overlay.open) main[data-view="info"]{padding-right:calc
 html.tab-wide:has(#modal-overlay.open) main[data-view="info"] .cal-split{grid-template-columns:minmax(0, 1fr) !important;}
 html.tab-wide:has(#modal-overlay.open) main[data-view="info"] .cal-left{max-width:none;}
 
+/* 테마 미리 보기: 위쪽(제목 · 메뉴 칸)은 위로 살짝 날아가고, 창은 테마 줄 + 적용 바만 남는다. 블러 · 어두운 배경 없음 */
+.modal-overlay.peek{background:transparent !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;}
+.modal-overlay.peek .modal-sheet > .modal-handle, .modal-overlay.peek .modal-sheet > .modal-title, .modal-overlay.peek .modal-sheet > .ttm-head, .modal-overlay.peek .modal-sheet > .ttm-grid{max-height:0 !important; margin-top:0 !important; margin-bottom:0 !important; padding-top:0 !important; padding-bottom:0 !important; border-width:0 !important; opacity:0; transform:translateY(-26px); overflow:hidden; pointer-events:none; transition:max-height .28s ease, opacity .2s ease, transform .28s ease, margin .28s ease, padding .28s ease;}
+.modal-overlay .modal-sheet > .modal-title, .modal-overlay .modal-sheet > .ttm-head, .modal-overlay .modal-sheet > .ttm-grid{transition:max-height .28s ease, opacity .2s ease, transform .28s ease;}
+.modal-overlay.peek .modal-sheet{box-shadow:0 -10px 40px rgba(0,0,0,.45);}
+/* 표시 설정에서 크기 슬라이더를 끄는 동안: 창이 투명해지고 슬라이더 상자만 남는다 */
+.modal-overlay.opt-drag{background:transparent !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;}
+.modal-overlay.opt-drag .modal-sheet{background:transparent !important; border-color:transparent !important; box-shadow:none !important; overflow:visible !important;}
+.modal-overlay.opt-drag .modal-sheet > *{opacity:0; transition:opacity .16s ease; pointer-events:none;}
+.modal-overlay.opt-drag .modal-sheet > #tt-opts-panel{opacity:1; pointer-events:none;}
+.modal-overlay.opt-drag #tt-opts-panel > *:not(.opt-size-box){opacity:0; transition:opacity .16s ease;}
+.modal-overlay.opt-drag #tt-opts-panel .opt-size-box{opacity:1; pointer-events:auto; background:rgba(var(--surface-rgb), .97); box-shadow:0 14px 36px rgba(0,0,0,.5); border:1px solid var(--border-light, var(--border));}
+.modal-overlay.opt-drag #tt-opts-panel .opt-size-box .opt-row, .modal-overlay.opt-drag #tt-opts-panel .opt-size-box .opt-hint{opacity:.35;}
 /* 태블릿 세로 · 시간표: 창(직접 추가 · 표시 설정 · 더보기 …)은 아래에서 떠오르는 플로팅 시트로 열린다.
    시간표는 그 위로 줄어들어서(JS fit) 가려지지 않고, 시트를 보면서 바로 수정할 수 있다. */
 html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay{justify-content:center; align-items:flex-end; padding:0 12px calc(16px + var(--safe-bottom)); background:none; backdrop-filter:none; pointer-events:none;}
@@ -2151,15 +2164,24 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.6.0';
+const APP_VERSION = 'Beta 0.6.1';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 176;
+const ANDROID_VERSION_CODE = 177;
 // 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
+  { version:'Beta 0.6.1', date:'2026-10-16', summary:'태블릿 시간표가 더 편해졌어요!', items:[
+    { title:'태블릿 세로 시간표', text:'세로로 쓰면 왼쪽에 시간표 이름, 아래에 메뉴가 붙어요. 직접 추가 · 표시 설정 같은 창은 아래에서 올라오고, 수업을 추가할 땐 시간표에 "여기에 추가돼요" 점선 칸이 미리 보여요', sub:[
+      '자리가 모자라면 아래 메뉴가 "+ 더보기"로 접히고, 더보기는 왼쪽에서 열려요',
+      '시간표 화면은 스크롤되지 않아요',
+    ] },
+    { title:'미리 보고 적용', text:'화면 표시 설정에서 크기 슬라이더를 누르고 있는 동안 창이 투명해져서 시간표가 바뀌는 걸 바로 볼 수 있어요. 수업 색 테마도 먼저 미리 보고, "적용"을 눌러야 바뀌어요' },
+    { title:'게시판 · 구인글 정리', text:'태블릿에서 글 버튼(공지 올리기 · 수정 · 삭제 등)은 투표처럼 오른쪽 박스로, 구인글에도 공유 버튼이 생겼어요. 검색 상자는 뒤로가기나 빈 곳을 누르면 닫혀요' },
+    { title:'고친 것', text:'태블릿에서 시간표 사진 저장이 깨지던 문제, 키보드가 올라올 때 탭 이름이 영어로 바뀌던 문제를 고쳤어요. 상태바 색이 테마를 따라가요(새 앱 설치 후)' },
+  ] },
   { version:'Beta 0.6.0', date:'2026-10-16', summary:'태블릿 · 가로 모드가 생겼어요!', items:[
     { title:'태블릿 · 가로 모드', text:'태블릿과 가로 화면이 생겼어요. 시간표 등을 보면서 옆에서 바로 수정할 수 있어요' },
   ] },
@@ -8193,7 +8215,7 @@ function ttOptionsModal(o = state.ttOpts){
         ${inlineColorPanelHtml('ttbg', o.bgColor || '#000000')}
         ${inlineColorPanelHtml('ttline', o.gridColor || '#FFFFFF')}
       </div>
-      <div class="opt-box">
+      <div class="opt-box opt-size-box">
         <h4>크기</h4>
         <div class="opt-slider">
           <span class="opt-name">글씨</span>
@@ -8275,6 +8297,16 @@ function setupTtOptionsModalListeners(){
       try{ renderMain(); }catch(_){}
     }, 40);
   };
+  // 크기 슬라이더를 끄는 동안에는 설정창이 투명해지고 슬라이더만 남는다(밝기 조절처럼) — 뒤의 시간표가 어떻게 변하는지 바로 보인다
+  const dragOn = ()=>{ const ov = document.getElementById('modal-overlay'); if(ov) ov.classList.add('opt-drag'); };
+  const dragOff = ()=>{ const ov = document.getElementById('modal-overlay'); if(ov) ov.classList.remove('opt-drag'); };
+  ['tt-font-scale-slider', 'tt-row-scale-slider'].forEach(id=>{
+    const sl = document.getElementById(id); if(!sl) return;
+    sl.addEventListener('pointerdown', dragOn);
+    sl.addEventListener('touchstart', dragOn, { passive:true });
+    ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur'].forEach(ev=>sl.addEventListener(ev, dragOff));
+  });
+  if(!window.__optDragBound){ window.__optDragBound = true; ['pointerup', 'pointercancel', 'touchend'].forEach(ev=>document.addEventListener(ev, dragOff, true)); }
   panel.addEventListener('click', previewNow);
   panel.addEventListener('input', previewNow);
   panel.addEventListener('change', previewNow);
@@ -16612,6 +16644,7 @@ document.addEventListener('click', async (e)=>{
       });
       document.querySelectorAll('.tt-theme').forEach(x=>x.classList.toggle('on', x.dataset.theme === theme.id));
       document.querySelectorAll('.ttd-apply').forEach(bar=>{ bar.style.display = ''; });
+      { const ovp = document.getElementById('modal-overlay'); if(ovp && ovp.querySelector('.ttd-apply')) ovp.classList.add('peek'); }   // 미리 보는 동안 창은 테마 줄까지만 남는다
     }
     else if(a === 'confirm-tt-theme'){
       const id = state.ttThemePreview; state.ttThemePreview = null;
@@ -16626,6 +16659,7 @@ document.addEventListener('click', async (e)=>{
       state.ttThemePreview = null; renderMain();
       document.querySelectorAll('.ttd-apply').forEach(bar=>{ bar.style.display = 'none'; });
       document.querySelectorAll('.tt-theme.on').forEach(x=>x.classList.remove('on'));
+      { const ovp = document.getElementById('modal-overlay'); if(ovp) ovp.classList.remove('peek'); }
     }
     else if(a === 'apply-tt-theme'){
       const theme = TT_THEMES.find(t => t.id === el.dataset.theme);
