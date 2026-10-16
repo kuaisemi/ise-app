@@ -1332,13 +1332,18 @@ html.tab-ui .section-title{font-size:13.5px;}
 .wide-side{position:sticky; top:18px; display:flex; flex-direction:column; gap:12px; min-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1))); max-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1)));}
 .wide-side > .wide-rail{position:static !important; flex:0 0 auto;}
 .wide-rail:has(.rail-actions){min-height:0 !important; max-height:none !important; overflow:visible !important;}
-.wide-side > .rail-actions{margin-top:auto; padding:14px; background:var(--surface); border:1px solid var(--border); border-radius:18px; overflow-y:auto;}
+.wide-side > .rail-actions{margin-top:auto; flex:0 1 auto; min-height:min(96px, 100%); padding:14px; background:var(--surface); border:1px solid var(--border); border-radius:18px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none;}
+.wide-side > .rail-actions::-webkit-scrollbar{display:none;}   /* 메뉴와 부딪힐 만큼 낮아질 때만 이 박스가 스크롤된다 */
 .rail-actions .board-searchrow{margin:0; width:100%;}
 .rail-actions .board-searchrow .field{margin:0;}
 .rail-actions .row-between{padding:0 2px 6px; margin:0 !important; flex-wrap:wrap;}
 /* 투표: 카드는 게시판과 같은 폭·간격 그대로, 버튼 박스(다시 열기 · 명단 · 삭제 · 공유)는 카드 오른쪽 바깥에 따로 */
 .wide-body.single:has(.poll-row) > .card{margin-right:calc(clamp(100px, 8.4vw, 122px) + 18px);}
 .poll-row{position:relative;}
+.rec-acts{display:flex; gap:6px; margin-top:10px;}
+.wide-body .card:has(.poll-row){container-type:inline-size;}
+.wide-body .card > .poll-row{border-bottom:1px solid var(--border);}
+.wide-body .card > .poll-row:last-child{border-bottom:none;}
 .poll-row > .list-item{min-width:0;}
 .poll-side{position:absolute; left:calc(100% + 18px); top:0; bottom:0; width:clamp(100px, 8.4vw, 122px); display:flex; flex-direction:column; gap:8px; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:16px;}
 .poll-side .act-bar{display:flex; flex-direction:column; gap:8px; margin:0;}
@@ -6997,7 +7002,7 @@ function relocateRailActions(root){
 }
 // 태블릿 가로(투표 탭): 투표 카드는 그대로 두고, 카드 안의 버튼들(다시 열기 · 명단 CSV · 공유 · 삭제 등)은 오른쪽의 별도 박스로.
 function movePollActions(root){
-  root.querySelectorAll('.wide-body.single .list-item[id^="poll-"]').forEach(item=>{
+  root.querySelectorAll('.wide-body.single .list-item[id^="poll-"], .wide-body.single .notice-card > .list-item, .wide-body.single .list-item[id^="rec-"]').forEach(item=>{
     const bars = Array.from(item.querySelectorAll(':scope > .act-bar'));
     if(!bars.length || item.parentElement.classList.contains('poll-row')) return;
     const row = document.createElement('div');
@@ -7008,7 +7013,7 @@ function movePollActions(root){
     side.className = 'poll-side';
     bars.forEach(b=>side.appendChild(b));
     // 공유는 재학생에게도 보이므로 투표 카드 안 왼쪽 아래로 둔다.
-    const share = side.querySelector('[data-action="share-link"]');
+    const share = item.id.startsWith('poll-') ? side.querySelector('[data-action="share-link"]') : null;
     if(share){
       const cell = share.closest('.act-cell') || share;
       const foot = document.createElement('div');
@@ -10686,17 +10691,17 @@ function renderRecruitmentTab(){
     </div>
     <div class="card">
       ${list.length ? list.map(r=>`
-        <div class="list-item">
+        <div class="list-item" id="rec-${escapeHtml(r.id)}">
           <div class="row-between" style="gap:8px;">
             <b class="post-title one-line">${escapeHtml(r.title)}</b>
             <span class="tag ${r.closed?'tag-dim':'tag-teal'}">${r.closed?'모집완료':'모집중'}</span>
           </div>
           <div class="meta">${fmtAuthorBadge(r.authorName, r.authorId, r.authorRole, true)} · ${fmtDateTime(r.createdAt || r.date)}${r.expireHours?` · ${r.expireHours}시간 노출`:''}</div>
           <div class="body">${escapeHtml(r.content)}</div>
-          ${renderLikeUI(r, 'recruitment')}
+          ${renderLikeUI(r, 'recruitment', 'recruitment')}
           ${renderRecruitmentPollUI(r)}
           ${(state.user && r.authorId===state.user.studentId) || myLevel()>=3 ? `
-          <div style="display:flex; gap:6px; margin-top:10px;">
+          <div class="act-bar rec-acts">
             <button class="btn btn-ghost btn-sm" data-action="open-recruitment" data-id="${r.id}">수정</button>
             <button class="btn btn-danger btn-sm" data-action="delete-recruitment" data-id="${r.id}">삭제</button>
           </div>` : ''}
@@ -13803,7 +13808,8 @@ function uiOpenLayerCount(){
   return document.querySelectorAll('.confirm-overlay.open').length
     + (document.querySelector('#modal-overlay.open') ? 1 : 0)
     + (document.querySelector('#settings-page.open') ? 1 : 0)
-    + (document.querySelector('#friends-page.open') ? 1 : 0);
+    + (document.querySelector('#friends-page.open') ? 1 : 0)
+    + (document.querySelector('#bb.open') ? 1 : 0);
 }
 function uiSyncLayers(){
   const u = uiS(); const extra = u.pushed - uiOpenLayerCount();
@@ -13824,6 +13830,14 @@ function closeTopLayer(){
       return true;
     }
     closeFriendsPage(); return true;
+  }
+  // 게시판 검색 상자: 뒤로가기를 누르면 닫히는 애니메이션과 함께 접힌다(검색어가 있었으면 필터도 푼다)
+  const bb = document.querySelector('#bb.open');
+  if(bb){
+    const inp = document.getElementById('board-search');
+    if(inp){ inp.blur(); if(inp.value || state.boardQ){ inp.value = ''; state.boardQ = ''; const bl = document.getElementById('board-list'); if(bl) bl.innerHTML = boardListHtml(); } }
+    bb.classList.remove('open');
+    return true;
   }
   return false;
 }
@@ -15482,7 +15496,7 @@ function shareLinkFor(kind, id){ return SHARE_BASE + '?go=' + kind + '-' + encod
 (function readShareLinkParam(){
   try{
     const go = new URLSearchParams(location.search).get('go');
-    const m = go && go.match(/^(post|poll)-(.+)$/);
+    const m = go && go.match(/^(post|poll|recruitment)-(.+)$/);
     if(!m) return;
     state.pendingNotifRoute = { category:'link', data:{ kind:m[1], id:m[2] } };
     history.replaceState(null, '', location.pathname + location.hash);   // 새로고침해도 다시 이동하지 않게 주소에서 지운다
@@ -15492,8 +15506,9 @@ async function shareItemLink(kind, id){
   const url = shareLinkFor(kind, id);
   let title = '';
   if(kind === 'post'){ const n = live(state.notices).find(x=>x.id===id); title = n ? n.title : ''; }
+  else if(kind === 'recruitment'){ const r = live(state.recruitmentPosts).find(x=>x.id===id); title = r ? r.title : ''; }
   else { const p = live(state.polls).find(x=>x.id===id); title = p ? p.question : ''; }
-  const text = kind === 'poll' ? `투표가 진행 중이에요: ${title}` : `게시글: ${title}`;
+  const text = kind === 'poll' ? `투표가 진행 중이에요: ${title}` : (kind === 'recruitment' ? `구인글: ${title}` : `게시글: ${title}`);
   try{
     if(typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.Share){ await Capacitor.Plugins.Share.share({ title: text, text, url, dialogTitle:'링크 공유' }); return; }
     if(navigator.share){ await navigator.share({ title: text, text, url }); return; }
@@ -15503,13 +15518,13 @@ async function shareItemLink(kind, id){
 }
 async function openSharedLink(data){
   if(!data) return;
-  const find = ()=> data.kind === 'poll' ? live(state.polls).find(p=>p.id===data.id) : visibleNotices().find(n=>n.id===data.id);
+  const find = ()=> data.kind === 'poll' ? live(state.polls).find(p=>p.id===data.id) : (data.kind === 'recruitment' ? live(state.recruitmentPosts).find(r=>r.id===data.id) : visibleNotices().find(n=>n.id===data.id));
   if(!find()){ invalidateDailyShared(); await refreshShared(true).catch(()=>{}); }
   if(!find()){ toast('삭제되었거나 볼 수 없는 글이에요'); return; }
-  state.view = 'council'; state.councilTab = data.kind === 'poll' ? 'poll' : 'board';
+  state.view = 'council'; state.councilTab = data.kind === 'poll' ? 'poll' : (data.kind === 'recruitment' ? 'recruitment' : 'board');
   renderShell();
   setTimeout(()=>{
-    const el = document.getElementById((data.kind === 'poll' ? 'poll-' : 'post-') + data.id);
+    const el = document.getElementById((data.kind === 'poll' ? 'poll-' : (data.kind === 'recruitment' ? 'rec-' : 'post-')) + data.id);
     if(!el) return;
     el.scrollIntoView({ block:'center', behavior:'smooth' });
     el.classList.add('link-flash');
@@ -15836,12 +15851,13 @@ document.addEventListener('click', async (e)=>{
       if(!bb || !inp) return;
       if(!bb.classList.contains('open')){
         bb.classList.add('open');
+        uiLayerOpened();   // 뒤로가기로 닫을 수 있게 한 칸 쌓는다
         setTimeout(()=>{ try{ inp.focus({ preventScroll:true }); }catch(_){ inp.focus(); } }, 200);
       } else {
         // 열려 있을 때는 "확인": 지금 입력으로 목록을 거르고, 비어 있으면 다시 접는다.
         state.boardQ = inp.value;
         const bl = document.getElementById('board-list'); if(bl) bl.innerHTML = boardListHtml();
-        if(!inp.value.trim()) bb.classList.remove('open'); else inp.blur();
+        if(!inp.value.trim()){ bb.classList.remove('open'); uiLayerClosed(); } else inp.blur();
       }
     }
     else if(a === 'council-tab'){
