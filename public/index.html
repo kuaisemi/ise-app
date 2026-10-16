@@ -1413,7 +1413,7 @@ html.tab-wide #settings-page .av-slots .av-slot{height:clamp(58px, 7.5vh, 84px);
 html.tab-wide #settings-page .av-grid{gap:8px;}
 html.tab-wide #settings-page .fp-body{padding-top:18px;}
 /* 시간표 오른쪽 메뉴: 색 테마는 열의 맨 아래로 */
-html.tab-wide .tt-side{display:flex; flex-direction:column; min-height:calc((100vh - 48px) / (var(--font-scale, 1) * var(--tab-z, 1)));}
+html.tab-wide .tt-side{display:flex; flex-direction:column; top:calc(18px + var(--tab-top,var(--safe-top))); min-height:calc((100vh - 48px - var(--tab-top,var(--safe-top)) - var(--safe-bottom)) / (var(--font-scale, 1) * var(--tab-z, 1)));}
 .ttd-themes{margin-top:auto; padding-top:16px;}
 .tt-theme.on{border-color:var(--crimson); box-shadow:0 0 0 1px var(--crimson) inset;}
 .ttd-apply{display:flex; gap:8px; margin-top:10px;}
