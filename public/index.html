@@ -1434,11 +1434,21 @@ html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.open .modal-shee
 html.tt-split-p:has(#modal-overlay.open) main[data-view="timetable"] .tt-bottom-p{display:none;}
 /* 「+ 더보기」 메뉴만은 왼쪽에서 밀려 나오는 옆 패널 — 시간표는 그 옆으로 비켜서 그대로 보인다 */
 html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left{justify-content:flex-start; align-items:stretch; padding:0;}
-html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left .modal-sheet{width:clamp(260px, 30vw, 300px); max-height:none; height:100%; border-radius:0; border:none; border-right:1px solid var(--border); box-shadow:12px 0 32px rgba(0,0,0,.22); transform:translateX(-104%); padding:20px 14px calc(24px + var(--safe-bottom));}
+html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left .modal-sheet{width:clamp(300px, 35vw, 340px); max-height:none; height:100%; border-radius:0; border:none; border-right:1px solid var(--border); box-shadow:12px 0 32px rgba(0,0,0,.22); transform:translateX(-104%); padding:20px 14px calc(24px + var(--safe-bottom));}
 html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left.open .modal-sheet{transform:none;}
 html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left .modal-handle{display:none;}
+html.tt-split-p:has(main[data-view="timetable"]) .modal-overlay.side-left .modal-sheet{padding-top:28px; padding-left:18px; padding-right:18px;}
+html.tt-split-p .modal-overlay.side-left .modal-title{margin-bottom:18px;}
+html.tt-split-p .modal-overlay.side-left .ttm-head{padding:16px 14px 16px 16px;}
+html.tt-split-p .modal-overlay.side-left .ttm-grid{gap:10px;}
+html.tt-split-p .modal-overlay.side-left .ttm-tile{padding:20px 6px 16px; gap:8px;}
+html.tt-split-p .modal-overlay.side-left .ttm-sec{margin:24px 2px 12px;}
+html.tt-split-p .modal-overlay.side-left .tt-themes{gap:8px;}
+html.tt-split-p .modal-overlay.side-left .tt-theme{padding:14px 4px 12px;}
+/* 왼쪽 패널(좁은 곳)에서는 가져오기 두 카드를 위·아래로, 수업 추가는 원래 한 줄 비율 그대로 */
+html.tt-split-p:has(#modal-overlay.side-left) .imp-grid{grid-template-columns:1fr !important;}
 html.tt-split-p main[data-view="timetable"]{transition:padding-left .28s cubic-bezier(.22,1,.36,1);}
-html.tt-split-p:has(#modal-overlay.side-left.open) main[data-view="timetable"]{padding-left:max(24px, calc(clamp(260px, 30vw, 300px) + 12px - (100vw - var(--app-w)) / 2));}
+html.tt-split-p:has(#modal-overlay.side-left.open) main[data-view="timetable"]{padding-left:max(24px, calc(clamp(300px, 35vw, 340px) + 12px - (100vw - var(--app-w)) / 2));}
 html.tt-split-p:has(#modal-overlay.side-left.open) main[data-view="timetable"] .tt-split{grid-template-columns:minmax(0, 1fr) !important;}
 html.tt-split-p:has(#modal-overlay.side-left.open) main[data-view="timetable"] .tt-side{display:none;}
 /* 시간표 제1법칙: 이 화면은 스크롤되지 않는다(페이지도, 시간표 칸도) */
@@ -1447,11 +1457,11 @@ html.tt-split-p main[data-view="timetable"] .tt-wrap{overflow:hidden !important;
 /* 창이 열려 있는 동안 아래 메뉴(홈 · 시간표 · 학사정보 …)는 살짝 숨는다 */
 html.tt-split-p:has(main[data-view="timetable"]):has(#modal-overlay.open) .bottomnav{transform:translateX(-50%) translateY(calc(100% + 40px)); opacity:0; pointer-events:none;}
 /* 아래 시트 안에서: 수업 추가는 왼쪽(과목 · 교수 · 색상) / 오른쪽(시간대 · 강의실)으로 3 : 3 (가져오기 두 카드도 좌우 그대로) */
-html.tt-split-p:has(main[data-view="timetable"]) #class-form{display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); column-gap:20px; align-items:start;}
-html.tt-split-p:has(main[data-view="timetable"]) #class-form > *{grid-column:1;}
-html.tt-split-p:has(main[data-view="timetable"]) #class-form > .row-between{grid-column:2; grid-row:1; margin-top:0 !important;}
-html.tt-split-p:has(main[data-view="timetable"]) #class-form > #slots-container{grid-column:2; grid-row:2 / span 5;}
-html.tt-split-p:has(main[data-view="timetable"]) #class-form > .modal-actions{grid-column:1 / -1; grid-row:auto;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form{display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); column-gap:20px; align-items:start;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > *{grid-column:1;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > .row-between{grid-column:2; grid-row:1; margin-top:0 !important;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > #slots-container{grid-column:2; grid-row:2 / span 5;}
+html.tt-split-p:has(main[data-view="timetable"]):not(:has(#modal-overlay.side-left)) #class-form > .modal-actions{grid-column:1 / -1; grid-row:auto;}
 
 /* ===== 가로 화면: 왼쪽 열이 스크롤을 따라 움직이지 않게(main이 스크롤 상자가 되어 sticky가 풀리던 문제) ===== */
 html.tab-wide main{overflow:visible !important; overflow-x:clip !important;}
