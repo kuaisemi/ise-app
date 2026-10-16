@@ -1237,11 +1237,30 @@ html.tab-ui.tab-wide .bottomnav{width:clamp(72px, 6.4vw, 96px); left:clamp(8px, 
 html.tab-ui.tab-wide .top-actions{flex-direction:row !important; flex-wrap:wrap; justify-content:center; gap:4px !important; width:100%;}
 html.tab-ui.tab-wide .top-actions .btn-top-refresh{width:30px; height:30px;}
 /* 태블릿 세로 · 시간표: 왼쪽에 더보기 메뉴가 늘 떠 있고, 시간표는 모양 그대로 줄여서 오른쪽으로 */
-html.tt-split-p .tt-split{grid-template-columns:clamp(200px, 24vw, 240px) minmax(0, 1fr) !important; justify-content:stretch !important; gap:clamp(12px, 2vw, 20px); width:100%;}
+html.tt-split-p .tt-split{grid-template-columns:clamp(76px, 9.5vw, 100px) minmax(0, 1fr) !important; justify-content:stretch !important; gap:clamp(8px, 1.2vw, 12px); width:100%;}
 html.tt-split-p .tt-left{display:block; padding:0;}
-html.tt-split-p .tt-side{position:sticky; top:12px; width:100%;}
+html.tt-split-p .tt-side{position:static; width:100%;}
 html.tt-split-p .tt-fab-wrap{display:none;}
-html.tt-split-p .tt-bottom-p{margin-top:4px;}   /* 시간표 정보만 시간표 왼쪽에 두고, 나머지 메뉴 · 테마는 그 아래로 내린다 */
+/* 왼쪽엔 "몇 학기 · 어느 시간표"만 작게 */
+html.tt-split-p .ttm-head{flex-direction:column; align-items:flex-start; gap:2px; padding:8px 10px;}
+html.tt-split-p .ttm-head .ttm-icbtn{display:none;}
+html.tt-split-p .ttm-head-txt b{font-size:12.5px; white-space:normal;}
+html.tt-split-p .ttm-head-txt small{font-size:10px; line-height:1.35;}
+/* 나머지 설정은 화면 맨 아래로, 한 줄로 압축해서 시간표가 최대한 커지게 */
+html.tt-split-p main[data-view="timetable"]{display:flex; flex-direction:column; min-height:calc(100vh - 96px - 110px);}
+html.tt-split-p .tt-bottom-p{margin-top:auto; padding-top:14px;}
+html.tt-split-p .tt-bottom-p .ttm-grid.c3{grid-template-columns:repeat(6, 1fr); gap:6px; margin-top:0 !important;}
+html.tt-split-p .tt-bottom-p .ttm-tile{padding:8px 2px 7px; gap:4px; border-radius:12px;}
+html.tt-split-p .tt-bottom-p .ttm-ic{width:28px; height:28px;}
+html.tt-split-p .tt-bottom-p .ttm-tile b{font-size:11px;}
+html.tt-split-p .tt-bottom-p .ttm-tile small{font-size:9px;}
+html.tt-split-p .tt-bottom-p .ttd-themes{padding-top:2px; margin-top:0;}
+html.tt-split-p .tt-bottom-p .ttm-sec{margin:8px 2px 6px;}
+html.tt-split-p .tt-bottom-p .tt-themes{grid-template-columns:repeat(10, 1fr); gap:5px;}
+html.tt-split-p .tt-bottom-p .tt-theme{padding:6px 2px;}
+html.tt-split-p .tt-bottom-p .tt-theme b{font-size:10px;}
+@media (max-height:1150px){ html.tt-split-p .tt-bottom-p .ttm-tile small{display:none;} html.tt-split-p .tt-bottom-p .ttm-sec small{display:none;} }
+@media (max-height:900px){ html.tt-split-p .tt-bottom-p .ttd-themes{display:none;} }   /* 높이가 모자라면 아래 메뉴부터 줄인다 */
 /* 시간표: 왼쪽은 좁게, 메뉴는 오른쪽 끝에 붙여 정렬 */
 .tt-split{grid-template-columns:minmax(0, 1.25fr) minmax(260px, clamp(260px, 27vw, 400px)) !important; justify-content:space-evenly !important; margin:0; width:100%;}
 .tt-left{display:block; padding-left:clamp(14px, 3.7vw, 64px);}
@@ -7475,7 +7494,9 @@ function fitTimetableWide(wrap, grid){
   const top = container.getBoundingClientRect().top;
   const colCs = getComputedStyle(col);
   const colW = col.getBoundingClientRect().width - (parseFloat(colCs.paddingLeft) || 0) - (parseFloat(colCs.paddingRight) || 0);
-  const availH = viewportH - top - 20;
+  let availH = viewportH - top - 20;
+  const botP = document.querySelector('.tt-bottom-p');
+  if(botP) availH = viewportH - top - botP.offsetHeight - 14 - 110;   // 세로 분할: 아래 설정 줄과 떠 있는 메뉴 자리를 남기고 시간표를 최대한 키운다
   let sc = Math.min(colW / REF_W, availH / REF_H);
   sc = Math.max(0.45, Math.min(1.7, sc));
   container.style.zoom = String(sc / z);
