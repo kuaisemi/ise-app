@@ -7473,11 +7473,15 @@ function ttMoreMenuModal(){
       <div class="ttm-tile" data-action="save-tt-image" style="--c:var(--blue); --c-rgb:var(--blue-rgb);"><span class="ttm-ic">${ICON.frame}</span><b>이미지 저장</b><small>보이는 시간표만</small></div>
       <div class="ttm-tile" data-action="open-timetable-list" style="--c:var(--purple); --c-rgb:var(--purple-rgb);"><span class="ttm-ic">${ICON.clipboard}</span><b>시간표 목록</b><small>학기 · 전환</small></div>
     </div>
-    <div class="ttm-sec"><b>수업 색 테마</b><small>누르면 이 시간표의 수업 색이 한 번에 바뀌어요</small></div>
+    <div class="ttm-sec"><b>수업 색 테마</b><small>눌러서 미리 보고, 마음에 들면 적용하세요</small></div>
     <div class="tt-themes">
-      ${TT_THEMES.map(t => `<button type="button" class="tt-theme" data-action="apply-tt-theme" data-theme="${t.id}">
+      ${TT_THEMES.map(t => `<button type="button" class="tt-theme${state.ttThemePreview===t.id?' on':''}" data-action="preview-tt-theme" data-theme="${t.id}">
         <span class="tt-theme-sw">${t.colors.slice(0, 4).map(c => `<i style="background:${c}"></i>`).join('')}</span>
         <b>${t.name}</b></button>`).join('')}
+    </div>
+    <div class="ttd-apply" style="${state.ttThemePreview?'':'display:none;'}">
+      <button type="button" class="btn btn-ghost btn-sm" data-action="cancel-tt-theme">취소</button>
+      <button type="button" class="btn btn-primary btn-sm" data-action="confirm-tt-theme">이 테마로 적용</button>
     </div>
   `;
 }
@@ -8480,7 +8484,42 @@ function classModal(cls){
     </form>`;
 }
 
+// 수업 추가 중: 태블릿에서는 시간표 위에 "여기에 추가돼요" 하고 점선 칸으로 살짝 미리 보여 준다(요일 · 시간을 바꾸면 따라 움직인다).
+function clearClassGhosts(){ document.querySelectorAll('.tt-grid .tt-ghost').forEach(e=>e.remove()); }
+function updateClassGhosts(){
+  clearClassGhosts();
+  const form = document.getElementById('class-form');
+  if(!form || !document.documentElement.classList.contains('tab-ui')) return;
+  if(form.querySelector('[data-action="delete-class-group"]')) return;   // 새로 추가할 때만(수정 중엔 원래 칸이 이미 보인다)
+  const grid = document.querySelector('main .tt-grid');
+  if(!grid) return;
+  const rows = parseInt(grid.dataset.rows || '0', 10) || 0;
+  if(!rows) return;
+  const color = (document.getElementById('class-color-input') || {}).value || '#3C7AA0';
+  const text = (document.getElementById('class-text-color-input') || {}).value || '#FFFFFF';
+  const name = ((form.querySelector('[name="subject"]') || {}).value || '').trim() || '새 수업';
+  readCurrentFormSlots().forEach(sl=>{
+    if(!(sl.day >= 0 && sl.day <= 4) || !(sl.start >= TIME_START) || !(sl.end > sl.start)) return;
+    const startRow = 2 + Math.floor((sl.start - TIME_START) / TIMETABLE_GRID_STEP);
+    if(startRow > rows + 1) return;
+    const endRow = Math.min(rows + 2, Math.max(startRow + 1, 2 + Math.ceil((sl.end - TIME_START) / TIMETABLE_GRID_STEP)));
+    const g = document.createElement('div');
+    g.className = 'tt-block tt-ghost';
+    g.style.cssText = 'grid-column:' + (sl.day + 2) + '; grid-row:' + startRow + ' / ' + endRow + '; background:' + color + '; color:' + text + ';';
+    g.innerHTML = '<b>' + escapeHtml(name) + '</b><span class="time-tag">여기에 추가돼요</span>';
+    grid.appendChild(g);
+  });
+}
+function setupClassGhostListeners(){
+  const form = document.getElementById('class-form');
+  if(!form) return;
+  let t = 0;
+  const upd = ()=>{ clearTimeout(t); t = setTimeout(updateClassGhosts, 30); };
+  ['click', 'input', 'change'].forEach(ev=>form.addEventListener(ev, upd));
+  upd();
+}
 function setupClassModalListeners(){
+  setupClassGhostListeners();
   const btn = document.getElementById('btn-add-slot-row');
   if(btn){
     btn.onclick = () => {
@@ -14073,6 +14112,8 @@ function closeModal(){
     state.ttOpts = state.__ttOptsBackup; state.__ttOptsBackup = null;
     try{ renderMain(); }catch(_){}
   }
+  clearClassGhosts();
+  if(state.ttThemePreview){ state.ttThemePreview = null; try{ renderMain(); }catch(_){} }
   const ov=document.getElementById('modal-overlay');
   if(!ov) return;
   const wasOpen = ov.classList.contains('open');
@@ -16562,17 +16603,22 @@ document.addEventListener('click', async (e)=>{
         b.querySelectorAll('*').forEach(c=>{ c.style.color = tc; });
       });
       document.querySelectorAll('.tt-theme').forEach(x=>x.classList.toggle('on', x.dataset.theme === theme.id));
-      const bar = document.getElementById('ttd-apply'); if(bar) bar.style.display = '';
+      document.querySelectorAll('.ttd-apply').forEach(bar=>{ bar.style.display = ''; });
     }
     else if(a === 'confirm-tt-theme'){
       const id = state.ttThemePreview; state.ttThemePreview = null;
       const theme = TT_THEMES.find(t => t.id === id);
       if(!theme) return;
       const ok = await applyTimetableTheme(theme.id);
+      if(document.querySelector('#modal-overlay.open .ttd-apply')) closeModal();
       renderMain();
       saveResultToast(ok, `'${theme.name}' 테마를 적용했어요`);
     }
-    else if(a === 'cancel-tt-theme'){ state.ttThemePreview = null; renderMain(); }
+    else if(a === 'cancel-tt-theme'){
+      state.ttThemePreview = null; renderMain();
+      document.querySelectorAll('.ttd-apply').forEach(bar=>{ bar.style.display = 'none'; });
+      document.querySelectorAll('.tt-theme.on').forEach(x=>x.classList.remove('on'));
+    }
     else if(a === 'apply-tt-theme'){
       const theme = TT_THEMES.find(t => t.id === el.dataset.theme);
       if(!theme) return;
