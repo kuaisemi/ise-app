@@ -1114,7 +1114,7 @@ html.tab-ui.tab-wide main[data-view="home"] > .app-version{column-span:all;}
 html.tab-ui.tab-wide main[data-view="home"] > .section-title{break-after:avoid;}
 
 /* ---- 위쪽 바: 네모난 띠 대신 떠 있는 둥근 카드 ---- */
-html.tab-ui .topbar{margin:10px 16px 0; top:8px; border:1px solid var(--border); border-radius:20px; padding:10px 16px; box-shadow:0 6px 20px rgba(0,0,0,.18);}
+html.tab-ui .topbar{margin:calc(10px + var(--safe-top)) 16px 0; top:calc(8px + var(--safe-top)); border:1px solid var(--border); border-radius:20px; padding:10px 16px; box-shadow:0 6px 20px rgba(0,0,0,.18);}
 html.tab-ui main{padding-top:14px;}
 /* 태블릿 세로: 아래로 스크롤하면 맨 위 ISE 바도 위로 숨고, 올리면 다시 내려온다(둥근 메뉴와 같은 동작) */
 html.tab-ui:not(.tab-wide) .topbar{transition:transform .38s cubic-bezier(.22,1,.36,1), opacity .25s;}
@@ -1149,7 +1149,7 @@ html.tab-wide .modal-handle{display:none;}
 html.tab-wide .friends-page{left:auto; right:0; top:0 !important; bottom:0; width:clamp(380px, 38vw, 580px); max-width:none; border-radius:0; border:none; border-left:1px solid var(--border); overflow:hidden; transform:translateX(104%); box-shadow:-12px 0 32px rgba(0,0,0,.22); padding-top:var(--safe-top);}
 html.tab-wide .friends-page.open{transform:none;}
 /* 상태바(ISE · 버튼)는 위쪽 띠 대신 왼쪽 메뉴 위로 */
-html.tab-ui.tab-wide .topbar{position:fixed; left:clamp(8px, 1.2vw, 18px); top:14px; width:clamp(58px, 5.4vw, 76px); margin:0; padding:10px 4px; border-radius:30px; z-index:21; backdrop-filter:blur(16px);}
+html.tab-ui.tab-wide .topbar{position:fixed; left:clamp(8px, 1.2vw, 18px); top:calc(14px + var(--safe-top)); width:clamp(58px, 5.4vw, 76px); margin:0; padding:10px 4px; border-radius:30px; z-index:21; backdrop-filter:blur(16px);}
 html.tab-ui.tab-wide .topbar-row{flex-direction:column; gap:10px; justify-content:center;}
 html.tab-ui.tab-wide .topbar .brand-mini{flex-direction:column; gap:4px; font-size:10px;}
 html.tab-ui.tab-wide .topbar .brand-mini .mark svg{width:24px; height:24px;}
@@ -1223,7 +1223,7 @@ html.tab-wide .cal-left .meal-nav{max-width:none;}
 /* 왼쪽 위(ISE) · 왼쪽 아래(소셜 · 알림 · 내 정보) */
 html.tab-ui:not(.tab-wide) .rail-me{display:none;}
 .rail-me{display:none;}   /* 폰 · 일반 화면에서는 보이지 않는다(가로 태블릿 레일에서만) */
-html.tab-ui.tab-wide .topbar{top:14px; bottom:14px; width:clamp(58px, 5.4vw, 76px); height:auto; padding:0; background:none; border:none; box-shadow:none; backdrop-filter:none; pointer-events:none; border-radius:0;}
+html.tab-ui.tab-wide .topbar{top:calc(14px + var(--safe-top)); bottom:14px; width:clamp(58px, 5.4vw, 76px); height:auto; padding:0; background:none; border:none; box-shadow:none; backdrop-filter:none; pointer-events:none; border-radius:0;}
 html.tab-ui.tab-wide .topbar-row{display:flex; flex-direction:column; align-items:center; height:100%; gap:8px;}
 html.tab-ui.tab-wide .topbar-row > *{pointer-events:auto;}
 html.tab-ui.tab-wide .topbar .brand-mini{background:rgba(var(--surface-rgb),.94); border:1px solid var(--border); border-radius:22px; padding:10px 6px; width:100%; justify-content:center;}
