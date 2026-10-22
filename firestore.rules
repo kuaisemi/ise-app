@@ -378,6 +378,12 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
 
+    // 개인 일정(직접 추가한 일정·시험) — 본인만. 예전엔 shared/calendarEvents에 섞여 있어서
+    // 로그인한 누구나 남의 개인 일정까지 받아볼 수 있었다.
+    match /personalEvents/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
     // 공용 문서별 "마지막으로 바뀐 시각" — 접속할 때 이 문서 하나만 읽고, 시각이 그대로인 문서는 다시 읽지 않는다.
     match /shared/ver { allow read, write: if isSignedIn(); }
     match /shared/recruitments { allow read, write: if isSignedIn(); }

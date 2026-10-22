@@ -3005,7 +3005,7 @@ const state = {
   mealDate: null, calendarMonth: null, selectedExamDate: null,
   showCouncilEvents: true,
   showAcademicEvents: true,
-  timetable: [], calendar: [], meals: {},
+  timetable: [], calendar: [], sharedCalendar: [], myEvents: [], meals: {},
   notices: [], polls: [],
   recruitmentPosts: [],
   allUsers: {}, roster: {}, ocrParsedClasses: [],
@@ -4059,6 +4059,75 @@ function visibleCalendar(){ return live(state.calendar).filter(ev=>!isPersonalEv
 async function loadCalendar(){ return (await loadShared('calendarEvents',{events:[]})).events || []; }
 async function saveCalendar(a){ return await saveShared('calendarEvents',{events:a}); }
 
+/* ===== 개인 일정 (personalEvents/{uid}) ===== */
+// 개인 일정은 예전엔 전교생 공용 문서 shared/calendarEvents에 같이 들어 있었다. 화면에서는 본인 것만
+// 보이게 걸렀지만 실제로는 모두가 남의 일정까지 통째로 내려받았고(개인정보·문서 크기), 개인 일정을
+// 하나 고칠 때마다 공용 문서 버전이 올라가 전원이 학사일정을 다시 읽었다. 이제 사람마다 문서 하나.
+// state.calendar는 화면용으로 "공용 일정 + 내 일정"을 합친 목록이고, 원본은 sharedCalendar·myEvents 둘이다.
+function mergeCalendar(){
+  const mine = state.myEvents || [];
+  const myIds = new Set(mine.map(e=>e.id));
+  // 공용 문서에 남은 개인 일정은 남의 것이면 버리고, 내 것이면 아직 옮겨지기 전인 것만 보여준다.
+  const shared = (state.sharedCalendar || []).filter(ev=>!isPersonalEvent(ev) || (isMyEvent(ev) && !myIds.has(ev.id)));
+  return shared.concat(mine);
+}
+function setSharedCalendar(list){ state.sharedCalendar = list || []; state.calendar = mergeCalendar(); }
+async function loadMyEvents(uidStr, fresh){
+  const localVal = localGet('myev_'+uidStr, null);
+  if(!fresh && localVal && ownSyncFresh('myev', uidStr)) return localVal;
+  try{
+    const snap = await getDoc(doc(db,'personalEvents',uidStr));
+    const events = (snap.exists() && snap.data().events) || [];
+    localSet('myev_'+uidStr, events);
+    ownSyncMark('myev', uidStr);
+    return events;
+  }catch(e){
+    if(fresh) throw e;
+    return localVal || [];
+  }
+}
+// 저장 직전에 서버 최신본을 다시 읽고 그 위에 고친다 — 다른 기기에서 그날 추가한 일정을 덮어쓰지 않게.
+// fn이 null을 돌려주면 바뀐 게 없는 것이라 쓰지 않는다.
+async function mutateMyEvents(fn){
+  if(!state.user || !auth.currentUser){ LAST_SAVE_ERROR = 'unauthenticated'; return false; }
+  const u = state.user.uid;
+  let cur;
+  try{ cur = await loadMyEvents(u, true); }
+  catch(e){ LAST_SAVE_ERROR = (e && e.code) || 'unknown'; return false; }
+  const next = fn(cur);
+  if(!next) return true;
+  const payload = { events: next, updatedAt: now() };
+  if(approxDocBytes(payload) > DOC_SIZE_WARN){ LAST_SAVE_ERROR = 'doc-too-large'; return false; }
+  try{ await withSaveTimeout(setDoc(doc(db,'personalEvents',u), payload), 12000); }
+  catch(e){ LAST_SAVE_ERROR = (e && e.code) || 'unknown'; return false; }
+  LAST_SAVE_ERROR = '';
+  localSet('myev_'+u, next);
+  state.myEvents = next;
+  state.calendar = mergeCalendar();
+  return true;
+}
+function upsertMyEvent(obj){
+  return mutateMyEvents(cur => cur.some(x=>x.id===obj.id) ? cur.map(x=>x.id===obj.id ? { ...x, ...obj } : x) : [...cur, obj]);
+}
+// 예전 방식으로 공용 문서에 들어가 있던 내 개인 일정을 내 문서로 옮긴다. 내 문서 저장이 성공한
+// 뒤에만 공용 쪽에서 지운다 — 중간에 실패해도 일정이 사라지지 않는다. 구버전 앱이 공용 문서에
+// 새로 적은 것도 다음 접속 때 여기서 같이 옮겨진다.
+async function migrateLegacyPersonalEvents(){
+  if(!state.user) return;
+  const legacy = live(state.sharedCalendar).filter(ev=>isPersonalEvent(ev) && isMyEvent(ev));
+  if(!legacy.length) return;
+  const ok = await mutateMyEvents(cur=>{
+    const have = new Set(cur.map(e=>e.id));
+    const add = legacy.filter(e=>!have.has(e.id));
+    return add.length ? [...cur, ...add] : null;
+  });
+  if(!ok) return;
+  const ids = new Set(legacy.map(e=>e.id));
+  const latest = await loadCalendar();
+  const next = latest.filter(e=>!ids.has(e.id));
+  if(next.length !== latest.length && await saveCalendar(next)) setSharedCalendar(next);
+}
+
 /* ===== 일정 알림 예약 (notifyQueue) ===== */
 // 일정에 "알림 받기"를 켜면 여기 문서가 하나 생기고, Cloudflare Worker가 매분 "발송 시각이 된"
 // 문서를 찾아 FCM으로 보낸다. 앱이나 브라우저가 꺼져 있어도 오는 이유가 이것 — 기기 로컬
@@ -4447,7 +4516,7 @@ async function saveRoster(m){ return await saveShared('roster',{map:m}); }
 function ownSyncDay(){ return new Date(Date.now() + 6 * 3600 * 1000).toISOString().slice(0, 10); }
 function ownSyncFresh(kind, uidStr){ return localGet('own_sync_' + kind + '_' + uidStr, '') === ownSyncDay(); }
 function ownSyncMark(kind, uidStr){ localSet('own_sync_' + kind + '_' + uidStr, ownSyncDay()); }
-function ownSyncReset(){ try{ if(state.user){ localSet('own_sync_tt_' + state.user.uid, ''); localSet('own_sync_memos_' + state.user.uid, ''); localSet('own_sync_remind_' + state.user.uid, ''); } }catch(e){} }
+function ownSyncReset(){ try{ if(state.user){ localSet('own_sync_tt_' + state.user.uid, ''); localSet('own_sync_memos_' + state.user.uid, ''); localSet('own_sync_remind_' + state.user.uid, ''); localSet('own_sync_myev_' + state.user.uid, ''); } }catch(e){} }
 async function loadTimetable(uidStr){
   const localVal = localGet('tt_'+uidStr, null); // 최신 형식: { bySemester, activeSemester }
   const localAt = localGet('tt_at_'+uidStr, 0);
@@ -6640,7 +6709,7 @@ async function scheduleTimetableReminders(list){
 // 로그인할 때마다 두 번 받아오면 그만큼 초기 로딩이 느려진다).
 async function loadAllData(preloadedUsers){
   try{
-    const [ttData,cal,meals,notices,polls,users,recruits,roster,deptN,memos,shuttle,holidays,sentReminders] = await Promise.all([
+    const [ttData,cal,meals,notices,polls,users,recruits,roster,deptN,memos,shuttle,holidays,sentReminders,myEvents] = await Promise.all([
       (state.user ? loadTimetable(state.user.uid) : Promise.resolve({bySemester:{}, activeSemester:null})).catch(()=>({bySemester:{}, activeSemester:null})),
       loadCalendar().catch(()=>[]),
       loadMeals().catch(()=>({})),
@@ -6655,12 +6724,14 @@ async function loadAllData(preloadedUsers){
       loadShuttle().catch(()=>({weekday:[],sunday:[],fridayOffNos:[],updatedAt:0})),
       loadHolidays().catch(()=>({byYear:{},updatedAt:0})),
       loadSentRemindersCached().catch(()=>[]),
+      (state.user ? loadMyEvents(state.user.uid) : Promise.resolve([])).catch(()=>[]),
     ]);
     state.timetablesBySemester = (ttData && ttData.bySemester) || {};
     state.activeSemester = (ttData && ttData.activeSemester) || sortedSemesterKeys()[0] || null;
     state.activeVariant = 0;
     syncActiveTimetable();
-    state.calendar=cal||[]; state.meals=meals||{};
+    state.myEvents = myEvents || [];
+    setSharedCalendar(cal||[]); state.meals=meals||{};
     state.notices=notices||[]; state.polls=polls||[];
     state.allUsers=users||{}; state.recruitmentPosts=recruits||[];
     state.roster=roster||{};
@@ -6672,6 +6743,7 @@ async function loadAllData(preloadedUsers){
     state.shuttle = shuttle || {weekday:[],sunday:[],fridayOffNos:[]};
     state.holidays = holidays || {byYear:{},updatedAt:0};
     state.sentReminders = sentReminders || [];
+    migrateLegacyPersonalEvents().catch(e=>console.warn('[myev migrate]', e));
   }catch(e){}
 }
 
@@ -6685,7 +6757,7 @@ async function refreshShared(force){
         loadCalendar(), loadMeals(), loadNotices(),
         loadPolls(), loadRecruitments()
       ]);
-      state.calendar=cal; state.meals=meals; state.notices=notices;
+      setSharedCalendar(cal); state.meals=meals; state.notices=notices;
     sharedFetchedAt = Date.now(); usersFetchedAt = Date.now();
       state.polls=polls;
       state.recruitmentPosts=recruits;
@@ -9021,7 +9093,7 @@ function setupCalendarOcrModalListeners(){
       });
       const next=[...latest, ...additions];
       const ok=await saveCalendar(next);
-      state.calendar=next;
+      setSharedCalendar(next);
       closeModal(); renderMain();
       saveResultToast(ok, `${additions.length}건의 학사일정이 등록되었습니다`);
     };
@@ -9114,7 +9186,7 @@ function setupOfficialScheduleModalListeners(){
       const latest = await loadCalendar();
       const existing = new Set(live(latest).map(e=>e.title+'|'+e.startDate));
       const fresh = items.filter(it=>!existing.has(it.title+'|'+it.startDate));
-      state.calendar = latest;
+      setSharedCalendar(latest);
       if(!fresh.length){
         renderMain();
         statusBox.innerHTML = `<span style="color:var(--teal);">✓ 사이트의 학사일정 ${items.length}건을 확인했어요 · 새로 추가할 일정이 없어요</span>`;
@@ -9128,7 +9200,7 @@ function setupOfficialScheduleModalListeners(){
       const additions = fresh.map(it=>({ id:uid(), title:it.title, startDate:it.startDate, endDate:it.endDate, category:it.category, source:'official', color:'', description:'', authorId:state.user.studentId, authorRole:myRole(), updatedAt:now() }));
       const next = [...latest, ...additions];
       const ok = await saveCalendar(next);
-      state.calendar = next;
+      setSharedCalendar(next);
       renderMain();
       const list = additions.slice(0, 6).map(a=>`${escapeHtml(a.title)} <span style="color:var(--text-faint);">(${a.startDate})</span>`).join('<br>');
       statusBox.innerHTML = ok
@@ -9147,7 +9219,7 @@ function setupOfficialScheduleModalListeners(){
     try{
       const before = state.calendar.length;
       const latest = await loadCalendar();
-      state.calendar = latest;
+      setSharedCalendar(latest);
       renderMain();
       const officialCount = live(latest).filter(e=>e.source==='official').length;
       statusBox.innerHTML = `<span style="color:var(--teal);">최신 상태로 불러왔어요 · 공식 학사일정 ${officialCount}건</span>`;
@@ -9262,10 +9334,10 @@ async function deleteAllCalendarEvents(){
   const latest = await loadCalendar();
   // 개인 시험 일정(exam)은 어느 쪽에서도 건드리지 않는다. 학생회 일정은 category==='council',
   // 학사일정은 그 외 나머지(공식 학사일정 포함).
-  const inScope = (e) => e.category !== 'exam' && ((e.category==='council') === (kind==='council'));
+  const inScope = (e) => !isPersonalEvent(e) && ((e.category==='council') === (kind==='council'));
   const next = latest.map(e => (!e.deleted && inScope(e)) ? { ...e, deleted: true, updatedAt: now() } : e);
   const ok = await saveCalendar(next);
-  state.calendar = next;
+  setSharedCalendar(next);
   renderMain();
   saveResultToast(ok, `${label}이 모두 삭제되었습니다`);
 }
@@ -9707,8 +9779,6 @@ async function handleExamSubmit(fd){
   description = details.join('\n');
 
   const id = (fd.get('itemId')||'').trim();
-  const latest = await loadCalendar();
-  const existing = latest.find(x=>x.id===id);
   const obj = {
     id: id || uid(),
     title: (fd.get('title')||'').trim(),
@@ -9717,14 +9787,12 @@ async function handleExamSubmit(fd){
     color: fd.get('color') || COLORS[2].hex,
     linkedClassSubject: linkedClass || '',
     description,
-    // 수정일 때는 원래 작성자를 유지한다(handleEventSubmit과 같은 이유).
-    authorId: existing ? existing.authorId : state.user.studentId,
-    authorRole: existing ? existing.authorRole : myRole(),
+    authorId: state.user.studentId,
+    authorRole: myRole(),
     updatedAt: now()
   };
-  const next = existing ? latest.map(x=>x.id===obj.id ? {...x, ...obj} : x) : [...latest, obj];
-  const ok = await saveCalendar(next);
-  state.calendar = next;
+  // 시험 일정은 개인 일정 — 내 문서(personalEvents)에만 저장한다.
+  const ok = await upsertMyEvent(obj);
   // 시험 일정은 개인 일정이라 전교생 발송은 없고 본인에게만 간다.
   if(ok) await syncScheduleReminder(fd, obj, false);
   closeModal();
@@ -15429,6 +15497,7 @@ async function logout(){
   await releasePushTokenForLogout(state.user && state.user.uid);
   state.user=null;
   state.memos={}; // 개인 메모가 다음 로그인 사용자에게 잠깐이라도 보이지 않게 비운다
+  state.myEvents=[]; setSharedCalendar(state.sharedCalendar); // 개인 일정도 같은 이유로 비운다
   await signOut(auth).catch(()=>{});
   renderApp();
 }
@@ -15606,26 +15675,26 @@ async function handleEventSubmit(fd){
   if(description) details.push(description);
   description = details.join('\n');
 
-  const latest = await loadCalendar();
-  const existing = latest.find(x => x.id === id);
-  const obj = {
-    id: id || uid(),
-    title,
-    startDate,
-    endDate,
-    category,
-    source,
-    color,
-    description,
-    // 수정일 때는 원래 작성자를 유지한다 — 국장 이상은 남의 개인 일정도 지울 수 있어서
-    // 수정도 할 수 있는데, 그걸 편집한다고 소유권이 편집자로 넘어가면 안 된다.
-    authorId: existing ? existing.authorId : state.user.studentId,
-    authorRole: existing ? existing.authorRole : myRole(),
-    updatedAt: now()
-  };
-  const next = existing ? latest.map(x => x.id === obj.id ? { ...x, ...obj } : x) : [...latest, obj];
-  const ok = await saveCalendar(next);
-  state.calendar = next;
+  const base = { title, startDate, endDate, category, source, color, description, updatedAt: now() };
+  let ok, obj;
+  if(isPersonalEvent(base)){
+    // 개인 일정은 내 문서(personalEvents)에만 저장한다 — 본인만 읽고 쓸 수 있다.
+    obj = { id: id || uid(), ...base, authorId: state.user.studentId, authorRole: myRole() };
+    ok = await upsertMyEvent(obj);
+  }else{
+    const latest = await loadCalendar();
+    const existing = latest.find(x => x.id === id);
+    obj = {
+      id: id || uid(),
+      ...base,
+      // 수정일 때는 원래 작성자를 유지한다 — 학생회 일정을 다른 임원이 고쳐도 소유권이 넘어가면 안 된다.
+      authorId: existing ? existing.authorId : state.user.studentId,
+      authorRole: existing ? existing.authorRole : myRole(),
+    };
+    const next = existing ? latest.map(x => x.id === obj.id ? { ...x, ...obj } : x) : [...latest, obj];
+    ok = await saveCalendar(next);
+    setSharedCalendar(next);
+  }
   // 알림 예약은 일정이 실제로 저장된 뒤에만 건다 — 저장이 실패했는데 알림만 남으면
   // 존재하지 않는 일정 알림이 오게 된다.
   // 전교생 발송은 학사일정(official)·학생회 일정처럼 모두가 보는 일정에서만 가능하다.
@@ -15644,12 +15713,19 @@ async function deleteEvent(id){
     return;
   }
   if(!await showConfirm('이 일정을 삭제할까요?')) return;
-  const latest = await loadCalendar();
-  const next = latest.map(x => x.id === id ? { ...x, deleted: true, updatedAt: now() } : x);
-  const ok = await saveCalendar(next);
+  let ok = true;
+  if(target && isPersonalEvent(target)){
+    ok = await mutateMyEvents(cur => cur.some(x=>x.id===id) ? cur.filter(x=>x.id!==id) : null);
+  }
+  // 학사·학생회 일정, 그리고 아직 내 문서로 옮겨지기 전 공용 문서에 남아 있던 예전 개인 일정
+  if(ok && (!target || !isPersonalEvent(target) || live(state.sharedCalendar).some(x=>x.id===id))){
+    const latest = await loadCalendar();
+    const next = latest.map(x => x.id === id ? { ...x, deleted: true, updatedAt: now() } : x);
+    ok = await saveCalendar(next);
+    setSharedCalendar(next);
+  }
   // 일정이 사라졌으니 걸려 있던 예약 알림도 같이 취소한다.
   if(ok) await deleteScheduleReminder(id);
-  state.calendar = next;
   closeModal();
   renderMain();
   saveResultToast(ok, '일정이 삭제되었습니다');
@@ -16109,6 +16185,7 @@ async function handleDeleteAccountSubmit(fd){
   try{
     await deleteDoc(doc(db, 'timetables', uidStr)).catch(() => {});
     await deleteDoc(doc(db, 'userMeta', uidStr)).catch(() => {});
+    await deleteDoc(doc(db, 'personalEvents', uidStr)).catch(() => {});
     await deleteDoc(doc(db, 'memos', uidStr)).catch(() => {});
     await deleteDoc(doc(db, 'signupInquiries', uidStr)).catch(() => {});
     // 친구 관계 문서도 지운다(내가 포함된 것만 규칙이 허용한다). 실패해도 탈퇴는 계속한다.
