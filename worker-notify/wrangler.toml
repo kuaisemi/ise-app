@@ -13,7 +13,8 @@ workers_dev = false
 
 # 매분 1회 실행. Cron Trigger는 이 파일에 적혀 있으면 deploy할 때 같이 등록된다.
 [triggers]
-crons = ["* * * * *"]
+# 두 번째(5분마다)는 식단 수집 전용 — src/index.js의 MEAL_FETCH_CRON과 문자열이 같아야 한다.
+crons = ["* * * * *", "2-57/5 * * * *"]
 
 # FCM 액세스 토큰과 수신 대상 목록을 캐싱해서 매분 새로 만들지 않는다.
 # 배포 전에 아래 명령으로 만들고 나온 id를 여기에 붙여넣어야 한다:

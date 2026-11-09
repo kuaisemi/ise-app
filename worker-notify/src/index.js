@@ -16,6 +16,7 @@
 //                           RSA 서명)은 결과를 KV에 55분 캐싱해서 하루 30번 이하로 줄였다.
 
 import { MEAL_SLOTS, planMealMessages, slotHasMenu } from './meal.js';
+import { fetchMealHtml, parseMealHtml, mergeMeals } from './mealfetch.js';
 
 /* ===== 무료 한도 관리 ===== */
 // 50개가 상한이다. 한 번의 실행에서 큐 발송(아래 36) + 학식 푸시(최대 10) + 워크플로 실행 요청(1)이
@@ -707,8 +708,83 @@ async function maybeDispatchResetWorkflow(env) {
   }
 }
 
+/* ===== 식단 수집 =====
+   학교 페이지에서 이번 주 식단을 받아 shared/meals에 넣는다. 원래 GitHub Actions만 했는데 그 크론이
+   드문드문 돌아 월요일 아침 식단이 비곤 했다(→ 관리자가 앱을 열어 직접 불러와야 했음).
+   별도 크론(wrangler.toml의 두 번째 trigger, 5분마다)으로 돌려서 CPU 한도를 다른 일과 나눠 쓰지 않는다.
+   평일 05:00~20:00(KST)에만, 이번 주 식단이 아직 없을 때만 학교 페이지를 부른다. 성공하면 그 주는 끝. */
+function fsEncode(v) {
+  if (v == null) return { nullValue: null };
+  if (typeof v === 'string') return { stringValue: v };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(fsEncode) } };
+  return { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fsEncode(x)])) } };
+}
+function stableMeals(o) {
+  return JSON.stringify(o, (k, v) => {
+    if (k === 'updatedAt') return undefined;
+    if (v && typeof v === 'object' && !Array.isArray(v)) return Object.fromEntries(Object.keys(v).sort().map((x) => [x, v[x]]));
+    return v;
+  });
+}
+const MEAL_FETCH_CRON = '2-57/5 * * * *'; // wrangler.toml의 두 번째 trigger와 같아야 한다
+async function runMealFetch(env, scheduledTime) {
+  if (env.MEAL_FETCH === 'off') return { fetched: false };
+  const kst = new Date(scheduledTime + 9 * 3600 * 1000);
+  const dow = kst.getUTCDay();
+  if (dow === 0 || dow === 6) return { fetched: false };
+  const hour = kst.getUTCHours();
+  if (hour < 5 || hour >= 20) return { fetched: false };
+  // 07시 이후엔 10분 간격으로 줄인다(아침 식단이 급한 건 첫 알림 전까지).
+  if (hour >= 8 && kst.getUTCMinutes() % 10 >= 5) return { fetched: false };
+
+  const monday = new Date(kst.getTime() - (dow - 1) * 86400000).toISOString().slice(0, 10);
+  const sunday = new Date(kst.getTime() + (7 - dow) * 86400000).toISOString().slice(0, 10);
+  const okKey = `meal-fetch-ok:${monday}`;
+  if (await env.NOTIFY_CACHE.get(okKey)) return { fetched: false };
+
+  const budget = makeBudget(8);
+  const token = await getAccessToken(env, budget);
+  const cur = await fsGetDocMasked(env, token, 'shared/meals', ['byDate'], budget);
+  const prevByDate = (cur && cur.byDate) || {};
+
+  const html = await fetchMealHtml();
+  budget.spend();
+  const results = parseMealHtml(html, kst.getUTCFullYear(), kst.getUTCMonth() + 1);
+  if (!results.length) throw new Error('식단표 구조를 인식하지 못함');
+  const byDate = mergeMeals(prevByDate, results, monday, sunday, Date.now());
+  if (!byDate) { console.log('[meal-fetch] 이번 주 식단이 아직 올라오지 않음'); return { fetched: false }; }
+
+  if (stableMeals(byDate) !== stableMeals(prevByDate)) {
+    budget.spend();
+    const base = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/shared`;
+    const res = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}:commit`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        writes: [
+          // byDate 통째로 교체(지난 주 날짜 정리 포함). 다른 필드는 건드리지 않는다.
+          { update: { name: `${base}/meals`, fields: { byDate: fsEncode(byDate) } }, updateMask: { fieldPaths: ['byDate'] } },
+          // 앱들이 "식단이 바뀌었다"를 알아채는 버전 표시(notify/fetch-sources.mjs bumpShared와 같다).
+          { update: { name: `${base}/ver`, fields: { meals: { integerValue: String(Date.now()) } } }, updateMask: { fieldPaths: ['meals'] } },
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(`식단 저장 실패 ${res.status} ${(await res.text()).slice(0, 200)}`);
+    console.log('[meal-fetch] 이번 주 식단 저장 완료');
+  }
+  await env.NOTIFY_CACHE.put(okKey, '1', { expirationTtl: 8 * 86400 });
+  return { fetched: true };
+}
+
 export default {
   async scheduled(event, env, ctx) {
+    // 5분 간격 두 번째 크론은 식단 수집 전용(CPU 한도를 따로 쓰려고 분리). 나머지 일은 매분 크론이 한다.
+    if (event.cron === MEAL_FETCH_CRON) {
+      ctx.waitUntil(runMealFetch(env, event.scheduledTime).catch((e) => console.error('[meal-fetch] 오류:', e && e.message)));
+      return;
+    }
     ctx.waitUntil(
       maybeDispatchResetWorkflow(env).catch((e) => console.error('[reset-dispatch] 오류:', e && e.message))
     );
