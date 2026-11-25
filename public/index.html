@@ -194,6 +194,28 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .board-menu.open{display:block;}
 .board-opt{display:block; width:100%; text-align:left; padding:9px 12px; border:0; border-radius:8px; background:transparent; color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer;}
 .board-opt.on{background:var(--crimson); color:var(--on-crimson,#fff);}
+.legal-links{display:flex; justify-content:center; flex-wrap:wrap; gap:4px 6px; margin-bottom:4px; font-size:10px;}
+.legal-links a{color:var(--text-faint); text-decoration:underline;}
+.legal-links span{color:var(--text-faint); opacity:.6;}
+.consent-check.consent-sm{font-size:10.5px; color:var(--text-dim);}
+.consent-check.consent-sm a{color:var(--teal); text-decoration:underline;}
+.legal-overlay{position:fixed; inset:0; z-index:90; background:rgba(4,6,10,.78); display:flex; align-items:center; justify-content:center; padding:16px;}
+.legal-sheet{background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:14px; width:100%; max-width:520px; max-height:86vh; display:flex; flex-direction:column; overflow:hidden;}
+.legal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); font-size:14.5px;}
+.legal-x{background:none; border:0; color:var(--text-dim); font-size:16px; cursor:pointer; padding:4px 8px;}
+.legal-scroll{overflow:auto; padding:12px 16px 18px; -webkit-overflow-scrolling:touch;}
+.legal-doc{font-size:12px; line-height:1.7; color:var(--text-dim);}
+.legal-doc h4{font-size:12.5px; color:var(--text); margin:14px 0 4px;}
+.legal-doc p{margin:0 0 6px;}
+.legal-doc b{color:var(--text);}
+.legal-doc .lg-meta{font-size:11px; color:var(--text-faint);}
+.legal-gate{position:fixed; inset:0; z-index:60; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:20px; overflow:auto;}
+.legal-gate-card{width:100%; max-width:420px;}
+.legal-gate .lg-title{font-size:18px; font-weight:800; margin:0 0 8px; color:var(--text);}
+.legal-gate .lg-desc{font-size:12.5px; line-height:1.65; color:var(--text-dim); margin:0 0 14px;}
+.legal-gate .lg-links{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+.legal-gate .btn{margin-top:8px;}
+.legal-gate .lg-foot{font-size:10.5px; color:var(--text-faint); line-height:1.6; margin:12px 0 0;}
 .signup-consent{margin:4px 0 12px;}
 .signup-consent .consent-title{font-size:12px; font-weight:700; margin:0 0 6px; color:var(--text);}
 .signup-consent .consent-box{font-size:10.5px; line-height:1.7; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 11px; margin-bottom:8px; max-height:140px; overflow:auto;}
@@ -4585,6 +4607,7 @@ function boot(){
             role: ROLES[currentRole] ? currentRole : 'student',
             suspension: udoc.suspension || null,
             warnings: udoc.warnings || [],
+            consentV: (udoc.consent && udoc.consent.v) || '',
           };
           // 알림 목록의 "읽음/지움" 상태를 기기 로컬(localStorage)에만 두면, 앱을 지우고 새로
           // 깔거나 다른 기기로 바꿨을 때 이미 확인한 알림이 다시 나타난다. 로그인할 때
@@ -4618,6 +4641,8 @@ function boot(){
         renderApp();
         // 로그인 전에 알림을 눌러서 들어온 경우, 이제 화면이 있으니 미뤄둔 이동을 처리한다.
         if(state.pendingNotifRoute){ const r=state.pendingNotifRoute; state.pendingNotifRoute=null; routeNotificationTap(r.category, r.data); }
+        // 약관·방침이 새로 생겼거나 바뀌었는데 아직 동의하지 않은 계정은 동의 화면이 앱을 가린다(동의하면 환영·안내가 이어진다).
+        if(needsLegalConsent()){ showLegalGate(); return; }
         toast(`${state.user.name}님 환영합니다`);
         // 화면이 그려진 뒤에 안내를 띄운다(부팅 중 흰 화면 위에 뜨는 것 방지)
         setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
@@ -6776,8 +6801,160 @@ const ICON = {
 const DEFAULT_HOME_ORDER = ['timetable','recruits','meal','shuttle','calendar','mine'];
 
 /* ===== 렌더 ===== */
-function renderApp(){ if(!state.user) renderAuth(); else renderShell(); if(!window.__uiSkipSync) uiSyncLayers(); }
-function versionFooter(){ return `<div class="app-version">ISE · ${APP_VERSION}</div>`; }
+function renderApp(){ if(!state.user) closeLegalGate(); if(!state.user) renderAuth(); else renderShell(); if(!window.__uiSkipSync) uiSyncLayers(); }
+function versionFooter(){
+  return `<div class="app-version"><div class="legal-links"><a href="#" data-legal="terms">이용약관</a><span>·</span><a href="#" data-legal="privacy">개인정보처리방침</a><span>·</span><a href="#" data-legal="cookies">쿠키·저장소 정책</a></div>ISE · ${APP_VERSION}</div>`;
+}
+
+/* ===== 이용약관 · 개인정보처리방침 · 쿠키(저장소) 정책 =====
+ * 내용을 바꾸면 LEGAL_VERSION도 같이 올린다. 가입자의 users/{uid}.consent.v 가 이 값과 다르면
+ * 로그인 직후 동의 화면(showLegalGate)이 앱을 가리고, 다시 동의해야 이용할 수 있다.
+ * 가입 화면과 로그인 화면에서도 같은 글(openLegalDoc)을 볼 수 있다(모달 루트가 없는 화면이라 자체 오버레이를 쓴다). */
+const LEGAL_VERSION = '2026-11-25';
+const LEGAL_EFFECTIVE = '2026년 11월 25일';
+const LEGAL_DOCS = {
+  terms: { title:'이용약관', html:`
+    <p class="lg-meta">시행일 ${LEGAL_EFFECTIVE}</p>
+    <h4>제1조 (목적)</h4>
+    <p>이 약관은 고려대학교 지능형반도체공학과 학생회(이하 "운영자")가 제공하는 ISE 앱(이하 "서비스")의 이용 조건과 운영자·이용자의 권리와 의무를 정합니다.</p>
+    <h4>제2조 (이용 자격과 가입)</h4>
+    <p>서비스는 학과 재학생과 학생회를 위한 것입니다. 이용자는 학번·실명·출생연도를 사실대로 입력해야 하고, 학과 명단과 일치하지 않으면 가입이 제한될 수 있습니다. 만 14세 미만은 가입할 수 없습니다. 타인의 정보로 가입하거나 계정을 양도·공유할 수 없습니다.</p>
+    <h4>제3조 (서비스 내용)</h4>
+    <p>시간표, 학사일정, 학식, 공지·게시판, 투표, 구인, 친구·채팅, 메모, 알림 등을 제공합니다. 운영자는 서비스를 개선하기 위해 기능을 바꾸거나 중단할 수 있으며, 중요한 변경은 앱 안에서 알립니다.</p>
+    <h4>제4조 (이용자의 의무)</h4>
+    <p>이용자는 다음 행위를 해서는 안 됩니다: 타인의 정보 도용, 욕설·비방·차별·음란·불법 게시물 작성, 서비스의 정상 운영을 방해하는 행위(과도한 요청, 취약점 악용, 자동화 도구를 이용한 접근 등), 권한 없는 정보 열람·수정, 학생회 인증코드의 부정 사용.</p>
+    <h4>제5조 (게시물)</h4>
+    <p>이용자가 올린 게시물·메모·채팅의 책임은 작성자에게 있습니다. 운영자는 규칙을 어긴 게시물을 숨기거나 삭제하고, 위반한 이용자에게 경고·이용 정지 등의 조치를 할 수 있습니다.</p>
+    <h4>제6조 (이용 제한과 탈퇴)</h4>
+    <p>이용자는 언제든지 MY → 회원 탈퇴로 계정을 삭제할 수 있습니다. 운영자는 약관 위반 시 경고, 일정 기간 정지, 계정 삭제 등의 조치를 할 수 있습니다. 장기간 접속하지 않은 계정은 보호를 위해 잠길 수 있습니다.</p>
+    <h4>제7조 (책임의 제한)</h4>
+    <p>서비스는 학생회가 운영하는 비영리 서비스이며, 학사일정·학식·시간표 등은 참고용입니다. 공식 정보는 학교 공지를 확인해야 합니다. 천재지변, 외부 서비스(Google Firebase 등)의 장애로 인한 서비스 중단에 대해 운영자는 고의 또는 중대한 과실이 없는 한 책임지지 않습니다.</p>
+    <h4>제8조 (약관의 변경)</h4>
+    <p>약관을 바꿀 때는 시행 전에 앱 안에서 알리며, 중요한 변경은 다시 동의를 받습니다. 동의하지 않으면 서비스를 이용할 수 없으며 회원 탈퇴를 할 수 있습니다.</p>
+    <h4>제9조 (문의)</h4>
+    <p>서비스 이용 문의와 신고는 앱 안의 건의·버그 제보 기능 또는 이메일(kuaisemi@gmail.com)로 접수합니다.</p>` },
+  privacy: { title:'개인정보처리방침', html:`
+    <p class="lg-meta">시행일 ${LEGAL_EFFECTIVE}</p>
+    <p>고려대학교 지능형반도체공학과 학생회(이하 "운영자")는 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 아래와 같이 처리합니다.</p>
+    <h4>1. 수집하는 항목</h4>
+    <p><b>가입 시</b>: 학번, 이름(실명), 출생연도(본인 확인용·명단에 있는 경우), 비밀번호(Google Firebase Authentication이 암호화해 처리하며 운영자는 보관하지 않음)<br>
+    <b>이용 중 생성</b>: 시간표, 메모·개인 일정, 친구 관계, 채팅 메시지, 작성한 게시글·댓글·투표·구인글·제보, 알림 설정, 닉네임·프로필 꾸미기 정보<br>
+    <b>자동 수집</b>: 푸시 알림 기기 식별값(FCM 토큰), 접속 시각·최종 접속 IP 등 접속 기록, 하루 방문 집계, 앱 버전</p>
+    <h4>2. 이용 목적</h4>
+    <p>재학생 본인 확인과 명단 대조, 시간표·공지·투표·채팅 등 서비스 제공, 푸시 알림 발송, 부정 이용 방지와 분쟁 처리, 서비스 개선을 위한 이용 현황 집계.</p>
+    <h4>3. 보유 및 이용 기간</h4>
+    <p>회원 탈퇴 시까지 보유하며, 탈퇴하면 계정과 시간표·메모·개인 일정·접속 기록·친구 검색 정보 등을 삭제합니다. 다만 다음은 예외입니다. ① 친구와 주고받은 채팅 메시지는 상대방의 대화 기록이기도 해서 탈퇴만으로는 자동 삭제되지 않으며, 삭제를 요청하면 운영자가 처리합니다. ② 운영 기록(경고·정지·관리 로그)은 부정 이용 방지를 위해 필요한 범위에서 보관합니다. ③ 1년 이상 접속하지 않은 계정은 잠길 수 있고, 이 경우 정보는 삭제되지 않고 보관됩니다.</p>
+    <h4>4. 처리 위탁과 외부 서비스</h4>
+    <p>서비스 운영을 위해 아래 외부 서비스를 이용하며, 해당 서비스로 개인정보가 전송·저장될 수 있습니다.<br>
+    · Google Firebase(Authentication, Firestore, Cloud Messaging): 로그인, 데이터 저장, 푸시 알림<br>
+    · Cloudflare(Workers): 학식 수집, 알림 예약, 외부 요청 중계<br>
+    · Google Gemini API: 시간표·학사일정 사진 인식 기능을 쓸 때 선택한 사진이 전송됨<br>
+    · GitHub Actions: 알림 발송 등 예약 작업(개인정보 저장 없음)<br>
+    그 밖에 이용자의 동의 없이 개인정보를 제3자에게 제공하지 않습니다(법령에 근거가 있는 경우 제외). 해외에 있는 서버에 저장될 수 있습니다.</p>
+    <h4>5. 이용자의 권리</h4>
+    <p>이용자는 언제든지 자신의 개인정보를 열람·정정·삭제하거나 처리 정지를 요청할 수 있습니다. 앱의 MY → "개인정보 삭제 요청"에서 안내에 따라 직접 삭제(회원 탈퇴)하거나, 이메일(kuaisemi@gmail.com)로 요청할 수 있습니다. 동의를 거부할 권리가 있으나, 필수 항목에 동의하지 않으면 가입·이용이 제한됩니다.</p>
+    <h4>6. 안전성 확보 조치</h4>
+    <p>비밀번호는 암호화되어 인증 서비스에서만 처리되고, 데이터는 로그인한 본인과 권한이 있는 학생회만 접근하도록 접근 규칙으로 제한합니다. 전송 구간은 HTTPS로 암호화됩니다.</p>
+    <h4>7. 만 14세 미만</h4>
+    <p>만 14세 미만 아동의 가입은 받지 않습니다.</p>
+    <h4>8. 문의와 변경</h4>
+    <p>개인정보 관련 문의와 열람·정정·삭제 요청은 이메일(kuaisemi@gmail.com)로 접수합니다. 방침이 바뀌면 시행 전에 앱에서 알리고, 중요한 변경은 다시 동의를 받습니다.</p>` },
+  cookies: { title:'쿠키·저장소 정책', html:`
+    <p class="lg-meta">시행일 ${LEGAL_EFFECTIVE}</p>
+    <p>이 서비스는 광고·분석·추적 목적의 쿠키를 사용하지 않습니다. 대신 서비스 동작에 꼭 필요한 아래 저장 기술을 사용합니다.</p>
+    <h4>1. 사용하는 저장소</h4>
+    <p>· <b>로그인 유지</b>: Firebase Authentication이 기기(브라우저·앱)의 IndexedDB에 로그인 상태를 저장합니다.<br>
+    · <b>기기 설정·캐시</b>: localStorage에 시간표·메모·알림 설정·화면 설정·최근 읽은 목록 등을 저장해 빠르게 열고 오프라인에서도 보이게 합니다.<br>
+    · <b>앱 캐시</b>: 서비스 워커가 화면 파일을 저장해 빠르게 엽니다.<br>
+    · <b>푸시 알림 식별값</b>: 알림을 받으려면 기기별 식별값이 서버에 저장됩니다.</p>
+    <h4>2. 거부와 삭제</h4>
+    <p>이 저장소들은 서비스 제공에 필수라서 거부하면 로그인·시간표 등을 쓸 수 없습니다. 기기의 브라우저 설정(사이트 데이터 삭제)이나 앱 정보에서 저장 데이터를 지울 수 있고, 로그아웃하면 개인 메모·일정이 기기 화면에서 비워집니다. 회원 탈퇴 시 서버에 저장된 정보도 함께 삭제됩니다.</p>
+    <h4>3. 제3자</h4>
+    <p>Google Firebase가 로그인·저장·알림을 위해 위 저장소를 사용합니다. 광고 네트워크나 별도의 분석 도구는 사용하지 않습니다.</p>` },
+};
+function legalDocBody(key){ const d = LEGAL_DOCS[key]; return d ? `<div class="legal-doc">${d.html}</div>` : ''; }
+function openLegalDoc(key){
+  const d = LEGAL_DOCS[key]; if(!d) return;
+  let ov = document.getElementById('legal-overlay');
+  if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'legal-overlay';
+  ov.className = 'legal-overlay';
+  ov.innerHTML = `<div class="legal-sheet" role="dialog" aria-modal="true"><div class="legal-head"><b>${escapeHtml(d.title)}</b><button type="button" class="legal-x" aria-label="닫기">✕</button></div><div class="legal-scroll">${legalDocBody(key)}</div></div>`;
+  ov.addEventListener('click', e=>{ if(e.target===ov || e.target.closest('.legal-x')) ov.remove(); });
+  document.body.appendChild(ov);
+}
+// 어느 화면에서든 data-legal="terms|privacy|cookies" 인 요소를 누르면 해당 글을 연다.
+// (체크박스 라벨 안의 링크를 눌러도 체크가 바뀌지 않게 캡처 단계에서 막는다.)
+document.addEventListener('click', (e)=>{
+  const el = e.target.closest && e.target.closest('[data-legal]');
+  if(!el) return;
+  e.preventDefault(); e.stopPropagation();
+  openLegalDoc(el.getAttribute('data-legal'));
+}, true);
+
+function needsLegalConsent(){ return !!(state.user && state.user.consentV !== LEGAL_VERSION); }
+function closeLegalGate(){ const g = document.getElementById('legal-gate'); if(g) g.remove(); }
+function showLegalGate(){
+  if(!state.user || document.getElementById('legal-gate')) return;
+  const g = document.createElement('div');
+  g.id = 'legal-gate';
+  g.className = 'legal-gate';
+  g.innerHTML = `
+    <div class="legal-gate-card">
+      <p class="lg-title">약관·개인정보처리방침 동의</p>
+      <p class="lg-desc">서비스를 계속 이용하려면 새 이용약관, 개인정보처리방침, 쿠키·저장소 정책에 동의해야 해요. (시행일 ${LEGAL_EFFECTIVE})</p>
+      <div class="lg-links">
+        <button type="button" class="btn btn-ghost btn-sm" data-legal="terms">이용약관 보기</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-legal="privacy">개인정보처리방침 보기</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-legal="cookies">쿠키·저장소 정책 보기</button>
+      </div>
+      <label class="consent-check"><input type="checkbox" id="legal-gate-check"> <span>[필수] 이용약관, 개인정보처리방침, 쿠키·저장소 정책을 확인했고 동의합니다</span></label>
+      <button type="button" class="btn btn-primary" id="legal-gate-ok" disabled>동의하고 계속하기</button>
+      <button type="button" class="btn btn-ghost" id="legal-gate-no">동의하지 않음 (로그아웃)</button>
+      <p class="lg-foot">동의하지 않으면 서비스를 이용할 수 없어요. 계정 삭제나 문의는 kuaisemi@gmail.com 로 해주세요.</p>
+    </div>`;
+  document.body.appendChild(g);
+  const chk = g.querySelector('#legal-gate-check'), ok = g.querySelector('#legal-gate-ok');
+  chk.addEventListener('change', ()=>{ ok.disabled = !chk.checked; });
+  ok.addEventListener('click', acceptLegalGate);
+  g.querySelector('#legal-gate-no').addEventListener('click', ()=>{ logout(); });
+}
+async function acceptLegalGate(){
+  const ok = document.getElementById('legal-gate-ok');
+  if(!state.user || !auth.currentUser) return;
+  if(ok) ok.disabled = true;
+  const consent = { v: LEGAL_VERSION, at: now() };
+  try{
+    await setDoc(doc(db,'users',state.user.uid), { consent }, { merge:true });
+  }catch(e){
+    console.error('[legal-consent]', e);
+    toast('동의 저장에 실패했어요. 네트워크를 확인하고 다시 시도해주세요');
+    if(ok) ok.disabled = false;
+    return;
+  }
+  state.user.consentV = LEGAL_VERSION;
+  try{ localSet('user_'+state.user.uid, state.user); }catch(_){}
+  closeLegalGate();
+  toast(`${state.user.name}님 환영합니다`);
+  setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
+}
+
+// MY → 개인정보 삭제 요청: 즉시 삭제(회원 탈퇴)로 이어지는 안내 화면.
+function privacyDeleteModal(){
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title">개인정보 삭제 요청<button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:12px; line-height:1.65; margin:0 0 10px; color:var(--text-dim);">
+      회원 탈퇴를 하면 계정과 시간표·메모·개인 일정·접속 기록·친구 검색 정보·친구 관계가 바로 삭제돼요. 복구할 수 없어요.</p>
+    <p style="font-size:11.5px; line-height:1.65; margin:0 0 12px; color:var(--text-dim);">
+      <b>자동 삭제되지 않는 것</b>: 친구와 주고받은 채팅 메시지(상대방의 대화 기록이기도 해요), 운영 기록(경고·정지·관리 로그). 이 정보의 삭제를 원하면 kuaisemi@gmail.com 로 요청해주세요. 자세한 내용은 개인정보처리방침에 있어요.</p>
+    <div class="modal-actions" style="flex-direction:column; gap:8px;">
+      <button type="button" class="btn btn-danger" data-action="delete-account">회원 탈퇴로 모두 삭제하기</button>
+      <button type="button" class="btn btn-ghost" data-legal="privacy">개인정보처리방침 보기</button>
+    </div>`;
+}
+
 
 // 네이티브 앱(APK) 안이 아니면서, UA가 안드로이드인 브라우저(삼성 인터넷·크롬 등)에서만 true.
 // PWA로 이미 설치해 standalone으로 떠 있으면 제외한다 — 설치 팝업/위젯탭 안내는
@@ -7063,6 +7240,7 @@ function renderSignupForm(){
         </div>
         <label class="consent-check"><input type="checkbox" name="consentRequired" required> <span>[필수] 위 개인정보 수집·이용에 동의합니다</span></label>
         <label class="consent-check"><input type="checkbox" name="consentAge" required> <span>[필수] 만 14세 이상이며, 본인의 정보를 직접 입력했습니다</span></label>
+        <label class="consent-check consent-sm"><input type="checkbox" name="consentTerms" required> <span>[필수] <a href="#" data-legal="terms">이용약관</a>, <a href="#" data-legal="privacy">개인정보처리방침</a>, <a href="#" data-legal="cookies">쿠키·저장소 정책</a>에 동의합니다</span></label>
       </div>
       <p class="signup-privacy-note">${ICON.lock} <span>입력하신 비밀번호는 <b>학생회가 별도로 저장·보관하지 않습니다.</b><br>계정 인증은 Google Firebase Authentication에 위탁되어 암호화 처리됩니다.</span></p>
       <button class="btn btn-primary" type="submit">가입하기</button>
@@ -12375,7 +12553,18 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row danger" data-action="reset-all-timetables"><span class="link-row-label"><span class="lr-ic">${ICON.trash}</span> 모든 시간표 삭제</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row danger" data-action="privacy-delete"><span class="link-row-label"><span class="lr-ic">${ICON.trash}</span> 개인정보 삭제 요청</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row danger" data-action="delete-account"><span class="link-row-label"><span class="lr-ic">${ICON.personOff}</span> 회원 탈퇴</span> <span class="sub">${ICON.chevR}</span></div>
+    </div>
+
+    <div class="section-title">약관 및 정책</div>
+    <div class="card" style="padding-top:8px; padding-bottom:8px;">
+      <div class="link-row" data-legal="terms"><span class="link-row-label">이용약관</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-legal="privacy"><span class="link-row-label">개인정보처리방침</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-legal="cookies"><span class="link-row-label">쿠키·저장소 정책</span> <span class="sub">${ICON.chevR}</span></div>
     </div>
 
     <div class="section-title dev-section-head">
@@ -14903,7 +15092,7 @@ async function handleSignup(fd){
   let role = state.signupRole==='council' ? 'council' : 'student';
 
   if(!studentId||!name){ showAuthError('학번과 이름을 입력해주세요.'); return; }
-  if(!fd.get('consentRequired') || !fd.get('consentAge')){ showAuthError('필수 동의 항목에 모두 체크해주세요.'); return; }
+  if(!fd.get('consentRequired') || !fd.get('consentAge') || !fd.get('consentTerms')){ showAuthError('필수 동의 항목에 모두 체크해주세요.'); return; }
   const check=validateStudentId(studentId);
   if(!check.valid){ showAuthError(check.message); return; }
   if(password.length<6){ showAuthError('비밀번호는 6자 이상이어야 합니다.'); return; }
@@ -14989,14 +15178,14 @@ async function handleSignup(fd){
     if(state.signupRole==='council'){
       // 규칙이 통과시키는 직급을 찾는다. 전부 거부되면 코드가 틀린 것.
       const grantedRole = await createUserDocWithCode(
-        cred.user.uid, { studentId, name, createdAt: now() }, councilCodeInput);
+        cred.user.uid, { studentId, name, createdAt: now(), consent:{ v:LEGAL_VERSION, at:now() } }, councilCodeInput);
       if(!grantedRole){
         await deleteUser(cred.user).catch(()=>{});
         showAuthError('학생회 인증코드가 올바르지 않습니다.');
         return;
       }
     }else{
-      const ok=await createUserDoc(cred.user.uid, { studentId, name, role:'student', createdAt: now() });
+      const ok=await createUserDoc(cred.user.uid, { studentId, name, role:'student', createdAt: now(), consent:{ v:LEGAL_VERSION, at:now() } });
       if(!ok){
         // 프로필 저장이 실패하면 로그인 계정만 남아 이 학번으로 재가입이 막히는 유령
         // 계정이 된다 — 학생회 가입 실패 때처럼 여기서도 즉시 되돌린다.
@@ -15697,6 +15886,13 @@ async function handleDeleteAccountSubmit(fd){
   try{
     await deleteDoc(doc(db, 'timetables', uidStr)).catch(() => {});
     await deleteDoc(doc(db, 'userMeta', uidStr)).catch(() => {});
+    await deleteDoc(doc(db, 'memos', uidStr)).catch(() => {});
+    await deleteDoc(doc(db, 'signupInquiries', uidStr)).catch(() => {});
+    // 친구 관계 문서도 지운다(내가 포함된 것만 규칙이 허용한다). 실패해도 탈퇴는 계속한다.
+    try{
+      const fl = await getDocs(query(collection(db, 'friendLinks'), where('uids', 'array-contains', uidStr)));
+      await Promise.all(fl.docs.map(d => deleteDoc(d.ref).catch(() => {})));
+    }catch(_){}
     // 친구 검색용 studentDirectory도 같이 지운다 — 안 지우면 탈퇴한 학번으로도 계속
     // "친구 추가" 검색이 되는 유령 학번 문제가 생긴다.
     await deleteDoc(doc(db, 'studentDirectory', uidStr)).catch(() => {});
@@ -16659,6 +16855,7 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'manage-gemini-keys'){ openModal(await geminiKeysModal()); }
     else if(a === 'change-password'){ openModal(changePasswordModal()); }
     else if(a === 'delete-account'){ openModal(deleteAccountModal()); }
+    else if(a === 'privacy-delete'){ openModal(privacyDeleteModal()); }
     else if(a === 'kick-member'){ openModal(kickMemberModal(el.dataset.sid, el.dataset.name)); }
     else if(a === 'toggle-tt-fab'){ if(state.ttFabDocked){ setTtFabDock(false); } else { setTtFab(!state.ttFabOpen); } }
     else if(a === 'close-tt-fab'){ setTtFab(false); }

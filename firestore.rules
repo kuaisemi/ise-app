@@ -221,8 +221,11 @@ service cloud.firestore {
     // 직급·가입일 같은 정보까지 다 새어나가므로, 이 용도로만 쓸 아주 작은 문서를 따로 둔다.
     match /studentDirectory/{uid} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == uid
+      allow create, update: if isSignedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['studentId', 'name']);
+      // 삭제 요청에는 request.resource가 없어서 위 조건이 평가 오류로 거부된다 — 따로 열어 둬야
+      // 회원 탈퇴 때 친구 검색용 정보가 실제로 지워진다.
+      allow delete: if isSignedIn() && request.auth.uid == uid;
     }
 
     // 오늘 방문자 수: 하루에 문서 하나(문서 id = 날짜). 각자 자기 uid 키 하나만 적을 수 있고(값은 시각 숫자),
