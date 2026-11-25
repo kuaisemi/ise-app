@@ -6944,6 +6944,17 @@ const LEGAL_DOCS = {
     <p>만 14세 미만 아동의 가입은 받지 않습니다.</p>
     <h4>8. 문의와 변경</h4>
     <p>개인정보 관련 문의와 열람·정정·삭제 요청은 이메일(kuaisemi@gmail.com)로 접수합니다. 방침이 바뀌면 시행 전에 앱에서 알리고, 중요한 변경은 다시 동의를 받습니다.</p>` },
+  collect: { title:'개인정보 수집·이용 동의', html:`
+    <p class="lg-meta">시행일 ${LEGAL_EFFECTIVE}</p>
+    <h4>수집 항목</h4>
+    <p>학번, 이름, 출생연도(본인 확인용, 선택 입력), 비밀번호(암호화되어 Google Firebase Authentication에서 처리), 시간표·친구·알림 설정 등 앱 이용 기록, 푸시 알림 기기 식별값</p>
+    <h4>이용 목적</h4>
+    <p>재학생 본인 확인 및 명단 대조, 시간표·학과 공지·투표 등 서비스 제공, 푸시 알림 발송</p>
+    <h4>보유 기간</h4>
+    <p>회원 탈퇴 시까지. 탈퇴하면 계정과 개인 데이터는 삭제돼요.</p>
+    <h4>동의 거부 권리</h4>
+    <p>동의하지 않을 수 있으나, 동의하지 않으면 가입할 수 없어요.</p>
+    ` },
   cookies: { title:'쿠키·저장소 정책', html:`
     <p class="lg-meta">시행일 ${LEGAL_EFFECTIVE}</p>
     <p>이 서비스는 광고·분석·추적 목적의 쿠키를 사용하지 않습니다. 대신 서비스 동작에 꼭 필요한 아래 저장 기술을 사용합니다.</p>
@@ -7310,14 +7321,7 @@ function renderSignupForm(){
       </div>
       ${state.signupRole==='council' ? `<div class="field"><label>학생회 인증코드</label><input type="text" name="councilCode" style="font-family:var(--font-display)" placeholder="학생회 인증코드"></div>` : ''}
       <div class="signup-consent">
-        <p class="consent-title">개인정보 수집·이용 동의</p>
-        <div class="consent-box">
-          <b>수집 항목</b>: 학번, 이름, 출생연도(본인 확인용, 선택 입력), 비밀번호(암호화되어 Google Firebase Authentication에서 처리), 시간표·친구·알림 설정 등 앱 이용 기록, 푸시 알림 기기 식별값<br>
-          <b>이용 목적</b>: 재학생 본인 확인 및 명단 대조, 시간표·학과 공지·투표 등 서비스 제공, 푸시 알림 발송<br>
-          <b>보유 기간</b>: 회원 탈퇴 시까지. 탈퇴하면 계정과 개인 데이터는 삭제돼요.<br>
-          동의하지 않을 수 있으나, 동의하지 않으면 가입할 수 없어요.
-        </div>
-        <label class="consent-check"><input type="checkbox" name="consentRequired" required> <span>[필수] 위 개인정보 수집·이용에 동의합니다</span></label>
+        <label class="consent-check consent-sm"><input type="checkbox" name="consentRequired" required> <span>[필수] <a href="#" data-legal="collect">개인정보 수집·이용</a>에 동의합니다</span></label>
         <label class="consent-check"><input type="checkbox" name="consentAge" required> <span>[필수] 만 14세 이상이며, 본인의 정보를 직접 입력했습니다</span></label>
         <label class="consent-check consent-sm"><input type="checkbox" name="consentTerms" required> <span>[필수] <a href="#" data-legal="terms">이용약관</a>, <a href="#" data-legal="privacy">개인정보처리방침</a>, <a href="#" data-legal="cookies">쿠키·저장소 정책</a>에 동의합니다</span></label>
       </div>
