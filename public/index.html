@@ -12648,9 +12648,12 @@ function renderMypage(){
         <div class="divider" style="margin:2px 0;"></div>
         <div class="link-row" data-action="clear-app-cache"><span class="link-row-label">${ICON.trash} 저장된 캐시 비우기</span> <span class="sub" style="display:flex; align-items:center; gap:6px;"><span style="font-size:10px; color:var(--text-faint);">${(cacheBytes()/1024).toFixed(0)}KB</span>${ICON.chevR}</span></div>
       </div>
-      ${isCouncil() ? `
-      ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
-      ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+    </div>
+
+    ${isCouncil() ? `
+    <div class="section-title">학생회 전용</div>
+    <div class="card" style="padding-top:8px; padding-bottom:8px;">
+      ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div><div class="divider" style="margin:2px 0;"></div>` : ''}
       ${isCouncil() ? `<div class="link-row" data-action="open-pw-resets"><span class="link-row-label">${ICON.key} 비밀번호 초기화 요청</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
@@ -12668,8 +12671,7 @@ function renderMypage(){
       <div class="link-row" data-action="manage-gemini-keys"><span class="link-row-label">${ICON.camera} AI 인식 키 관리</span> <span class="sub">${ICON.chevR}</span></div>
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ` : ''}
-    </div>
+    </div>` : ''}
 
     <div class="section-title">개인정보</div>
     <div class="card" style="padding-top:8px; padding-bottom:8px;">
