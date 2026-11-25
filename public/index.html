@@ -15032,7 +15032,31 @@ function mapAuthError(err){
   return '오류가 발생했습니다: ' + (c || (err && err.message) || '알 수 없음');
 }
 
+/* ===== 로그인 시도 제한 =====
+ * 이 기기(브라우저·앱)에서 로그인에 5번 틀리면 5분 동안 로그인 시도를 막는다. 학번이 아니라 기기 단위로 세서,
+ * 남의 학번을 일부러 틀려 그 사람을 잠그는 오용을 막는다. 이미 로그인된 사람에게는 영향이 없다.
+ * (기기 저장소 기반이라 저장소를 지우면 풀린다 — 서버 쪽 제한(Firebase)이 따로 계속 막아 주므로 보조 장치다.) */
+const LOGIN_MAX_FAILS = 5, LOGIN_LOCK_MS = 5 * 60 * 1000;
+function loginLockState(){ try{ return JSON.parse(localStorage.getItem('login_lock') || '{}') || {}; }catch(e){ return {}; } }
+function loginLockSave(st){ try{ localStorage.setItem('login_lock', JSON.stringify(st)); }catch(e){} }
+function loginLockLeftMs(){ return Math.max(0, (loginLockState().until || 0) - Date.now()); }
+function loginLockMsg(ms){
+  const sec = Math.ceil(ms / 1000), m = Math.floor(sec / 60), r = sec % 60;
+  return '로그인에 ' + LOGIN_MAX_FAILS + '번 틀려서 잠겼어요. ' + (m ? m + '분 ' : '') + r + '초 뒤에 다시 시도해주세요. 비밀번호가 기억나지 않으면 학생회에 초기화를 요청해주세요.';
+}
+function clearLoginFails(){ try{ localStorage.removeItem('login_lock'); }catch(e){} }
+function loginFailMessage(base){
+  const st = loginLockState();
+  st.fails = (st.fails || 0) + 1;
+  if(st.fails >= LOGIN_MAX_FAILS){ st.fails = 0; st.until = Date.now() + LOGIN_LOCK_MS; loginLockSave(st); return loginLockMsg(LOGIN_LOCK_MS); }
+  loginLockSave(st);
+  return base + ' (남은 시도 ' + (LOGIN_MAX_FAILS - st.fails) + '회)';
+}
+function isLoginCredentialFail(err){ const c = err && err.code; return c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found'; }
+
 async function handleLogin(fd){
+  const lockLeft = loginLockLeftMs();
+  if(lockLeft > 0){ showAuthError(loginLockMsg(lockLeft)); return; }
   const studentId=(fd.get('studentId')||'').trim();
   const password=fd.get('password');
   const check=validateStudentId(studentId);
@@ -15043,7 +15067,7 @@ async function handleLogin(fd){
   try{
     const roster = await loadRoster().catch(()=>({}));
     if(Object.keys(roster).length>0 && !roster[studentId]){
-      showAuthError('학과 명단에 등록되지 않은 학번입니다. 학생회에 문의해주세요.');
+      showAuthError(loginFailMessage('학과 명단에 등록되지 않은 학번입니다. 학생회에 문의해주세요.'));
       return;
     }
     let cred;
@@ -15057,6 +15081,7 @@ async function handleLogin(fd){
         throw err1;
       }
     }
+    clearLoginFails();
     if(Object.keys(roster).length>0){
       const udoc = await fetchUserDoc(cred.user.uid);
       const rEntry = rosterEntry(roster[studentId]);
@@ -15066,7 +15091,7 @@ async function handleLogin(fd){
       }
     }
   }catch(err){
-    showAuthError(mapAuthError(err));
+    showAuthError(isLoginCredentialFail(err) ? loginFailMessage(mapAuthError(err)) : mapAuthError(err));
   }finally{ if(btn) btn.disabled=false; }
 }
 
