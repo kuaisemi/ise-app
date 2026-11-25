@@ -7193,6 +7193,8 @@ function renderAuth(){
       </p>
       ${versionFooter()}
     </div>`;
+  // 아직 잠겨 있는 채로 로그인 화면을 다시 연 경우(재시작·새로고침 포함) 남은 시간을 이어서 보여 준다
+  if(isLogin && loginLockLeftMs() > 0) startLoginLockTicker();
 }
 function renderLoginForm(){
   return `
@@ -15045,6 +15047,28 @@ function loginLockMsg(ms){
   return '로그인에 ' + LOGIN_MAX_FAILS + '번 틀려서 잠겼어요. ' + (m ? m + '분 ' : '') + r + '초 뒤에 다시 시도해주세요. 비밀번호가 기억나지 않으면 학생회에 초기화를 요청해주세요.';
 }
 function clearLoginFails(){ try{ localStorage.removeItem('login_lock'); }catch(e){} }
+// 잠겨 있는 동안 로그인 화면의 남은 시간을 1초마다 줄여 보여 주고, 0이 되면 메시지를 지우고 버튼을 다시 켠다.
+let loginLockTimer = null;
+function startLoginLockTicker(){
+  if(loginLockTimer){ clearInterval(loginLockTimer); loginLockTimer = null; }
+  const tick = ()=>{
+    const form = document.getElementById('login-form');
+    if(!form){ clearInterval(loginLockTimer); loginLockTimer = null; return; }   // 다른 화면으로 넘어가면 멈춘다
+    const left = loginLockLeftMs();
+    const box = document.getElementById('auth-error');
+    const btn = form.querySelector('button[type=submit]');
+    if(left <= 0){
+      clearInterval(loginLockTimer); loginLockTimer = null;
+      if(box) box.innerHTML = '';
+      if(btn) btn.disabled = false;
+      return;
+    }
+    if(box) box.innerHTML = '<div class="error-msg">' + escapeHtml(loginLockMsg(left)) + '</div>';
+    if(btn) btn.disabled = true;
+  };
+  tick();
+  if(loginLockLeftMs() > 0) loginLockTimer = setInterval(tick, 1000);
+}
 function loginFailMessage(base){
   const st = loginLockState();
   st.fails = (st.fails || 0) + 1;
@@ -15056,7 +15080,7 @@ function isLoginCredentialFail(err){ const c = err && err.code; return c === 'au
 
 async function handleLogin(fd){
   const lockLeft = loginLockLeftMs();
-  if(lockLeft > 0){ showAuthError(loginLockMsg(lockLeft)); return; }
+  if(lockLeft > 0){ startLoginLockTicker(); return; }
   const studentId=(fd.get('studentId')||'').trim();
   const password=fd.get('password');
   const check=validateStudentId(studentId);
@@ -15092,7 +15116,10 @@ async function handleLogin(fd){
     }
   }catch(err){
     showAuthError(isLoginCredentialFail(err) ? loginFailMessage(mapAuthError(err)) : mapAuthError(err));
-  }finally{ if(btn) btn.disabled=false; }
+  }finally{
+    if(btn) btn.disabled=false;
+    if(loginLockLeftMs() > 0) startLoginLockTicker();   // 방금 5번째로 틀려 잠겼다면 바로 카운트다운을 시작한다
+  }
 }
 
 // createUserWithEmailAndPassword가 성공하는 순간 onAuthStateChanged가 먼저 깨어난다.
