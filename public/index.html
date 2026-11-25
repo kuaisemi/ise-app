@@ -2207,15 +2207,22 @@ const APP = document.getElementById('app');
 // 앱 안쪽(하단·패치노트·업데이트 확인)에 보이는 버전. 화면 패치를 낼 때마다 올린다(Beta 0.4.1, Beta 0.4.2 …).
 // 안드로이드 앱(APK) 자체의 버전 이름(설정 > 앱 정보에 보이는 값)은 android/app/build.gradle의 versionName이고,
 // 그쪽은 'Beta'만 둔다. APK 안에 박혀 있어서 새 APK를 낼 때만 바뀐다.
-const APP_VERSION = 'Beta 0.6.2';
+const APP_VERSION = 'Beta 0.6.3';
 // 패치노트 항목의 version과 APP_VERSION을 계열 이름(Beta/Alpha)을 뗀 숫자로 맞춰 비교한다.
 function patchNotesFor(v){ const num = x => String(x).replace(/^(Beta|Alpha) +/, ''); return PATCH_NOTES.find(p => num(p.version) === num(v)); }
 // android/app/build.gradle의 versionCode와 항상 같이 올려야 한다. GitHub 릴리즈 태그(v160 등)와
 // 비교해서 "네이티브 앱 업데이트 있음"을 판단하는 기준값 — APP_VERSION처럼 자동 동기화되지 않고 수동으로 맞춘다.
-const ANDROID_VERSION_CODE = 178;
+const ANDROID_VERSION_CODE = 179;
 // 게시판 글을 "공지로 올리면" 공지사항·홈에 머무는 시간. (함수에서 쓰이므로 top-level const는 파일 위쪽에 둔다 — TDZ 방지)
 const ANNOUNCE_MS = 24*60*60*1000;
 const PATCH_NOTES = [
+  { version:'Beta 0.6.3', date:'2026-11-25', summary:'약관 · 개인정보 안내와 비밀번호 초기화가 생겼어요!', items:[
+    { title:'약관 · 개인정보 동의', text:'이용약관, 개인정보처리방침, 쿠키 · 저장소 정책이 생겼어요. 처음 한 번 동의하면 계속 이용할 수 있고, MY의 "개인정보"에서 언제든 다시 볼 수 있어요' },
+    { title:'개인정보 삭제 · 회원 탈퇴', text:'MY → 개인정보에서 한 번에 할 수 있어요' },
+    { title:'비밀번호 초기화', text:'비밀번호를 잊으면 로그인 화면에서 초기화를 요청할 수 있어요. 학생회가 확인한 뒤 임시 비밀번호를 알려주고, 로그인하면 새 비밀번호로 바꾸게 돼요' },
+    { title:'로그인 5회 제한', text:'로그인에 5번 틀리면 5분 동안 잠기고 남은 시간이 표시돼요' },
+    { title:'개인 일정 · 학식', text:'직접 추가한 일정과 시험이 나만 보이는 곳에 따로 저장돼서 더 빨라졌어요. 학식은 서버가 미리 받아 둬서 월요일 아침에도 식단이 비지 않아요' },
+  ] },
   { version:'Beta 0.6.2', date:'2026-10-17', summary:'태블릿 화면 여백을 다듬었어요!', items:[
     { title:'상태바에 안 가려져요', text:'다른 태블릿에서 맨 위(시계 줄)와 맨 아래(제스처 바)에 화면이 가려지던 걸 고쳤어요. 상단바 · 메뉴 · 팝업 · 사이드 패널이 모두 그만큼 내려와요' },
     { title:'가로 모드 상태바', text:'태블릿 가로 모드에서는 상태바를 색칠하지 않고 투명하게 두고, 글자가 겹치면 위쪽이 은은하게 흐려져요' },
