@@ -12629,17 +12629,6 @@ function renderMypage(){
       <div class="link-row danger" data-action="reset-all-timetables"><span class="link-row-label"><span class="lr-ic">${ICON.trash}</span> 모든 시간표 삭제</span> <span class="sub">${ICON.chevR}</span></div>
     </div>
 
-    <div class="section-title">개인정보</div>
-    <div class="card" style="padding-top:8px; padding-bottom:8px;">
-      <div class="link-row" data-legal="terms"><span class="link-row-label">이용약관</span> <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row" data-legal="privacy"><span class="link-row-label">개인정보처리방침</span> <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row" data-legal="cookies"><span class="link-row-label">쿠키·저장소 정책</span> <span class="sub">${ICON.chevR}</span></div>
-      <div class="divider" style="margin:2px 0;"></div>
-      <div class="link-row danger" data-action="delete-account"><span class="link-row-label"><span class="lr-ic">${ICON.personOff}</span> 개인정보 삭제 · 회원 탈퇴</span> <span class="sub">${ICON.chevR}</span></div>
-    </div>
-
     <div class="section-title dev-section-head">
       <span>추가기능</span>
       <span class="dev-card-visitors">오늘 방문자 <b id="today-visitors">${traffic.todayVisitors}</b>명</span>
@@ -12661,8 +12650,8 @@ function renderMypage(){
       </div>
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
-      ${isDirectorPlus() ? `<div class="link-row" data-action="open-pw-resets"><span class="link-row-label">${ICON.key} 비밀번호 초기화 요청</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isDirectorPlus() ? `<div class="link-row" data-action="open-pw-resets"><span class="link-row-label">${ICON.key} 비밀번호 초기화 요청</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회장 전용</p>
@@ -12680,6 +12669,17 @@ function renderMypage(){
       <div class="divider" style="margin:2px 0;"></div>
       <div class="link-row" data-action="purge-tombstones"><span class="link-row-label">${ICON.trash} 삭제된 게시물 지금 정리하기</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ` : ''}
+    </div>
+
+    <div class="section-title">개인정보</div>
+    <div class="card" style="padding-top:8px; padding-bottom:8px;">
+      <div class="link-row" data-legal="terms"><span class="link-row-label">이용약관</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-legal="privacy"><span class="link-row-label">개인정보처리방침</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row" data-legal="cookies"><span class="link-row-label">쿠키·저장소 정책</span> <span class="sub">${ICON.chevR}</span></div>
+      <div class="divider" style="margin:2px 0;"></div>
+      <div class="link-row danger" data-action="delete-account"><span class="link-row-label"><span class="lr-ic">${ICON.personOff}</span> 개인정보 삭제 · 회원 탈퇴</span> <span class="sub">${ICON.chevR}</span></div>
     </div>
 
     ${isRawDeveloper() ? `
