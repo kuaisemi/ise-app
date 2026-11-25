@@ -228,6 +228,38 @@ service cloud.firestore {
       allow delete: if isSignedIn() && request.auth.uid == uid;
     }
 
+    // 비밀번호 초기화 요청 — 로그인할 수 없는 사람이 남기므로 로그인 없이도 만들 수 있게 열되, 문서 모양과 값의 길이를 엄격히
+    // 제한한다(그 밖의 필드·긴 글은 거부). 읽기·삭제는 국장 이상만, 수정은 아무도 못 한다.
+    match /passwordResetRequests/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['studentId', 'name', 'birthYear', 'contact', 'createdAt', 'status'])
+        && request.resource.data.keys().hasAll(['studentId', 'name', 'createdAt', 'status'])
+        && request.resource.data.studentId is string && request.resource.data.studentId.matches('^[0-9]{10}$')
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
+        && request.resource.data.get('birthYear', '') is string && request.resource.data.get('birthYear', '').size() <= 4
+        && request.resource.data.get('contact', '') is string && request.resource.data.get('contact', '').size() <= 60
+        && request.resource.data.createdAt is number
+        && request.resource.data.createdAt > request.time.toMillis() - 6 * 60 * 60 * 1000
+        && request.resource.data.createdAt < request.time.toMillis() + 6 * 60 * 60 * 1000
+        && request.resource.data.status == 'pending';
+      allow read, delete: if isDirectorPlus();
+      allow update: if false;
+    }
+
+    // 비밀번호 초기화 승인(임시 비밀번호 포함) — 서버 크론이 읽어서 비밀번호를 바꾼 뒤 지운다(Admin SDK는 규칙을 우회).
+    // 앱에서는 만들기만 되고 읽을 수 없다. 만드는 사람은 국장 이상이어야 하고, 자기보다 직급이 낮은 계정만 대상으로 삼을 수 있다
+    // (국장이 회장 계정을 초기화해 탈취하는 일을 막는다). byUid는 반드시 본인이어야 한다.
+    match /passwordResetApprovals/{id} {
+      allow create: if isDirectorPlus()
+        && request.resource.data.keys().hasOnly(['targetUid', 'studentId', 'tempPw', 'byUid', 'createdAt'])
+        && request.resource.data.byUid == request.auth.uid
+        && request.resource.data.targetUid is string
+        && request.resource.data.tempPw is string && request.resource.data.tempPw.size() >= 8 && request.resource.data.tempPw.size() <= 32
+        && request.resource.data.createdAt is number
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+        && roleLevelNum(userDoc().role) > roleLevelNum(get(/databases/$(database)/documents/users/$(request.resource.data.targetUid)).data.get('role', 'student'));
+      allow read, update, delete: if false;
+    }
+
     // 오늘 방문자 수: 하루에 문서 하나(문서 id = 날짜). 각자 자기 uid 키 하나만 적을 수 있고(값은 시각 숫자),
     // 읽을 때는 이 문서 하나만 읽어서 키 개수를 센다 — 가입자 전체를 읽지 않아도 된다.
     match /dailyVisits/{day} {

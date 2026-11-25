@@ -170,6 +170,47 @@ async function processPendingAuthReactivations() {
   console.log(`[authReactivate] ${done}건 해제, ${remaining.length}건 남음`);
 }
 
+// 비밀번호 초기화 승인 처리. 학생회(국장 이상)가 앱에서 승인하면 passwordResetApprovals/{id}에 임시 비밀번호가 담긴 문서가 생긴다.
+// 클라이언트는 남의 비밀번호를 못 바꾸므로(Admin SDK만 가능) 여기서 대신 바꾸고, 평문 비밀번호가 남지 않게 처리 즉시 문서를 지운다.
+// 규칙이 이미 "승인자 직급 > 대상 직급"을 강제하지만, 방어를 겹쳐서 여기서도 한 번 더 확인한다. 로그에 비밀번호는 절대 남기지 않는다.
+const PW_RESET_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const PW_ROLE_LEVEL = { student: 0, council: 1, director: 2, vice: 3, president: 3, developer: 4 };
+async function processPasswordResetApprovals() {
+  const snap = await db.collection('passwordResetApprovals').get();
+  if (snap.empty) return;
+  const lvl = (r) => (PW_ROLE_LEVEL[r] != null ? PW_ROLE_LEVEL[r] : 0);
+  let done = 0, dropped = 0, failed = 0;
+  for (const d of snap.docs) {
+    const a = d.data() || {};
+    try {
+      const malformed = !a.targetUid || !a.byUid || typeof a.tempPw !== 'string' || a.tempPw.length < 8;
+      const stale = Date.now() - (Number(a.createdAt) || 0) > PW_RESET_MAX_AGE_MS;
+      if (malformed || stale) { await d.ref.delete(); dropped++; continue; }
+      const [tSnap, bSnap] = await Promise.all([
+        db.collection('users').doc(a.targetUid).get(),
+        db.collection('users').doc(a.byUid).get(),
+      ]);
+      const allowed = tSnap.exists && bSnap.exists
+        && lvl(bSnap.data().role) >= 2
+        && lvl(bSnap.data().role) > lvl(tSnap.data().role);
+      if (!allowed) { console.warn('[pwReset] 권한 불일치로 거절', d.id); await d.ref.delete(); dropped++; continue; }
+      await getAuth().updateUser(a.targetUid, { password: a.tempPw });
+      await getAuth().revokeRefreshTokens(a.targetUid);   // 이미 로그인된 기기는 다음 토큰 갱신 때 로그아웃된다
+      await db.collection('users').doc(a.targetUid).set(
+        { mustChangePassword: true, passwordResetAt: Date.now() },
+        { merge: true }
+      );
+      await d.ref.delete();
+      done++;
+      console.log('[pwReset] 초기화', a.targetUid, a.studentId || '');
+    } catch (e) {
+      failed++;                                  // 문서를 남겨 다음 실행에서 다시 시도한다(24시간이 지나면 위에서 버린다)
+      console.error('[pwReset] 실패', d.id, (e && e.code) || (e && e.message) || e);
+    }
+  }
+  console.log(`[pwReset] ${done}건 초기화, ${dropped}건 폐기, ${failed}건 재시도 대기`);
+}
+
 // 가입 중 프로필(users/{uid}) 저장이 실패하면(네트워크 끊김 등) 로그인 계정만 남아
 // 그 학번으로 다시는 가입할 수 없는 유령 계정이 된다. 클라이언트가 실패 시 즉시
 // 되돌리도록 고쳤지만(2026-09-08), 그 전에 이미 생긴 것과 향후 놓치는 경우를 대비해
@@ -399,6 +440,7 @@ async function main() {
       await purgeOldTombstones();
       await purgePendingAuthDeletes();
       await processPendingAuthReactivations();
+      await processPasswordResetApprovals();
       return;
     }
   }
@@ -729,6 +771,7 @@ async function main() {
   await purgeOldTombstones();
   await purgePendingAuthDeletes();
   await processPendingAuthReactivations();
+  await processPasswordResetApprovals();
   // 가입자 전체·친구 관계 전체를 읽는 정리 작업은 매시간이 아니라 하루에 한 번(한국 시간 새벽 4시대 실행)만 한다 — 읽기량 절감.
   if (new Date(Date.now() + 9 * 3600 * 1000).getUTCHours() === 4) {
     const authUsers = await listAllAuthUsers();

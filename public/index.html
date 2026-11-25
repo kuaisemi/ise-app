@@ -4612,6 +4612,7 @@ function boot(){
             suspension: udoc.suspension || null,
             warnings: udoc.warnings || [],
             consentV: (udoc.consent && udoc.consent.v) || '',
+            mustChangePw: !!udoc.mustChangePassword,
           };
           // 알림 목록의 "읽음/지움" 상태를 기기 로컬(localStorage)에만 두면, 앱을 지우고 새로
           // 깔거나 다른 기기로 바꿨을 때 이미 확인한 알림이 다시 나타난다. 로그인할 때
@@ -4647,6 +4648,7 @@ function boot(){
         if(state.pendingNotifRoute){ const r=state.pendingNotifRoute; state.pendingNotifRoute=null; routeNotificationTap(r.category, r.data); }
         // 약관·방침이 새로 생겼거나 바뀌었는데 아직 동의하지 않은 계정은 동의 화면이 앱을 가린다(동의하면 환영·안내가 이어진다).
         if(needsLegalConsent()){ showLegalGate(); return; }
+        if(state.user.mustChangePw){ showPwChangeGate(); return; }
         toast(`${state.user.name}님 환영합니다`);
         // 화면이 그려진 뒤에 안내를 띄운다(부팅 중 흰 화면 위에 뜨는 것 방지)
         setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
@@ -6847,7 +6849,7 @@ const LEGAL_DOCS = {
     <h4>2. 이용 목적</h4>
     <p>재학생 본인 확인과 명단 대조, 시간표·공지·투표 등 서비스 제공, 푸시 알림 발송, 부정 이용 방지와 분쟁 처리, 서비스 개선을 위한 이용 현황 집계.</p>
     <h4>3. 보유 및 이용 기간</h4>
-    <p>회원 탈퇴 시까지 보유하며, 탈퇴하면 계정과 시간표·메모·개인 일정·접속 기록·친구 검색 정보 등을 삭제합니다. 다만 다음은 예외입니다. ① 운영 기록(경고·정지·관리 로그)은 부정 이용 방지를 위해 필요한 범위에서 보관합니다. ② 1년 이상 접속하지 않은 계정은 잠길 수 있고, 이 경우 정보는 삭제되지 않고 보관됩니다.</p>
+    <p>회원 탈퇴 시까지 보유하며, 탈퇴하면 계정과 시간표·메모·개인 일정·친구 관계 등을 삭제합니다. 다만 다음은 예외입니다. ① 운영 기록(경고·정지·관리 로그)은 부정 이용 방지를 위해 필요한 범위에서 보관합니다. ② 1년 이상 접속하지 않은 계정은 잠길 수 있고, 이 경우 정보는 삭제되지 않고 보관됩니다.</p>
     <h4>4. 처리 위탁과 외부 서비스</h4>
     <p>서비스 운영을 위해 아래 외부 서비스를 이용하며, 해당 서비스로 개인정보가 전송·저장될 수 있습니다.<br>
     · Google Firebase(Authentication, Firestore, Cloud Messaging): 로그인, 데이터 저장, 푸시 알림<br>
@@ -6904,7 +6906,7 @@ document.addEventListener('click', (e)=>{
 }, true);
 
 function needsLegalConsent(){ return !!(state.user && state.user.consentV !== LEGAL_VERSION); }
-function closeLegalGate(){ const g = document.getElementById('legal-gate'); if(g) g.remove(); }
+function closeLegalGate(){ for(const id of ['legal-gate','pw-gate']){ const g = document.getElementById(id); if(g) g.remove(); } }
 function showLegalGate(){
   if(!state.user || document.getElementById('legal-gate')) return;
   const g = document.createElement('div');
@@ -6943,6 +6945,7 @@ async function acceptLegalGate(){
   state.user.consentV = LEGAL_VERSION;
   try{ localSet('user_'+state.user.uid, state.user); }catch(_){}
   closeLegalGate();
+  if(state.user.mustChangePw){ showPwChangeGate(); return; }
   toast(`${state.user.name}님 환영합니다`);
   setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
 }
@@ -7185,11 +7188,13 @@ function renderAuth(){
     <div class="auth-wrap">
       <div class="brand"><span class="mark">${ICON.chipMark}</span><h1>ISE</h1></div>
       <p class="brand-sub">고려대학교 지능형반도체공학과</p>
-      <div class="auth-card">${isLogin ? renderLoginForm() : renderSignupForm()}</div>
+      <div class="auth-card">${isLogin ? renderLoginForm() : (state.authMode==='reset' ? renderResetForm() : renderSignupForm())}</div>
       <p class="switch-line">
         ${isLogin
-          ? `계정이 없으신가요? <span data-action="switch-auth" data-mode="signup">회원가입</span>`
-          : `이미 계정이 있으신가요? <span data-action="switch-auth" data-mode="login">로그인</span>`}
+          ? `계정이 없으신가요? <span data-action="switch-auth" data-mode="signup">회원가입</span><br><span data-action="switch-auth" data-mode="reset" style="opacity:.8;">비밀번호를 잊으셨나요?</span>`
+          : (state.authMode==='reset'
+            ? `<span data-action="switch-auth" data-mode="login">← 로그인으로 돌아가기</span>`
+            : `이미 계정이 있으신가요? <span data-action="switch-auth" data-mode="login">로그인</span>`)}
       </p>
       ${versionFooter()}
     </div>`;
@@ -12581,6 +12586,7 @@ function renderMypage(){
       </div>
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
+      ${isDirectorPlus() ? `<div class="link-row" data-action="open-pw-resets"><span class="link-row-label">${ICON.key} 비밀번호 초기화 요청</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
@@ -14214,7 +14220,7 @@ function deleteAccountModal(){
   return `
     <div class="modal-handle"></div>
     <div class="modal-title">개인정보 삭제 · 회원 탈퇴<button data-action="close-modal">${ICON.close}</button></div>
-    <p style="font-size:11.5px; color:var(--danger); margin:0 0 8px; line-height:1.55;">탈퇴하면 계정과 시간표·메모·개인 일정·접속 기록·친구 검색 정보·친구 관계가 바로 삭제되며 복구할 수 없습니다.</p>
+    <p style="font-size:11.5px; color:var(--danger); margin:0 0 8px; line-height:1.55;">탈퇴하면 계정과 시간표·메모·개인 일정·친구 관계가 바로 삭제되며 복구할 수 없습니다.</p>
     <p style="font-size:11px; color:var(--text-dim); margin:0 0 12px; line-height:1.6;">운영 기록(경고·정지·관리 로그)은 부정 이용 방지를 위해 필요한 범위에서 보관될 수 있어요. 문의는 kuaisemi@gmail.com 으로 해주세요. 자세한 내용은 <a href="#" data-legal="privacy" style="color:var(--teal); text-decoration:underline;">개인정보처리방침</a>을 확인해주세요.</p>
     <form id="delete-account-form">
       <div class="field"><label>비밀번호 확인</label><input type="password" name="password" required></div>
@@ -14989,6 +14995,7 @@ document.addEventListener('submit', async (e)=>{
 
   const HANDLERS = {
     'login-form': handleLogin,
+    'reset-form': handleResetRequest,
     'signup-form': handleSignup,
     'class-form': handleClassSubmit,
     'event-form': handleEventSubmit,
@@ -15119,6 +15126,178 @@ async function handleLogin(fd){
   }finally{
     if(btn) btn.disabled=false;
     if(loginLockLeftMs() > 0) startLoginLockTicker();   // 방금 5번째로 틀려 잠겼다면 바로 카운트다운을 시작한다
+  }
+}
+
+/* ===== 비밀번호 초기화 =====
+ * 계정 이메일이 학번@ise.local 이라서 "메일로 초기화 링크" 방식은 쓸 수 없다. 그래서 학생회 승인형으로 한다.
+ *  1) 로그인 못 하는 사람이 학번·이름·출생연도로 요청을 남긴다(passwordResetRequests, 로그인 없이 만들 수 있게 열되 모양을 엄격히 제한).
+ *  2) 국장 이상이 명단과 대조해 승인하면 임시 비밀번호를 만들어 passwordResetApprovals에 넣는다. 규칙이 "승인자 직급 > 대상 직급"일 때만 허용한다.
+ *  3) 서버(Worker가 워크플로를 바로 실행 → 크론)가 Admin SDK로 비밀번호를 바꾸고 users/{uid}.mustChangePassword 를 켠 뒤 승인 문서를 지운다.
+ *  4) 학생은 임시 비밀번호로 로그인하면 새 비밀번호로 바꾸는 화면이 앱을 가린다(showPwChangeGate). */
+function renderResetForm(){
+  return `
+    <p class="auth-title">비밀번호 초기화 요청</p>
+    <p class="auth-desc">학번·이름을 남기면 학생회가 본인 확인 후 임시 비밀번호를 알려드려요.</p>
+    <div id="auth-error"></div>
+    <form id="reset-form">
+      <div class="field"><label>학번</label><input type="text" name="studentId" inputmode="numeric" maxlength="10" placeholder="학번 10자리" required autocomplete="off"></div>
+      <div class="field"><label>이름</label><input type="text" name="name" maxlength="20" placeholder="이름 (실명)" required autocomplete="off"></div>
+      <div class="field"><label>출생연도</label><input type="text" name="birthYear" inputmode="numeric" maxlength="4" placeholder="예: 2004 (본인 확인용)" autocomplete="off" style="font-family:var(--font-mono)"></div>
+      <div class="field"><label>연락 방법 (선택)</label><input type="text" name="contact" maxlength="60" placeholder="카카오톡 ID · 전화번호 등" autocomplete="off"></div>
+      <p style="font-size:10.5px; color:var(--text-faint); line-height:1.6; margin:2px 0 12px;">입력한 정보는 본인 확인에만 쓰이고, 처리가 끝나면 삭제돼요. 요청은 10분에 한 번만 보낼 수 있어요.</p>
+      <button class="btn btn-primary" type="submit">초기화 요청 보내기</button>
+    </form>`;
+}
+async function handleResetRequest(fd){
+  const studentId = (fd.get('studentId')||'').trim();
+  const name = (fd.get('name')||'').trim();
+  const birthYear = (fd.get('birthYear')||'').trim();
+  const contact = (fd.get('contact')||'').trim();
+  const check = validateStudentId(studentId);
+  if(!check.valid){ showAuthError(check.message); return; }
+  if(!name || name.length > 20){ showAuthError('이름을 입력해주세요.'); return; }
+  if(birthYear && !/^[0-9]{4}$/.test(birthYear)){ showAuthError('출생연도는 숫자 4자리로 입력해주세요.'); return; }
+  let last = 0; try{ last = Number(localStorage.getItem('pwreset_last')||0); }catch(e){}
+  if(Date.now() - last < 10*60*1000){ showAuthError('방금 요청을 보냈어요. 10분 뒤에 다시 시도해주세요.'); return; }
+  const btn = document.querySelector('#reset-form button[type=submit]');
+  if(btn) btn.disabled = true;
+  try{
+    await addDoc(collection(db,'passwordResetRequests'), { studentId, name, birthYear, contact, createdAt: Date.now(), status:'pending' });
+    try{ localStorage.setItem('pwreset_last', String(Date.now())); }catch(e){}
+    const card = document.querySelector('.auth-card');
+    if(card) card.innerHTML = `
+      <p class="auth-title">요청을 보냈어요</p>
+      <p class="auth-desc" style="line-height:1.7;">학생회가 본인 확인을 한 뒤 임시 비밀번호를 알려드려요. 임시 비밀번호로 로그인하면 새 비밀번호로 바꾸게 돼요.<br>연락이 오지 않으면 kuaisemi@gmail.com 으로 문의해주세요.</p>
+      <button class="btn btn-primary" type="button" data-action="switch-auth" data-mode="login">로그인 화면으로</button>`;
+  }catch(err){
+    console.error('[pwReset-request]', err);
+    showAuthError('요청을 보내지 못했어요. 잠시 후 다시 시도해주세요.');
+    if(btn) btn.disabled = false;
+  }
+}
+
+// ---- 학생회(국장 이상) 승인 화면 ----
+async function loadPwResetRequests(){
+  const snap = await getDocs(collection(db,'passwordResetRequests'));
+  return snap.docs.map(d=>({ id:d.id, ...d.data() })).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+}
+function pwResetModal(){
+  const list = state.pwResets || [];
+  const roster = state.pwResetRoster || {};
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">${ICON.key} 비밀번호 초기화 요청</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:10.5px; color:var(--text-faint); margin:0 0 10px; line-height:1.6;">로그인할 수 없는 가입자가 남긴 요청이에요. 명단과 맞는지 확인하고 직접 아는 사람인지 확인한 뒤 승인하세요. 승인하면 임시 비밀번호가 한 번만 보여요. 자기보다 직급이 높거나 같은 계정은 초기화할 수 없어요.</p>
+    <div style="max-height:64vh; overflow-y:auto;">
+      ${list.length ? list.map(r=>{
+        const e = rosterEntry(roster[r.studentId]);
+        const ok = !!e && String(e.name).trim()===String(r.name).trim() && (!e.birthYear || String(e.birthYear).trim()===String(r.birthYear||'').trim());
+        return `
+        <div class="card" style="margin-bottom:10px;">
+          <div class="row-between" style="margin-bottom:4px;">
+            <b style="font-size:13px;">${escapeHtml(r.name)}</b>
+            <span class="meta" style="font-family:var(--font-mono);">${escapeHtml(r.studentId)}</span>
+          </div>
+          <div class="meta" style="margin-bottom:4px;">${ok ? '<span style="color:var(--teal); font-weight:700;">명단과 일치</span>' : '<span style="color:var(--danger); font-weight:700;">명단과 다름 · 주의</span>'}${r.birthYear ? ' · 출생연도 '+escapeHtml(r.birthYear) : ''}</div>
+          ${r.contact ? `<div class="meta" style="margin-bottom:4px;">연락 ${escapeHtml(r.contact)}</div>` : ''}
+          <div class="meta" style="margin-bottom:8px;">요청 ${fmtDateTime(r.createdAt)}</div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-primary btn-sm" data-action="approve-pw-reset" data-id="${escapeHtml(r.id)}">승인 · 임시 비밀번호 발급</button>
+            <button class="btn btn-danger btn-sm" data-action="delete-pw-reset" data-id="${escapeHtml(r.id)}">삭제</button>
+          </div>
+        </div>`;}).join('') : `<div class="empty"><p>대기 중인 초기화 요청이 없습니다.</p></div>`}
+    </div>`;
+}
+function genTempPw(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const buf = new Uint32Array(10); crypto.getRandomValues(buf);
+  return Array.from(buf, n=>chars[n % chars.length]).join('');
+}
+async function approvePwReset(id){
+  const req = (state.pwResets||[]).find(r=>r.id===id);
+  if(!req || !isDirectorPlus()) return;
+  let target = null;
+  try{
+    const snap = await getDocs(query(collection(db,'users'), where('studentId','==',req.studentId), limit(1)));
+    if(!snap.empty) target = { uid: snap.docs[0].id, ...snap.docs[0].data() };
+  }catch(e){ console.error('[pwReset-find]', e); }
+  if(!target){ toast('이 학번으로 가입된 계정이 없어요'); return; }
+  if(roleLevel(target.role) >= roleLevel(myRole())){ toast('나와 같거나 높은 직급의 계정은 초기화할 수 없어요'); return; }
+  if(!await showConfirm(`${req.name}(${req.studentId})님의 비밀번호를 초기화할까요? 본인이 맞는지 꼭 확인하세요.`, {danger:false, okLabel:'초기화'})) return;
+  const tempPw = genTempPw();
+  try{
+    await setDoc(doc(db,'passwordResetApprovals', id), { targetUid: target.uid, studentId: req.studentId, tempPw, byUid: auth.currentUser.uid, createdAt: now() });
+    await deleteDoc(doc(db,'passwordResetRequests', id)).catch(()=>{});
+    state.pwResets = (state.pwResets||[]).filter(r=>r.id!==id);
+    logAudit('비밀번호 초기화', '계정', `${req.name} (${req.studentId})`);
+    openModal(pwResetResultModal(req.name, req.studentId, tempPw));
+  }catch(e){
+    console.error('[pwReset-approve]', e);
+    toast('초기화 승인에 실패했어요 (' + ((e&&e.code)||'알 수 없음') + ')');
+  }
+}
+async function deletePwReset(id){
+  const req = (state.pwResets||[]).find(r=>r.id===id);
+  if(!req) return;
+  if(!await showConfirm(`${req.name}(${req.studentId})님의 초기화 요청을 삭제할까요?`)) return;
+  try{
+    await deleteDoc(doc(db,'passwordResetRequests', id));
+    state.pwResets = (state.pwResets||[]).filter(r=>r.id!==id);
+    openModal(pwResetModal());
+    toast('요청을 삭제했어요');
+  }catch(e){ toast('삭제에 실패했어요'); }
+}
+function pwResetResultModal(name, sid, tempPw){
+  return `
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span class="modal-title-text">임시 비밀번호</span><button data-action="close-modal">${ICON.close}</button></div>
+    <p style="font-size:12px; line-height:1.65; margin:0 0 10px;"><b>${escapeHtml(name)}</b>(${escapeHtml(sid)})님에게 아래 임시 비밀번호를 직접 전달하세요. 이 화면을 닫으면 다시 볼 수 없어요.</p>
+    <div class="card" style="text-align:center; padding:16px 10px; margin-bottom:10px;"><span style="font-family:var(--font-mono); font-size:22px; font-weight:800; letter-spacing:.08em; user-select:all;">${escapeHtml(tempPw)}</span></div>
+    <p style="font-size:10.5px; color:var(--text-faint); line-height:1.6; margin:0 0 6px;">몇 분 안에 서버가 적용해요. 적용되기 전에는 로그인이 안 될 수 있어요. 로그인하면 새 비밀번호로 바꾸게 되고, 이미 로그인된 기기는 로그아웃돼요.</p>`;
+}
+
+// ---- 임시 비밀번호로 로그인한 뒤 새 비밀번호로 바꾸게 하는 화면 ----
+function showPwChangeGate(){
+  if(!state.user || document.getElementById('pw-gate')) return;
+  const g = document.createElement('div');
+  g.id = 'pw-gate';
+  g.className = 'legal-gate';
+  g.innerHTML = `
+    <div class="legal-gate-card">
+      <p class="lg-title">새 비밀번호로 바꿔주세요</p>
+      <p class="lg-desc">임시 비밀번호로 로그인했어요. 계속 이용하려면 나만 아는 새 비밀번호로 바꿔야 해요.</p>
+      <div id="pw-gate-error"></div>
+      <form id="pw-gate-form">
+        <div class="field"><label>새 비밀번호</label><input type="password" name="pw1" placeholder="6자 이상" required minlength="6" autocomplete="new-password"></div>
+        <div class="field"><label>새 비밀번호 확인</label><input type="password" name="pw2" placeholder="다시 입력" required minlength="6" autocomplete="new-password"></div>
+        <button class="btn btn-primary" type="submit" id="pw-gate-ok">비밀번호 변경</button>
+      </form>
+      <button type="button" class="btn btn-ghost" id="pw-gate-no">로그아웃</button>
+    </div>`;
+  document.body.appendChild(g);
+  g.querySelector('#pw-gate-form').addEventListener('submit', (e)=>{ e.preventDefault(); submitPwChange(new FormData(e.target)); });
+  g.querySelector('#pw-gate-no').addEventListener('click', ()=>{ logout(); });
+}
+async function submitPwChange(fd){
+  const box = document.getElementById('pw-gate-error');
+  const err = (m)=>{ if(box) box.innerHTML = '<div class="error-msg">'+escapeHtml(m)+'</div>'; };
+  const pw1 = fd.get('pw1') || '', pw2 = fd.get('pw2') || '';
+  if(pw1.length < 6){ err('비밀번호는 6자 이상이어야 해요.'); return; }
+  if(pw1 !== pw2){ err('두 비밀번호가 달라요.'); return; }
+  const btn = document.getElementById('pw-gate-ok'); if(btn) btn.disabled = true;
+  try{
+    await updatePassword(auth.currentUser, pw1);
+    await setDoc(doc(db,'users',state.user.uid), { mustChangePassword: false, passwordChangedAt: now() }, { merge:true });
+    state.user.mustChangePw = false;
+    closeLegalGate();
+    toast('비밀번호를 바꿨어요');
+    toast(`${state.user.name}님 환영합니다`);
+    setTimeout(()=>{ runNotificationOnboarding(); }, 1200);
+  }catch(e){
+    console.error('[pw-change]', e);
+    err(e && e.code === 'auth/requires-recent-login' ? '보안을 위해 다시 로그인한 뒤 바꿔주세요. 로그아웃 후 임시 비밀번호로 다시 로그인하세요.' : '비밀번호를 바꾸지 못했어요. 잠시 후 다시 시도해주세요.');
+    if(btn) btn.disabled = false;
   }
 }
 
@@ -16701,6 +16880,9 @@ document.addEventListener('click', async (e)=>{
     else if(a === 'open-signup-inquiries'){ state.signupInquiries = await loadSignupInquiries().catch(()=>[]); openModal(signupInquiriesModal()); }
     else if(a === 'approve-signup-inquiry'){ await approveSignupInquiry(el.dataset.uid); }
     else if(a === 'reject-signup-inquiry'){ await rejectSignupInquiry(el.dataset.uid); }
+    else if(a === 'open-pw-resets'){ state.pwResets = await loadPwResetRequests().catch(()=>[]); state.pwResetRoster = await loadRoster().catch(()=>({})); openModal(pwResetModal()); }
+    else if(a === 'approve-pw-reset'){ await approvePwReset(el.dataset.id); }
+    else if(a === 'delete-pw-reset'){ await deletePwReset(el.dataset.id); }
     else if(a === 'purge-tombstones'){
       if(!await showConfirm('삭제된 게시물을 지금 완전히 지울까요?', { danger:false, okLabel:'정리하기' })) return;
       const removed = await purgeOldTombstonesNow();

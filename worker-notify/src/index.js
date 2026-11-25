@@ -674,8 +674,44 @@ async function maybeDispatchMealWorkflow(env, scheduledTime) {
   }
 }
 
+/* ===== 비밀번호 초기화 승인 즉시 처리 =====
+   학생회가 승인하면 passwordResetApprovals/{id} 문서가 생긴다. 실제 비밀번호 변경은 Admin SDK가 필요해서 GitHub Actions(notify.yml)가
+   하는데, 그 크론은 한 시간에 한 번이라 너무 느리다. 이 Worker는 매분 돌므로 대기 중인 승인 문서가 있으면 워크플로를 바로 실행시킨다.
+   (GITHUB_DISPATCH_TOKEN이 없으면 아무것도 하지 않는다. 같은 요청을 연달아 부르지 않게 KV에 2분 표시를 남긴다.) */
+async function maybeDispatchResetWorkflow(env) {
+  if (!env.GITHUB_DISPATCH_TOKEN || !env.GITHUB_REPO) return;
+  if (await env.NOTIFY_CACHE.get('reset-dispatch')) return;
+  const token = await getAccessToken(env, { spend() {} });
+  const list = await fetch(`${fsBase(env.FIREBASE_PROJECT_ID)}/passwordResetApprovals?pageSize=1&mask.fieldPaths=createdAt`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!list.ok) { console.error('[reset-dispatch] 조회 실패', list.status); return; }
+  const j = await list.json();
+  if (!(j.documents && j.documents.length)) return;
+  const res = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/notify.yml/dispatches`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.GITHUB_DISPATCH_TOKEN}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'ku-ise-notify-worker',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ref: 'main' }),
+  });
+  if (res.status === 204) {
+    await env.NOTIFY_CACHE.put('reset-dispatch', '1', { expirationTtl: 120 });
+    console.log('[reset-dispatch] 비밀번호 초기화 처리 워크플로 실행 요청 완료');
+  } else {
+    console.error(`[reset-dispatch] 실패: ${res.status} ${(await res.text()).slice(0, 200)}`);
+  }
+}
+
 export default {
   async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      maybeDispatchResetWorkflow(env).catch((e) => console.error('[reset-dispatch] 오류:', e && e.message))
+    );
     ctx.waitUntil(
       maybeDispatchMealWorkflow(env, event.scheduledTime).catch((e) => console.error('[meal-dispatch] 오류:', e && e.message))
     );
