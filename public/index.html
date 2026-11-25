@@ -209,6 +209,13 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .legal-doc p{margin:0 0 6px;}
 .legal-doc b{color:var(--text);}
 .legal-doc .lg-meta{font-size:11px; color:var(--text-faint);}
+.legal-doc .lg-sec{border-top:1px solid var(--border);}
+.legal-doc .lg-sec:last-child{border-bottom:1px solid var(--border);}
+.legal-doc .lg-sec summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 2px; font-size:12.5px; font-weight:700; color:var(--text); -webkit-tap-highlight-color:transparent;}
+.legal-doc .lg-sec summary::-webkit-details-marker{display:none;}
+.legal-doc .lg-sec summary::after{content:''; flex-shrink:0; width:7px; height:7px; border-right:2px solid var(--text-dim); border-bottom:2px solid var(--text-dim); transform:rotate(45deg); margin-top:-3px; transition:transform .18s;}
+.legal-doc .lg-sec[open] summary::after{transform:rotate(-135deg); margin-top:3px;}
+.legal-doc .lg-body{padding:0 2px 10px;}
 .legal-gate{position:fixed; inset:0; z-index:60; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:20px; overflow:auto;}
 .legal-gate-card{width:100%; max-width:420px;}
 .legal-gate .lg-title{font-size:18px; font-weight:800; margin:0 0 8px; color:var(--text);}
@@ -6872,7 +6879,13 @@ const LEGAL_DOCS = {
     <h4>3. 제3자</h4>
     <p>Google Firebase가 로그인·저장·알림을 위해 위 저장소를 사용합니다. 광고 네트워크나 별도의 분석 도구는 사용하지 않습니다.</p>` },
 };
-function legalDocBody(key){ const d = LEGAL_DOCS[key]; return d ? `<div class="legal-doc">${d.html}</div>` : ''; }
+// 조항(h4 제목 + 뒤따르는 본문)마다 접었다 펼 수 있는 토글로 바꾼다. 제목 앞의 시행일·머리말은 그대로 보여준다.
+function legalDocBody(key){
+  const d = LEGAL_DOCS[key]; if(!d) return '';
+  const html = d.html.replace(/<h4>([\s\S]*?)<\/h4>((?:(?!<h4>)[\s\S])*)/g, (all, title, body)=>
+    '<details class="lg-sec"><summary>'+title+'</summary><div class="lg-body">'+body+'</div></details>');
+  return '<div class="legal-doc">'+html+'</div>';
+}
 function openLegalDoc(key){
   const d = LEGAL_DOCS[key]; if(!d) return;
   let ov = document.getElementById('legal-overlay');
@@ -6904,12 +6917,9 @@ function showLegalGate(){
     <div class="legal-gate-card">
       <p class="lg-title">약관·개인정보처리방침 동의</p>
       <p class="lg-desc">서비스를 계속 이용하려면 새 이용약관, 개인정보처리방침, 쿠키·저장소 정책에 동의해야 해요. (시행일 ${LEGAL_EFFECTIVE})</p>
-      <div class="lg-links">
-        <button type="button" class="btn btn-ghost btn-sm" data-legal="terms">이용약관 보기</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-legal="privacy">개인정보처리방침 보기</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-legal="cookies">쿠키·저장소 정책 보기</button>
+      <div class="signup-consent">
+        <label class="consent-check consent-sm"><input type="checkbox" id="legal-gate-check"> <span>[필수] <a href="#" data-legal="terms">이용약관</a>, <a href="#" data-legal="privacy">개인정보처리방침</a>, <a href="#" data-legal="cookies">쿠키·저장소 정책</a>에 동의합니다</span></label>
       </div>
-      <label class="consent-check"><input type="checkbox" id="legal-gate-check"> <span>[필수] 이용약관, 개인정보처리방침, 쿠키·저장소 정책을 확인했고 동의합니다</span></label>
       <button type="button" class="btn btn-primary" id="legal-gate-ok" disabled>동의하고 계속하기</button>
       <button type="button" class="btn btn-ghost" id="legal-gate-no">동의하지 않음 (로그아웃)</button>
       <p class="lg-foot">동의하지 않으면 서비스를 이용할 수 없어요. 계정 삭제나 문의는 kuaisemi@gmail.com 로 해주세요.</p>
