@@ -194,9 +194,6 @@ html.is-ios input[type=password]::placeholder{letter-spacing:normal;}
 .board-menu.open{display:block;}
 .board-opt{display:block; width:100%; text-align:left; padding:9px 12px; border:0; border-radius:8px; background:transparent; color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer;}
 .board-opt.on{background:var(--crimson); color:var(--on-crimson,#fff);}
-.legal-links{display:flex; justify-content:center; flex-wrap:wrap; gap:4px 6px; margin-bottom:4px; font-size:10px;}
-.legal-links a{color:var(--text-faint); text-decoration:underline;}
-.legal-links span{color:var(--text-faint); opacity:.6;}
 .consent-check.consent-sm{font-size:10.5px; color:var(--text-dim);}
 .consent-check.consent-sm a{color:var(--teal); text-decoration:underline;}
 .legal-overlay{position:fixed; inset:0; z-index:90; background:rgba(4,6,10,.78); display:flex; align-items:center; justify-content:center; padding:16px;}
@@ -6810,7 +6807,7 @@ const DEFAULT_HOME_ORDER = ['timetable','recruits','meal','shuttle','calendar','
 /* ===== 렌더 ===== */
 function renderApp(){ if(!state.user) closeLegalGate(); if(!state.user) renderAuth(); else renderShell(); if(!window.__uiSkipSync) uiSyncLayers(); }
 function versionFooter(){
-  return `<div class="app-version"><div class="legal-links"><a href="#" data-legal="terms">이용약관</a><span>·</span><a href="#" data-legal="privacy">개인정보처리방침</a><span>·</span><a href="#" data-legal="cookies">쿠키·저장소 정책</a></div>ISE · ${APP_VERSION}</div>`;
+  return `<div class="app-version">ISE · ${APP_VERSION}</div>`;
 }
 
 /* ===== 이용약관 · 개인정보처리방침 · 쿠키(저장소) 정책 =====
