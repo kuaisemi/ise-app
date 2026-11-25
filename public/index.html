@@ -12651,7 +12651,7 @@ function renderMypage(){
       ${isCouncil() ? `
       ${isDirectorPlus() ? `<div style="height:1px; background:var(--border); margin:10px 0 2px;"></div><p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회 전용</p>` : ''}
       ${isDirectorPlus() ? `<div class="link-row" data-action="open-signup-inquiries"><span class="link-row-label">${ICON.person} 가입 승인 대기${state.adminBadge.signupInquiries>0?` (${state.adminBadge.signupInquiries})`:''}</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
-      ${isDirectorPlus() ? `<div class="link-row" data-action="open-pw-resets"><span class="link-row-label">${ICON.key} 비밀번호 초기화 요청</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
+      ${isCouncil() ? `<div class="link-row" data-action="open-pw-resets"><span class="link-row-label">${ICON.key} 비밀번호 초기화 요청</span> <span class="sub">${ICON.chevR}</span></div>` : ''}
       ${isPresident() ? `
       <div style="height:1px; background:var(--border); margin:10px 0 2px;"></div>
       <p style="font-size:9.5px; font-weight:700; color:var(--text-faint); letter-spacing:.02em; margin:8px 2px 4px;">학생회장 전용</p>
@@ -15291,7 +15291,7 @@ function genTempPw(){
 }
 async function approvePwReset(id){
   const req = (state.pwResets||[]).find(r=>r.id===id);
-  if(!req || !isDirectorPlus()) return;
+  if(!req || !isCouncil()) return;
   let target = null;
   try{
     const snap = await getDocs(query(collection(db,'users'), where('studentId','==',req.studentId), limit(1)));

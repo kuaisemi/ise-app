@@ -191,7 +191,7 @@ async function processPasswordResetApprovals() {
         db.collection('users').doc(a.byUid).get(),
       ]);
       const allowed = tSnap.exists && bSnap.exists
-        && lvl(bSnap.data().role) >= 2
+        && lvl(bSnap.data().role) >= 1
         && lvl(bSnap.data().role) > lvl(tSnap.data().role);
       if (!allowed) { console.warn('[pwReset] 권한 불일치로 거절', d.id); await d.ref.delete(); dropped++; continue; }
       await getAuth().updateUser(a.targetUid, { password: a.tempPw });

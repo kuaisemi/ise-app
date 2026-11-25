@@ -229,7 +229,7 @@ service cloud.firestore {
     }
 
     // 비밀번호 초기화 요청 — 로그인할 수 없는 사람이 남기므로 로그인 없이도 만들 수 있게 열되, 문서 모양과 값의 길이를 엄격히
-    // 제한한다(그 밖의 필드·긴 글은 거부). 읽기·삭제는 국장 이상만, 수정은 아무도 못 한다.
+    // 제한한다(그 밖의 필드·긴 글은 거부). 읽기·삭제는 학생회 이상만, 수정은 아무도 못 한다.
     match /passwordResetRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['studentId', 'name', 'birthYear', 'contact', 'createdAt', 'status'])
         && request.resource.data.keys().hasAll(['studentId', 'name', 'createdAt', 'status'])
@@ -241,15 +241,15 @@ service cloud.firestore {
         && request.resource.data.createdAt > request.time.toMillis() - 6 * 60 * 60 * 1000
         && request.resource.data.createdAt < request.time.toMillis() + 6 * 60 * 60 * 1000
         && request.resource.data.status == 'pending';
-      allow read, delete: if isDirectorPlus();
+      allow read, delete: if isCouncil();
       allow update: if false;
     }
 
     // 비밀번호 초기화 승인(임시 비밀번호 포함) — 서버 크론이 읽어서 비밀번호를 바꾼 뒤 지운다(Admin SDK는 규칙을 우회).
-    // 앱에서는 만들기만 되고 읽을 수 없다. 만드는 사람은 국장 이상이어야 하고, 자기보다 직급이 낮은 계정만 대상으로 삼을 수 있다
+    // 앱에서는 만들기만 되고 읽을 수 없다. 만드는 사람은 학생회 이상이어야 하고, 자기보다 직급이 낮은 계정만 대상으로 삼을 수 있다
     // (국장이 회장 계정을 초기화해 탈취하는 일을 막는다). byUid는 반드시 본인이어야 한다.
     match /passwordResetApprovals/{id} {
-      allow create: if isDirectorPlus()
+      allow create: if isCouncil()
         && request.resource.data.keys().hasOnly(['targetUid', 'studentId', 'tempPw', 'byUid', 'createdAt'])
         && request.resource.data.byUid == request.auth.uid
         && request.resource.data.targetUid is string
